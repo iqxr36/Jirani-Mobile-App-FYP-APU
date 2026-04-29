@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790648716224",
+    "project_id": "final-year-project-faisal",
+    "storage_bucket": "final-year-project-faisal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790648716224:android:551c25282c673858ef2625",
+        "android_client_info": {
+          "package_name": "com.example.fyp_flutter_application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRmi-YCDKfI6KT5us5wmNVxGvKp6JRCoI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
