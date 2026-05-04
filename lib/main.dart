@@ -3,7 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/theme/app_theme.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/auth/login_view.dart';
+import 'package:fyp_flutter_application/viewmodels/verification_viewmodel.dart';
+import 'package:fyp_flutter_application/views/auth/auth_wrapper.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
@@ -22,12 +23,17 @@ class TrustCommunityApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthViewModel(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthViewModel>(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider<VerificationViewModel>(
+          create: (_) => VerificationViewModel(),
+        ),
+      ],
       child: MaterialApp(
         title: AppConstants.appName,
         theme: AppTheme.lightTheme,
-        home: const LoginView(),
+        home: const AuthWrapper(),
       ),
     );
   }

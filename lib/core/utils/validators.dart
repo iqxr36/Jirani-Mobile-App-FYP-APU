@@ -46,4 +46,29 @@ class Validators {
     }
     return null;
   }
+
+  static String? validatePhone(String? value) {
+    final raw = value?.trim() ?? '';
+    if (raw.isEmpty) {
+      return 'Phone number is required.';
+    }
+    final digits = raw.replaceAll(RegExp(r'\s'), '');
+    if (digits.length < 8 || digits.length > 15) {
+      return 'Enter a valid phone number (8–15 digits).';
+    }
+    if (!RegExp(r'^\+?[0-9]+$').hasMatch(digits)) {
+      return 'Use digits only, optional leading +.';
+    }
+    return null;
+  }
+
+  static String? validateConfirmPassword(String? value, String password) {
+    if ((value ?? '').isEmpty) {
+      return 'Please confirm your password.';
+    }
+    if (value != password) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  }
 }

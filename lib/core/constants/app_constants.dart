@@ -8,10 +8,20 @@ class AppConstants {
   static const String roleCommunityAdmin = 'communityAdmin';
   static const String roleSystemAdmin = 'systemAdmin';
 
-  // Verification statuses
+  // Verification statuses (active values only; see AppUser.fromMap for legacy Firestore data)
   static const String verificationPending = 'pending';
-  static const String verificationApproved = 'approved';
+  static const String verificationSubmitted = 'submitted';
+  static const String verificationVerified = 'verified';
   static const String verificationRejected = 'rejected';
+
+  /// Residency document kinds (stored on [VerificationRequest.documentType]).
+  static const String documentTypeUtilityBill = 'utilityBill';
+  static const String documentTypeTenancyAgreement = 'tenancyAgreement';
+  static const String documentTypeAccessCard = 'accessCard';
+  static const String documentTypeOtherProof = 'otherProof';
+
+  /// Firebase Storage root folder for verification uploads (see storage rules).
+  static const String storageVerificationDocumentsPath = 'verification_documents';
 
   // Firestore collections
   static const String usersCollection = 'users';
@@ -22,4 +32,6 @@ class AppConstants {
   static const String reviewsCollection = 'reviews';
   static const String chatsCollection = 'chats';
   static const String messagesCollection = 'messages';
+  static const String notificationsCollection = 'notifications';
+  static const String activityLogsCollection = 'activityLogs';
 }

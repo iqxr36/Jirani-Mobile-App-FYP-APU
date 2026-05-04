@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
@@ -16,25 +18,42 @@ class AuthRepository {
 
   Stream<User?> get authStateChanges => _authService.authStateChanges;
 
+  User? get currentFirebaseUser => _authService.currentUser;
+
+  Future<void> sendPasswordResetEmail(String email) {
+    return _authService.sendPasswordResetEmail(email);
+  }
+
   Future<AppUser?> getCurrentAppUser() async {
     final user = _authService.currentUser;
     if (user == null) return null;
 
-    final doc = await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .get();
+    const maxAttempts = 5;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      final doc = await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .get();
 
-    final data = doc.data();
-    if (data == null) return null;
+      final data = doc.data();
+      if (data != null) {
+        return AppUser.fromMap(data);
+      }
 
-    return AppUser.fromMap(data);
+      if (attempt < maxAttempts - 1) {
+        await Future<void>.delayed(Duration(milliseconds: 200 * (attempt + 1)));
+      }
+    }
+
+    return null;
   }
 
   Future<AppUser> register({
     required String fullName,
     required String email,
+    required String phoneNumber,
     required String password,
+    required bool termsAccepted,
   }) async {
     final credential = await _authService.createUserWithEmailAndPassword(
       email: email,
@@ -54,8 +73,19 @@ class AuthRepository {
       'uid': firebaseUser.uid,
       'fullName': fullName.trim(),
       'email': email.trim(),
+      'phoneNumber': phoneNumber.trim(),
       'role': AppConstants.roleResident,
       'verificationStatus': AppConstants.verificationPending,
+      'profileImageUrl': '',
+      'communityId': '',
+      'communityName': '',
+      'unitNumber': '',
+      'reputationScore': 0,
+      'totalReviews': 0,
+      'completedBorrowings': 0,
+      'completedLendings': 0,
+      'completedServices': 0,
+      'termsAccepted': termsAccepted,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -68,8 +98,19 @@ class AuthRepository {
         uid: firebaseUser.uid,
         fullName: fullName.trim(),
         email: email.trim(),
+        phoneNumber: phoneNumber.trim(),
         role: AppConstants.roleResident,
         verificationStatus: AppConstants.verificationPending,
+        profileImageUrl: '',
+        communityId: '',
+        communityName: '',
+        unitNumber: '',
+        reputationScore: 0,
+        totalReviews: 0,
+        completedBorrowings: 0,
+        completedLendings: 0,
+        completedServices: 0,
+        termsAccepted: termsAccepted,
         createdAt: now,
         updatedAt: now,
       );
@@ -92,17 +133,12 @@ class AuthRepository {
       throw Exception('Unable to login user.');
     }
 
-    final doc = await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(firebaseUser.uid)
-        .get();
-
-    final data = doc.data();
-    if (data == null) {
+    final appUser = await getCurrentAppUser();
+    if (appUser == null) {
       throw Exception('User profile not found in Firestore.');
     }
 
-    return AppUser.fromMap(data);
+    return appUser;
   }
 
   Future<void> logout() {
