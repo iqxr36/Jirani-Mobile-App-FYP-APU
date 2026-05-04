@@ -107,10 +107,75 @@ class ProfileView extends StatelessWidget {
                           label: 'Reputation',
                           value: '${user.reputationScore} (${user.totalReviews} reviews)',
                         ),
+                        _InfoRow(
+                          icon: Icons.alternate_email_outlined,
+                          label: 'Email',
+                          value: user.emailVerified ? 'Verified' : 'Not verified',
+                        ),
+                        _InfoRow(
+                          icon: Icons.phone_android_outlined,
+                          label: 'Phone',
+                          value: user.phoneVerified ? 'Verified' : 'Not verified',
+                        ),
+                        if (!user.emailVerified) ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: vm.isEmailVerificationSending
+                                ? null
+                                : () async {
+                                    await vm.resendEmailVerification();
+                                    if (!context.mounted) return;
+                                    if (vm.errorMessage == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Verification email sent.')),
+                                      );
+                                    }
+                                  },
+                            icon: const Icon(Icons.mark_email_read_outlined),
+                            label: const Text('Resend verification email'),
+                          ),
+                        ],
+                        if (!user.phoneVerified) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Phone SMS verification will be implemented in the next phase.',
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.sms_outlined),
+                            label: const Text('Verify phone number'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
+                if (!user.emailVerified) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Please verify your email address to improve account security.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 _MenuTile(
                   icon: Icons.edit_outlined,

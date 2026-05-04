@@ -43,7 +43,7 @@ class _RegisterViewState extends State<RegisterView> {
     await context.read<AuthViewModel>().register(
           fullName: _fullNameController.text.trim(),
           email: _emailController.text.trim(),
-          phoneNumber: _phoneController.text.trim(),
+          phoneNumber: Validators.normalizePhoneNumber(_phoneController.text),
           password: _passwordController.text,
           termsAccepted: true,
         );
@@ -51,6 +51,11 @@ class _RegisterViewState extends State<RegisterView> {
     if (!mounted) return;
     final vm = context.read<AuthViewModel>();
     if (vm.errorMessage == null && vm.currentUser != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created. A verification email has been sent to your email address.'),
+        ),
+      );
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
@@ -86,7 +91,8 @@ class _RegisterViewState extends State<RegisterView> {
                   controller: _phoneController,
                   labelText: 'Phone number',
                   keyboardType: TextInputType.phone,
-                  validator: Validators.validatePhone,
+                  helperText: 'Include country code, e.g. +60 for Malaysia.',
+                  validator: Validators.validatePhoneNumberWithCountryCode,
                 ),
                 const SizedBox(height: 12),
                 CustomTextField(

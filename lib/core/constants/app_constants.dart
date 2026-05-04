@@ -27,6 +27,32 @@ class AppConstants {
 
   /// Firebase Storage root folder for verification uploads (see storage rules).
   static const String storageVerificationDocumentsPath = 'verification_documents';
+  static const String storageItemImagesPath = 'item_images';
+
+  // Marketplace item categories
+  static const String itemCategoryTools = 'tools';
+  static const String itemCategoryKitchen = 'kitchen';
+  static const String itemCategoryElectronics = 'electronics';
+  static const String itemCategoryCleaning = 'cleaning';
+  static const String itemCategoryStudy = 'study';
+  static const String itemCategoryEventItems = 'eventItems';
+  static const String itemCategoryOther = 'other';
+
+  // Marketplace item conditions
+  static const String itemConditionNew = 'new';
+  static const String itemConditionGood = 'good';
+  static const String itemConditionUsed = 'used';
+
+  // Marketplace lending types
+  static const String lendingTypeFree = 'free';
+  static const String lendingTypeSmallFee = 'smallFee';
+  static const String lendingTypeDepositRequired = 'depositRequired';
+
+  // Marketplace item statuses
+  static const String itemStatusAvailable = 'available';
+  static const String itemStatusUnavailable = 'unavailable';
+  static const String itemStatusBorrowed = 'borrowed';
+  static const String itemStatusArchived = 'archived';
 
   // Firestore collections
   static const String usersCollection = 'users';

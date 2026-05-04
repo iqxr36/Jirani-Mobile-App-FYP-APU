@@ -9,6 +9,7 @@ class FirebaseAuthService {
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
   User? get currentUser => _firebaseAuth.currentUser;
+  bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
 
   Future<UserCredential> signInWithEmailAndPassword({
     required String email,
@@ -36,5 +37,13 @@ class FirebaseAuthService {
 
   Future<void> sendPasswordResetEmail(String email) {
     return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  Future<void> sendEmailVerification() async {
+    await _firebaseAuth.currentUser?.sendEmailVerification();
+  }
+
+  Future<void> reloadCurrentUser() async {
+    await _firebaseAuth.currentUser?.reload();
   }
 }

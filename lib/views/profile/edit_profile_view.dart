@@ -49,7 +49,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     await vm.saveProfile(
       fullName: _nameController.text,
-      phoneNumber: _phoneController.text,
+      phoneNumber: Validators.normalizePhoneNumber(_phoneController.text),
       communityName: _communityController.text,
       unitNumber: _unitController.text,
       profileImageUrl: _photoUrlController.text.trim(),
@@ -85,7 +85,8 @@ class _EditProfileViewState extends State<EditProfileView> {
                   controller: _phoneController,
                   labelText: 'Phone number',
                   keyboardType: TextInputType.phone,
-                  validator: Validators.validatePhone,
+                  helperText: 'Include country code, e.g. +60 for Malaysia.',
+                  validator: Validators.validatePhoneNumberWithCountryCode,
                 ),
                 const SizedBox(height: 12),
                 CustomTextField(

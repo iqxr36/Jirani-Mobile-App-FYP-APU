@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
+import 'package:fyp_flutter_application/views/marketplace/add_item_view.dart';
+import 'package:fyp_flutter_application/views/marketplace/marketplace_browse_view.dart';
+import 'package:fyp_flutter_application/views/marketplace/my_listed_items_view.dart';
 import 'package:fyp_flutter_application/views/profile/profile_view.dart';
 import 'package:fyp_flutter_application/views/verification/upload_verification_document_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_status_view.dart';
@@ -232,20 +235,61 @@ class ResidentHomePlaceholderView extends StatelessWidget {
           const SizedBox(height: 20),
           Text('Quick previews', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _DisabledPreviewCard(
+          _FeaturePreviewCard(
             icon: Icons.shopping_bag_outlined,
             title: 'Items nearby',
             subtitle: 'Marketplace — Phase 3',
+            enabled: isVerified,
+            onTap: () {
+              if (isVerified) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const MarketplaceBrowseView()),
+                );
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Complete residency verification to access marketplace features.')),
+              );
+            },
           ),
-          _DisabledPreviewCard(
+          if (isVerified) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const AddItemView()),
+                    );
+                  },
+                  icon: const Icon(Icons.add_box_outlined),
+                  label: const Text('Add Item'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const MyListedItemsView()),
+                    );
+                  },
+                  icon: const Icon(Icons.inventory_2_outlined),
+                  label: const Text('My Listed Items'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          _FeaturePreviewCard(
             icon: Icons.handshake_outlined,
             title: 'Active borrowings',
             subtitle: 'Phase 4',
+            enabled: false,
           ),
-          _DisabledPreviewCard(
+          _FeaturePreviewCard(
             icon: Icons.home_repair_service_outlined,
             title: 'Local services',
             subtitle: 'Phase 5',
+            enabled: false,
           ),
         ],
       ),
@@ -253,27 +297,31 @@ class ResidentHomePlaceholderView extends StatelessWidget {
   }
 }
 
-class _DisabledPreviewCard extends StatelessWidget {
-  const _DisabledPreviewCard({
+class _FeaturePreviewCard extends StatelessWidget {
+  const _FeaturePreviewCard({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.enabled = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final bool enabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: Icon(icon, color: Colors.grey),
+        leading: Icon(icon, color: enabled ? Theme.of(context).colorScheme.primary : Colors.grey),
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.lock_outline, size: 20),
-        onTap: null,
+        trailing: Icon(enabled ? Icons.chevron_right : Icons.lock_outline, size: 20),
+        onTap: onTap,
       ),
     );
   }

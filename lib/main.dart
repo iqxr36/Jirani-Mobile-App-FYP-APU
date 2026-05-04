@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/theme/app_theme.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/viewmodels/verification_viewmodel.dart';
-import 'package:fyp_flutter_application/views/auth/auth_wrapper.dart';
+import 'package:fyp_flutter_application/providers/auth_provider.dart';
+import 'package:fyp_flutter_application/providers/item_provider.dart';
+import 'package:fyp_flutter_application/providers/verification_provider.dart';
+import 'package:fyp_flutter_application/screens/auth/auth_wrapper.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
@@ -25,10 +26,11 @@ class TrustCommunityApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthViewModel>(create: (_) => AuthViewModel()),
-        ChangeNotifierProvider<VerificationViewModel>(
-          create: (_) => VerificationViewModel(),
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<VerificationProvider>(
+          create: (_) => VerificationProvider(),
         ),
+        ChangeNotifierProvider<ItemProvider>(create: (_) => ItemProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

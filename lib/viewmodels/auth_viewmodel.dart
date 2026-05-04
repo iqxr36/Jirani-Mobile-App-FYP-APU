@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException, User;
 import 'package:flutter/foundation.dart';
+import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/data/models/app_user.dart';
 import 'package:fyp_flutter_application/data/repositories/auth_repository.dart';
 import 'package:fyp_flutter_application/data/repositories/user_repository.dart';
@@ -23,7 +24,9 @@ class AuthViewModel extends ChangeNotifier {
   bool _authBootstrapComplete = false;
   bool _profileLoading = false;
   bool _isLoading = false;
+  bool _isEmailVerificationSending = false;
   String? _errorMessage;
+  String? _successMessage;
   String? _profileErrorMessage;
   AppUser? _currentUser;
   bool _showAccountCreatedScreen = false;
@@ -32,7 +35,9 @@ class AuthViewModel extends ChangeNotifier {
   bool get isAuthBootstrapComplete => _authBootstrapComplete;
   bool get isProfileLoading => _profileLoading;
   bool get isLoading => _isLoading;
+  bool get isEmailVerificationSending => _isEmailVerificationSending;
   String? get errorMessage => _errorMessage;
+  String? get successMessage => _successMessage;
   String? get profileErrorMessage => _profileErrorMessage;
   AppUser? get currentUser => _currentUser;
   bool get showAccountCreatedScreen => _showAccountCreatedScreen;
@@ -46,6 +51,7 @@ class AuthViewModel extends ChangeNotifier {
   }) async {
     _setLoading(true);
     clearError(notify: false);
+    _successMessage = null;
     _profileErrorMessage = null;
 
     try {
@@ -58,6 +64,7 @@ class AuthViewModel extends ChangeNotifier {
       );
       _firebaseUser = _repository.currentFirebaseUser;
       _showAccountCreatedScreen = true;
+      _successMessage = 'Account created. A verification email has been sent to your email address.';
     } catch (e) {
       _errorMessage = _mapAuthError(e);
     } finally {
@@ -71,6 +78,7 @@ class AuthViewModel extends ChangeNotifier {
   }) async {
     _setLoading(true);
     clearError(notify: false);
+    _successMessage = null;
     _profileErrorMessage = null;
 
     try {
@@ -96,6 +104,7 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = null;
       _firebaseUser = null;
       _showAccountCreatedScreen = false;
+      _successMessage = null;
       _profileErrorMessage = null;
     } catch (e) {
       _errorMessage = _mapAuthError(e);
@@ -107,6 +116,7 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> sendPasswordResetEmail(String email) async {
     _setLoading(true);
     clearError(notify: false);
+    _successMessage = null;
 
     try {
       await _repository.sendPasswordResetEmail(email);
@@ -134,6 +144,28 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> resendEmailVerification() async {
+    if (_isEmailVerificationSending) return;
+    _isEmailVerificationSending = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _repository.resendEmailVerification();
+      _successMessage = 'Verification email sent.';
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+    } finally {
+      _isEmailVerificationSending = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshEmailVerificationStatus() async {
+    await refreshCurrentUser();
+  }
+
   Future<void> saveProfile({
     required String fullName,
     required String phoneNumber,
@@ -148,12 +180,18 @@ class AuthViewModel extends ChangeNotifier {
     clearError(notify: false);
 
     try {
+      final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
+      final previousPhone = _currentUser?.phoneNumber ?? '';
+      final phoneChanged = normalizedPhone != previousPhone;
       final fields = <String, dynamic>{
         'fullName': fullName.trim(),
-        'phoneNumber': phoneNumber.trim(),
+        'phoneNumber': normalizedPhone,
         'communityName': communityName.trim(),
         'unitNumber': unitNumber.trim(),
       };
+      if (phoneChanged) {
+        fields['phoneVerified'] = false;
+      }
       if (profileImageUrl != null) {
         fields['profileImageUrl'] = profileImageUrl.trim();
       }
@@ -169,6 +207,11 @@ class AuthViewModel extends ChangeNotifier {
 
   void clearError({bool notify = true}) {
     _errorMessage = null;
+    if (notify) notifyListeners();
+  }
+
+  void clearSuccessMessage({bool notify = true}) {
+    _successMessage = null;
     if (notify) notifyListeners();
   }
 

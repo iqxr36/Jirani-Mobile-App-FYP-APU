@@ -27,8 +27,19 @@ class AccountCreatedView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your ${AppConstants.appName} account is ready. Residency verification is required '
-                'before you can use full community features such as marketplace, services, and chat.',
+                'Your ${AppConstants.appName} account is ready.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'A verification email has been sent to your email address.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please verify your email and complete residency verification to unlock full community features.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),

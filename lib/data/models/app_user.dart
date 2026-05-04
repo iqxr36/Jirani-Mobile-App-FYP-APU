@@ -7,6 +7,8 @@ class AppUser {
     required this.fullName,
     required this.email,
     required this.phoneNumber,
+    required this.emailVerified,
+    required this.phoneVerified,
     required this.role,
     required this.verificationStatus,
     required this.profileImageUrl,
@@ -27,6 +29,8 @@ class AppUser {
   final String fullName;
   final String email;
   final String phoneNumber;
+  final bool emailVerified;
+  final bool phoneVerified;
   final String role;
   final String verificationStatus;
   final String profileImageUrl;
@@ -50,6 +54,8 @@ class AppUser {
     String? fullName,
     String? email,
     String? phoneNumber,
+    bool? emailVerified,
+    bool? phoneVerified,
     String? role,
     String? verificationStatus,
     String? profileImageUrl,
@@ -70,6 +76,8 @@ class AppUser {
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      emailVerified: emailVerified ?? this.emailVerified,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
       role: role ?? this.role,
       verificationStatus: verificationStatus ?? this.verificationStatus,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
@@ -93,6 +101,8 @@ class AppUser {
       'fullName': fullName,
       'email': email,
       'phoneNumber': phoneNumber,
+      'emailVerified': emailVerified,
+      'phoneVerified': phoneVerified,
       'role': role,
       'verificationStatus': verificationStatus,
       'profileImageUrl': profileImageUrl,
@@ -121,6 +131,8 @@ class AppUser {
       fullName: (map['fullName'] as String?) ?? '',
       email: (map['email'] as String?) ?? '',
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
+      emailVerified: map['emailVerified'] as bool? ?? false,
+      phoneVerified: map['phoneVerified'] as bool? ?? false,
       role: (map['role'] as String?) ?? AppConstants.roleResident,
       verificationStatus: normalizedStatus,
       profileImageUrl: (map['profileImageUrl'] as String?) ?? '',

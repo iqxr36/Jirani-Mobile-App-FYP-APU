@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/data/models/app_user.dart';
 import 'package:fyp_flutter_application/services/firebase_auth_service.dart';
 
@@ -24,20 +25,36 @@ class AuthRepository {
     return _authService.sendPasswordResetEmail(email);
   }
 
+  Future<void> resendEmailVerification() {
+    return _authService.sendEmailVerification();
+  }
+
   Future<AppUser?> getCurrentAppUser() async {
     final user = _authService.currentUser;
     if (user == null) return null;
+    await _authService.reloadCurrentUser();
+    final refreshedUser = _authService.currentUser;
+    if (refreshedUser == null) return null;
+    final authEmailVerified = _authService.isEmailVerified;
 
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final doc = await _firestore
           .collection(AppConstants.usersCollection)
-          .doc(user.uid)
+          .doc(refreshedUser.uid)
           .get();
 
       final data = doc.data();
       if (data != null) {
-        return AppUser.fromMap(data);
+        final appUser = AppUser.fromMap(data);
+        if (appUser.emailVerified != authEmailVerified) {
+          await _firestore.collection(AppConstants.usersCollection).doc(refreshedUser.uid).update({
+            'emailVerified': authEmailVerified,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          return appUser.copyWith(emailVerified: authEmailVerified);
+        }
+        return appUser;
       }
 
       if (attempt < maxAttempts - 1) {
@@ -55,8 +72,9 @@ class AuthRepository {
     required String password,
     required bool termsAccepted,
   }) async {
+    final normalizedPhoneNumber = Validators.normalizePhoneNumber(phoneNumber);
     final credential = await _authService.createUserWithEmailAndPassword(
-      email: email,
+      email: email.trim(),
       password: password,
     );
 
@@ -64,6 +82,7 @@ class AuthRepository {
     if (firebaseUser == null) {
       throw Exception('Unable to create user account.');
     }
+    await _authService.sendEmailVerification();
 
     final userDoc = _firestore
         .collection(AppConstants.usersCollection)
@@ -73,9 +92,11 @@ class AuthRepository {
       'uid': firebaseUser.uid,
       'fullName': fullName.trim(),
       'email': email.trim(),
-      'phoneNumber': phoneNumber.trim(),
+      'phoneNumber': normalizedPhoneNumber,
       'role': AppConstants.roleResident,
       'verificationStatus': AppConstants.verificationPending,
+      'emailVerified': _authService.isEmailVerified,
+      'phoneVerified': false,
       'profileImageUrl': '',
       'communityId': '',
       'communityName': '',
@@ -98,7 +119,9 @@ class AuthRepository {
         uid: firebaseUser.uid,
         fullName: fullName.trim(),
         email: email.trim(),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: normalizedPhoneNumber,
+        emailVerified: _authService.isEmailVerified,
+        phoneVerified: false,
         role: AppConstants.roleResident,
         verificationStatus: AppConstants.verificationPending,
         profileImageUrl: '',
@@ -124,7 +147,7 @@ class AuthRepository {
     required String password,
   }) async {
     final credential = await _authService.signInWithEmailAndPassword(
-      email: email,
+      email: email.trim(),
       password: password,
     );
 
@@ -133,6 +156,7 @@ class AuthRepository {
       throw Exception('Unable to login user.');
     }
 
+    await _authService.reloadCurrentUser();
     final appUser = await getCurrentAppUser();
     if (appUser == null) {
       throw Exception('User profile not found in Firestore.');
