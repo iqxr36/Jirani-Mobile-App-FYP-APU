@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +6,18 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/data/models/app_user.dart';
 import 'package:fyp_flutter_application/data/models/verification_request.dart';
+
+import 'verification_upload_platform_stub.dart'
+    if (dart.library.io) 'verification_upload_platform_io.dart';
+
+/// Thrown when the picked filename does not resolve to an allowed extension.
+class VerificationUnsupportedFileTypeException implements Exception {
+  VerificationUnsupportedFileTypeException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class VerificationRepository {
   VerificationRepository({
@@ -45,9 +57,46 @@ class VerificationRepository {
     return VerificationRequest.fromMap(sorted.first.data());
   }
 
+  /// Marks the user's latest cancellable request as cancelled and resets user verification to pending.
+  Future<void> cancelLatestVerificationRequest() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in.');
+    }
+    final uid = user.uid;
+
+    final latest = await getCurrentUserLatestRequest();
+    if (latest == null) {
+      throw Exception('No verification request found.');
+    }
+
+    final st = latest.status;
+    if (st != AppConstants.verificationSubmitted &&
+        st != AppConstants.verificationRequestPending) {
+      throw Exception('Only a pending or submitted request can be cancelled.');
+    }
+
+    await _firestore
+        .collection(AppConstants.verificationRequestsCollection)
+        .doc(latest.id)
+        .update({
+      'status': AppConstants.verificationRequestCancelled,
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'cancelledBy': uid,
+    });
+
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
+      'verificationStatus': AppConstants.verificationPending,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Uploads using [putData] on web; on IO, [localFilePath] allows [putFile] when the path is valid.
   Future<VerificationRequest> submitVerificationRequest({
     required String documentType,
-    required String filePath,
+    required Uint8List fileBytes,
+    required String originalFileName,
+    String? localFilePath,
     required String communityName,
     required String unitNumber,
     String? notes,
@@ -58,6 +107,10 @@ class VerificationRepository {
       throw Exception('You must be signed in to submit verification.');
     }
 
+    if (fileBytes.isEmpty) {
+      throw Exception('The selected file is empty.');
+    }
+
     final uid = user.uid;
     final userSnap = await _firestore.collection(AppConstants.usersCollection).doc(uid).get();
     final userData = userSnap.data();
@@ -66,26 +119,23 @@ class VerificationRepository {
     }
     final appUser = AppUser.fromMap(userData);
 
-    final file = File(filePath);
-    if (!await file.exists()) {
-      throw Exception('Selected file is no longer available.');
-    }
-
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final rawName = filePath.split(RegExp(r'[/\\]')).last;
-    final safeName = rawName.replaceAll(RegExp(r'[^\w.\-]+'), '_');
-    final fileObjectName = '${timestamp}_$safeName';
+    final fileObjectName = _safeVerificationStorageObjectName(timestamp, originalFileName);
 
     final ref = _storage
         .ref()
         .child(AppConstants.storageVerificationDocumentsPath)
         .child(uid)
         .child(fileObjectName);
-    final mime = _guessMimeType(safeName);
+    final mime = _mimeTypeForStorageName(fileObjectName);
 
-    final uploadTask = ref.putFile(
-      file,
-      SettableMetadata(contentType: mime),
+    final metadata = SettableMetadata(contentType: mime);
+
+    final uploadTask = putVerificationObject(
+      ref,
+      fileBytes,
+      localFilePath,
+      metadata,
     );
 
     uploadTask.snapshotEvents.listen((snapshot) {
@@ -117,6 +167,8 @@ class VerificationRepository {
       submittedAt: DateTime.now(),
       reviewedAt: null,
       reviewedBy: null,
+      cancelledAt: null,
+      cancelledBy: null,
     );
 
     await docRef.set({
@@ -139,12 +191,40 @@ class VerificationRepository {
     return VerificationRequest.fromMap(data);
   }
 
-  static String _guessMimeType(String filename) {
-    final lower = filename.toLowerCase();
+  /// `{timestamp}_verification_document.{ext}` — ext from [originalFileName] only, sanitized.
+  static String _safeVerificationStorageObjectName(int timestamp, String originalFileName) {
+    final baseName = originalFileName.split(RegExp(r'[/\\]')).last;
+    final dot = baseName.lastIndexOf('.');
+    var ext = '';
+    if (dot != -1 && dot < baseName.length - 1) {
+      ext = baseName.substring(dot + 1).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    }
+    if (ext.isEmpty) {
+      throw VerificationUnsupportedFileTypeException(
+        'Could not determine file type. Use JPG, PNG, WEBP, HEIC, or PDF.',
+      );
+    }
+
+    const allowed = {'jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'};
+    if (!allowed.contains(ext)) {
+      throw VerificationUnsupportedFileTypeException(
+        'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
+      );
+    }
+
+    if (ext == 'jpeg') ext = 'jpg';
+
+    return '${timestamp}_verification_document.$ext';
+  }
+
+  /// MIME for Firebase Storage metadata (jpg + jpeg both -> image/jpeg).
+  static String _mimeTypeForStorageName(String safeFileName) {
+    final lower = safeFileName.toLowerCase();
+    if (lower.endsWith('.jpg')) return 'image/jpeg';
     if (lower.endsWith('.png')) return 'image/png';
     if (lower.endsWith('.webp')) return 'image/webp';
     if (lower.endsWith('.heic')) return 'image/heic';
     if (lower.endsWith('.pdf')) return 'application/pdf';
-    return 'image/jpeg';
+    return 'application/octet-stream';
   }
 }

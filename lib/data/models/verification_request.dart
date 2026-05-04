@@ -18,6 +18,8 @@ class VerificationRequest {
     required this.submittedAt,
     required this.reviewedAt,
     required this.reviewedBy,
+    this.cancelledAt,
+    this.cancelledBy,
   });
 
   final String id;
@@ -35,6 +37,8 @@ class VerificationRequest {
   final DateTime submittedAt;
   final DateTime? reviewedAt;
   final String? reviewedBy;
+  final DateTime? cancelledAt;
+  final String? cancelledBy;
 
   VerificationRequest copyWith({
     String? id,
@@ -52,6 +56,8 @@ class VerificationRequest {
     DateTime? submittedAt,
     DateTime? reviewedAt,
     String? reviewedBy,
+    DateTime? cancelledAt,
+    String? cancelledBy,
   }) {
     return VerificationRequest(
       id: id ?? this.id,
@@ -69,6 +75,8 @@ class VerificationRequest {
       submittedAt: submittedAt ?? this.submittedAt,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       reviewedBy: reviewedBy ?? this.reviewedBy,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
     );
   }
 
@@ -89,6 +97,8 @@ class VerificationRequest {
       'submittedAt': Timestamp.fromDate(submittedAt),
       'reviewedAt': reviewedAt != null ? Timestamp.fromDate(reviewedAt!) : null,
       'reviewedBy': reviewedBy,
+      'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
+      'cancelledBy': cancelledBy,
     };
   }
 
@@ -109,6 +119,8 @@ class VerificationRequest {
       submittedAt: _parseDate(map['submittedAt']),
       reviewedAt: _parseOptionalDate(map['reviewedAt']),
       reviewedBy: map['reviewedBy'] as String?,
+      cancelledAt: _parseOptionalDate(map['cancelledAt']),
+      cancelledBy: map['cancelledBy'] as String?,
     );
   }
 

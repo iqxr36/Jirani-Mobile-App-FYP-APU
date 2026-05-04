@@ -4,6 +4,7 @@ import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/viewmodels/verification_viewmodel.dart';
 import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_approved_view.dart';
+import 'package:fyp_flutter_application/views/verification/verification_cancel_dialog.dart';
 import 'package:fyp_flutter_application/views/verification/verification_pending_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_rejected_view.dart';
 import 'package:fyp_flutter_application/widgets/verification_status_chip.dart';
@@ -109,13 +110,31 @@ class _VerificationStatusViewState extends State<VerificationStatusView> {
                   child: const Text('Start verification'),
                 ),
               ] else if (status == AppConstants.verificationSubmitted) ...[
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const VerificationPendingView()),
-                    );
-                  },
-                  child: const Text('View pending details'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(builder: (_) => const VerificationPendingView()),
+                        );
+                      },
+                      child: const Text('View pending details'),
+                    ),
+                    if (_requestStatusIsCancellable(request?.status)) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                        onPressed: verificationVm.isLoading
+                            ? null
+                            : () => executeVerificationCancellation(context),
+                        child: const Text('Cancel Submission'),
+                      ),
+                    ],
+                  ],
                 ),
               ] else if (status == AppConstants.verificationRejected) ...[
                 FilledButton(
@@ -149,6 +168,12 @@ class _VerificationStatusViewState extends State<VerificationStatusView> {
 
   static String _formatDate(DateTime d) {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  static bool _requestStatusIsCancellable(String? requestStatus) {
+    if (requestStatus == null) return false;
+    return requestStatus == AppConstants.verificationSubmitted ||
+        requestStatus == AppConstants.verificationRequestPending;
   }
 }
 

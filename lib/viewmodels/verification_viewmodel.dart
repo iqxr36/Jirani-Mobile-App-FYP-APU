@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/data/models/verification_request.dart';
@@ -43,7 +44,9 @@ class VerificationViewModel extends ChangeNotifier {
 
   Future<VerificationRequest?> submitVerificationRequest({
     required String documentType,
-    required String filePath,
+    required Uint8List fileBytes,
+    required String originalFileName,
+    String? localFilePath,
     required String communityName,
     required String unitNumber,
     String? notes,
@@ -56,7 +59,9 @@ class VerificationViewModel extends ChangeNotifier {
     try {
       final result = await _repository.submitVerificationRequest(
         documentType: documentType,
-        filePath: filePath,
+        fileBytes: fileBytes,
+        originalFileName: originalFileName,
+        localFilePath: localFilePath,
         communityName: communityName,
         unitNumber: unitNumber,
         notes: notes,
@@ -67,12 +72,61 @@ class VerificationViewModel extends ChangeNotifier {
       );
       _currentRequest = result;
       return result;
-    } catch (e) {
-      _errorMessage = e.toString();
+    } catch (e, stackTrace) {
+      debugPrint('[VerificationUpload] FAILED: $e');
+      debugPrint('[VerificationUpload] $stackTrace');
+      _errorMessage = _mapSubmitError(e);
       return null;
     } finally {
       _isLoading = false;
       _uploadProgress = 0;
+      notifyListeners();
+    }
+  }
+
+  String _mapSubmitError(Object e) {
+    if (e is VerificationUnsupportedFileTypeException) {
+      return 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.';
+    }
+    if (e is FirebaseException) {
+      switch (e.code) {
+        case 'permission-denied':
+        case 'unauthorized':
+          return 'Upload blocked by Firebase Storage rules.';
+        default:
+          break;
+      }
+    }
+
+    final raw = e.toString();
+    final lower = raw.toLowerCase();
+    if (lower.contains('unsupported operation') || lower.contains('_namespace')) {
+      return 'This file could not be read. Please choose another file.';
+    }
+
+    if (lower.contains('storage') && (lower.contains('denied') || lower.contains('unauthorized'))) {
+      return 'Upload blocked by Firebase Storage rules.';
+    }
+
+    return 'Upload failed. Please try again or pick a different file.';
+  }
+
+  Future<bool> cancelLatestVerificationRequest() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _repository.cancelLatestVerificationRequest();
+      _currentRequest = await _repository.getCurrentUserLatestRequest();
+      return true;
+    } catch (e, stackTrace) {
+      debugPrint('[VerificationCancel] FAILED: $e');
+      debugPrint('$stackTrace');
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

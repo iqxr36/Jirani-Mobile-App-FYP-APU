@@ -14,6 +14,11 @@ class AppConstants {
   static const String verificationVerified = 'verified';
   static const String verificationRejected = 'rejected';
 
+  /// Verification request document statuses ([verificationRequests] collection).
+  /// Aligns with [verificationSubmitted] for the in-review state.
+  static const String verificationRequestPending = 'pending';
+  static const String verificationRequestCancelled = 'cancelled';
+
   /// Residency document kinds (stored on [VerificationRequest.documentType]).
   static const String documentTypeUtilityBill = 'utilityBill';
   static const String documentTypeTenancyAgreement = 'tenancyAgreement';
