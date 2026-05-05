@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/screens/admin/admin_dashboard_screen.dart';
-import 'package:fyp_flutter_application/views/auth/login_view.dart';
-import 'package:fyp_flutter_application/views/auth/account_created_view.dart';
-import 'package:fyp_flutter_application/views/home/resident_home_placeholder_view.dart';
+import 'package:fyp_flutter_application/admin/screens/auth/admin_login_screen.dart';
+import 'package:fyp_flutter_application/admin/screens/dashboard/admin_dashboard_screen.dart';
+import 'package:fyp_flutter_application/resident/screens/auth/login_view.dart';
+import 'package:fyp_flutter_application/resident/screens/auth/account_created_view.dart';
+import 'package:fyp_flutter_application/resident/screens/home/resident_home_placeholder_view.dart';
 import 'package:provider/provider.dart';
 
 /// Routes the app based on [FirebaseAuth] session and loaded [AppUser] profile.
@@ -22,6 +24,9 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (vm.firebaseUser == null) {
+          if (kIsWeb) {
+            return const AdminLoginScreen();
+          }
           return const LoginView();
         }
 
@@ -42,6 +47,13 @@ class AuthWrapper extends StatelessWidget {
         final role = vm.currentUser!.role;
         if (role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin) {
           return const AdminDashboardScreen();
+        }
+        if (kIsWeb && role == AppConstants.roleResident) {
+          return _MissingProfileScaffold(
+            message: 'This account does not have admin access.',
+            onLogout: () => context.read<AuthViewModel>().logout(),
+            isLoggingOut: vm.isLoading,
+          );
         }
         if (role != AppConstants.roleResident) {
           return _MissingProfileScaffold(

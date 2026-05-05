@@ -19,6 +19,7 @@ class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _localError;
 
   @override
   void dispose() {
@@ -29,12 +30,38 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _localError = null);
 
     await context.read<AuthViewModel>().login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-    // AuthWrapper navigates when session + profile are ready.
+    if (!mounted) return;
+
+    final vm = context.read<AuthViewModel>();
+    final user = vm.currentUser;
+    if (vm.errorMessage != null || user == null) {
+      return;
+    }
+
+    final role = user.role;
+    if (role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin) {
+      await vm.logout();
+      if (!mounted) return;
+      setState(() {
+        _localError =
+            'This account is an admin account. Please sign in through the Admin Web Portal.';
+      });
+      return;
+    }
+
+    if (role != AppConstants.roleResident) {
+      await vm.logout();
+      if (!mounted) return;
+      setState(() {
+        _localError = 'Account role is not supported for resident login.';
+      });
+    }
   }
 
   @override
@@ -111,6 +138,11 @@ class _LoginViewState extends State<LoginView> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (_localError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(_localError!, style: const TextStyle(color: Colors.red)),
+                  ),
                 if (vm.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
