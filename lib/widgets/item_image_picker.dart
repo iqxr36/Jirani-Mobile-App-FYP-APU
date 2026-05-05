@@ -65,7 +65,7 @@ class _ItemImagePickerState extends State<ItemImagePicker> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _paths.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
                 return Stack(
                   children: [

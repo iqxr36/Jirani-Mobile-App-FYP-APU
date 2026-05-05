@@ -32,11 +32,11 @@ Future<bool> showVerificationCancelConfirmationDialog(BuildContext context) asyn
 
 /// Confirms with the user, cancels the latest request, refreshes profile and VM, shows feedback, returns to root.
 Future<void> executeVerificationCancellation(BuildContext context) async {
-  final confirmed = await showVerificationCancelConfirmationDialog(context);
-  if (!confirmed) return;
-
   final authVm = context.read<AuthViewModel>();
   final verificationVm = context.read<VerificationViewModel>();
+  final confirmed = await showVerificationCancelConfirmationDialog(context);
+  if (!context.mounted) return;
+  if (!confirmed) return;
 
   final ok = await verificationVm.cancelLatestVerificationRequest();
   if (!context.mounted) return;

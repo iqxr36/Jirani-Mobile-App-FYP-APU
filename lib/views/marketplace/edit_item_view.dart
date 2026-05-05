@@ -70,6 +70,7 @@ class _EditItemViewState extends State<EditItemView> {
   }
 
   Future<void> _archive() async {
+    final vm = context.read<ItemViewModel>();
     final shouldArchive = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -83,7 +84,6 @@ class _EditItemViewState extends State<EditItemView> {
     );
     if (shouldArchive != true) return;
 
-    final vm = context.read<ItemViewModel>();
     await vm.archiveItem(widget.itemId);
     if (!mounted) return;
     if (vm.errorMessage == null) {
@@ -154,8 +154,8 @@ class _EditItemViewState extends State<EditItemView> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: item.imageUrls.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 8),
-                            itemBuilder: (_, i) => ClipRRect(
+                            separatorBuilder: (_, index) => const SizedBox(width: 8),
+                            itemBuilder: (context, i) => ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
                                 item.imageUrls[i],
@@ -180,7 +180,7 @@ class _EditItemViewState extends State<EditItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _category,
+                        initialValue: _category,
                         decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.itemCategoryTools, child: Text('Tools')),
@@ -203,7 +203,7 @@ class _EditItemViewState extends State<EditItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _condition,
+                        initialValue: _condition,
                         decoration: const InputDecoration(labelText: 'Condition', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.itemConditionNew, child: Text('New')),
@@ -214,7 +214,7 @@ class _EditItemViewState extends State<EditItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _lendingType,
+                        initialValue: _lendingType,
                         decoration: const InputDecoration(labelText: 'Lending type', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.lendingTypeFree, child: Text('Free')),

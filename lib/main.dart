@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/theme/app_theme.dart';
+import 'package:fyp_flutter_application/providers/admin_provider.dart';
 import 'package:fyp_flutter_application/providers/auth_provider.dart';
 import 'package:fyp_flutter_application/providers/item_provider.dart';
 import 'package:fyp_flutter_application/providers/verification_provider.dart';
@@ -31,6 +32,7 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => VerificationProvider(),
         ),
         ChangeNotifierProvider<ItemProvider>(create: (_) => ItemProvider()),
+        ChangeNotifierProvider<AdminProvider>(create: (_) => AdminProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

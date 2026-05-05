@@ -48,6 +48,10 @@ class AppUser {
 
   bool get isVerifiedResident =>
       verificationStatus == AppConstants.verificationVerified;
+  bool get isResident => role == AppConstants.roleResident;
+  bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
+  bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
+  bool get isAdmin => isCommunityAdmin || isSystemAdmin;
 
   AppUser copyWith({
     String? uid,

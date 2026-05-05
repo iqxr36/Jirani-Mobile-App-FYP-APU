@@ -95,7 +95,7 @@ class _MarketplaceBrowseViewState extends State<MarketplaceBrowseView> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     scrollDirection: Axis.horizontal,
                     itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    separatorBuilder: (_, index) => const SizedBox(width: 6),
                     itemBuilder: (context, i) {
                       final (value, label) = _categories[i];
                       return CategoryChip(

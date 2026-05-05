@@ -114,7 +114,7 @@ class _AddItemViewState extends State<AddItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _category,
+                        initialValue: _category,
                         decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.itemCategoryTools, child: Text('Tools')),
@@ -137,7 +137,7 @@ class _AddItemViewState extends State<AddItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _condition,
+                        initialValue: _condition,
                         decoration: const InputDecoration(labelText: 'Condition', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.itemConditionNew, child: Text('New')),
@@ -148,7 +148,7 @@ class _AddItemViewState extends State<AddItemView> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _lendingType,
+                        initialValue: _lendingType,
                         decoration: const InputDecoration(labelText: 'Lending type', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: AppConstants.lendingTypeFree, child: Text('Free')),

@@ -27,7 +27,7 @@ class _ReportListingViewState extends State<ReportListingView> {
           padding: const EdgeInsets.all(16),
           children: [
             DropdownButtonFormField<String>(
-              value: _reason,
+              initialValue: _reason,
               decoration: const InputDecoration(
                 labelText: 'Reason',
                 border: OutlineInputBorder(),

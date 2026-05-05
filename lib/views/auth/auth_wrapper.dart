@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_dashboard_screen.dart';
 import 'package:fyp_flutter_application/views/auth/login_view.dart';
 import 'package:fyp_flutter_application/views/auth/account_created_view.dart';
 import 'package:fyp_flutter_application/views/home/resident_home_placeholder_view.dart';
@@ -32,6 +34,18 @@ class AuthWrapper extends StatelessWidget {
         if (vm.currentUser == null) {
           return _MissingProfileScaffold(
             message: vm.profileErrorMessage ?? 'Your account profile could not be loaded.',
+            onLogout: () => context.read<AuthViewModel>().logout(),
+            isLoggingOut: vm.isLoading,
+          );
+        }
+
+        final role = vm.currentUser!.role;
+        if (role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin) {
+          return const AdminDashboardScreen();
+        }
+        if (role != AppConstants.roleResident) {
+          return _MissingProfileScaffold(
+            message: 'Unknown role "$role". Please contact support.',
             onLogout: () => context.read<AuthViewModel>().logout(),
             isLoggingOut: vm.isLoading,
           );

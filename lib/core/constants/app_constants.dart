@@ -65,4 +65,8 @@ class AppConstants {
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
   static const String activityLogsCollection = 'activityLogs';
+
+  // Activity log event types
+  static const String activityVerificationApproved = 'verificationApproved';
+  static const String activityVerificationRejected = 'verificationRejected';
 }

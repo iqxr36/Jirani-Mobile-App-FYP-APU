@@ -113,7 +113,7 @@ class _MyListedItemsViewState extends State<MyListedItemsView> {
                                   );
                                 } else if (v == 'archive') {
                                   await vm.archiveItem(item.id);
-                                  if (!mounted) return;
+                                  if (!context.mounted) return;
                                   if (vm.errorMessage == null) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('Item archived.')),

@@ -69,7 +69,7 @@ class ItemCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
         ),
@@ -142,7 +142,7 @@ class _ItemImage extends StatelessWidget {
             : Image.network(
                 url!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (context, error, stackTrace) => Container(
                   color: Colors.grey.shade200,
                   child: const Icon(Icons.image_not_supported_outlined),
                 ),
