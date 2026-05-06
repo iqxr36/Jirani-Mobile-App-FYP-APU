@@ -27,6 +27,12 @@ class AdminStatusFilterBar extends StatelessWidget {
             (f) => ChoiceChip(
               label: Text(f.$2),
               selected: selected == f.$1,
+              selectedColor: const Color(0xFFACEFE7),
+              side: const BorderSide(color: Color(0xFFBEC8CA)),
+              labelStyle: TextStyle(
+                color: selected == f.$1 ? const Color(0xFF00535B) : const Color(0xFF3E494A),
+                fontWeight: selected == f.$1 ? FontWeight.w700 : FontWeight.w500,
+              ),
               onSelected: (_) => onChanged(f.$1),
             ),
           )

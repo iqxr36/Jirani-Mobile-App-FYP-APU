@@ -10,6 +10,8 @@ import 'package:fyp_flutter_application/screens/admin/admin_verification_request
 import 'package:fyp_flutter_application/widgets/admin/admin_section_card.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_sidebar.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_stat_card.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_status_chip.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_top_bar.dart';
 import 'package:provider/provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -60,29 +62,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final content = ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Admin Dashboard', style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 4),
-                  const Text('Manage resident verification and community safety.'),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(user.email),
-                const SizedBox(height: 4),
-                const Chip(label: Text('Community Admin')),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
             final cardWidth = isWide ? (constraints.maxWidth - 24) / 4 : (constraints.maxWidth - 12) / 2;
@@ -96,6 +75,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     title: 'Submitted Requests',
                     count: stats['submittedRequests'] ?? 0,
                     icon: Icons.pending_actions_outlined,
+                    badgeLabel: 'ACTION REQUIRED',
                   ),
                 ),
                 SizedBox(
@@ -104,22 +84,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     title: 'Verified Residents',
                     count: stats['verifiedResidents'] ?? 0,
                     icon: Icons.verified_outlined,
+                    badgeLabel: 'STABLE',
                   ),
                 ),
                 SizedBox(
                   width: cardWidth,
                   child: AdminStatCard(
-                    title: 'Rejected Requests',
-                    count: stats['rejectedRequests'] ?? 0,
-                    icon: Icons.cancel_outlined,
+                    title: 'Active Listings',
+                    count: stats['activeListings'] ?? 0,
+                    icon: Icons.storefront_outlined,
+                    tintColor: const Color(0xFFEBEEEE),
                   ),
                 ),
                 SizedBox(
                   width: cardWidth,
                   child: AdminStatCard(
-                    title: 'Total Users',
-                    count: stats['totalUsers'] ?? 0,
-                    icon: Icons.people_alt_outlined,
+                    title: 'Safety Reports',
+                    count: stats['safetyReports'] ?? 0,
+                    icon: Icons.warning_amber_outlined,
+                    badgeLabel: 'URGENT',
+                    tintColor: const Color(0xFFFFDAD6),
                   ),
                 ),
               ],
@@ -128,28 +112,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         const SizedBox(height: 16),
         AdminSectionCard(
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text('Review Verification Requests'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const AdminVerificationRequestsScreen()),
-                  );
-                },
-                child: const Text('Open'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        AdminSectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Recent Submitted Requests', style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Recent Verification Requests', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 4),
+                        const Text('Manage and review new resident identity submissions.'),
+                      ],
+                    ),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const AdminVerificationRequestsScreen()),
+                      );
+                    },
+                    child: const Text('View All Requests'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               if (recent.isEmpty)
                 const Text('No recent requests.')
@@ -159,7 +146,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: Text(r.fullName),
                     subtitle: Text('${r.email} • ${r.communityName} ${r.unitNumber}'),
-                    trailing: Chip(label: Text(r.status)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AdminStatusChip(status: r.status),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const AdminVerificationRequestsScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.rate_review_outlined, size: 18),
+                          label: const Text('Review'),
+                        ),
+                      ],
+                    ),
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(builder: (_) => const AdminVerificationRequestsScreen()),
@@ -170,13 +174,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: isWide ? 520 : double.infinity,
+              child: AdminSectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Community Activity Feed', style: TextStyle(fontWeight: FontWeight.w700)),
+                    SizedBox(height: 10),
+                    ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.security_outlined), title: Text('Security Alert')),
+                    ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.campaign_outlined), title: Text('Community announcement')),
+                    ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.handyman_outlined), title: Text('Maintenance update')),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: isWide ? 380 : double.infinity,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006D77),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Trust Score Optimization', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    const Text('Focus urgent verification and safety trends to improve community trust.', style: TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF00535B)),
+                      onPressed: () {},
+                      child: const Text('Action Safety Reports'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
 
     if (!isWide) {
       return Scaffold(
+        backgroundColor: const Color(0xFFF7FAFA),
         appBar: AppBar(
-          title: const Text('Admin Dashboard'),
+          title: const Text('Dashboard Overview'),
           actions: [
             IconButton(
               onPressed: auth.logout,
@@ -192,10 +243,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFA),
       body: Row(
         children: [
           AdminSidebar(activeKey: 'dashboard', onNavigate: _navigateByKey, onLogout: auth.logout),
-          Expanded(child: content),
+          Expanded(
+            child: Column(
+              children: [
+                AdminTopBar(
+                  title: 'Dashboard Overview',
+                  subtitle: 'Securely monitor verification and trust operations.',
+                  trailing: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFFACEFE7),
+                        child: Text(user.email.isNotEmpty ? user.email[0].toUpperCase() : 'A'),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.email, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Text('Community Admin', style: TextStyle(fontSize: 12, color: Color(0xFF3E494A))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: content),
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -63,6 +63,9 @@ class AdminProvider extends ChangeNotifier {
     required VerificationRequest request,
     required String adminUid,
   }) async {
+    debugPrint(
+      '[AdminProvider][approveRequest] started requestId=${request.id} residentUid=${request.userId} adminUid=$adminUid',
+    );
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -72,10 +75,12 @@ class AdminProvider extends ChangeNotifier {
         residentUid: request.userId,
         adminUid: adminUid,
       );
+      debugPrint('[AdminProvider][approveRequest] service call completed');
       await loadVerificationRequestById(request.id);
       await loadDashboardStats();
     } catch (e) {
       _errorMessage = e.toString();
+      debugPrint('[AdminProvider][approveRequest] FAILED: $_errorMessage');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -87,6 +92,9 @@ class AdminProvider extends ChangeNotifier {
     required String adminUid,
     required String rejectionReason,
   }) async {
+    debugPrint(
+      '[AdminProvider][rejectRequest] started requestId=${request.id} residentUid=${request.userId} adminUid=$adminUid reason="$rejectionReason"',
+    );
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -97,10 +105,12 @@ class AdminProvider extends ChangeNotifier {
         adminUid: adminUid,
         rejectionReason: rejectionReason,
       );
+      debugPrint('[AdminProvider][rejectRequest] service call completed');
       await loadVerificationRequestById(request.id);
       await loadDashboardStats();
     } catch (e) {
       _errorMessage = e.toString();
+      debugPrint('[AdminProvider][rejectRequest] FAILED: $_errorMessage');
     } finally {
       _isLoading = false;
       notifyListeners();

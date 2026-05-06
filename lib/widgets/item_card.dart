@@ -112,14 +112,19 @@ class ItemCard extends StatelessWidget {
   }
 
   static String _lendingSubtitle(ItemModel item) {
-    switch (item.lendingType) {
-      case AppConstants.lendingTypeSmallFee:
-        return 'Small fee: RM ${item.feeAmount?.toStringAsFixed(0) ?? '0'}';
-      case AppConstants.lendingTypeDepositRequired:
-        return 'Deposit: RM ${item.depositAmount?.toStringAsFixed(0) ?? '0'}';
-      default:
-        return 'Free lending';
+    final hasFee = item.hasUsageFee && (item.feeAmount ?? 0) > 0;
+    final hasDeposit = item.hasDeposit && (item.depositAmount ?? 0) > 0;
+    if (!hasFee && !hasDeposit) return 'Free';
+    if (hasFee && hasDeposit) {
+      return 'Fee: RM ${_formatAmount(item.feeAmount!)} + Deposit: RM ${_formatAmount(item.depositAmount!)}';
     }
+    if (hasFee) return 'Fee: RM ${_formatAmount(item.feeAmount!)}';
+    return 'Deposit: RM ${_formatAmount(item.depositAmount!)}';
+  }
+
+  static String _formatAmount(double amount) {
+    if (amount == amount.roundToDouble()) return amount.toStringAsFixed(0);
+    return amount.toStringAsFixed(2);
   }
 }
 

@@ -142,20 +142,30 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
                 child: Text(_lendingLabel(item)),
               ),
             ),
-            if (item.lendingType == AppConstants.lendingTypeSmallFee)
-              Card(
-                child: ListTile(
-                  title: const Text('Small fee'),
-                  subtitle: Text('RM ${item.feeAmount?.toStringAsFixed(0) ?? '0'}'),
-                ),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    title: const Text('Usage Fee'),
+                    subtitle: Text(item.hasUsageFee && (item.feeAmount ?? 0) > 0
+                        ? 'RM ${_formatAmount(item.feeAmount!)}'
+                        : 'Not required'),
+                  ),
+                  ListTile(
+                    title: const Text('Refundable Deposit'),
+                    subtitle: Text(item.hasDeposit && (item.depositAmount ?? 0) > 0
+                        ? 'RM ${_formatAmount(item.depositAmount!)}'
+                        : 'Not required'),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Text(
+                      'Deposit may be withheld if the item is damaged, lost, or returned late.',
+                    ),
+                  ),
+                ],
               ),
-            if (item.lendingType == AppConstants.lendingTypeDepositRequired)
-              Card(
-                child: ListTile(
-                  title: const Text('Deposit required'),
-                  subtitle: Text('RM ${item.depositAmount?.toStringAsFixed(0) ?? '0'}'),
-                ),
-              ),
+            ),
             const SizedBox(height: 8),
             Text('Pickup instructions', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
@@ -212,13 +222,18 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
   }
 
   static String _lendingLabel(ItemModel item) {
-    switch (item.lendingType) {
-      case AppConstants.lendingTypeSmallFee:
-        return 'Lending terms: Small fee';
-      case AppConstants.lendingTypeDepositRequired:
-        return 'Lending terms: Deposit required';
-      default:
-        return 'Lending terms: Free';
+    final hasFee = item.hasUsageFee && (item.feeAmount ?? 0) > 0;
+    final hasDeposit = item.hasDeposit && (item.depositAmount ?? 0) > 0;
+    if (!hasFee && !hasDeposit) return 'Lending terms: Free';
+    if (hasFee && hasDeposit) {
+      return 'Lending terms: Fee RM ${_formatAmount(item.feeAmount!)} + Deposit RM ${_formatAmount(item.depositAmount!)}';
     }
+    if (hasFee) return 'Lending terms: Fee RM ${_formatAmount(item.feeAmount!)}';
+    return 'Lending terms: Deposit RM ${_formatAmount(item.depositAmount!)}';
+  }
+
+  static String _formatAmount(double amount) {
+    if (amount == amount.roundToDouble()) return amount.toStringAsFixed(0);
+    return amount.toStringAsFixed(2);
   }
 }

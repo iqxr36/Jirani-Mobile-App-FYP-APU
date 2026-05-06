@@ -25,7 +25,8 @@ class _AddItemViewState extends State<AddItemView> {
 
   String _category = AppConstants.itemCategoryTools;
   String _condition = AppConstants.itemConditionGood;
-  String _lendingType = AppConstants.lendingTypeFree;
+  bool _hasUsageFee = false;
+  bool _hasDeposit = false;
   List<String> _imagePaths = const <String>[];
 
   @override
@@ -50,9 +51,8 @@ class _AddItemViewState extends State<AddItemView> {
       );
     }
 
-    final fee = _lendingType == AppConstants.lendingTypeSmallFee ? double.tryParse(_feeController.text.trim()) : null;
-    final deposit =
-        _lendingType == AppConstants.lendingTypeDepositRequired ? double.tryParse(_depositController.text.trim()) : null;
+    final fee = _hasUsageFee ? double.tryParse(_feeController.text.trim()) : null;
+    final deposit = _hasDeposit ? double.tryParse(_depositController.text.trim()) : null;
 
     final vm = context.read<ItemViewModel>();
     await vm.addItem(
@@ -61,8 +61,9 @@ class _AddItemViewState extends State<AddItemView> {
       category: _category,
       condition: _condition,
       imagePaths: _imagePaths,
-      lendingType: _lendingType,
+      hasUsageFee: _hasUsageFee,
       feeAmount: fee,
+      hasDeposit: _hasDeposit,
       depositAmount: deposit,
       pickupInstructions: _pickupController.text.trim(),
       currentUser: user,
@@ -147,32 +148,44 @@ class _AddItemViewState extends State<AddItemView> {
                         onChanged: (v) => setState(() => _condition = v ?? _condition),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _lendingType,
-                        decoration: const InputDecoration(labelText: 'Lending type', border: OutlineInputBorder()),
-                        items: const [
-                          DropdownMenuItem(value: AppConstants.lendingTypeFree, child: Text('Free')),
-                          DropdownMenuItem(value: AppConstants.lendingTypeSmallFee, child: Text('Small fee')),
-                          DropdownMenuItem(
-                            value: AppConstants.lendingTypeDepositRequired,
-                            child: Text('Deposit required'),
-                          ),
-                        ],
-                        onChanged: (v) => setState(() => _lendingType = v ?? _lendingType),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Lending Terms',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
                       ),
-                      if (_lendingType == AppConstants.lendingTypeSmallFee) ...[
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Charge usage fee'),
+                        value: _hasUsageFee,
+                        onChanged: (v) => setState(() {
+                          _hasUsageFee = v;
+                          if (!v) _feeController.clear();
+                        }),
+                      ),
+                      if (_hasUsageFee) ...[
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _feeController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
-                            labelText: 'Fee amount (RM)',
+                            labelText: 'Usage fee (RM)',
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) => Validators.validatePositiveAmount(v, fieldName: 'Fee amount'),
                         ),
                       ],
-                      if (_lendingType == AppConstants.lendingTypeDepositRequired) ...[
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Require refundable deposit'),
+                        value: _hasDeposit,
+                        onChanged: (v) => setState(() {
+                          _hasDeposit = v;
+                          if (!v) _depositController.clear();
+                        }),
+                      ),
+                      if (_hasDeposit) ...[
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _depositController,
@@ -183,7 +196,17 @@ class _AddItemViewState extends State<AddItemView> {
                           ),
                           validator: (v) => Validators.validatePositiveAmount(v, fieldName: 'Deposit amount'),
                         ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Deposit helps protect the item if it is damaged, lost, or returned late.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
+                      if (!_hasUsageFee && !_hasDeposit)
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Chip(label: Text('This item will be listed as free.')),
+                        ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _pickupController,

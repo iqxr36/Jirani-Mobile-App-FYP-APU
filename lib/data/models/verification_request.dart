@@ -103,20 +103,24 @@ class VerificationRequest {
   }
 
   factory VerificationRequest.fromMap(Map<String, dynamic> map) {
+    final rawUserId = map['userId'] ?? map['residentUid'] ?? map['uid'];
+    final rawDocumentUrl = map['documentUrl'] ?? map['fileUrl'] ?? map['uploadedFileUrl'];
+    final rawSubmittedAt = map['submittedAt'] ?? map['createdAt'];
+
     return VerificationRequest(
       id: (map['id'] as String?) ?? '',
-      userId: (map['userId'] as String?) ?? '',
+      userId: (rawUserId as String?) ?? '',
       fullName: (map['fullName'] as String?) ?? '',
       email: (map['email'] as String?) ?? '',
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
       documentType: (map['documentType'] as String?) ?? '',
-      documentUrl: (map['documentUrl'] as String?) ?? '',
+      documentUrl: (rawDocumentUrl as String?) ?? '',
       communityName: (map['communityName'] as String?) ?? '',
       unitNumber: (map['unitNumber'] as String?) ?? '',
       notes: (map['notes'] as String?) ?? '',
       status: (map['status'] as String?) ?? '',
       rejectionReason: map['rejectionReason'] as String?,
-      submittedAt: _parseDate(map['submittedAt']),
+      submittedAt: _parseDate(rawSubmittedAt),
       reviewedAt: _parseOptionalDate(map['reviewedAt']),
       reviewedBy: map['reviewedBy'] as String?,
       cancelledAt: _parseOptionalDate(map['cancelledAt']),

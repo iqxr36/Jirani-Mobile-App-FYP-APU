@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/providers/admin_provider.dart';
 import 'package:fyp_flutter_application/providers/auth_provider.dart';
 import 'package:fyp_flutter_application/screens/admin/admin_unauthorized_screen.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_document_preview.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_section_card.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_status_chip.dart';
 import 'package:provider/provider.dart';
 
 class AdminVerificationRequestDetailsScreen extends StatefulWidget {
@@ -25,11 +27,39 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
   }
 
   Future<void> _approve() async {
-    final auth = context.read<AuthProvider>();
     final vm = context.read<AdminProvider>();
     final req = vm.selectedRequest;
-    final adminUid = auth.currentUser?.uid;
-    if (req == null || adminUid == null) return;
+    final adminUid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint('Admin approve/reject adminUid: $adminUid');
+    debugPrint('Request ID: ${req?.id}');
+    debugPrint('Resident UID: ${req?.userId}');
+    debugPrint(
+      '[AdminDetails][approve] requestId=${req?.id} residentUid=${req?.userId} status=${req?.status} adminUid=$adminUid',
+    );
+    if (req == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification request ID is missing.')),
+      );
+      return;
+    }
+    if (req.id.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification request ID is missing.')),
+      );
+      return;
+    }
+    if (req.userId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resident user ID is missing from this verification request.')),
+      );
+      return;
+    }
+    if (adminUid == null || adminUid.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Admin user ID is missing. Please log in again.')),
+      );
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -49,19 +79,50 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
     await vm.approveRequest(request: req, adminUid: adminUid);
     if (!mounted) return;
     if (vm.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resident verified successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resident verified successfully.')));
       Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(vm.errorMessage!)));
     }
   }
 
   Future<void> _reject() async {
-    final auth = context.read<AuthProvider>();
     final vm = context.read<AdminProvider>();
     final req = vm.selectedRequest;
-    final adminUid = auth.currentUser?.uid;
-    if (req == null || adminUid == null) return;
+    final adminUid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint('Admin approve/reject adminUid: $adminUid');
+    debugPrint('Request ID: ${req?.id}');
+    debugPrint('Resident UID: ${req?.userId}');
+    debugPrint(
+      '[AdminDetails][reject] requestId=${req?.id} residentUid=${req?.userId} status=${req?.status} adminUid=$adminUid',
+    );
+    if (req == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification request ID is missing.')),
+      );
+      return;
+    }
+    if (req.id.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification request ID is missing.')),
+      );
+      return;
+    }
+    if (req.userId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resident user ID is missing from this verification request.')),
+      );
+      return;
+    }
+    if (adminUid == null || adminUid.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Admin user ID is missing. Please log in again.')),
+      );
+      return;
+    }
 
     String reason = '';
+    String? reasonError;
     final controller = TextEditingController();
     final rejected = await showDialog<bool>(
       context: context,
@@ -90,8 +151,17 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
                   labelText: 'Rejection reason',
                   border: OutlineInputBorder(),
                 ),
-                onChanged: (v) => reason = v,
+                onChanged: (v) {
+                  reason = v;
+                  if (reasonError != null && v.trim().isNotEmpty) {
+                    setStateDialog(() => reasonError = null);
+                  }
+                },
               ),
+              if (reasonError != null) ...[
+                const SizedBox(height: 8),
+                Text(reasonError!, style: const TextStyle(color: Colors.red)),
+              ],
             ],
           ),
           actions: [
@@ -99,7 +169,10 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
             TextButton(
               onPressed: () {
                 reason = controller.text.trim();
-                if (reason.isEmpty) return;
+                if (reason.isEmpty) {
+                  setStateDialog(() => reasonError = 'Rejection reason is required.');
+                  return;
+                }
                 Navigator.of(ctx).pop(true);
               },
               child: const Text('Reject'),
@@ -116,8 +189,10 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
     await vm.rejectRequest(request: req, adminUid: adminUid, rejectionReason: reason);
     if (!mounted) return;
     if (vm.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification request rejected')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification request rejected.')));
       Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(vm.errorMessage!)));
     }
   }
 
@@ -144,137 +219,232 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
       return const AdminUnauthorizedScreen();
     }
     final req = vm.selectedRequest;
+    final normalizedStatus = req?.status.trim().toLowerCase() ?? '';
+    final submittedStatus = AppConstants.verificationSubmitted.toLowerCase();
+    final verifiedStatus = AppConstants.verificationVerified.toLowerCase();
+    final rejectedStatus = AppConstants.verificationRejected.toLowerCase();
+    final pendingStatus = AppConstants.verificationPending.toLowerCase();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFA),
       appBar: AppBar(title: const Text('Verification Request Details')),
       body: req == null
           ? Center(
-              child: vm.isLoading
-                  ? const CircularProgressIndicator()
-                  : Text(vm.errorMessage ?? 'Request not found.'),
+              child: vm.isLoading ? const CircularProgressIndicator() : Text(vm.errorMessage ?? 'Request not found.'),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Resident Information', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      _kv('Full name', req.fullName),
-                      _kv('Email', req.email),
-                      _kv('Phone number', req.phoneNumber),
-                      _kv('User ID', req.userId),
-                      _kv('Current status', req.status),
-                      _kv('Submitted date', _fmt(req.submittedAt)),
-                    ],
-                  ),
-                ),
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Residence Information', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      _kv('Community/building', req.communityName),
-                      _kv('Unit', req.unitNumber),
-                      _kv('Notes', req.notes.isEmpty ? '—' : req.notes),
-                    ],
-                  ),
-                ),
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Document Information', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      _kv('Document type', req.documentType),
-                      AdminDocumentPreview(documentUrl: req.documentUrl),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          showDialog<void>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Document URL'),
-                              content: SelectableText(req.documentUrl),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(),
-                                  child: const Text('Close'),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 1200;
+                final left = Column(
+                  children: [
+                    AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: const Color(0xFFACEFE7),
+                                child: Text(req.fullName.isNotEmpty ? req.fullName[0].toUpperCase() : 'R'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(req.fullName, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 4),
+                                    const Text('Tenant Applicant', style: TextStyle(color: Color(0xFF3E494A))),
+                                  ],
                                 ),
-                              ],
+                              ),
+                              AdminStatusChip(status: req.status),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _kv('Resident ID', req.userId),
+                          _kv('Unit number', req.unitNumber),
+                          _kv('Phone number', req.phoneNumber),
+                          _kv('Email address', req.email),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Security checklist', style: TextStyle(fontWeight: FontWeight.w700)),
+                          SizedBox(height: 8),
+                          Text('• Email verified / not verified'),
+                          Text('• Phone verified / not verified'),
+                          Text('• Address proof submitted/verified'),
+                          Text('• Background check (future placeholder)'),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                final middle = Column(
+                  children: [
+                    AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${req.documentType} uploaded', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 10),
+                          AdminDocumentPreview(documentUrl: req.documentUrl),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('OCR Extracted Information', style: TextStyle(fontWeight: FontWeight.w700)),
+                          SizedBox(height: 8),
+                          Text('Extracted Name: Not scanned yet'),
+                          Text('Extracted Address: Not scanned yet'),
+                          Text('Confidence: Not available'),
+                          SizedBox(height: 8),
+                          Text('OCR will be implemented later.'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Geofence Validation', style: TextStyle(fontWeight: FontWeight.w700)),
+                          SizedBox(height: 8),
+                          Text('Boundary: Not configured'),
+                          Text('Last location check: Not available'),
+                          SizedBox(height: 8),
+                          Text('Geofence boundary logic will be implemented later.'),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                final right = Column(
+                  children: [
+                    AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Review Actions', style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 8),
+                          if (normalizedStatus == submittedStatus) ...[
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 48),
+                                backgroundColor: const Color(0xFF00535B),
+                              ),
+                              onPressed: vm.isLoading ? null : _approve,
+                              icon: const Icon(Icons.check_circle_outline),
+                              label: const Text('Approve Resident'),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.open_in_new),
-                        label: const Text('Open Document'),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+                              onPressed: vm.isLoading ? null : _reject,
+                              icon: const Icon(Icons.cancel_outlined, color: Color(0xFFBA1A1A)),
+                              label: const Text('Reject Request', style: TextStyle(color: Color(0xFFBA1A1A))),
+                            ),
+                          ] else if (normalizedStatus == verifiedStatus) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: const Color(0xFFD6F4F1), borderRadius: BorderRadius.circular(10)),
+                              child: const Text('Resident verified.', style: TextStyle(color: Color(0xFF006D77))),
+                            ),
+                          ] else if (normalizedStatus == rejectedStatus) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: const Color(0xFFFFDAD6), borderRadius: BorderRadius.circular(10)),
+                              child: Text('Request rejected.\nReason: ${req.rejectionReason ?? '—'}', style: const TextStyle(color: Color(0xFFBA1A1A))),
+                            ),
+                          ] else if (normalizedStatus == pendingStatus) ...[
+                            const Text('This request is pending review.'),
+                          ] else ...[
+                            Text('No admin action available for status: ${req.status}'),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      SelectableText(req.documentUrl),
-                      const SizedBox(height: 8),
-                      const Text('Documents are used only for residency verification.'),
-                    ],
-                  ),
-                ),
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('Document scanning'),
-                      SizedBox(height: 8),
-                      Text(
-                        'OCR extraction will be added later to help admins read document details automatically.',
+                    ),
+                    const SizedBox(height: 12),
+                    const AdminSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Recent History', style: TextStyle(fontWeight: FontWeight.w700)),
+                          SizedBox(height: 8),
+                          Text('• Profile created'),
+                          Text('• Document uploaded'),
+                          Text('• Review pending'),
+                        ],
                       ),
-                      SizedBox(height: 8),
-                      Text('Extracted name: Not scanned yet'),
-                      Text('Extracted address: Not scanned yet'),
-                      Text('Confidence: Not available'),
-                      // TODO Phase OCR: extract name/address/unit from uploaded document using OCR/ML Kit or cloud OCR.
-                    ],
-                  ),
-                ),
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('Geofence validation'),
-                      SizedBox(height: 8),
-                      Text(
-                        'Boundary validation will be added later to compare user location against community coordinates.',
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: const Color(0xFFFFE4B8), borderRadius: BorderRadius.circular(12)),
+                      child: const Text(
+                        'Verify unit number and uploaded document before approval. Reject unclear or mismatched documents with a clear reason.',
                       ),
-                      SizedBox(height: 8),
-                      Text('Community boundary: Not configured'),
-                      Text('Last location check: Not available'),
-                      // TODO Phase Geofence: validate resident location against community boundary coordinates.
-                    ],
-                  ),
-                ),
-                AdminSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Review Actions', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      if (req.status == AppConstants.verificationSubmitted) ...[
-                        FilledButton(onPressed: vm.isLoading ? null : _approve, child: const Text('Approve')),
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          onPressed: vm.isLoading ? null : _reject,
-                          child: const Text('Reject'),
+                    ),
+                  ],
+                );
+
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back)),
+                        Expanded(
+                          child: Text(
+                            'Review Verification: ${req.fullName}',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                          ),
                         ),
-                      ] else if (req.status == AppConstants.verificationVerified) ...[
-                        const Text('This resident is verified.', style: TextStyle(color: Colors.green)),
-                      ] else if (req.status == AppConstants.verificationRejected) ...[
-                        const Text('This request is rejected.', style: TextStyle(color: Colors.red)),
-                        const SizedBox(height: 6),
-                        Text('Reason: ${req.rejectionReason ?? '—'}'),
+                        const Icon(Icons.help_outline),
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: const Color(0xFFACEFE7),
+                          child: Text(user.email.isNotEmpty ? user.email[0].toUpperCase() : 'A'),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (isWide)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: left),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 4, child: middle),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 3, child: right),
+                        ],
+                      )
+                    else ...[
+                      left,
+                      const SizedBox(height: 12),
+                      middle,
+                      const SizedBox(height: 12),
+                      right,
                     ],
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
     );
   }
@@ -283,7 +453,4 @@ class _AdminVerificationRequestDetailsScreenState extends State<AdminVerificatio
         padding: const EdgeInsets.only(bottom: 4),
         child: Text('$k: $v'),
       );
-
-  static String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

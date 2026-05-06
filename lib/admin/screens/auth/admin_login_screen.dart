@@ -27,15 +27,19 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _localError = null);
+    debugPrint('[AdminLoginScreen] login button pressed email=${_emailCtrl.text.trim()}');
     final auth = context.read<AuthProvider>();
+    debugPrint('[AdminLoginScreen] login call started');
     await auth.login(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
     );
+    debugPrint('[AdminLoginScreen] login call finished');
     if (!mounted) return;
 
     final user = auth.currentUser;
     if (auth.errorMessage != null || user == null) {
+      debugPrint('[AdminLoginScreen] login error=${auth.errorMessage}');
       setState(() => _localError = auth.errorMessage);
       return;
     }

@@ -52,6 +52,9 @@ class _MarketplaceBrowseViewState extends State<MarketplaceBrowseView> {
     final authVm = context.watch<AuthViewModel>();
     final itemVm = context.watch<ItemViewModel>();
     final user = authVm.currentUser;
+    final displayedItems = itemVm.availableItems
+        .where((item) => user == null || item.ownerId != user.uid)
+        .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -116,14 +119,14 @@ class _MarketplaceBrowseViewState extends State<MarketplaceBrowseView> {
                       if (itemVm.errorMessage != null) {
                         return Center(child: Text(itemVm.errorMessage!));
                       }
-                      if (itemVm.availableItems.isEmpty) {
+                      if (displayedItems.isEmpty) {
                         return const Center(child: Text('No available items yet.'));
                       }
                       return ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: itemVm.availableItems.length,
+                        itemCount: displayedItems.length,
                         itemBuilder: (context, i) {
-                          final item = itemVm.availableItems[i];
+                          final item = displayedItems[i];
                           return ItemCard(
                             item: item,
                             onTap: () {

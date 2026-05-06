@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/data/models/app_user.dart';
@@ -30,8 +31,10 @@ class AuthRepository {
   }
 
   Future<AppUser?> getCurrentAppUser() async {
+    debugPrint('[AuthRepository.getCurrentAppUser] started');
     final user = _authService.currentUser;
     if (user == null) return null;
+    debugPrint('[AuthRepository.getCurrentAppUser] firebase uid=${user.uid}');
     await _authService.reloadCurrentUser();
     final refreshedUser = _authService.currentUser;
     if (refreshedUser == null) return null;
@@ -47,6 +50,7 @@ class AuthRepository {
       final data = doc.data();
       if (data != null) {
         final appUser = AppUser.fromMap(data);
+        debugPrint('[AuthRepository.getCurrentAppUser] profile found role=${appUser.role}');
         if (appUser.emailVerified != authEmailVerified) {
           await _firestore.collection(AppConstants.usersCollection).doc(refreshedUser.uid).update({
             'emailVerified': authEmailVerified,
@@ -146,6 +150,7 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    debugPrint('[AuthRepository.login] signIn started email=${email.trim()}');
     final credential = await _authService.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -155,11 +160,16 @@ class AuthRepository {
     if (firebaseUser == null) {
       throw Exception('Unable to login user.');
     }
+    debugPrint('[AuthRepository.login] signIn success uid=${firebaseUser.uid}');
 
     await _authService.reloadCurrentUser();
+    debugPrint('[AuthRepository.login] firebase user reloaded');
     final appUser = await getCurrentAppUser();
     if (appUser == null) {
-      throw Exception('User profile not found in Firestore.');
+      throw Exception('User profile not found. Please contact support.');
+    }
+    if (appUser.role.trim().isEmpty) {
+      throw Exception('User role is missing. Please contact support.');
     }
 
     return appUser;

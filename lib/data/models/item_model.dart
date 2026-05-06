@@ -16,7 +16,9 @@ class ItemModel {
     required this.condition,
     required this.imageUrls,
     required this.lendingType,
+    required this.hasUsageFee,
     required this.feeAmount,
+    required this.hasDeposit,
     required this.depositAmount,
     required this.status,
     required this.communityId,
@@ -40,7 +42,9 @@ class ItemModel {
   final String condition;
   final List<String> imageUrls;
   final String lendingType;
+  final bool hasUsageFee;
   final double? feeAmount;
+  final bool hasDeposit;
   final double? depositAmount;
   final String status;
   final String communityId;
@@ -64,7 +68,9 @@ class ItemModel {
     String? condition,
     List<String>? imageUrls,
     String? lendingType,
+    bool? hasUsageFee,
     double? feeAmount,
+    bool? hasDeposit,
     double? depositAmount,
     String? status,
     String? communityId,
@@ -88,7 +94,9 @@ class ItemModel {
       condition: condition ?? this.condition,
       imageUrls: imageUrls ?? this.imageUrls,
       lendingType: lendingType ?? this.lendingType,
+      hasUsageFee: hasUsageFee ?? this.hasUsageFee,
       feeAmount: feeAmount ?? this.feeAmount,
+      hasDeposit: hasDeposit ?? this.hasDeposit,
       depositAmount: depositAmount ?? this.depositAmount,
       status: status ?? this.status,
       communityId: communityId ?? this.communityId,
@@ -101,6 +109,16 @@ class ItemModel {
   }
 
   factory ItemModel.fromMap(String id, Map<String, dynamic> data) {
+    final fee = _toDouble(data['feeAmount']);
+    final deposit = _toDouble(data['depositAmount']);
+    final rawLendingType = (data['lendingType'] as String?) ?? AppConstants.lendingTypeFree;
+    final hasUsageFee =
+        data['hasUsageFee'] as bool? ??
+        ((fee != null && fee > 0) || rawLendingType == AppConstants.lendingTypeSmallFee || rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
+    final hasDeposit =
+        data['hasDeposit'] as bool? ??
+        ((deposit != null && deposit > 0) || rawLendingType == AppConstants.lendingTypeDepositRequired || rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
+
     return ItemModel(
       id: id,
       ownerId: (data['ownerId'] as String?) ?? '',
@@ -114,9 +132,11 @@ class ItemModel {
       category: (data['category'] as String?) ?? AppConstants.itemCategoryOther,
       condition: (data['condition'] as String?) ?? AppConstants.itemConditionUsed,
       imageUrls: _toStringList(data['imageUrls']),
-      lendingType: (data['lendingType'] as String?) ?? AppConstants.lendingTypeFree,
-      feeAmount: _toDouble(data['feeAmount']),
-      depositAmount: _toDouble(data['depositAmount']),
+      lendingType: _deriveLendingType(hasUsageFee: hasUsageFee, hasDeposit: hasDeposit),
+      hasUsageFee: hasUsageFee,
+      feeAmount: hasUsageFee ? fee : null,
+      hasDeposit: hasDeposit,
+      depositAmount: hasDeposit ? deposit : null,
       status: (data['status'] as String?) ?? AppConstants.itemStatusAvailable,
       communityId: (data['communityId'] as String?) ?? '',
       communityName: (data['communityName'] as String?) ?? '',
@@ -140,9 +160,11 @@ class ItemModel {
       'category': category,
       'condition': condition,
       'imageUrls': imageUrls,
-      'lendingType': lendingType,
-      'feeAmount': feeAmount,
-      'depositAmount': depositAmount,
+      'lendingType': _deriveLendingType(hasUsageFee: hasUsageFee, hasDeposit: hasDeposit),
+      'hasUsageFee': hasUsageFee,
+      'feeAmount': hasUsageFee ? feeAmount : null,
+      'hasDeposit': hasDeposit,
+      'depositAmount': hasDeposit ? depositAmount : null,
       'status': status,
       'communityId': communityId,
       'communityName': communityName,
@@ -178,5 +200,12 @@ class ItemModel {
           .toList(growable: false);
     }
     return const <String>[];
+  }
+
+  static String _deriveLendingType({required bool hasUsageFee, required bool hasDeposit}) {
+    if (hasUsageFee && hasDeposit) return AppConstants.lendingTypeFeeAndDeposit;
+    if (hasUsageFee) return AppConstants.lendingTypeSmallFee;
+    if (hasDeposit) return AppConstants.lendingTypeDepositRequired;
+    return AppConstants.lendingTypeFree;
   }
 }

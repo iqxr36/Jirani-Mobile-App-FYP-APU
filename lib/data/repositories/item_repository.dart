@@ -39,8 +39,10 @@ class ItemRepository {
     }
 
     return query.snapshots().map((snapshot) {
+      final currentUid = _auth.currentUser?.uid;
       final items = snapshot.docs
           .map((d) => ItemModel.fromMap(d.id, d.data()))
+          .where((item) => currentUid == null || item.ownerId != currentUid)
           .toList(growable: false);
 
       final q = (searchQuery ?? '').trim().toLowerCase();
@@ -94,8 +96,9 @@ class ItemRepository {
     required String category,
     required String condition,
     required List<String> imagePaths,
-    required String lendingType,
+    required bool hasUsageFee,
     double? feeAmount,
+    required bool hasDeposit,
     double? depositAmount,
     required String pickupInstructions,
     required AppUser currentUser,
@@ -113,6 +116,10 @@ class ItemRepository {
         filePaths: imagePaths,
       );
 
+      final resolvedLendingType = _deriveLendingType(
+        hasUsageFee: hasUsageFee,
+        hasDeposit: hasDeposit,
+      );
       await docRef.set({
         'ownerId': uid,
         'ownerName': currentUser.fullName,
@@ -125,9 +132,11 @@ class ItemRepository {
         'category': category,
         'condition': condition,
         'imageUrls': imageUrls,
-        'lendingType': lendingType,
-        'feeAmount': feeAmount,
-        'depositAmount': depositAmount,
+        'lendingType': resolvedLendingType,
+        'hasUsageFee': hasUsageFee,
+        'feeAmount': hasUsageFee ? feeAmount : null,
+        'hasDeposit': hasDeposit,
+        'depositAmount': hasDeposit ? depositAmount : null,
         'status': AppConstants.itemStatusAvailable,
         'communityId': currentUser.communityId,
         'communityName': currentUser.communityName,
@@ -147,8 +156,9 @@ class ItemRepository {
     required String description,
     required String category,
     required String condition,
-    required String lendingType,
+    required bool hasUsageFee,
     double? feeAmount,
+    required bool hasDeposit,
     double? depositAmount,
     required String pickupInstructions,
     List<String>? newImagePaths,
@@ -176,14 +186,20 @@ class ItemRepository {
         imageUrls = <String>[...existing.imageUrls, ...uploaded];
       }
 
+      final resolvedLendingType = _deriveLendingType(
+        hasUsageFee: hasUsageFee,
+        hasDeposit: hasDeposit,
+      );
       await docRef.update({
         'title': title.trim(),
         'description': description.trim(),
         'category': category,
         'condition': condition,
-        'lendingType': lendingType,
-        'feeAmount': feeAmount,
-        'depositAmount': depositAmount,
+        'lendingType': resolvedLendingType,
+        'hasUsageFee': hasUsageFee,
+        'feeAmount': hasUsageFee ? feeAmount : null,
+        'hasDeposit': hasDeposit,
+        'depositAmount': hasDeposit ? depositAmount : null,
         'pickupInstructions': pickupInstructions.trim(),
         'imageUrls': imageUrls,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -246,5 +262,12 @@ class ItemRepository {
       }
     }
     return urls;
+  }
+
+  static String _deriveLendingType({required bool hasUsageFee, required bool hasDeposit}) {
+    if (hasUsageFee && hasDeposit) return AppConstants.lendingTypeFeeAndDeposit;
+    if (hasUsageFee) return AppConstants.lendingTypeSmallFee;
+    if (hasDeposit) return AppConstants.lendingTypeDepositRequired;
+    return AppConstants.lendingTypeFree;
   }
 }

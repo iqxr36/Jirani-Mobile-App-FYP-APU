@@ -17,7 +17,13 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthViewModel>(
       builder: (context, vm, _) {
+        debugPrint('[AuthWrapper] build start kIsWeb=$kIsWeb');
+        debugPrint(
+          '[AuthWrapper] firebaseUser=${vm.firebaseUser?.uid} currentUser=${vm.currentUser?.uid} role=${vm.currentUser?.role} '
+          'isAuthBootstrapComplete=${vm.isAuthBootstrapComplete} isProfileLoading=${vm.isProfileLoading}',
+        );
         if (!vm.isAuthBootstrapComplete) {
+          debugPrint('[AuthWrapper] route -> bootstrap loading');
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -25,12 +31,15 @@ class AuthWrapper extends StatelessWidget {
 
         if (vm.firebaseUser == null) {
           if (kIsWeb) {
+            debugPrint('[AuthWrapper] route -> AdminLoginScreen');
             return const AdminLoginScreen();
           }
+          debugPrint('[AuthWrapper] route -> Resident LoginView');
           return const LoginView();
         }
 
         if (vm.isProfileLoading) {
+          debugPrint('[AuthWrapper] route -> profile loading');
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -46,9 +55,11 @@ class AuthWrapper extends StatelessWidget {
 
         final role = vm.currentUser!.role;
         if (role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin) {
+          debugPrint('[AuthWrapper] route -> AdminDashboardScreen');
           return const AdminDashboardScreen();
         }
         if (kIsWeb && role == AppConstants.roleResident) {
+          debugPrint('[AuthWrapper] route -> web resident blocked');
           return _MissingProfileScaffold(
             message: 'This account does not have admin access.',
             onLogout: () => context.read<AuthViewModel>().logout(),
@@ -64,9 +75,11 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (vm.showAccountCreatedScreen) {
+          debugPrint('[AuthWrapper] route -> AccountCreatedView');
           return const AccountCreatedView();
         }
 
+        debugPrint('[AuthWrapper] route -> ResidentHomePlaceholderView');
         return const ResidentHomePlaceholderView();
       },
     );

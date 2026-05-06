@@ -47,6 +47,7 @@ class AppConstants {
   static const String lendingTypeFree = 'free';
   static const String lendingTypeSmallFee = 'smallFee';
   static const String lendingTypeDepositRequired = 'depositRequired';
+  static const String lendingTypeFeeAndDeposit = 'feeAndDeposit';
 
   // Marketplace item statuses
   static const String itemStatusAvailable = 'available';

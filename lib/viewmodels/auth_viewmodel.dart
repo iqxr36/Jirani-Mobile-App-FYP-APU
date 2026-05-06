@@ -76,21 +76,28 @@ class AuthViewModel extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    debugPrint('[AuthProvider.login] started');
     _setLoading(true);
     clearError(notify: false);
     _successMessage = null;
     _profileErrorMessage = null;
 
     try {
+      debugPrint('[AuthProvider.login] Firebase/Repository sign-in started');
       _currentUser = await _repository.login(
         email: email,
         password: password,
       );
+      debugPrint('[AuthProvider.login] Repository login success, uid=${_currentUser?.uid}');
       _firebaseUser = _repository.currentFirebaseUser;
+      debugPrint('[AuthProvider.login] firebase user uid=${_firebaseUser?.uid}');
+      debugPrint('[AuthProvider.login] loaded role=${_currentUser?.role}');
       _showAccountCreatedScreen = false;
     } catch (e) {
+      debugPrint('[AuthProvider.login] error: $e');
       _errorMessage = _mapAuthError(e);
     } finally {
+      debugPrint('[AuthProvider.login] isLoading set false');
       _setLoading(false);
     }
   }
@@ -216,6 +223,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> _onAuthStateChanged(User? user) async {
+    debugPrint('[AuthProvider._onAuthStateChanged] user=${user?.uid}');
     _firebaseUser = user;
 
     if (user == null) {
@@ -233,9 +241,12 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('[AuthProvider._onAuthStateChanged] Firestore profile fetch started');
       _currentUser = await _repository.getCurrentAppUser();
+      debugPrint('[AuthProvider._onAuthStateChanged] Firestore profile fetch done role=${_currentUser?.role}');
       _profileErrorMessage = _currentUser == null ? 'User profile not found in Firestore.' : null;
     } catch (e) {
+      debugPrint('[AuthProvider._onAuthStateChanged] error: $e');
       _currentUser = null;
       _profileErrorMessage = e.toString();
     } finally {

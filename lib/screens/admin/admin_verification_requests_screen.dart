@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/providers/admin_provider.dart';
 import 'package:fyp_flutter_application/providers/auth_provider.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_dashboard_screen.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_listings_placeholder_screen.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_reports_placeholder_screen.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_settings_placeholder_screen.dart';
 import 'package:fyp_flutter_application/screens/admin/admin_unauthorized_screen.dart';
+import 'package:fyp_flutter_application/screens/admin/admin_users_placeholder_screen.dart';
 import 'package:fyp_flutter_application/screens/admin/admin_verification_request_details_screen.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_section_card.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_sidebar.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_status_chip.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_status_filter_bar.dart';
+import 'package:fyp_flutter_application/widgets/admin/admin_top_bar.dart';
 import 'package:fyp_flutter_application/widgets/admin/admin_verification_request_card.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +25,26 @@ class AdminVerificationRequestsScreen extends StatefulWidget {
 
 class _AdminVerificationRequestsScreenState extends State<AdminVerificationRequestsScreen> {
   final _searchCtrl = TextEditingController();
+  void _navigateByKey(String key) {
+    if (key == 'verification') return;
+    final routes = <String, Widget>{
+      'dashboard': const AdminDashboardScreen(),
+      'users': const AdminUsersPlaceholderScreen(),
+      'reports': const AdminReportsPlaceholderScreen(),
+      'listings': const AdminListingsPlaceholderScreen(),
+      'settings': const AdminSettingsPlaceholderScreen(),
+    };
+    final target = routes[key];
+    if (target == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => target));
+  }
+  void _openDetails(String requestId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminVerificationRequestDetailsScreen(requestId: requestId),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -50,9 +79,7 @@ class _AdminVerificationRequestsScreenState extends State<AdminVerificationReque
     }).toList(growable: false);
     final isWide = MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Verification Requests')),
-      body: Padding(
+    final body = Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -92,59 +119,56 @@ class _AdminVerificationRequestsScreenState extends State<AdminVerificationReque
                         final req = filtered[i];
                         return AdminVerificationRequestCard(
                           request: req,
-                          onView: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => AdminVerificationRequestDetailsScreen(requestId: req.id),
-                              ),
-                            );
-                          },
+                          onView: () => _openDetails(req.id),
                         );
                       },
                     );
                   }
 
-                  return SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Resident')),
-                        DataColumn(label: Text('Email')),
-                        DataColumn(label: Text('Phone')),
-                        DataColumn(label: Text('Community')),
-                        DataColumn(label: Text('Unit')),
-                        DataColumn(label: Text('Document')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Submitted')),
-                        DataColumn(label: Text('Action')),
-                      ],
-                      rows: filtered
-                          .map(
-                            (req) => DataRow(
-                              cells: [
-                                DataCell(Text(req.fullName)),
-                                DataCell(Text(req.email)),
-                                DataCell(Text(req.phoneNumber)),
-                                DataCell(Text(req.communityName)),
-                                DataCell(Text(req.unitNumber)),
-                                DataCell(Text(req.documentType)),
-                                DataCell(Chip(label: Text(req.status))),
-                                DataCell(Text(_fmt(req.submittedAt))),
-                                DataCell(
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => AdminVerificationRequestDetailsScreen(requestId: req.id),
-                                        ),
-                                      );
-                                    },
-                                    child: const Text('View'),
+                  return AdminSectionCard(
+                    padding: const EdgeInsets.all(8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingTextStyle: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF181C1D)),
+                        dataTextStyle: const TextStyle(color: Color(0xFF181C1D)),
+                        columns: const [
+                          DataColumn(label: Text('Resident')),
+                          DataColumn(label: Text('Email')),
+                          DataColumn(label: Text('Phone')),
+                          DataColumn(label: Text('Community')),
+                          DataColumn(label: Text('Unit')),
+                          DataColumn(label: Text('Document')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Action')),
+                        ],
+                        rows: filtered
+                            .map(
+                              (req) => DataRow(
+                                onSelectChanged: (_) => _openDetails(req.id),
+                                cells: [
+                                  DataCell(Text(req.fullName)),
+                                  DataCell(Text(req.email)),
+                                  DataCell(Text(req.phoneNumber)),
+                                  DataCell(Text(req.communityName)),
+                                  DataCell(Text(req.unitNumber)),
+                                  DataCell(Text(req.documentType)),
+                                  DataCell(AdminStatusChip(status: req.status)),
+                                  DataCell(
+                                    FilledButton.tonalIcon(
+                                      style: FilledButton.styleFrom(
+                                        foregroundColor: const Color(0xFF00535B),
+                                      ),
+                                      onPressed: () => _openDetails(req.id),
+                                      icon: const Icon(Icons.visibility_outlined),
+                                      label: const Text('Review'),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          )
-                          .toList(growable: false),
+                                ],
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
                     ),
                   );
                 },
@@ -152,10 +176,38 @@ class _AdminVerificationRequestsScreenState extends State<AdminVerificationReque
             ),
           ],
         ),
+    );
+
+    if (!isWide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF7FAFA),
+        appBar: AppBar(title: const Text('Verification Requests')),
+        body: body,
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFA),
+      body: Row(
+        children: [
+          AdminSidebar(activeKey: 'verification', onNavigate: _navigateByKey, onLogout: auth.logout),
+          Expanded(
+            child: Column(
+              children: [
+                AdminTopBar(
+                  title: 'Verification Requests',
+                  subtitle: 'Review resident identity submissions securely.',
+                  trailing: CircleAvatar(
+                    backgroundColor: const Color(0xFFACEFE7),
+                    child: Text(user.email.isNotEmpty ? user.email[0].toUpperCase() : 'A'),
+                  ),
+                ),
+                Expanded(child: body),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  static String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
