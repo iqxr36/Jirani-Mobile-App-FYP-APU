@@ -4,7 +4,7 @@ import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/admin/screens/auth/admin_login_screen.dart';
 import 'package:fyp_flutter_application/admin/screens/dashboard/admin_dashboard_screen.dart';
-import 'package:fyp_flutter_application/resident/screens/auth/login_view.dart';
+import 'package:fyp_flutter_application/views/auth/resident_pre_auth_gate.dart';
 import 'package:fyp_flutter_application/resident/screens/auth/account_created_view.dart';
 import 'package:fyp_flutter_application/resident/screens/home/resident_home_placeholder_view.dart';
 import 'package:provider/provider.dart';
@@ -34,8 +34,8 @@ class AuthWrapper extends StatelessWidget {
             debugPrint('[AuthWrapper] route -> AdminLoginScreen');
             return const AdminLoginScreen();
           }
-          debugPrint('[AuthWrapper] route -> Resident LoginView');
-          return const LoginView();
+          debugPrint('[AuthWrapper] route -> Resident pre-auth (onboarding or login)');
+          return const ResidentPreAuthGate();
         }
 
         if (vm.isProfileLoading) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/data/models/item_model.dart';
+import 'package:fyp_flutter_application/resident/screens/borrowing/borrow_request_form_screen.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/viewmodels/item_viewmodel.dart';
 import 'package:fyp_flutter_application/views/marketplace/edit_item_view.dart';
@@ -62,7 +63,12 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
         body: Center(child: Text(itemVm.errorMessage ?? 'Item not found.')),
       );
     }
-    final isOwner = authVm.currentUser?.uid == item.ownerId;
+    final currentUser = authVm.currentUser;
+    final isOwner = currentUser?.uid == item.ownerId;
+    final canRequest = !isOwner &&
+        (currentUser?.isVerifiedResident ?? false) &&
+        item.status == AppConstants.itemStatusAvailable &&
+        !item.isArchived;
 
     return Scaffold(
       appBar: AppBar(
@@ -171,14 +177,25 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
             const SizedBox(height: 4),
             Text(item.pickupInstructions),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Borrow request flow will be implemented in Phase 4.')),
-                );
-              },
-              child: const Text('Request to Borrow'),
-            ),
+            if (!isOwner)
+              FilledButton(
+                onPressed: !canRequest
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => BorrowRequestFormScreen(item: item),
+                          ),
+                        );
+                      },
+                child: Text(
+                  !(currentUser?.isVerifiedResident ?? false)
+                      ? 'Verification Required'
+                      : (item.status != AppConstants.itemStatusAvailable || item.isArchived)
+                          ? 'Item Unavailable'
+                          : 'Request to Borrow',
+                ),
+              ),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () {

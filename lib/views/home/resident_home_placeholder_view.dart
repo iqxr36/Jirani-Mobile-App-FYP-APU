@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
+import 'package:fyp_flutter_application/resident/screens/borrowing/incoming_borrow_requests_screen.dart';
+import 'package:fyp_flutter_application/resident/screens/borrowing/my_borrow_requests_screen.dart';
+import 'package:fyp_flutter_application/resident/screens/reports/my_reports_screen.dart';
+import 'package:fyp_flutter_application/resident/screens/services/my_services_screen.dart';
+import 'package:fyp_flutter_application/resident/screens/services/services_browse_screen.dart';
 import 'package:fyp_flutter_application/views/marketplace/add_item_view.dart';
 import 'package:fyp_flutter_application/views/marketplace/marketplace_browse_view.dart';
 import 'package:fyp_flutter_application/views/marketplace/my_listed_items_view.dart';
@@ -275,6 +280,51 @@ class ResidentHomePlaceholderView extends StatelessWidget {
                   icon: const Icon(Icons.inventory_2_outlined),
                   label: const Text('My Listed Items'),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const MyBorrowRequestsScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.assignment_outlined),
+                  label: const Text('My Borrow Requests'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const IncomingBorrowRequestsScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.inbox_outlined),
+                  label: const Text('Incoming Requests'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const ServicesBrowseScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.home_repair_service_outlined),
+                  label: const Text('Services'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const MyServicesScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.design_services_outlined),
+                  label: const Text('My Services'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const MyReportsScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('My Reports'),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -288,8 +338,19 @@ class ResidentHomePlaceholderView extends StatelessWidget {
           _FeaturePreviewCard(
             icon: Icons.home_repair_service_outlined,
             title: 'Local services',
-            subtitle: 'Phase 5',
-            enabled: false,
+            subtitle: 'Browse resident listings',
+            enabled: isVerified,
+            onTap: () {
+              if (isVerified) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ServicesBrowseScreen()),
+                );
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Complete residency verification to access services.')),
+              );
+            },
           ),
         ],
       ),

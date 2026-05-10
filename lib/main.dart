@@ -4,7 +4,11 @@ import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/theme/app_theme.dart';
 import 'package:fyp_flutter_application/providers/admin_provider.dart';
 import 'package:fyp_flutter_application/providers/auth_provider.dart';
+import 'package:fyp_flutter_application/providers/borrow_request_provider.dart';
 import 'package:fyp_flutter_application/providers/item_provider.dart';
+import 'package:fyp_flutter_application/providers/report_provider.dart';
+import 'package:fyp_flutter_application/providers/review_provider.dart';
+import 'package:fyp_flutter_application/providers/service_provider.dart';
 import 'package:fyp_flutter_application/providers/verification_provider.dart';
 import 'package:fyp_flutter_application/screens/auth/auth_wrapper.dart';
 import 'package:provider/provider.dart';
@@ -32,6 +36,10 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => VerificationProvider(),
         ),
         ChangeNotifierProvider<ItemProvider>(create: (_) => ItemProvider()),
+        ChangeNotifierProvider<BorrowRequestProvider>(create: (_) => BorrowRequestProvider()),
+        ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
+        ChangeNotifierProvider<ReportProvider>(create: (_) => ReportProvider()),
+        ChangeNotifierProvider<ServiceProvider>(create: (_) => ServiceProvider()),
         ChangeNotifierProvider<AdminProvider>(create: (_) => AdminProvider()),
       ],
       child: MaterialApp(

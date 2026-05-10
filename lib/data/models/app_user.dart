@@ -37,7 +37,7 @@ class AppUser {
   final String communityId;
   final String communityName;
   final String unitNumber;
-  final int reputationScore;
+  final double reputationScore;
   final int totalReviews;
   final int completedBorrowings;
   final int completedLendings;
@@ -66,7 +66,7 @@ class AppUser {
     String? communityId,
     String? communityName,
     String? unitNumber,
-    int? reputationScore,
+    double? reputationScore,
     int? totalReviews,
     int? completedBorrowings,
     int? completedLendings,
@@ -143,7 +143,7 @@ class AppUser {
       communityId: (map['communityId'] as String?) ?? '',
       communityName: (map['communityName'] as String?) ?? '',
       unitNumber: (map['unitNumber'] as String?) ?? '',
-      reputationScore: _parseInt(map['reputationScore']),
+      reputationScore: _parseDouble(map['reputationScore']),
       totalReviews: _parseInt(map['totalReviews']),
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
@@ -158,6 +158,14 @@ class AppUser {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return 0;
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
   }
 
   static DateTime _parseDate(dynamic value) {

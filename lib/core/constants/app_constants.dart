@@ -28,6 +28,8 @@ class AppConstants {
   /// Firebase Storage root folder for verification uploads (see storage rules).
   static const String storageVerificationDocumentsPath = 'verification_documents';
   static const String storageItemImagesPath = 'item_images';
+  /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
+  static const String storageBorrowRequestProofsPath = 'borrow_request_proofs';
 
   // Marketplace item categories
   static const String itemCategoryTools = 'tools';
@@ -61,7 +63,10 @@ class AppConstants {
   static const String communitiesCollection = 'communities';
   static const String verificationRequestsCollection = 'verificationRequests';
   static const String reportsCollection = 'reports';
+  static const String borrowRequestsCollection = 'borrowRequests';
   static const String reviewsCollection = 'reviews';
+  static const String servicesCollection = 'services';
+  static const String serviceRequestsCollection = 'serviceRequests';
   static const String chatsCollection = 'chats';
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
@@ -70,4 +75,71 @@ class AppConstants {
   // Activity log event types
   static const String activityVerificationApproved = 'verificationApproved';
   static const String activityVerificationRejected = 'verificationRejected';
+
+  // Borrow request statuses (Phase 4–5)
+  static const String borrowStatusPending = 'pending';
+  static const String borrowStatusApproved = 'approved';
+  static const String borrowStatusRejected = 'rejected';
+  static const String borrowStatusCancelled = 'cancelled';
+  static const String borrowStatusPickupReady = 'pickupReady';
+  static const String borrowStatusHandedOver = 'handedOver';
+  static const String borrowStatusActive = 'active';
+  static const String borrowStatusReturnSubmitted = 'returnSubmitted';
+  static const String borrowStatusCompleted = 'completed';
+
+  /// Item condition at handover (owner selects).
+  static const String borrowConditionBeforeExcellent = 'excellent';
+  static const String borrowConditionBeforeGood = 'good';
+  static const String borrowConditionBeforeFair = 'fair';
+  static const String borrowConditionBeforeDamaged = 'damaged';
+
+  /// Item condition at return (owner selects).
+  static const String borrowConditionAfterSame = 'sameCondition';
+  static const String borrowConditionAfterMinor = 'minorDamage';
+  static const String borrowConditionAfterMajor = 'majorDamage';
+  static const String borrowConditionAfterLost = 'lost';
+
+  // Deposit decision (Phase 6)
+  static const String depositDecisionNotRequired = 'notRequired';
+  static const String depositDecisionPending = 'pending';
+  static const String depositDecisionReturnDeposit = 'returnDeposit';
+  static const String depositDecisionWithholdDeposit = 'withholdDeposit';
+
+  // Reviews (Phase 6)
+  static const String reviewRoleBorrowerToOwner = 'borrowerToOwner';
+  static const String reviewRoleOwnerToBorrower = 'ownerToBorrower';
+
+  // Reports / disputes (Phase 6)
+  static const String reportTypeDamagedItem = 'damagedItem';
+  static const String reportTypeLostItem = 'lostItem';
+  static const String reportTypeDepositDispute = 'depositDispute';
+  static const String reportTypeUserMisconduct = 'userMisconduct';
+  static const String reportTypeOther = 'other';
+
+  static const String reportStatusOpen = 'open';
+  static const String reportStatusUnderReview = 'underReview';
+  static const String reportStatusResolved = 'resolved';
+  static const String reportStatusDismissed = 'dismissed';
+
+  // Services catalog (Phase 6)
+  static const String serviceCategoryCleaning = 'cleaning';
+  static const String serviceCategoryTutoring = 'tutoring';
+  static const String serviceCategoryRepair = 'repair';
+  static const String serviceCategoryDelivery = 'delivery';
+  static const String serviceCategoryPetCare = 'petCare';
+  static const String serviceCategoryOther = 'other';
+
+  static const String servicePriceTypeFree = 'free';
+  static const String servicePriceTypeFixed = 'fixed';
+  static const String servicePriceTypeNegotiable = 'negotiable';
+
+  static const String serviceStatusActive = 'active';
+  static const String serviceStatusInactive = 'inactive';
+  static const String serviceStatusArchived = 'archived';
+
+  static const String serviceRequestStatusPending = 'pending';
+  static const String serviceRequestStatusAccepted = 'accepted';
+  static const String serviceRequestStatusRejected = 'rejected';
+  static const String serviceRequestStatusCancelled = 'cancelled';
+  static const String serviceRequestStatusCompleted = 'completed';
 }

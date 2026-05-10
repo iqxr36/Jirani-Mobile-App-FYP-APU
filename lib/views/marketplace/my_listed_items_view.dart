@@ -5,6 +5,7 @@ import 'package:fyp_flutter_application/viewmodels/item_viewmodel.dart';
 import 'package:fyp_flutter_application/views/marketplace/add_item_view.dart';
 import 'package:fyp_flutter_application/views/marketplace/edit_item_view.dart';
 import 'package:fyp_flutter_application/views/marketplace/item_details_view.dart';
+import 'package:fyp_flutter_application/resident/screens/borrowing/incoming_borrow_requests_screen.dart';
 import 'package:fyp_flutter_application/views/verification/verification_status_view.dart';
 import 'package:fyp_flutter_application/widgets/category_chip.dart';
 import 'package:fyp_flutter_application/widgets/item_card.dart';
@@ -67,6 +68,19 @@ class _MyListedItemsViewState extends State<MyListedItemsView> {
                       onTap: () => setState(() => _statusFilter = AppConstants.itemStatusArchived),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const IncomingBorrowRequestsScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.inbox_outlined),
+                    label: const Text('Incoming Requests'),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Expanded(

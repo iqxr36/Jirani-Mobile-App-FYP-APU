@@ -105,7 +105,8 @@ class ProfileView extends StatelessWidget {
                         _InfoRow(
                           icon: Icons.star_border_rounded,
                           label: 'Reputation',
-                          value: '${user.reputationScore} (${user.totalReviews} reviews)',
+                          value:
+                              '${user.reputationScore.toStringAsFixed(1)} (${user.totalReviews} reviews)',
                         ),
                         _InfoRow(
                           icon: Icons.alternate_email_outlined,
