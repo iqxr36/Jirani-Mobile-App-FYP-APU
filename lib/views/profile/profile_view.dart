@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/views/auth/email_verification_view.dart';
+import 'package:fyp_flutter_application/views/auth/phone_verification_view.dart';
 import 'package:fyp_flutter_application/views/profile/edit_profile_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_status_view.dart';
 import 'package:fyp_flutter_application/widgets/verification_status_chip.dart';
@@ -121,30 +123,37 @@ class ProfileView extends StatelessWidget {
                         if (!user.emailVerified) ...[
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
-                            onPressed: vm.isEmailVerificationSending
-                                ? null
-                                : () async {
-                                    await vm.resendEmailVerification();
-                                    if (!context.mounted) return;
-                                    if (vm.errorMessage == null) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Verification email sent.')),
-                                      );
-                                    }
-                                  },
+                            onPressed: () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (ctx) => EmailVerificationView(
+                                    email: user.email,
+                                    onVerified: () => Navigator.of(ctx).pop(),
+                                    onBack: () => Navigator.of(ctx).pop(),
+                                  ),
+                                ),
+                              );
+                            },
                             icon: const Icon(Icons.mark_email_read_outlined),
-                            label: const Text('Resend verification email'),
+                            label: const Text('Verify email address'),
                           ),
                         ],
                         if (!user.phoneVerified) ...[
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Phone SMS verification will be implemented in the next phase.',
+                              final phone = user.phoneNumber.trim();
+                              if (phone.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Add a phone number in Edit profile first.'),
                                   ),
+                                );
+                                return;
+                              }
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => PhoneVerificationView(phoneNumber: phone),
                                 ),
                               );
                             },

@@ -289,6 +289,35 @@ class AuthRepository {
     throw Exception('Could not create your profile. Please try again.');
   }
 
+  /// Links SMS credential to the current user (email/password account) and updates Firestore.
+  ///
+  /// Call after [FirebaseAuth.verifyPhoneNumber] provides [verificationId] and the user enters [smsCode].
+  Future<void> linkRegisteredUserWithPhoneSms({
+    required String verificationId,
+    required String smsCode,
+    required String phoneNumber,
+  }) async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      throw Exception('Not signed in.');
+    }
+
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode.trim(),
+    );
+    await user.linkWithCredential(credential);
+
+    final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
+    await _firestore.collection(AppConstants.usersCollection).doc(user.uid).set({
+      'phoneVerified': true,
+      'phoneNumber': normalizedPhone,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _authService.reloadCurrentUser();
+  }
+
   Future<void> logout() {
     return _authService.signOut();
   }

@@ -30,6 +30,7 @@ class AuthViewModel extends ChangeNotifier {
   String? _profileErrorMessage;
   AppUser? _currentUser;
   bool _showAccountCreatedScreen = false;
+  bool _showPhoneVerificationAfterRegister = false;
 
   User? get firebaseUser => _firebaseUser;
   bool get isAuthBootstrapComplete => _authBootstrapComplete;
@@ -41,6 +42,7 @@ class AuthViewModel extends ChangeNotifier {
   String? get profileErrorMessage => _profileErrorMessage;
   AppUser? get currentUser => _currentUser;
   bool get showAccountCreatedScreen => _showAccountCreatedScreen;
+  bool get showPhoneVerificationAfterRegister => _showPhoneVerificationAfterRegister;
 
   Future<void> register({
     required String fullName,
@@ -63,7 +65,8 @@ class AuthViewModel extends ChangeNotifier {
         termsAccepted: termsAccepted,
       );
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = true;
+      _showPhoneVerificationAfterRegister = true;
+      _showAccountCreatedScreen = false;
       _successMessage = 'Account created. A verification email has been sent to your email address.';
     } catch (e) {
       _errorMessage = _mapAuthError(e);
@@ -185,6 +188,32 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// After OTP step (success, back, or skip), show [AccountCreatedView].
+  void exitPhoneVerificationRegistrationFlow() {
+    _showPhoneVerificationAfterRegister = false;
+    _showAccountCreatedScreen = true;
+    notifyListeners();
+  }
+
+  /// Returns `null` on success, or an error message string.
+  Future<String?> tryLinkPhoneWithSmsCode({
+    required String verificationId,
+    required String smsCode,
+    required String phoneNumber,
+  }) async {
+    try {
+      await _repository.linkRegisteredUserWithPhoneSms(
+        verificationId: verificationId,
+        smsCode: smsCode,
+        phoneNumber: phoneNumber,
+      );
+      await refreshCurrentUser();
+      return null;
+    } catch (e) {
+      return _mapAuthError(e);
+    }
+  }
+
   Future<void> refreshCurrentUser() async {
     if (_firebaseUser == null) return;
     try {
@@ -277,6 +306,7 @@ class AuthViewModel extends ChangeNotifier {
       _profileLoading = false;
       _profileErrorMessage = null;
       _showAccountCreatedScreen = false;
+      _showPhoneVerificationAfterRegister = false;
       _authBootstrapComplete = true;
       notifyListeners();
       return;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 /// Forgot password — Figma reset screen: header, card, success/error banners, bottom buttons.
@@ -17,8 +18,6 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   bool _emailSent = false;
 
   static const Color _kBrandTeal = Color(0xFF006D77);
-  static const Color _kSuccessGreen = Color(0xFF34C759);
-  static const Color _kErrorRed = Color(0xFFFF3B30);
   static const double _kCardRadius = 26;
   static const double _kFieldRadius = 10;
 
@@ -74,11 +73,11 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
-        borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.8)),
+        borderSide: BorderSide(color: AuthFeedbackBanner.errorRed.withValues(alpha: 0.8)),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
-        borderSide: const BorderSide(color: Colors.red, width: 1.3),
+        borderSide: BorderSide(color: AuthFeedbackBanner.errorRed, width: 1.3),
       ),
     );
   }
@@ -187,74 +186,6 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     );
   }
 
-  Widget _buildSuccessMessage() {
-    return Container(
-      height: 57,
-      decoration: BoxDecoration(
-        color: _kSuccessGreen.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 16),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: _kSuccessGreen,
-            child: const Icon(Icons.check, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Text(
-              'Password reset email sent!',
-              style: TextStyle(
-                color: Color(0xFF1B5E20),
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFailMessage(String message) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 57),
-      decoration: BoxDecoration(
-        color: _kErrorRed.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(width: 16),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: _kErrorRed,
-            child: const Icon(Icons.close, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFB71C1C),
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                height: 1.2,
-              ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSendResetButton(AuthViewModel vm) {
     return SizedBox(
       height: 44,
@@ -328,10 +259,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       const SizedBox(height: 12),
                       _buildResetCard(vm),
                       const SizedBox(height: 28),
-                      if (_emailSent) _buildSuccessMessage(),
+                      if (_emailSent) AuthFeedbackBanner.success('Password reset email sent!'),
                       if (vm.errorMessage != null) ...[
                         if (_emailSent) const SizedBox(height: 16),
-                        _buildFailMessage(vm.errorMessage!),
+                        AuthFeedbackBanner.failure(vm.errorMessage!),
                       ],
                     ],
                   ),

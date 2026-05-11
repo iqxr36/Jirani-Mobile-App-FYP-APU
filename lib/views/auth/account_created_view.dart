@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:fyp_flutter_application/views/auth/email_verification_view.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
 
@@ -67,10 +68,16 @@ class AccountCreatedView extends StatelessWidget {
                 onPressed: vm.isLoading
                     ? null
                     : () {
-                        vm.dismissAccountCreatedScreen();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Verification flow opens in Phase 2.'),
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (ctx) => EmailVerificationView(
+                              email: vm.currentUser?.email,
+                              onVerified: () {
+                                Navigator.of(ctx).pop();
+                                vm.dismissAccountCreatedScreen();
+                              },
+                              onBack: () => Navigator.of(ctx).pop(),
+                            ),
                           ),
                         );
                       },

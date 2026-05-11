@@ -4,6 +4,7 @@ import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/admin/screens/auth/admin_login_screen.dart';
 import 'package:fyp_flutter_application/admin/screens/dashboard/admin_dashboard_screen.dart';
+import 'package:fyp_flutter_application/views/auth/phone_verification_view.dart';
 import 'package:fyp_flutter_application/views/auth/resident_pre_auth_gate.dart';
 import 'package:fyp_flutter_application/resident/screens/auth/account_created_view.dart';
 import 'package:fyp_flutter_application/resident/screens/home/resident_home_placeholder_view.dart';
@@ -71,6 +72,17 @@ class AuthWrapper extends StatelessWidget {
             message: 'Unknown role "$role". Please contact support.',
             onLogout: () => context.read<AuthViewModel>().logout(),
             isLoggingOut: vm.isLoading,
+          );
+        }
+
+        if (vm.showPhoneVerificationAfterRegister && vm.currentUser != null) {
+          debugPrint('[AuthWrapper] route -> PhoneVerificationView');
+          final phone = vm.currentUser!.phoneNumber.trim();
+          return PhoneVerificationView(
+            phoneNumber: phone,
+            verificationId: null,
+            resendToken: null,
+            onFlowFinished: () => context.read<AuthViewModel>().exitPhoneVerificationRegistrationFlow(),
           );
         }
 
