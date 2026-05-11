@@ -175,6 +175,120 @@ class AuthRepository {
     return appUser;
   }
 
+  /// Google Sign-In. Returns `null` if the user cancelled the account picker.
+  Future<AppUser?> signInWithGoogle() async {
+    debugPrint('[AuthRepository.signInWithGoogle] started');
+    final credential = await _authService.signInWithGoogle();
+    if (credential == null) {
+      debugPrint('[AuthRepository.signInWithGoogle] cancelled');
+      return null;
+    }
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw Exception('Unable to sign in with Google.');
+    }
+    await _authService.reloadCurrentUser();
+    final refreshed = _authService.currentUser ?? firebaseUser;
+    final appUser = await _ensureResidentProfileAfterOAuth(
+      refreshed,
+      preferredFullName: refreshed.displayName?.trim() ?? '',
+      preferredEmail: refreshed.email?.trim() ?? '',
+    );
+    debugPrint('[AuthRepository.signInWithGoogle] done uid=${appUser.uid}');
+    return appUser;
+  }
+
+  /// Apple Sign-In. Returns `null` if the user cancelled.
+  Future<AppUser?> signInWithApple() async {
+    debugPrint('[AuthRepository.signInWithApple] started');
+    final AppleSignInFlowResult? result = await _authService.signInWithApple();
+    if (result == null) {
+      debugPrint('[AuthRepository.signInWithApple] cancelled');
+      return null;
+    }
+    final firebaseUser = result.credential.user;
+    if (firebaseUser == null) {
+      throw Exception('Unable to sign in with Apple.');
+    }
+    await _authService.reloadCurrentUser();
+    final refreshed = _authService.currentUser ?? firebaseUser;
+
+    var fullName = '';
+    if (result.givenName != null || result.familyName != null) {
+      fullName = '${result.givenName ?? ''} ${result.familyName ?? ''}'.trim();
+    }
+    if (fullName.isEmpty) {
+      fullName = refreshed.displayName?.trim() ?? '';
+    }
+
+    var email = refreshed.email?.trim() ?? '';
+    if (email.isEmpty && result.appleEmail != null) {
+      email = result.appleEmail!.trim();
+    }
+
+    final appUser = await _ensureResidentProfileAfterOAuth(
+      refreshed,
+      preferredFullName: fullName,
+      preferredEmail: email,
+    );
+    debugPrint('[AuthRepository.signInWithApple] done uid=${appUser.uid}');
+    return appUser;
+  }
+
+  /// Creates [users/{uid}] for OAuth users if missing; otherwise returns existing profile.
+  Future<AppUser> _ensureResidentProfileAfterOAuth(
+    User firebaseUser, {
+    required String preferredFullName,
+    required String preferredEmail,
+  }) async {
+    final docRef = _firestore.collection(AppConstants.usersCollection).doc(firebaseUser.uid);
+    final snap = await docRef.get();
+    if (snap.exists && snap.data() != null) {
+      final existing = AppUser.fromMap(snap.data()!);
+      if (existing.role.trim().isEmpty) {
+        throw Exception('User role is missing. Please contact support.');
+      }
+      return existing;
+    }
+
+    await docRef.set({
+      'uid': firebaseUser.uid,
+      'fullName': preferredFullName,
+      'email': preferredEmail,
+      'phoneNumber': '',
+      'role': AppConstants.roleResident,
+      'verificationStatus': AppConstants.verificationPending,
+      'emailVerified': _authService.isEmailVerified,
+      'phoneVerified': false,
+      'profileImageUrl': firebaseUser.photoURL ?? '',
+      'communityId': '',
+      'communityName': '',
+      'unitNumber': '',
+      'reputationScore': 0.0,
+      'totalReviews': 0,
+      'completedBorrowings': 0,
+      'completedLendings': 0,
+      'completedServices': 0,
+      'termsAccepted': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    const maxAttempts = 5;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      final created = await docRef.get();
+      final data = created.data();
+      if (data != null) {
+        return AppUser.fromMap(data);
+      }
+      if (attempt < maxAttempts - 1) {
+        await Future<void>.delayed(Duration(milliseconds: 200 * (attempt + 1)));
+      }
+    }
+
+    throw Exception('Could not create your profile. Please try again.');
+  }
+
   Future<void> logout() {
     return _authService.signOut();
   }

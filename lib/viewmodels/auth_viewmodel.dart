@@ -102,6 +102,52 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Returns without error if the user cancelled the Google account picker.
+  Future<void> signInWithGoogle() async {
+    _setLoading(true);
+    clearError(notify: false);
+    _successMessage = null;
+    _profileErrorMessage = null;
+
+    try {
+      final user = await _repository.signInWithGoogle();
+      if (user == null) {
+        return;
+      }
+      _currentUser = user;
+      _firebaseUser = _repository.currentFirebaseUser;
+      _showAccountCreatedScreen = false;
+    } catch (e) {
+      debugPrint('[AuthProvider.signInWithGoogle] error: $e');
+      _errorMessage = _mapAuthError(e);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Returns without error if the user cancelled Apple sign-in.
+  Future<void> signInWithApple() async {
+    _setLoading(true);
+    clearError(notify: false);
+    _successMessage = null;
+    _profileErrorMessage = null;
+
+    try {
+      final user = await _repository.signInWithApple();
+      if (user == null) {
+        return;
+      }
+      _currentUser = user;
+      _firebaseUser = _repository.currentFirebaseUser;
+      _showAccountCreatedScreen = false;
+    } catch (e) {
+      debugPrint('[AuthProvider.signInWithApple] error: $e');
+      _errorMessage = _mapAuthError(e);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> logout() async {
     _setLoading(true);
     clearError(notify: false);
@@ -263,9 +309,29 @@ class AuthViewModel extends ChangeNotifier {
 
   String _mapAuthError(Object e) {
     if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'account-exists-with-different-credential':
+          return 'This email is already linked to another sign-in method.';
+        case 'network-request-failed':
+          return 'Network error. Please try again.';
+        case 'user-disabled':
+          return 'This account has been disabled.';
+        case 'invalid-credential':
+          return 'Sign-in failed. Please try again.';
+        case 'user-not-found':
+        case 'wrong-password':
+          return e.message ?? 'Sign-in failed.';
+      }
       return e.message ?? e.code;
     }
-    return e.toString();
+    final raw = e.toString().replaceFirst('Exception: ', '').trim();
+    if (raw.contains('Apple sign-in is not available')) {
+      return 'Apple sign-in is not available on this device.';
+    }
+    if (raw.contains('Network error')) {
+      return raw;
+    }
+    return raw;
   }
 
   @override

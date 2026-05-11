@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/widgets/custom_button.dart';
-import 'package:fyp_flutter_application/widgets/custom_text_field.dart';
 import 'package:provider/provider.dart';
 
+/// Forgot password — Figma reset screen: header, card, success/error banners, bottom buttons.
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
 
@@ -17,8 +16,27 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   final _emailController = TextEditingController();
   bool _emailSent = false;
 
+  static const Color _kBrandTeal = Color(0xFF006D77);
+  static const Color _kSuccessGreen = Color(0xFF34C759);
+  static const Color _kErrorRed = Color(0xFFFF3B30);
+  static const double _kCardRadius = 26;
+  static const double _kFieldRadius = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_onEmailChanged);
+  }
+
+  void _onEmailChanged() {
+    if (!mounted) return;
+    context.read<AuthViewModel>().clearError();
+    if (_emailSent) setState(() => _emailSent = false);
+  }
+
   @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged);
     _emailController.dispose();
     super.dispose();
   }
@@ -36,69 +54,310 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     }
   }
 
+  InputDecoration _emailDecoration() {
+    return InputDecoration(
+      hintText: 'example@gmail.com',
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      hintStyle: TextStyle(
+        color: Colors.black.withValues(alpha: 0.28),
+        fontSize: 14,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(_kFieldRadius),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(_kFieldRadius),
+        borderSide: const BorderSide(color: _kBrandTeal, width: 1.3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(_kFieldRadius),
+        borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.8)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(_kFieldRadius),
+        borderSide: const BorderSide(color: Colors.red, width: 1.3),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AuthViewModel vm) {
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _kBrandTeal),
+              onPressed: vm.isLoading ? null : () => Navigator.of(context).pop(),
+            ),
+          ),
+          Text(
+            'Forgot Password?',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: _kBrandTeal,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ) ??
+                const TextStyle(
+                  color: _kBrandTeal,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailField(AuthViewModel vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Email Address',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          enabled: !vm.isLoading,
+          style: const TextStyle(fontSize: 15),
+          decoration: _emailDecoration(),
+          validator: Validators.validateEmail,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResetCard(AuthViewModel vm) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 15),
+              const Text(
+                'Hang Tight!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kBrandTeal,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Enter your email address and we will send a password reset link to you.',
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 62),
+              _buildEmailField(vm),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessMessage() {
+    return Container(
+      height: 57,
+      decoration: BoxDecoration(
+        color: _kSuccessGreen.withValues(alpha: 0.20),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: _kSuccessGreen,
+            child: const Icon(Icons.check, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Password reset email sent!',
+              style: TextStyle(
+                color: Color(0xFF1B5E20),
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFailMessage(String message) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 57),
+      decoration: BoxDecoration(
+        color: _kErrorRed.withValues(alpha: 0.20),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(width: 16),
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: _kErrorRed,
+            child: const Icon(Icons.close, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFB71C1C),
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                height: 1.2,
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSendResetButton(AuthViewModel vm) {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: _kBrandTeal,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.6),
+          disabledForegroundColor: Colors.white70,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: vm.isLoading ? null : _submit,
+        child: vm.isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Text(
+                'Send Reset Link',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildReturnToLoginButton(AuthViewModel vm) {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: Colors.black.withValues(alpha: 0.16),
+          foregroundColor: _kBrandTeal,
+          disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.5),
+          disabledBackgroundColor: Colors.black.withValues(alpha: 0.08),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: vm.isLoading ? null : () => Navigator.of(context).pop(),
+        child: const Text(
+          'Return to Login',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AuthViewModel>();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset password')),
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Enter your email and we will send you a link to reset your password.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 20),
-                CustomTextField(
-                  controller: _emailController,
-                  labelText: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  validator: Validators.validateEmail,
-                ),
-                const SizedBox(height: 16),
-                if (_emailSent)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Check your inbox for reset instructions. If you do not see it, '
-                              'check spam or try again in a few minutes.',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(28, 0, 28, 20 + bottomInset),
+          child: CustomScrollView(
+            slivers: [
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 350),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeader(context, vm),
+                      const SizedBox(height: 12),
+                      _buildResetCard(vm),
+                      const SizedBox(height: 28),
+                      if (_emailSent) _buildSuccessMessage(),
+                      if (vm.errorMessage != null) ...[
+                        if (_emailSent) const SizedBox(height: 16),
+                        _buildFailMessage(vm.errorMessage!),
+                      ],
+                    ],
                   ),
-                if (vm.errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  Text(vm.errorMessage!, style: const TextStyle(color: Colors.red)),
-                ],
-                const SizedBox(height: 20),
-                CustomButton(
-                  label: _emailSent ? 'Resend email' : 'Send reset link',
-                  isLoading: vm.isLoading,
-                  onPressed: _submit,
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: vm.isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Back to login'),
-                ),
-              ],
+              ),
             ),
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 350),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSendResetButton(vm),
+                      const SizedBox(height: 12),
+                      _buildReturnToLoginButton(vm),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
           ),
         ),
       ),
