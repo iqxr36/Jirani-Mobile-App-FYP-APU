@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:fyp_flutter_application/services/location_access.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
 import 'package:fyp_flutter_application/resident/screens/borrowing/incoming_borrow_requests_screen.dart';
 import 'package:fyp_flutter_application/resident/screens/borrowing/my_borrow_requests_screen.dart';
 import 'package:fyp_flutter_application/resident/screens/reports/my_reports_screen.dart';
@@ -18,8 +18,22 @@ import 'package:fyp_flutter_application/widgets/verified_badge.dart';
 import 'package:provider/provider.dart';
 
 /// Phase 1–2 placeholder for the resident dashboard (verified / pending / limited copy).
-class ResidentHomePlaceholderView extends StatelessWidget {
+class ResidentHomePlaceholderView extends StatefulWidget {
   const ResidentHomePlaceholderView({super.key});
+
+  @override
+  State<ResidentHomePlaceholderView> createState() => _ResidentHomePlaceholderViewState();
+}
+
+class _ResidentHomePlaceholderViewState extends State<ResidentHomePlaceholderView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await LocationAccess.showInitialOnboardingIfNeeded(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,11 +150,7 @@ class ResidentHomePlaceholderView extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       FilledButton.tonal(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(builder: (_) => const LocationPermissionView()),
-                          );
-                        },
+                        onPressed: () => LocationAccess.openVerificationLocationFlow(context),
                         child: const Text('Complete verification'),
                       ),
                     ],

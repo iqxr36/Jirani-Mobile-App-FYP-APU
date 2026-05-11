@@ -181,6 +181,20 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
+  /// Community hero from `assets/auth1.png` (Figma); keeps layout compact.
+  Widget _buildCommunityHeroImage() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 350, maxHeight: 200),
+        child: Image.asset(
+          'assets/auth1.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const SizedBox(height: 0),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -204,7 +218,9 @@ class _RegisterViewState extends State<RegisterView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildHeader(vm, textTheme),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        _buildCommunityHeroImage(),
+                        const SizedBox(height: 12),
                         Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 350),

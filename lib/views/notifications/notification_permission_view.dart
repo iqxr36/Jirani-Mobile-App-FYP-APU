@@ -1,0 +1,342 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:fyp_flutter_application/views/verification/verification_intro_view.dart';
+
+const Color _kBrandTeal = Color(0xFF006D77);
+const double _kMaxContentWidth = 350;
+
+/// Notification permission — Figma: illustration, title, info card, allow / maybe later.
+class NotificationPermissionView extends StatefulWidget {
+  const NotificationPermissionView({super.key});
+
+  @override
+  State<NotificationPermissionView> createState() => _NotificationPermissionViewState();
+}
+
+class _NotificationPermissionViewState extends State<NotificationPermissionView> {
+  bool _allowing = false;
+  bool _skipping = false;
+
+  bool get _buttonsLocked => _allowing || _skipping;
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _proceedToVerification() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const VerificationIntroView()),
+    );
+  }
+
+  Future<void> _saveNotificationPreference({
+    required bool enabled,
+    required String status,
+    String? token,
+  }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final data = <String, dynamic>{
+      'notificationEnabled': enabled,
+      'notificationPermissionStatus': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (token != null && token.isNotEmpty) {
+      data['fcmToken'] = token;
+    }
+
+    await FirebaseFirestore.instance
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .set(data, SetOptions(merge: true));
+  }
+
+  Future<void> _handleAllowNotifications() async {
+    if (_buttonsLocked) return;
+    setState(() => _allowing = true);
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      if (!mounted) return;
+
+      final status = settings.authorizationStatus;
+      if (status == AuthorizationStatus.authorized ||
+          status == AuthorizationStatus.provisional) {
+        final token = await FirebaseMessaging.instance.getToken();
+        final statusStr =
+            status == AuthorizationStatus.provisional ? 'provisional' : 'authorized';
+        await _saveNotificationPreference(enabled: true, status: statusStr, token: token);
+        if (!mounted) return;
+        _proceedToVerification();
+      } else {
+        await _saveNotificationPreference(enabled: false, status: 'denied', token: null);
+        if (!mounted) return;
+        _showSnack(
+          'Notifications are disabled. You can enable them later from settings.',
+        );
+        _proceedToVerification();
+      }
+    } catch (_) {
+      if (mounted) {
+        _showSnack('Could not update notification settings.');
+        _proceedToVerification();
+      }
+    } finally {
+      if (mounted) setState(() => _allowing = false);
+    }
+  }
+
+  Future<void> _handleMaybeLater() async {
+    if (_buttonsLocked) return;
+    setState(() => _skipping = true);
+    try {
+      await _saveNotificationPreference(enabled: false, status: 'skipped', token: null);
+      if (!mounted) return;
+      _proceedToVerification();
+    } catch (_) {
+      if (mounted) {
+        _showSnack('Could not save your preference.');
+        _proceedToVerification();
+      }
+    } finally {
+      if (mounted) setState(() => _skipping = false);
+    }
+  }
+
+  Widget _buildIllustration() {
+    return SizedBox(
+      height: 210,
+      width: double.infinity,
+      child: Image.asset(
+        'assets/perm2.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderIllustration() {
+    final softTeal = _kBrandTeal.withValues(alpha: 0.14);
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned(left: 20, top: 24, child: Icon(Icons.home_rounded, size: 26, color: softTeal)),
+        Positioned(right: 28, top: 32, child: Icon(Icons.person_outline_rounded, size: 24, color: softTeal)),
+        Positioned(left: 36, bottom: 32, child: Icon(Icons.shield_outlined, size: 22, color: softTeal)),
+        Positioned(right: 40, bottom: 28, child: Icon(Icons.chat_bubble_outline_rounded, size: 22, color: softTeal)),
+        Container(
+          width: 118,
+          height: 168,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: softTeal, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: _kBrandTeal.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.notifications_active_rounded, size: 48, color: _kBrandTeal),
+              const SizedBox(height: 8),
+              Container(
+                width: 56,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: softTeal,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTitle() {
+    return const Text(
+      'Stay connected with your community',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: _kBrandTeal,
+        fontSize: 19,
+        fontWeight: FontWeight.w700,
+        height: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.notifications_active_rounded, color: _kBrandTeal, size: 28),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Enable notifications to receive updates about nearby requests, lending activity, service bookings, and messages from trusted neighbors.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllowNotificationsButton() {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: _kBrandTeal,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.55),
+          disabledForegroundColor: Colors.white70,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: _buttonsLocked ? null : _handleAllowNotifications,
+        child: _allowing
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Enabling...',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                ],
+              )
+            : const Text(
+                'Allow Notifications',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildMaybeLaterButton() {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
+          foregroundColor: _kBrandTeal,
+          disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
+          disabledBackgroundColor: const Color(0xFF787880).withValues(alpha: 0.10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: _buttonsLocked ? null : _handleMaybeLater,
+        child: const Text(
+          'Maybe Later',
+          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 28),
+                        _buildIllustration(),
+                        const SizedBox(height: 22),
+                        _buildTitle(),
+                        const SizedBox(height: 22),
+                        _buildInfoCard(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildAllowNotificationsButton(),
+                        const SizedBox(height: 8),
+                        _buildMaybeLaterButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

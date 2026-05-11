@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/services/location_access.dart';
 import 'package:fyp_flutter_application/viewmodels/verification_viewmodel.dart';
-import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_approved_view.dart';
 import 'package:fyp_flutter_application/views/verification/verification_cancel_dialog.dart';
 import 'package:fyp_flutter_application/views/verification/verification_pending_view.dart';
@@ -102,11 +102,7 @@ class _VerificationStatusViewState extends State<VerificationStatusView> {
               const SizedBox(height: 16),
               if (status == AppConstants.verificationPending) ...[
                 FilledButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const LocationPermissionView()),
-                    );
-                  },
+                  onPressed: () => LocationAccess.openVerificationLocationFlow(context),
                   child: const Text('Start verification'),
                 ),
               ] else if (status == AppConstants.verificationSubmitted) ...[

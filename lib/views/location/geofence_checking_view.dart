@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:fyp_flutter_application/views/verification/verification_intro_view.dart';
+import 'package:fyp_flutter_application/views/notifications/notification_permission_view.dart';
 
 /// Placeholder screen while acquiring a fix. Real geofence bounds come in Phase 2B.
 class GeofenceCheckingView extends StatefulWidget {
@@ -33,7 +33,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
 
       if (!mounted) return;
       await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const VerificationIntroView()),
+        MaterialPageRoute<void>(builder: (_) => const NotificationPermissionView()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -72,7 +72,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(builder: (_) => const VerificationIntroView()),
+                    MaterialPageRoute<void>(builder: (_) => const NotificationPermissionView()),
                   ),
                   child: const Text('Continue to verification'),
                 ),
