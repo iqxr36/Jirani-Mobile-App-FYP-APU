@@ -1,26 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/views/camera/camera_permission_view.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
 
-/// Notification permission — Figma: illustration, title, info card, allow / maybe later.
-class NotificationPermissionView extends StatefulWidget {
-  const NotificationPermissionView({super.key});
+/// Camera permission — Figma Group 25: illustration, title, info card, enable / maybe later.
+class CameraPermissionView extends StatefulWidget {
+  const CameraPermissionView({super.key});
 
   @override
-  State<NotificationPermissionView> createState() => _NotificationPermissionViewState();
+  State<CameraPermissionView> createState() => _CameraPermissionViewState();
 }
 
-class _NotificationPermissionViewState extends State<NotificationPermissionView> {
-  bool _allowing = false;
+class _CameraPermissionViewState extends State<CameraPermissionView> {
+  bool _enabling = false;
   bool _skipping = false;
 
-  bool get _buttonsLocked => _allowing || _skipping;
+  bool get _buttonsLocked => _enabling || _skipping;
 
   void _showSnack(String message) {
     if (!mounted) return;
@@ -29,71 +28,60 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
 
   void _completePermissionFlow() {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const CameraPermissionView()),
-    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  Future<void> _saveNotificationPreference({
+  Future<void> _saveCameraPreference({
     required bool enabled,
     required String status,
-    String? token,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final data = <String, dynamic>{
-      'notificationEnabled': enabled,
-      'notificationPermissionStatus': status,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (token != null && token.isNotEmpty) {
-      data['fcmToken'] = token;
-    }
-
-    await FirebaseFirestore.instance
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .set(data, SetOptions(merge: true));
+    await FirebaseFirestore.instance.collection(AppConstants.usersCollection).doc(uid).set(
+      {
+        'cameraEnabled': enabled,
+        'cameraPermissionStatus': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
-  Future<void> _handleAllowNotifications() async {
+  Future<void> _handleEnableCamera() async {
     if (_buttonsLocked) return;
-    setState(() => _allowing = true);
+    setState(() => _enabling = true);
     try {
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+      final status = await Permission.camera.request();
 
       if (!mounted) return;
 
-      final status = settings.authorizationStatus;
-      if (status == AuthorizationStatus.authorized ||
-          status == AuthorizationStatus.provisional) {
-        final token = await FirebaseMessaging.instance.getToken();
-        final statusStr =
-            status == AuthorizationStatus.provisional ? 'provisional' : 'authorized';
-        await _saveNotificationPreference(enabled: true, status: statusStr, token: token);
+      if (status.isGranted || status.isLimited) {
+        await _saveCameraPreference(enabled: true, status: 'authorized');
         if (!mounted) return;
         _completePermissionFlow();
-      } else {
-        await _saveNotificationPreference(enabled: false, status: 'denied', token: null);
+      } else if (status.isPermanentlyDenied) {
+        await _saveCameraPreference(enabled: false, status: 'denied');
         if (!mounted) return;
         _showSnack(
-          'Notifications are disabled. You can enable them later from settings.',
+          'Camera access is blocked. You can enable it in your device settings.',
+        );
+        _completePermissionFlow();
+      } else {
+        await _saveCameraPreference(enabled: false, status: 'denied');
+        if (!mounted) return;
+        _showSnack(
+          'Camera access was not granted. You can enable it later from settings.',
         );
         _completePermissionFlow();
       }
     } catch (_) {
       if (mounted) {
-        _showSnack('Could not update notification settings.');
+        _showSnack('Could not update camera settings.');
         _completePermissionFlow();
       }
     } finally {
-      if (mounted) setState(() => _allowing = false);
+      if (mounted) setState(() => _enabling = false);
     }
   }
 
@@ -101,7 +89,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
     if (_buttonsLocked) return;
     setState(() => _skipping = true);
     try {
-      await _saveNotificationPreference(enabled: false, status: 'skipped', token: null);
+      await _saveCameraPreference(enabled: false, status: 'skipped');
       if (!mounted) return;
       _completePermissionFlow();
     } catch (_) {
@@ -119,7 +107,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
       height: 210,
       width: double.infinity,
       child: Image.asset(
-        'assets/perm2.png',
+        'assets/cam-perm.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
       ),
@@ -131,54 +119,20 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
     return Stack(
       alignment: Alignment.center,
       children: [
-        Positioned(left: 20, top: 24, child: Icon(Icons.home_rounded, size: 26, color: softTeal)),
-        Positioned(right: 28, top: 32, child: Icon(Icons.person_outline_rounded, size: 24, color: softTeal)),
-        Positioned(left: 36, bottom: 32, child: Icon(Icons.shield_outlined, size: 22, color: softTeal)),
-        Positioned(right: 40, bottom: 28, child: Icon(Icons.chat_bubble_outline_rounded, size: 22, color: softTeal)),
-        Container(
-          width: 118,
-          height: 168,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: softTeal, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: _kBrandTeal.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.notifications_active_rounded, size: 48, color: _kBrandTeal),
-              const SizedBox(height: 8),
-              Container(
-                width: 56,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: softTeal,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ],
-          ),
-        ),
+        Icon(Icons.camera_alt_outlined, size: 88, color: softTeal),
       ],
     );
   }
 
   Widget _buildTitle() {
     return const Text(
-      'Stay connected with your community',
+      'Enable Camera Access',
       textAlign: TextAlign.center,
       style: TextStyle(
         color: _kBrandTeal,
-        fontSize: 19,
+        fontSize: 25,
         fontWeight: FontWeight.w700,
-        height: 1.2,
+        height: 1.15,
       ),
     );
   }
@@ -190,41 +144,23 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _kBrandTeal.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.notifications_active_rounded, color: _kBrandTeal, size: 28),
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Enable notifications to receive updates about nearby requests, lending activity, service bookings, and messages from trusted neighbors.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                height: 1.2,
-              ),
-            ),
-          ],
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+        child: Text(
+          'Your phone camera will be used to show evidences and proofs for borrowing, lending, and task Services.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+            height: 1.25,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAllowNotificationsButton() {
+  Widget _buildEnableCameraButton() {
     return SizedBox(
       height: 44,
       width: double.infinity,
@@ -237,8 +173,8 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
           disabledForegroundColor: Colors.white70,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: _buttonsLocked ? null : _handleAllowNotifications,
-        child: _allowing
+        onPressed: _buttonsLocked ? null : _handleEnableCamera,
+        child: _enabling
             ? const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -256,7 +192,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
                 ],
               )
             : const Text(
-                'Allow Notifications',
+                'Enable Camera',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
       ),
@@ -325,7 +261,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 24),
-                        _buildAllowNotificationsButton(),
+                        _buildEnableCameraButton(),
                         const SizedBox(height: 8),
                         _buildMaybeLaterButton(),
                       ],

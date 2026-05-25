@@ -51,9 +51,9 @@ class _LoginViewState extends State<LoginView> {
 
     debugPrint('[ResidentLoginView] login call started');
     await context.read<AuthViewModel>().login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
     debugPrint('[ResidentLoginView] login call finished');
     if (!mounted) return;
     final vm = context.read<AuthViewModel>();
@@ -66,23 +66,16 @@ class _LoginViewState extends State<LoginView> {
     await context.read<AuthViewModel>().signInWithGoogle();
   }
 
-  Future<void> _appleSignIn() async {
-    await context.read<AuthViewModel>().signInWithApple();
-  }
-
   static TextStyle _labelStyle(BuildContext context) {
     return Theme.of(context).textTheme.titleSmall!.copyWith(
-          fontWeight: FontWeight.w600,
-          color: Colors.black,
-          fontSize: 13,
-        );
+      fontWeight: FontWeight.w600,
+      color: Colors.black,
+      fontSize: 13,
+    );
   }
 
   static TextStyle _hintStyle() {
-    return TextStyle(
-      color: Colors.black.withValues(alpha: 0.35),
-      fontSize: 15,
-    );
+    return TextStyle(color: Colors.black.withValues(alpha: 0.35), fontSize: 15);
   }
 
   @override
@@ -128,7 +121,8 @@ class _LoginViewState extends State<LoginView> {
                         Text(
                           'Welcome to your Community!',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 color: _kBrandTeal,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 20,
@@ -142,11 +136,17 @@ class _LoginViewState extends State<LoginView> {
                             border: Border.all(color: dividerGrey),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 22,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Text('Email Address', style: _labelStyle(context)),
+                                Text(
+                                  'Email Address',
+                                  style: _labelStyle(context),
+                                ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _emailController,
@@ -169,17 +169,24 @@ class _LoginViewState extends State<LoginView> {
                                   decoration: baseDecoration.copyWith(
                                     hintText: '************',
                                     suffixIcon: IconButton(
-                                      tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                                      tooltip: _obscurePassword
+                                          ? 'Show password'
+                                          : 'Hide password',
                                       onPressed: vm.isLoading
                                           ? null
                                           : () {
                                               setState(() {
-                                                _obscurePassword = !_obscurePassword;
+                                                _obscurePassword =
+                                                    !_obscurePassword;
                                               });
                                             },
                                       icon: Icon(
-                                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                        color: Colors.black.withValues(alpha: 0.45),
+                                        _obscurePassword
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        color: Colors.black.withValues(
+                                          alpha: 0.45,
+                                        ),
                                         size: 22,
                                       ),
                                     ),
@@ -194,7 +201,8 @@ class _LoginViewState extends State<LoginView> {
                                     style: TextButton.styleFrom(
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                       foregroundColor: _kBrandTeal,
                                     ),
                                     onPressed: vm.isLoading
@@ -202,7 +210,10 @@ class _LoginViewState extends State<LoginView> {
                                         : () {
                                             vm.clearError();
                                             Navigator.of(context).push(
-                                              MaterialPageRoute<void>(builder: (_) => const ForgotPasswordView()),
+                                              MaterialPageRoute<void>(
+                                                builder: (_) =>
+                                                    const ForgotPasswordView(),
+                                              ),
                                             );
                                           },
                                     child: const Text(
@@ -222,9 +233,10 @@ class _LoginViewState extends State<LoginView> {
                         Divider(height: 1, thickness: 1, color: dividerGrey),
                         const SizedBox(height: 16),
                         Text(
-                          'Sign in with',
+                          'Sign in with Google',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
                                 color: _kBrandTeal,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
@@ -234,21 +246,6 @@ class _LoginViewState extends State<LoginView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _SocialIconButton(
-                              onPressed: vm.isLoading ? null : _appleSignIn,
-                              child: const _AppleSignInIcon(),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: SizedBox(
-                                height: 36,
-                                child: VerticalDivider(
-                                  width: 1,
-                                  thickness: 1,
-                                  color: dividerGrey,
-                                ),
-                              ),
-                            ),
                             _SocialIconButton(
                               onPressed: vm.isLoading ? null : _googleSignIn,
                               child: const _GoogleSignInIcon(),
@@ -262,7 +259,10 @@ class _LoginViewState extends State<LoginView> {
                             child: Text(
                               vm.errorMessage!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red, fontSize: 13),
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         SizedBox(
@@ -273,7 +273,9 @@ class _LoginViewState extends State<LoginView> {
                               elevation: 0,
                               backgroundColor: _kBrandTeal,
                               foregroundColor: Colors.white,
-                              disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.6),
+                              disabledBackgroundColor: _kBrandTeal.withValues(
+                                alpha: 0.6,
+                              ),
                               disabledForegroundColor: Colors.white70,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -302,9 +304,8 @@ class _LoginViewState extends State<LoginView> {
                         Text(
                           'Don\'t have an account?',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.black87,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.black87),
                         ),
                         const SizedBox(height: 6),
                         TextButton(
@@ -319,7 +320,9 @@ class _LoginViewState extends State<LoginView> {
                               : () {
                                   vm.clearError();
                                   Navigator.of(context).push(
-                                    MaterialPageRoute<void>(builder: (_) => const RegisterView()),
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const RegisterView(),
+                                    ),
                                   );
                                 },
                           child: const Text(
@@ -345,10 +348,7 @@ class _LoginViewState extends State<LoginView> {
 }
 
 class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton({
-    required this.onPressed,
-    required this.child,
-  });
+  const _SocialIconButton({required this.onPressed, required this.child});
 
   final VoidCallback? onPressed;
   final Widget child;
@@ -360,28 +360,7 @@ class _SocialIconButton extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// Prefer `assets/images/auth/apple.png` when added to pubspec.
-class _AppleSignInIcon extends StatelessWidget {
-  const _AppleSignInIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Icon(
-        Icons.apple,
-        size: 34,
-        color: Colors.black,
+        child: Padding(padding: const EdgeInsets.all(8), child: child),
       ),
     );
   }

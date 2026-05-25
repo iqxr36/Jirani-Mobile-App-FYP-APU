@@ -60,7 +60,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Trust Community needs camera access to photograph proof of residence.</string>
+	<string>Trust Community uses your camera for evidence when borrowing, lending, and completing services.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Trust Community needs photo library access to upload proof of residence.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

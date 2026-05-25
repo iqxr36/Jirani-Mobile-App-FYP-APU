@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/views/home/resident_main_shell.dart';
 import 'package:fyp_flutter_application/admin/screens/auth/admin_login_screen.dart';
-import 'package:fyp_flutter_application/admin/screens/dashboard/admin_dashboard_screen.dart';
 import 'package:fyp_flutter_application/views/auth/phone_verification_view.dart';
 import 'package:fyp_flutter_application/views/auth/resident_pre_auth_gate.dart';
 import 'package:fyp_flutter_application/resident/screens/auth/account_created_view.dart';
-import 'package:fyp_flutter_application/resident/screens/home/resident_home_placeholder_view.dart';
 import 'package:provider/provider.dart';
 
 /// Routes the app based on [FirebaseAuth] session and loaded [AppUser] profile.
@@ -55,10 +54,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         final role = vm.currentUser!.role;
-        if (role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin) {
-          debugPrint('[AuthWrapper] route -> AdminDashboardScreen');
-          return const AdminDashboardScreen();
-        }
+        final isAdmin = role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin;
         if (kIsWeb && role == AppConstants.roleResident) {
           debugPrint('[AuthWrapper] route -> web resident blocked');
           return _MissingProfileScaffold(
@@ -67,7 +63,7 @@ class AuthWrapper extends StatelessWidget {
             isLoggingOut: vm.isLoading,
           );
         }
-        if (role != AppConstants.roleResident) {
+        if (role != AppConstants.roleResident && !isAdmin) {
           return _MissingProfileScaffold(
             message: 'Unknown role "$role". Please contact support.',
             onLogout: () => context.read<AuthViewModel>().logout(),
@@ -91,9 +87,60 @@ class AuthWrapper extends StatelessWidget {
           return const AccountCreatedView();
         }
 
-        debugPrint('[AuthWrapper] route -> ResidentHomePlaceholderView');
-        return const ResidentHomePlaceholderView();
+        if (role == AppConstants.roleResident) {
+          debugPrint('[AuthWrapper] route -> ResidentMainShell (home)');
+          return const ResidentMainShell();
+        }
+
+        debugPrint('[AuthWrapper] route -> admin signed-in placeholder');
+        return _AdminSignedInPlaceholder(
+          onLogout: () => context.read<AuthViewModel>().logout(),
+          isLoggingOut: vm.isLoading,
+        );
       },
+    );
+  }
+}
+
+class _AdminSignedInPlaceholder extends StatelessWidget {
+  const _AdminSignedInPlaceholder({
+    required this.onLogout,
+    required this.isLoggingOut,
+  });
+
+  final VoidCallback onLogout;
+  final bool isLoggingOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppConstants.appName)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Admin signed in.',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text('Admin dashboard screens can be added here.'),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: isLoggingOut ? null : onLogout,
+                child: isLoggingOut
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Sign out'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

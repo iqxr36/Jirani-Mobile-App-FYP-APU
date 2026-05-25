@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -23,10 +24,21 @@ class AppleSignInFlowResult {
 }
 
 class FirebaseAuthService {
-  FirebaseAuthService({FirebaseAuth? firebaseAuth})
-      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+  FirebaseAuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      _googleSignIn = googleSignIn ?? _defaultGoogleSignIn;
+
+  /// Web OAuth client from Firebase (`google-services.json`, client_type 3).
+  /// Required on Android so Firebase Auth receives a valid [idToken].
+  static const String googleWebClientId =
+      '790648716224-ghb1d69upr43lf1k6in0d0ulu6hll6o2.apps.googleusercontent.com';
+
+  static final GoogleSignIn _defaultGoogleSignIn = GoogleSignIn(
+    serverClientId: googleWebClientId,
+  );
 
   final FirebaseAuth _firebaseAuth;
+  final GoogleSignIn _googleSignIn;
 
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
@@ -55,7 +67,7 @@ class FirebaseAuthService {
 
   Future<void> signOut() async {
     try {
-      await GoogleSignIn().signOut();
+      await _googleSignIn.signOut();
     } catch (_) {
       // Ignore if Google sign-in was never used.
     }
@@ -77,7 +89,7 @@ class FirebaseAuthService {
   /// Google OAuth via [GoogleSignIn]. Returns `null` if the user closed the picker.
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
+      final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         return null;
       }
@@ -91,6 +103,26 @@ class FirebaseAuthService {
       return await _firebaseAuth.signInWithCredential(credential);
     } on FirebaseAuthException {
       rethrow;
+    } on PlatformException catch (e) {
+      debugPrint(
+        '[FirebaseAuthService.signInWithGoogle] ${e.code}: ${e.message}',
+      );
+      if (e.code == 'sign_in_canceled') {
+        return null;
+      }
+      if (e.code == 'network_error') {
+        throw Exception('Network error. Please try again.');
+      }
+      final message = e.message ?? '';
+      if (message.contains('ApiException: 10') ||
+          message.contains('DEVELOPER_ERROR')) {
+        throw Exception(
+          'Google sign-in is not configured for this Android app. Add its SHA fingerprints in Firebase and replace google-services.json.',
+        );
+      }
+      throw Exception(
+        'Google sign-in failed (${e.code}). ${e.message ?? 'Please try again.'}',
+      );
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('network') || msg.contains('Network')) {
@@ -123,16 +155,18 @@ class FirebaseAuthService {
         nonce: nonce,
       );
 
-      if (appleCredential.identityToken == null || appleCredential.identityToken!.isEmpty) {
+      if (appleCredential.identityToken == null ||
+          appleCredential.identityToken!.isEmpty) {
         throw Exception('Apple sign-in failed. Missing identity token.');
       }
 
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
+      final oauthCredential = OAuthProvider(
+        'apple.com',
+      ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
 
-      final userCred = await _firebaseAuth.signInWithCredential(oauthCredential);
+      final userCred = await _firebaseAuth.signInWithCredential(
+        oauthCredential,
+      );
       return AppleSignInFlowResult(
         credential: userCred,
         givenName: appleCredential.givenName,
@@ -143,7 +177,9 @@ class FirebaseAuthService {
       if (e.code == AuthorizationErrorCode.canceled) {
         return null;
       }
-      throw Exception(e.message.isNotEmpty ? e.message : 'Apple sign-in failed.');
+      throw Exception(
+        e.message.isNotEmpty ? e.message : 'Apple sign-in failed.',
+      );
     } on FirebaseAuthException {
       rethrow;
     } catch (e) {
@@ -162,7 +198,10 @@ class FirebaseAuthService {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
   }
 
   static String sha256ofString(String input) {

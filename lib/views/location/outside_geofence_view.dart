@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
-// TODO Phase 2B: compare user location with community latitude/longitude/radius.
+bool isOutsideCommunityBoundary({
+  required double userLatitude,
+  required double userLongitude,
+  required double communityLatitude,
+  required double communityLongitude,
+  required double radiusMeters,
+}) {
+  return Geolocator.distanceBetween(
+        userLatitude,
+        userLongitude,
+        communityLatitude,
+        communityLongitude,
+      ) >
+      radiusMeters;
+}
 
-/// Placeholder for when the user is outside the configured community boundary (Phase 2B).
+/// Shown when the user's current location is outside the community boundary.
 class OutsideGeofenceView extends StatelessWidget {
   const OutsideGeofenceView({super.key});
 
@@ -24,7 +39,7 @@ class OutsideGeofenceView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Community boundaries will be enforced in a future update.',
+                'Return to your community area, then retry the location check.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade800),
               ),
               const Spacer(),
