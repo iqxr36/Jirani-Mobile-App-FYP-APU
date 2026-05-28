@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/services/geofence_manager.dart';
 import 'package:fyp_flutter_application/services/location_onboarding_prefs.dart';
 import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
 import 'package:geolocator/geolocator.dart';
@@ -152,7 +151,6 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
       if (!mounted) return;
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
-        await _requestBackgroundLocationIfNeeded();
         await _openNextScreen();
         return;
       }
@@ -182,15 +180,6 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
         builder: nextBuilder ?? (_) => const CommunityConfirmationView(),
       ),
     );
-  }
-
-  Future<void> _requestBackgroundLocationIfNeeded() async {
-    if (widget.nextBuilder == null) return;
-    try {
-      await GeofenceManager.instance.requestLocationPermissions();
-    } catch (_) {
-      // The immediate geofence check will surface any remaining location issue.
-    }
   }
 
   Future<void> _requestLocationPermission() async {
@@ -224,7 +213,6 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
       return;
     }
 
-    await _requestBackgroundLocationIfNeeded();
     await _openNextScreen();
   }
 

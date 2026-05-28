@@ -11,6 +11,16 @@ class GeofenceManager {
 
   bool _initialized = false;
 
+  Future<bool> hasForegroundLocationPermission() async {
+    final locationStatus = await Permission.location.status;
+    return locationStatus.isGranted || locationStatus.isLimited;
+  }
+
+  Future<bool> hasBackgroundLocationPermission() async {
+    final alwaysStatus = await Permission.locationAlways.status;
+    return alwaysStatus.isGranted || alwaysStatus.isLimited;
+  }
+
   Future<bool> requestLocationPermissions() async {
     try {
       final locationStatus = await Permission.location.request();

@@ -1,10 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/data/models/community_model.dart';
 import 'package:fyp_flutter_application/services/community_service.dart';
 import 'package:fyp_flutter_application/services/geofence_manager.dart';
+import 'package:fyp_flutter_application/services/location_access.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
 import 'package:fyp_flutter_application/views/location/geofence_checking_view.dart';
+import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -150,6 +151,20 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
         communityId: community.communityId,
         communityName: community.name,
       );
+      if (!await LocationAccess.isLocationReadyForUse()) {
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute<void>(
+            builder: (_) => LocationPermissionView(
+              nextBuilder: (_) => GeofenceCheckingView(
+                communityId: community.communityId,
+                communityName: community.name,
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       await _startNativeMonitoring(community);
       if (!mounted) return;
       await Navigator.of(context).pushReplacement<void, void>(
@@ -175,7 +190,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
   Future<void> _startNativeMonitoring(CommunityModel selectedCommunity) async {
     try {
       final canRunInBackground =
-          await GeofenceManager.instance.requestLocationPermissions();
+          await GeofenceManager.instance.hasBackgroundLocationPermission();
       if (canRunInBackground) {
         await GeofenceManager.instance.startGeofencing([selectedCommunity]);
         return;
