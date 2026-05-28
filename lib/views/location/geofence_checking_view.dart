@@ -1,22 +1,33 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:fyp_flutter_application/data/models/community_model.dart';
+import 'package:fyp_flutter_application/services/community_service.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/notifications/notification_permission_view.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
+import 'location_verified_view.dart';
 import 'outside_geofence_view.dart';
+
+const Color _kBrandTeal = Color(0xFF006D77);
+const double _kMaxContentWidth = 350;
 
 /// Acquires the user's position and verifies it against their community boundary.
 class GeofenceCheckingView extends StatefulWidget {
-  const GeofenceCheckingView({super.key});
+  const GeofenceCheckingView({
+    super.key,
+    this.communityId,
+    this.communityName,
+  });
+
+  final String? communityId;
+  final String? communityName;
 
   @override
   State<GeofenceCheckingView> createState() => _GeofenceCheckingViewState();
 }
 
 class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
+  final CommunityService _communityService = CommunityService();
   String? _error;
 
   @override
@@ -46,7 +57,11 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       )) {
         if (!mounted) return;
         await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(builder: (_) => const OutsideGeofenceView()),
+          MaterialPageRoute<void>(
+            builder: (_) => OutsideGeofenceView(
+              communityName: _selectedCommunityName,
+            ),
+          ),
         );
         if (mounted) await _runCheck();
         return;
@@ -54,88 +69,194 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
 
       if (!mounted) return;
       await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const NotificationPermissionView()),
+        MaterialPageRoute<void>(
+          builder: (_) => LocationVerifiedView(
+            communityName: _selectedCommunityName,
+          ),
+        ),
       );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = error.toString());
     }
   }
 
   Future<_CommunityBoundary> _loadCommunityBoundary() async {
     final user = context.read<AuthViewModel>().currentUser;
-    final communityId = user?.communityId.trim() ?? '';
-    final communityName = user?.communityName.trim() ?? '';
-    final communities = FirebaseFirestore.instance.collection(AppConstants.communitiesCollection);
+    final communityId =
+        widget.communityId?.trim() ?? user?.communityId.trim() ?? '';
+    final communityName =
+        widget.communityName?.trim() ?? user?.communityName.trim() ?? '';
 
-    Map<String, dynamic>? data;
+    CommunityModel? community;
     if (communityId.isNotEmpty) {
-      data = (await communities.doc(communityId).get()).data();
+      community = await _communityService.fetchCommunity(communityId);
     }
-    if (data == null && communityName.isNotEmpty) {
-      final named = await communities.where('name', isEqualTo: communityName).limit(1).get();
-      if (named.docs.isNotEmpty) data = named.docs.first.data();
-    }
-    if (data == null) {
-      throw Exception('Community location boundary not found.');
+    if (community == null && communityName.isNotEmpty) {
+      final activeCommunities =
+          await _communityService.fetchActiveCommunities();
+      for (final activeCommunity in activeCommunities) {
+        if (activeCommunity.name == communityName) {
+          community = activeCommunity;
+          break;
+        }
+      }
     }
 
-    final latitude = _toDouble(data['latitude']);
-    final longitude = _toDouble(data['longitude']);
-    final radiusMeters = _toDouble(data['radius']);
-    if (latitude == null || longitude == null || radiusMeters == null || radiusMeters <= 0) {
+    if (community == null) {
+      throw Exception('Selected community location boundary was not found.');
+    }
+    if (!community.isActive) {
+      throw Exception('The selected community is no longer active.');
+    }
+    if (community.radiusInMeters <= 0) {
       throw Exception('Community location boundary is not configured.');
     }
-    return _CommunityBoundary(latitude, longitude, radiusMeters);
+    return _CommunityBoundary(
+      community.centerLocation.latitude,
+      community.centerLocation.longitude,
+      community.radiusInMeters,
+    );
   }
 
-  static double? _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '');
+  String get _selectedCommunityName {
+    final name = widget.communityName?.trim() ?? '';
+    return name.isEmpty ? 'your selected community' : name;
+  }
+
+  Widget _buildMapImage() {
+    return SizedBox(
+      height: 238,
+      width: 238,
+      child: Image.asset(
+        'assets/Location Map Ping.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _kBrandTeal.withValues(alpha: 0.12),
+          ),
+          child: const Center(
+            child: Icon(Icons.location_on, size: 70, color: _kBrandTeal),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckingStatusCard() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Text(
+          'Comparing your current location with\n$_selectedCommunityName...',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.25,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    final message =
+        _error?.replaceFirst('Exception: ', '') ??
+        'Could not check your location.';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, height: 1.3),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 42,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: _kBrandTeal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: _runCheck,
+                child: const Text('Try Again'),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Go back'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Checking location')),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_error == null) ...[
-                const CircularProgressIndicator(),
-                const SizedBox(height: 24),
-                Text(
-                  'Getting your location…',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Checking whether you are within your community boundary.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
-                ),
-              ] else ...[
-                Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange.shade800),
-                const SizedBox(height: 16),
-                Text(_error!, textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(builder: (_) => const NotificationPermissionView()),
+          padding: const EdgeInsets.fromLTRB(26, 30, 26, 22),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+              child: Column(
+                children: [
+                  _buildMapImage(),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Checking Your Location',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _kBrandTeal,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: const Text('Continue to verification'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Go back'),
-                ),
-              ],
-            ],
+                  const SizedBox(height: 22),
+                  const Text(
+                    'Please wait while we check if you are within\n'
+                    'your selected community area.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (_error == null)
+                    _buildCheckingStatusCard()
+                  else
+                    _buildErrorCard(),
+                ],
+              ),
+            ),
           ),
         ),
       ),

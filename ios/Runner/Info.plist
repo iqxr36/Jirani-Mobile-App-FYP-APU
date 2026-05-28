@@ -64,7 +64,13 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Trust Community needs photo library access to upload proof of residence.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Trust Community uses your location only to verify that you are inside your community/residence area.</string>
+	<string>Trust Community uses your location to verify that you are within an active partner community before enabling resident features.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Trust Community uses background location to detect when you enter or leave your verified community zone and keep access secure.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,63 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
 
-bool isOutsideCommunityBoundary({
-  required double userLatitude,
-  required double userLongitude,
-  required double communityLatitude,
-  required double communityLongitude,
-  required double radiusMeters,
-}) {
-  return Geolocator.distanceBetween(
-        userLatitude,
-        userLongitude,
-        communityLatitude,
-        communityLongitude,
-      ) >
-      radiusMeters;
-}
-
-/// Shown when the user's current location is outside the community boundary.
-class OutsideGeofenceView extends StatefulWidget {
-  const OutsideGeofenceView({
+/// Confirms that the resident is currently within the selected community area.
+class LocationVerifiedView extends StatelessWidget {
+  const LocationVerifiedView({
     super.key,
     required this.communityName,
   });
 
   final String communityName;
 
-  @override
-  State<OutsideGeofenceView> createState() => _OutsideGeofenceViewState();
-}
-
-class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
-  bool _returningToLogin = false;
-
-  Future<void> _returnToLogin() async {
-    if (_returningToLogin) return;
-    setState(() => _returningToLogin = true);
-
-    final viewModel = context.read<AuthViewModel>();
-    await viewModel.logout();
-    if (!mounted) return;
-
-    if (viewModel.firebaseUser != null) {
-      setState(() => _returningToLogin = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            viewModel.errorMessage ?? 'Could not return to login. Please try again.',
-          ),
-        ),
-      );
-      return;
-    }
-
+  void _continueToVerification(BuildContext context) {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -66,13 +21,13 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
       height: 255,
       width: double.infinity,
       child: Image.asset(
-        'assets/Location2.png',
+        'assets/Location1.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Center(
           child: Icon(
-            Icons.location_off_rounded,
+            Icons.location_on_rounded,
             size: 112,
-            color: Color(0xFFEA4A5B),
+            color: _kBrandTeal,
           ),
         ),
       ),
@@ -103,7 +58,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                 const Spacer(),
                 Flexible(
                   child: Text(
-                    widget.communityName,
+                    communityName,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.black,
@@ -129,9 +84,9 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.fromLTRB(5, 4, 9, 4),
+                  padding: const EdgeInsets.fromLTRB(5, 4, 10, 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF3B30).withValues(alpha: 0.12),
+                    color: const Color(0xFF34C759).withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Row(
@@ -139,19 +94,19 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                     children: [
                       CircleAvatar(
                         radius: 10,
-                        backgroundColor: Color(0xFFFFBAC0),
+                        backgroundColor: Color(0xFFBCEAC9),
                         child: Icon(
-                          Icons.priority_high_rounded,
-                          size: 13,
-                          color: Colors.white,
+                          Icons.check_rounded,
+                          size: 14,
+                          color: Color(0xFF15652C),
                         ),
                       ),
                       SizedBox(width: 5),
                       Text(
-                        'Outside Boundary',
+                        'Verified',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -166,7 +121,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
     );
   }
 
-  Widget _buildTryAgainButton() {
+  Widget _buildContinueButton(BuildContext context) {
     return SizedBox(
       height: 44,
       width: double.infinity,
@@ -179,49 +134,18 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        onPressed: _returningToLogin ? null : () => Navigator.of(context).pop(),
+        onPressed: () => _continueToVerification(context),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.refresh_rounded, size: 18),
-            SizedBox(width: 4),
             Text(
-              'Try Again',
+              'Enter Trust Community',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
+            SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, size: 21),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildReturnToLoginButton() {
-    return SizedBox(
-      height: 44,
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
-          foregroundColor: _kBrandTeal,
-          disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        onPressed: _returningToLogin ? null : _returnToLogin,
-        child: _returningToLogin
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _kBrandTeal,
-                ),
-              )
-            : const Text(
-                'Return to Login',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
       ),
     );
   }
@@ -239,7 +163,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
               child: Column(
                 children: [
                   const Text(
-                    'Outside Area',
+                    'Location Verified',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _kBrandTeal,
@@ -251,7 +175,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                   _buildIllustration(),
                   const SizedBox(height: 12),
                   const Text(
-                    'You appear to be outside your\nselected community.',
+                    'You are within your selected\ncommunity area.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.black,
@@ -262,8 +186,8 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'Make sure that you are closer to your\n'
-                    'residence area and try again.',
+                    'You can now continue with residency\n'
+                    'verification while full access remains restricted.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF737378),
@@ -275,9 +199,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
                   const SizedBox(height: 15),
                   _buildResultCard(),
                   const Spacer(),
-                  _buildTryAgainButton(),
-                  const SizedBox(height: 9),
-                  _buildReturnToLoginButton(),
+                  _buildContinueButton(context),
                 ],
               ),
             ),

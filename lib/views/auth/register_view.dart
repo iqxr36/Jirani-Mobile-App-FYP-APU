@@ -1,5 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:fyp_flutter_application/data/models/community_model.dart';
+import 'package:fyp_flutter_application/services/community_service.dart';
 import 'package:provider/provider.dart';
 
 import '../../viewmodels/auth_viewmodel.dart';
@@ -18,13 +20,17 @@ class _RegisterViewState extends State<RegisterView> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _communityController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _communityService = CommunityService();
 
   late final TapGestureRecognizer _guidelinesTap;
   late final TapGestureRecognizer _termsTap;
 
+  List<CommunityModel> _activeCommunities = const [];
+  CommunityModel? _selectedCommunity;
+  bool _communitiesLoading = true;
+  String? _communitiesError;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
@@ -101,6 +107,80 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
+  Future<void> _loadActiveCommunities() async {
+    try {
+      final communities = await _communityService.fetchActiveCommunities();
+      communities.sort((a, b) => a.name.compareTo(b.name));
+      if (!mounted) return;
+      setState(() {
+        _activeCommunities = communities;
+        _communitiesLoading = false;
+        _communitiesError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _communitiesLoading = false;
+        _communitiesError = 'Communities could not be loaded right now.';
+      });
+    }
+  }
+
+  Widget _buildCommunityPicker({required bool enabled}) {
+    final hasOptions = _activeCommunities.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Community / Residence', style: _kLabelStyle),
+        const SizedBox(height: 6),
+        if (_communitiesLoading)
+          const SizedBox(
+            height: 50,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else
+          DropdownButtonFormField<CommunityModel>(
+            key: ValueKey(_selectedCommunity?.communityId ?? 'none'),
+            initialValue: _selectedCommunity,
+            isExpanded: true,
+            decoration: _inputDecoration(
+              hint: hasOptions
+                  ? 'Select your community'
+                  : 'No active communities available',
+            ),
+            items: _activeCommunities
+                .map(
+                  (community) => DropdownMenuItem<CommunityModel>(
+                    value: community,
+                    child: Text(
+                      community.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: enabled && hasOptions
+                ? (community) => setState(() => _selectedCommunity = community)
+                : null,
+            validator: hasOptions
+                ? (community) =>
+                    community == null ? 'Select your community' : null
+                : null,
+          ),
+        if (_communitiesError != null || !hasOptions && !_communitiesLoading)
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              _communitiesError ??
+                  'You can select a community during location verification.',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF777777)),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +188,7 @@ class _RegisterViewState extends State<RegisterView> {
     _termsTap = TapGestureRecognizer();
     _guidelinesTap.onTap = () {};
     _termsTap.onTap = () {};
+    _loadActiveCommunities();
   }
 
   @override
@@ -117,7 +198,6 @@ class _RegisterViewState extends State<RegisterView> {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _communityController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -139,6 +219,8 @@ class _RegisterViewState extends State<RegisterView> {
       phoneNumber: _phoneController.text.trim(),
       password: _passwordController.text,
       termsAccepted: true,
+      communityId: _selectedCommunity?.communityId ?? '',
+      communityName: _selectedCommunity?.name ?? '',
     );
   }
 
@@ -307,12 +389,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         },
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
-                                        label: 'Community / Residence',
-                                        controller: _communityController,
-                                        hint: 'Sky Residence',
-                                        enabled: !loading,
-                                      ),
+                                      _buildCommunityPicker(enabled: !loading),
                                       const SizedBox(height: 12),
                                       _buildFieldGroup(
                                         label: 'Phone Number',

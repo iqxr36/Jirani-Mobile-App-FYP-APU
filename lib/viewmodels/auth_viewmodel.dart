@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException, User;
 import 'package:flutter/foundation.dart';
+import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/core/utils/validators.dart';
 import 'package:fyp_flutter_application/data/models/app_user.dart';
 import 'package:fyp_flutter_application/data/repositories/auth_repository.dart';
@@ -50,6 +51,8 @@ class AuthViewModel extends ChangeNotifier {
     required String phoneNumber,
     required String password,
     required bool termsAccepted,
+    String communityId = '',
+    String communityName = '',
   }) async {
     _setLoading(true);
     clearError(notify: false);
@@ -63,6 +66,8 @@ class AuthViewModel extends ChangeNotifier {
         phoneNumber: phoneNumber,
         password: password,
         termsAccepted: termsAccepted,
+        communityId: communityId,
+        communityName: communityName,
       );
       _firebaseUser = _repository.currentFirebaseUser;
       _showPhoneVerificationAfterRegister = true;
@@ -95,7 +100,7 @@ class AuthViewModel extends ChangeNotifier {
       _firebaseUser = _repository.currentFirebaseUser;
       debugPrint('[AuthProvider.login] firebase user uid=${_firebaseUser?.uid}');
       debugPrint('[AuthProvider.login] loaded role=${_currentUser?.role}');
-      _showAccountCreatedScreen = false;
+      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
     } catch (e) {
       debugPrint('[AuthProvider.login] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -119,7 +124,7 @@ class AuthViewModel extends ChangeNotifier {
       }
       _currentUser = user;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = false;
+      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
     } catch (e) {
       debugPrint('[AuthProvider.signInWithGoogle] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -142,7 +147,7 @@ class AuthViewModel extends ChangeNotifier {
       }
       _currentUser = user;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = false;
+      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
     } catch (e) {
       debugPrint('[AuthProvider.signInWithApple] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -287,6 +292,29 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> updateSelectedCommunity({
+    required String communityId,
+    required String communityName,
+  }) async {
+    final uid = _firebaseUser?.uid ?? _currentUser?.uid;
+    if (uid == null) {
+      throw Exception('You must be signed in to select a community.');
+    }
+
+    await _userRepository.updateUserFields(
+      uid: uid,
+      fields: {
+        'communityId': communityId.trim(),
+        'communityName': communityName.trim(),
+      },
+    );
+    _currentUser = _currentUser?.copyWith(
+      communityId: communityId.trim(),
+      communityName: communityName.trim(),
+    );
+    notifyListeners();
+  }
+
   void clearError({bool notify = true}) {
     _errorMessage = null;
     if (notify) notifyListeners();
@@ -295,6 +323,12 @@ class AuthViewModel extends ChangeNotifier {
   void clearSuccessMessage({bool notify = true}) {
     _successMessage = null;
     if (notify) notifyListeners();
+  }
+
+  bool _needsResidencyVerificationPrompt(AppUser? user) {
+    if (user == null || !user.isResident) return false;
+    return user.verificationStatus == AppConstants.verificationPending ||
+        user.verificationStatus == AppConstants.verificationRejected;
   }
 
   Future<void> _onAuthStateChanged(User? user) async {

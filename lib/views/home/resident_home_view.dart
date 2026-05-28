@@ -228,43 +228,33 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
 
   Widget _buildQuickActions(BuildContext context, AppUser? user) {
     Widget card({
-      required String title,
+      required String semanticLabel,
       required String? assetPath,
       required IconData fallbackIcon,
       required VoidCallback onTap,
     }) {
       return Expanded(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
+        child: Semantics(
+          button: true,
+          label: semanticLabel,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: assetPath != null
+                      ? Image.asset(
+                          assetPath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => _quickActionPlaceholder(fallbackIcon),
+                        )
+                      : _quickActionPlaceholder(fallbackIcon),
                 ),
-                const SizedBox(height: 8),
-                AspectRatio(
-                  aspectRatio: 1.05,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: assetPath != null
-                        ? Image.asset(
-                            assetPath,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => _quickActionPlaceholder(fallbackIcon),
-                          )
-                        : _quickActionPlaceholder(fallbackIcon),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -294,14 +284,14 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   card(
-                    title: 'HOME SERVICES',
+                    semanticLabel: 'Home Services',
                     assetPath: _kHomeServicesAsset,
                     fallbackIcon: Icons.home_repair_service_outlined,
                     onTap: locked,
                   ),
                   const SizedBox(width: 12),
                   card(
-                    title: 'SHARE ITEMS',
+                    semanticLabel: 'Share Items',
                     assetPath: _kShareItemsAsset,
                     fallbackIcon: Icons.inventory_2_outlined,
                     onTap: locked,

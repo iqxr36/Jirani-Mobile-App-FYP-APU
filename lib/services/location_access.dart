@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/services/location_onboarding_prefs.dart';
-import 'package:fyp_flutter_application/views/location/geofence_checking_view.dart';
 import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
+import 'package:fyp_flutter_application/views/verification/verification_permission_flow_view.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Foreground location: first-launch education + on-demand gate for verification / future geofence.
@@ -34,20 +34,12 @@ class LocationAccess {
     );
   }
 
-  /// Verification flow and future geofence: permission UI only if needed, else open geofence check directly.
+  /// Verification flow: one-time permissions, then confirm community before geofence checking.
   static Future<void> openVerificationLocationFlow(BuildContext context) async {
-    if (await isLocationReadyForUse()) {
-      if (context.mounted) {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(builder: (_) => const GeofenceCheckingView()),
-        );
-      }
-      return;
-    }
     if (!context.mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const LocationPermissionView(isInitialOnboarding: false),
+        builder: (_) => const VerificationPermissionFlowView(),
       ),
     );
   }

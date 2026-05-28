@@ -1,95 +1,190 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/views/auth/email_verification_view.dart';
 import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:fyp_flutter_application/views/verification/verification_permission_flow_view.dart';
 import 'package:provider/provider.dart';
 
+const Color _kBrandTeal = Color(0xFF006D77);
+const double _kMaxContentWidth = 350;
+
+/// Entry prompt for an unverified resident after authentication.
 class AccountCreatedView extends StatelessWidget {
   const AccountCreatedView({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final vm = context.watch<AuthViewModel>();
+  Future<void> _startVerification(
+    BuildContext context,
+    AuthViewModel viewModel,
+  ) async {
+    final navigationContext = Navigator.of(context).overlay!.context;
+    viewModel.dismissAccountCreatedScreen();
+    await Navigator.of(navigationContext).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const VerificationPermissionFlowView(),
+      ),
+    );
+  }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Welcome')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+  Widget _buildStatusCard() {
+    return SizedBox(
+      height: 380,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 15),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.celebration_outlined, size: 64, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 16),
+              _ResidentIcon(),
+              SizedBox(height: 12),
               Text(
-                'Account created',
+                'Account Created!',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Your ${AppConstants.appName} account is ready.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'A verification email has been sent to your email address.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Please verify your email and complete residency verification to unlock full community features.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You can start verification now or continue with limited access from home.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
+                style: TextStyle(
+                  color: _kBrandTeal,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              FilledButton(
-                onPressed: vm.isLoading
-                    ? null
-                    : () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (ctx) => EmailVerificationView(
-                              email: vm.currentUser?.email,
-                              onVerified: () {
-                                Navigator.of(ctx).pop();
-                                vm.dismissAccountCreatedScreen();
-                              },
-                              onBack: () => Navigator.of(ctx).pop(),
-                            ),
-                          ),
-                        );
-                      },
-                child: const Text('Start verification'),
+              SizedBox(height: 50),
+              Text(
+                'Your account is unverified until\nresidency verification is completed.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: vm.isLoading ? null : () => vm.dismissAccountCreatedScreen(),
-                child: const Text('Do it later'),
+              SizedBox(height: 16),
+              Text(
+                'Full access is restricted to verified\nresidents.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartButton(BuildContext context, AuthViewModel viewModel) {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: _kBrandTeal,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.55),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: viewModel.isLoading
+            ? null
+            : () => _startVerification(context, viewModel),
+        child: const Text(
+          'Start Verification',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLaterButton(AuthViewModel viewModel) {
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
+          foregroundColor: _kBrandTeal,
+          disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: viewModel.isLoading
+            ? null
+            : viewModel.dismissAccountCreatedScreen,
+        child: const Text(
+          'Do it later',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<AuthViewModel>();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(26, 56, 26, 18 + bottomInset),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildStatusCard(),
+                  const Spacer(),
+                  _buildStartButton(context, viewModel),
+                  const SizedBox(height: 12),
+                  _buildLaterButton(viewModel),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResidentIcon extends StatelessWidget {
+  const _ResidentIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 76,
+      width: 76,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Color(0xFFCFE5E9),
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Positioned(
+              left: 17,
+              top: 17,
+              child: Icon(Icons.person, color: _kBrandTeal, size: 42),
+            ),
+            Positioned(
+              right: 13,
+              top: 23,
+              child: Container(
+                color: const Color(0xFFCFE5E9),
+                width: 19,
+                height: 19,
+                child: const Icon(Icons.add, color: _kBrandTeal, size: 19),
+              ),
+            ),
+          ],
         ),
       ),
     );

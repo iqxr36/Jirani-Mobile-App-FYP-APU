@@ -1,34 +1,58 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fyp_flutter_application/services/geofence_manager.dart';
 import 'package:fyp_flutter_application/services/location_onboarding_prefs.dart';
+import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'geofence_checking_view.dart';
+import 'community_confirmation_view.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
 
 /// Location permission — Figma Group 16: illustration, privacy card, enable / not now.
 class LocationPermissionView extends StatefulWidget {
-  const LocationPermissionView({super.key, this.isInitialOnboarding = false});
+  const LocationPermissionView({
+    super.key,
+    this.isInitialOnboarding = false,
+    this.nextBuilder,
+  });
 
   /// First install / one-time education from home; marks [LocationOnboardingPrefs] when disposed.
   final bool isInitialOnboarding;
+  final WidgetBuilder? nextBuilder;
 
   @override
   State<LocationPermissionView> createState() => _LocationPermissionViewState();
 }
 
-class _LocationPermissionViewState extends State<LocationPermissionView> {
+class _LocationPermissionViewState extends State<LocationPermissionView>
+    with WidgetsBindingObserver {
   bool _isLoading = false;
+  bool _waitingForSettings = false;
+  bool _hasOpenedNextScreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (widget.isInitialOnboarding) {
       unawaited(LocationOnboardingPrefs.markShown());
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_waitingForSettings) return;
+    _waitingForSettings = false;
+    unawaited(_resumeAfterSettings());
   }
 
   void _showSnack(String message) {
@@ -49,7 +73,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Geolocator.openLocationSettings();
+              unawaited(_openLocationSettings());
             },
             child: const Text('Open Settings'),
           ),
@@ -71,13 +95,102 @@ class _LocationPermissionViewState extends State<LocationPermissionView> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Geolocator.openAppSettings();
+              unawaited(_openAppSettings());
             },
             child: const Text('Open Settings'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _openAppSettings() async {
+    _waitingForSettings = true;
+    try {
+      final opened = await Geolocator.openAppSettings();
+      if (!opened && mounted) {
+        _waitingForSettings = false;
+        _showSnack('Could not open app settings. Please try again.');
+      }
+    } catch (_) {
+      _waitingForSettings = false;
+      if (mounted) {
+        _showSnack('Could not open app settings. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _openLocationSettings() async {
+    _waitingForSettings = true;
+    try {
+      final opened = await Geolocator.openLocationSettings();
+      if (!opened && mounted) {
+        _waitingForSettings = false;
+        _showSnack('Could not open location settings. Please try again.');
+      }
+    } catch (_) {
+      _waitingForSettings = false;
+      if (mounted) {
+        _showSnack('Could not open location settings. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _resumeAfterSettings() async {
+    if (_hasOpenedNextScreen || _isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!mounted) return;
+      if (!serviceEnabled) {
+        _showSnack('Turn on location services to continue.');
+        return;
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (!mounted) return;
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        await _requestBackgroundLocationIfNeeded();
+        await _openNextScreen();
+        return;
+      }
+
+      _showSnack('Location permission is still required to continue.');
+    } catch (_) {
+      if (mounted) {
+        _showSnack('Could not check location permission. Please try again.');
+      }
+    } finally {
+      if (mounted && !_hasOpenedNextScreen) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _openNextScreen() async {
+    if (_hasOpenedNextScreen || !mounted) return;
+    _hasOpenedNextScreen = true;
+    if (!widget.isInitialOnboarding) {
+      await VerificationPermissionPrefs.markLocationShown();
+    }
+    if (!mounted) return;
+    final nextBuilder = widget.nextBuilder;
+    await Navigator.of(context).pushReplacement<void, void>(
+      MaterialPageRoute<void>(
+        builder: nextBuilder ?? (_) => const CommunityConfirmationView(),
+      ),
+    );
+  }
+
+  Future<void> _requestBackgroundLocationIfNeeded() async {
+    if (widget.nextBuilder == null) return;
+    try {
+      await GeofenceManager.instance.requestLocationPermissions();
+    } catch (_) {
+      // The immediate geofence check will surface any remaining location issue.
+    }
   }
 
   Future<void> _requestLocationPermission() async {
@@ -92,36 +205,31 @@ class _LocationPermissionViewState extends State<LocationPermissionView> {
     if (!mounted) return;
 
     if (permission == LocationPermission.deniedForever) {
+      if (widget.nextBuilder != null) {
+        _showSnack(
+          'Location access is blocked. You can enable it later from device settings.',
+        );
+        await _openNextScreen();
+        return;
+      }
       _showAppSettingsDialog();
       return;
     }
 
     if (permission == LocationPermission.denied) {
       _showSnack('Location permission was denied. Trust Community needs location to verify your community.');
+      if (widget.nextBuilder != null) {
+        await _openNextScreen();
+      }
       return;
     }
 
-    try {
-      await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 30),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('Could not get your location. Please try again.');
-      return;
-    }
-
-    if (!mounted) return;
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const GeofenceCheckingView()),
-    );
+    await _requestBackgroundLocationIfNeeded();
+    await _openNextScreen();
   }
 
   Future<void> _handleEnableLocation() async {
-    if (_isLoading) return;
+    if (_isLoading || _hasOpenedNextScreen) return;
     setState(() => _isLoading = true);
 
     try {
@@ -139,16 +247,22 @@ class _LocationPermissionViewState extends State<LocationPermissionView> {
         _showSnack('Something went wrong. Please try again.');
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && !_hasOpenedNextScreen) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _handleNotNow() {
-    if (_isLoading) return;
+    if (_isLoading || _hasOpenedNextScreen) return;
     _showSnack('Location access is needed for community verification.');
     Future<void>.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
-      Navigator.of(context).pop();
+      if (widget.nextBuilder == null) {
+        Navigator.of(context).pop();
+        return;
+      }
+      unawaited(_openNextScreen());
     });
   }
 

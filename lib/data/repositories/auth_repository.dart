@@ -75,6 +75,8 @@ class AuthRepository {
     required String phoneNumber,
     required String password,
     required bool termsAccepted,
+    String communityId = '',
+    String communityName = '',
   }) async {
     final normalizedPhoneNumber = Validators.normalizePhoneNumber(phoneNumber);
     final credential = await _authService.createUserWithEmailAndPassword(
@@ -102,8 +104,8 @@ class AuthRepository {
       'emailVerified': _authService.isEmailVerified,
       'phoneVerified': false,
       'profileImageUrl': '',
-      'communityId': '',
-      'communityName': '',
+      'communityId': communityId.trim(),
+      'communityName': communityName.trim(),
       'unitNumber': '',
       'reputationScore': 0.0,
       'totalReviews': 0,
@@ -129,8 +131,8 @@ class AuthRepository {
         role: AppConstants.roleResident,
         verificationStatus: AppConstants.verificationPending,
         profileImageUrl: '',
-        communityId: '',
-        communityName: '',
+        communityId: communityId.trim(),
+        communityName: communityName.trim(),
         unitNumber: '',
         reputationScore: 0.0,
         totalReviews: 0,

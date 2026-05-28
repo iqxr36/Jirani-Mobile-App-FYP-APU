@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp_flutter_application/core/constants/app_constants.dart';
 import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
@@ -8,41 +9,45 @@ import 'package:permission_handler/permission_handler.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
 
-/// Camera permission — Figma Group 25: illustration, title, info card, enable / maybe later.
-class CameraPermissionView extends StatefulWidget {
-  const CameraPermissionView({super.key, this.nextBuilder});
+/// Photos and documents permission step for the verification onboarding flow.
+class PhotosDocumentsPermissionView extends StatefulWidget {
+  const PhotosDocumentsPermissionView({super.key, this.nextBuilder});
 
   final WidgetBuilder? nextBuilder;
 
   @override
-  State<CameraPermissionView> createState() => _CameraPermissionViewState();
+  State<PhotosDocumentsPermissionView> createState() =>
+      _PhotosDocumentsPermissionViewState();
 }
 
-class _CameraPermissionViewState extends State<CameraPermissionView> {
-  bool _enabling = false;
+class _PhotosDocumentsPermissionViewState
+    extends State<PhotosDocumentsPermissionView> {
+  bool _allowing = false;
   bool _skipping = false;
 
-  bool get _buttonsLocked => _enabling || _skipping;
+  bool get _buttonsLocked => _allowing || _skipping;
 
   void _showSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _completePermissionFlow() async {
-    await VerificationPermissionPrefs.markCameraShown();
+  Future<void> _completePermissionStep() async {
+    await VerificationPermissionPrefs.markPhotosDocumentsShown();
     if (!mounted) return;
+
     final nextBuilder = widget.nextBuilder;
     if (nextBuilder == null) {
       Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     }
+
     await Navigator.of(context).pushReplacement<void, void>(
       MaterialPageRoute<void>(builder: nextBuilder),
     );
   }
 
-  Future<void> _saveCameraPreference({
+  Future<void> _savePreference({
     required bool enabled,
     required String status,
   }) async {
@@ -51,62 +56,72 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
 
     await FirebaseFirestore.instance.collection(AppConstants.usersCollection).doc(uid).set(
       {
-        'cameraEnabled': enabled,
-        'cameraPermissionStatus': status,
+        'photosDocumentsEnabled': enabled,
+        'photosDocumentsPermissionStatus': status,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
 
-  Future<void> _handleEnableCamera() async {
+  Future<void> _handleAllowAccess() async {
     if (_buttonsLocked) return;
-    setState(() => _enabling = true);
-    try {
-      final status = await Permission.camera.request();
+    setState(() => _allowing = true);
 
+    try {
+      if (kIsWeb) {
+        await _savePreference(enabled: true, status: 'notRequired');
+        if (!mounted) return;
+        await _completePermissionStep();
+        return;
+      }
+
+      final photosStatus = await Permission.photos.request();
+      final storageStatus = await Permission.storage.request();
+      final statuses = [photosStatus, storageStatus];
+      final authorized = statuses.any(
+        (status) => status.isGranted || status.isLimited,
+      );
+      final blocked = statuses.any((status) => status.isPermanentlyDenied);
+
+      await _savePreference(
+        enabled: authorized,
+        status: authorized ? 'authorized' : 'denied',
+      );
       if (!mounted) return;
 
-      if (status.isGranted || status.isLimited) {
-        await _saveCameraPreference(enabled: true, status: 'authorized');
-        if (!mounted) return;
-        await _completePermissionFlow();
-      } else if (status.isPermanentlyDenied) {
-        await _saveCameraPreference(enabled: false, status: 'denied');
-        if (!mounted) return;
+      if (blocked && !authorized) {
         _showSnack(
-          'Camera access is blocked. You can enable it in your device settings.',
+          'Photos and document access is blocked. You can enable it in device settings.',
         );
-        await _completePermissionFlow();
-      } else {
-        await _saveCameraPreference(enabled: false, status: 'denied');
-        if (!mounted) return;
+      } else if (!authorized) {
         _showSnack(
-          'Camera access was not granted. You can enable it later from settings.',
+          'Photos and document access was not granted. You can still choose files later from the picker.',
         );
-        await _completePermissionFlow();
       }
+      await _completePermissionStep();
     } catch (_) {
       if (mounted) {
-        _showSnack('Could not update camera settings.');
-        await _completePermissionFlow();
+        _showSnack('Could not update photos and document access.');
+        await _completePermissionStep();
       }
     } finally {
-      if (mounted) setState(() => _enabling = false);
+      if (mounted) setState(() => _allowing = false);
     }
   }
 
   Future<void> _handleMaybeLater() async {
     if (_buttonsLocked) return;
     setState(() => _skipping = true);
+
     try {
-      await _saveCameraPreference(enabled: false, status: 'skipped');
+      await _savePreference(enabled: false, status: 'skipped');
       if (!mounted) return;
-      await _completePermissionFlow();
+      await _completePermissionStep();
     } catch (_) {
       if (mounted) {
         _showSnack('Could not save your preference.');
-        await _completePermissionFlow();
+        await _completePermissionStep();
       }
     } finally {
       if (mounted) setState(() => _skipping = false);
@@ -114,34 +129,49 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
   }
 
   Widget _buildIllustration() {
+    final softTeal = _kBrandTeal.withValues(alpha: 0.14);
     return SizedBox(
       height: 210,
       width: double.infinity,
-      child: Image.asset(
-        'assets/cam-perm.png',
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 136,
+            height: 158,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: softTeal, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: _kBrandTeal.withValues(alpha: 0.10),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 48,
+            child: Icon(Icons.photo_library_outlined, size: 54, color: _kBrandTeal),
+          ),
+          Positioned(
+            bottom: 48,
+            child: Icon(Icons.description_outlined, size: 42, color: softTeal),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildPlaceholderIllustration() {
-    final softTeal = _kBrandTeal.withValues(alpha: 0.14);
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Icon(Icons.camera_alt_outlined, size: 88, color: softTeal),
-      ],
     );
   }
 
   Widget _buildTitle() {
     return const Text(
-      'Enable Camera Access',
+      'Allow Photos and Documents',
       textAlign: TextAlign.center,
       style: TextStyle(
         color: _kBrandTeal,
-        fontSize: 25,
+        fontSize: 24,
         fontWeight: FontWeight.w700,
         height: 1.15,
       ),
@@ -158,7 +188,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
         child: Text(
-          'Your phone camera will be used to show evidences and proofs for borrowing, lending, and task Services.',
+          'Photos and documents are used when you upload proof of residence and supporting verification files.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -171,7 +201,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     );
   }
 
-  Widget _buildEnableCameraButton() {
+  Widget _buildAllowButton() {
     return SizedBox(
       height: 44,
       width: double.infinity,
@@ -184,8 +214,8 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
           disabledForegroundColor: Colors.white70,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: _buttonsLocked ? null : _handleEnableCamera,
-        child: _enabling
+        onPressed: _buttonsLocked ? null : _handleAllowAccess,
+        child: _allowing
             ? const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -197,13 +227,13 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
                   ),
                   SizedBox(width: 10),
                   Text(
-                    'Enabling...',
+                    'Allowing...',
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                   ),
                 ],
               )
             : const Text(
-                'Enable Camera',
+                'Allow Access',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
       ),
@@ -272,7 +302,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 24),
-                        _buildEnableCameraButton(),
+                        _buildAllowButton(),
                         const SizedBox(height: 8),
                         _buildMaybeLaterButton(),
                       ],
