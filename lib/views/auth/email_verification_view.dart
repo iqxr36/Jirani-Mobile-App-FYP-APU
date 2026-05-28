@@ -275,8 +275,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
               const SizedBox(height: 14),
               Center(
                 child: SizedBox(
-                  width: 119,
-                  height: 33,
+                  width: 132,
+                  height: 44,
                   child: ElevatedButton(
                     onPressed: (!canResend || _continueLoading) ? null : _handleResendLink,
                     style: ElevatedButton.styleFrom(

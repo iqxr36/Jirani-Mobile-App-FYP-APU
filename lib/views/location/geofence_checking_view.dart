@@ -190,7 +190,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
             ),
             const SizedBox(height: 14),
             SizedBox(
-              height: 42,
+              height: 44,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,

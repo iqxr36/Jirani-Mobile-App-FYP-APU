@@ -399,8 +399,8 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                   const SizedBox(height: 35),
                   Center(
                     child: SizedBox(
-                      width: 118,
-                      height: 33,
+                      width: 132,
+                      height: 44,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleResendCode,
                         style: ElevatedButton.styleFrom(

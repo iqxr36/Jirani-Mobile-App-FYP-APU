@@ -4,6 +4,12 @@ class AppTheme {
   AppTheme._();
 
   static const Color _seed = Color(0xFF0D9488); // teal
+  static const TextStyle _buttonTextStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
@@ -45,12 +51,42 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          minimumSize: const Size(64, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: _buttonTextStyle,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          minimumSize: const Size(64, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: _buttonTextStyle,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          minimumSize: const Size(64, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: _buttonTextStyle,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        style: TextButton.styleFrom(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: _buttonTextStyle,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
