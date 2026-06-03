@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/data/models/community_model.dart';
+import 'package:jirani/data/models/community_model.dart';
 import 'package:native_geofence/native_geofence.dart';
 import 'package:permission_handler/permission_handler.dart';
 

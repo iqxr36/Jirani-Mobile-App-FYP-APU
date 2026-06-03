@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/models/service_model.dart';
-import 'package:fyp_flutter_application/models/service_request_model.dart';
-import 'package:fyp_flutter_application/services/service_service.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/models/service_model.dart';
+import 'package:jirani/models/service_request_model.dart';
+import 'package:jirani/services/service_service.dart';
 
 class ServiceProvider extends ChangeNotifier {
   ServiceProvider({ServiceService? service}) : _service = service ?? ServiceService();

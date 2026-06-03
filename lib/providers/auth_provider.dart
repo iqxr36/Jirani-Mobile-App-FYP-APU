@@ -1,3 +1,3 @@
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
 
 typedef AuthProvider = AuthViewModel;

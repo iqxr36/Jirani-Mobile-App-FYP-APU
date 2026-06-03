@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/data/models/community_model.dart';
-import 'package:fyp_flutter_application/services/community_service.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/services/community_service.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
@@ -13,11 +13,7 @@ const double _kMaxContentWidth = 350;
 
 /// Acquires the user's position and verifies it against their community boundary.
 class GeofenceCheckingView extends StatefulWidget {
-  const GeofenceCheckingView({
-    super.key,
-    this.communityId,
-    this.communityName,
-  });
+  const GeofenceCheckingView({super.key, this.communityId, this.communityName});
 
   final String? communityId;
   final String? communityName;
@@ -58,9 +54,8 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
         if (!mounted) return;
         await Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
-            builder: (_) => OutsideGeofenceView(
-              communityName: _selectedCommunityName,
-            ),
+            builder: (_) =>
+                OutsideGeofenceView(communityName: _selectedCommunityName),
           ),
         );
         if (mounted) await _runCheck();
@@ -70,9 +65,8 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       if (!mounted) return;
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => LocationVerifiedView(
-            communityName: _selectedCommunityName,
-          ),
+          builder: (_) =>
+              LocationVerifiedView(communityName: _selectedCommunityName),
         ),
       );
     } catch (error) {
@@ -93,8 +87,8 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       community = await _communityService.fetchCommunity(communityId);
     }
     if (community == null && communityName.isNotEmpty) {
-      final activeCommunities =
-          await _communityService.fetchActiveCommunities();
+      final activeCommunities = await _communityService
+          .fetchActiveCommunities();
       for (final activeCommunity in activeCommunities) {
         if (activeCommunity.name == communityName) {
           community = activeCommunity;
@@ -131,7 +125,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       child: Image.asset(
         'assets/Location Map Ping.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => DecoratedBox(
+        errorBuilder: (_, _, _) => DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _kBrandTeal.withValues(alpha: 0.12),
@@ -217,7 +211,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(26, 30, 26, 22),

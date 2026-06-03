@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +13,7 @@ const Color _fieldBorder = Color(0xFFE0E0E0);
 const Color _mutedText = Color(0xFF8A8A8A);
 const double _maxContentWidth = 350;
 
-/// SMS OTP entry after registration — Figma Group 18.
+/// SMS OTP entry after registration - Figma Group 18.
 ///
 /// When [verificationId] is set, [AuthViewModel.tryLinkPhoneWithSmsCode] runs on Continue.
 /// Otherwise shows a non-crashing placeholder until Firebase Phone Auth is wired
@@ -43,8 +44,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
   late final List<TextEditingController> _otpControllers;
   late final List<FocusNode> _focusNodes;
   Timer? _timer;
+  String? _verificationId;
+  int? _resendToken;
   int _secondsRemaining = 60;
   bool _isLoading = false;
+  bool _sendingCode = false;
   String? _successBanner;
   String? _errorBanner;
 
@@ -62,9 +66,16 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
   @override
   void initState() {
     super.initState();
+    _verificationId = widget.verificationId;
+    _resendToken = widget.resendToken;
     _otpControllers = List.generate(6, (_) => TextEditingController());
     _focusNodes = List.generate(6, (_) => FocusNode());
     _startCountdown();
+    if ((_verificationId ?? '').isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_requestCode());
+      });
+    }
   }
 
   @override
@@ -91,6 +102,97 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
       }
       setState(() => _secondsRemaining--);
     });
+  }
+
+  Future<void> _requestCode({bool forceResend = false}) async {
+    final phone = widget.phoneNumber.trim();
+    if (phone.isEmpty) {
+      setState(() {
+        _errorBanner = 'Phone number is missing.';
+        _successBanner = null;
+      });
+      return;
+    }
+    if (_sendingCode) return;
+
+    setState(() {
+      _sendingCode = true;
+      _errorBanner = null;
+      if (forceResend) _successBanner = null;
+    });
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+        forceResendingToken: forceResend ? _resendToken : null,
+        verificationCompleted: (credential) {
+          unawaited(_handleAutoVerifiedCredential(credential));
+        },
+        verificationFailed: (error) {
+          if (!mounted) return;
+          setState(() {
+            _sendingCode = false;
+            _errorBanner = error.message ?? 'Could not send verification code.';
+            _successBanner = null;
+          });
+        },
+        codeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+            _sendingCode = false;
+            _successBanner = forceResend
+                ? 'Code Successfully Sent'
+                : 'Verification code sent.';
+            _errorBanner = null;
+          });
+          _startCountdown();
+        },
+        codeAutoRetrievalTimeout: (verificationId) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _sendingCode = false;
+          });
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sendingCode = false;
+        _errorBanner = e.toString().replaceFirst('Exception: ', '');
+        _successBanner = null;
+      });
+    }
+  }
+
+  Future<void> _handleAutoVerifiedCredential(
+    PhoneAuthCredential credential,
+  ) async {
+    if (!mounted || _isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _errorBanner = null;
+      _successBanner = 'Phone verified automatically.';
+    });
+
+    final vm = context.read<AuthViewModel>();
+    final err = await vm.tryLinkPhoneWithCredential(
+      credential: credential,
+      phoneNumber: widget.phoneNumber,
+    );
+    if (!mounted) return;
+    if (err != null) {
+      setState(() {
+        _errorBanner = err;
+        _successBanner = null;
+        _isLoading = false;
+      });
+      return;
+    }
+    _leaveScreen();
   }
 
   String _formatSeconds(int seconds) {
@@ -165,10 +267,12 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
       return;
     }
 
-    final vid = widget.verificationId?.trim();
+    final vid = _verificationId?.trim();
     if (vid == null || vid.isEmpty) {
       setState(() {
-        _errorBanner = 'Phone verification will be connected to Firebase next.';
+        _errorBanner = _sendingCode
+            ? 'Please wait while we send your code.'
+            : 'Request a verification code before continuing.';
         _successBanner = null;
       });
       return;
@@ -214,12 +318,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
       });
       return;
     }
-    // TODO: Call FirebaseAuth.verifyPhoneNumber with forceResendingToken: widget.resendToken
-    setState(() {
-      _successBanner = 'Code Successfully Sent';
-      _errorBanner = null;
-    });
-    _startCountdown();
+    await _requestCode(forceResend: true);
   }
 
   Widget _buildHeader() {
@@ -307,11 +406,10 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
             focusNode: _focusNodes[index],
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
-            textInputAction: index < 5 ? TextInputAction.next : TextInputAction.done,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            textInputAction: index < 5
+                ? TextInputAction.next
+                : TextInputAction.done,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               filled: true,
@@ -319,7 +417,9 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
               contentPadding: EdgeInsets.zero,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.20)),
+                borderSide: BorderSide(
+                  color: Colors.black.withValues(alpha: 0.20),
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
@@ -334,7 +434,9 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
             onSubmitted: (_) {
               if (index < 5) _focusNodes[index + 1].requestFocus();
             },
-            buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+            buildCounter:
+                (_, {required currentLength, required isFocused, maxLength}) =>
+                    null,
           ),
         );
       }),
@@ -365,7 +467,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                         color: Color(0xFFE0E0E0),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.lock_rounded, color: _brandTeal, size: 22),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        color: _brandTeal,
+                        size: 22,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -374,7 +480,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.access_time_rounded, size: 16, color: _mutedText.withValues(alpha: 0.9)),
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 16,
+                        color: _mutedText.withValues(alpha: 0.9),
+                      ),
                       const SizedBox(width: 6),
                       Text.rich(
                         TextSpan(
@@ -385,7 +495,9 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                           children: [
                             const TextSpan(text: 'Resend Code in '),
                             TextSpan(
-                              text: _formatSeconds(_secondsRemaining.clamp(0, 3600)),
+                              text: _formatSeconds(
+                                _secondsRemaining.clamp(0, 3600),
+                              ),
                               style: const TextStyle(
                                 color: _brandTeal,
                                 fontWeight: FontWeight.w600,
@@ -402,19 +514,39 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                       width: 132,
                       height: 44,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleResendCode,
+                        onPressed: _isLoading || _sendingCode
+                            ? null
+                            : _handleResendCode,
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
-                          backgroundColor: _secondsRemaining > 0 ? _brandTeal.withValues(alpha: 0.75) : _brandTeal,
+                          backgroundColor: _secondsRemaining > 0
+                              ? _brandTeal.withValues(alpha: 0.75)
+                              : _brandTeal,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: _brandTeal.withValues(alpha: 0.45),
+                          disabledBackgroundColor: _brandTeal.withValues(
+                            alpha: 0.45,
+                          ),
                           padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                        child: const Text(
-                          'Resend Code',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
+                        child: _sendingCode
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Resend Code',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -438,7 +570,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
   }
 
   Widget _buildContinueButton() {
-    final enabled = _isOtpComplete && !_isLoading;
+    final enabled =
+        _isOtpComplete &&
+        !_isLoading &&
+        !_sendingCode &&
+        _verificationId != null;
     return SizedBox(
       height: 44,
       width: double.infinity,
@@ -456,7 +592,10 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Text(
                 'Continue',
@@ -471,7 +610,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -480,7 +619,9 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _maxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -502,16 +643,22 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _maxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 24),
-                        if (_successBanner != null) AuthFeedbackBanner.success(_successBanner!),
-                        if (_successBanner != null && _errorBanner != null) const SizedBox(height: 16),
-                        if (_errorBanner != null) AuthFeedbackBanner.failure(_errorBanner!),
-                        if (_successBanner != null || _errorBanner != null) const SizedBox(height: 16),
+                        if (_successBanner != null)
+                          AuthFeedbackBanner.success(_successBanner!),
+                        if (_successBanner != null && _errorBanner != null)
+                          const SizedBox(height: 16),
+                        if (_errorBanner != null)
+                          AuthFeedbackBanner.failure(_errorBanner!),
+                        if (_successBanner != null || _errorBanner != null)
+                          const SizedBox(height: 16),
                         _buildContinueButton(),
                       ],
                     ),

@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 
 class AppUser {
   const AppUser({
@@ -21,6 +21,7 @@ class AppUser {
     required this.completedLendings,
     required this.completedServices,
     required this.termsAccepted,
+    required this.locationVerified,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -43,6 +44,7 @@ class AppUser {
   final int completedLendings;
   final int completedServices;
   final bool termsAccepted;
+  final bool locationVerified;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -72,6 +74,7 @@ class AppUser {
     int? completedLendings,
     int? completedServices,
     bool? termsAccepted,
+    bool? locationVerified,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -94,6 +97,7 @@ class AppUser {
       completedLendings: completedLendings ?? this.completedLendings,
       completedServices: completedServices ?? this.completedServices,
       termsAccepted: termsAccepted ?? this.termsAccepted,
+      locationVerified: locationVerified ?? this.locationVerified,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -119,6 +123,7 @@ class AppUser {
       'completedLendings': completedLendings,
       'completedServices': completedServices,
       'termsAccepted': termsAccepted,
+      'locationVerified': locationVerified,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -127,8 +132,9 @@ class AppUser {
   factory AppUser.fromMap(Map<String, dynamic> map) {
     final rawStatus = (map['verificationStatus'] as String?) ?? '';
     // Legacy Firestore value only — never use "approved" elsewhere in the app.
-    final normalizedStatus =
-        rawStatus == 'approved' ? AppConstants.verificationVerified : rawStatus;
+    final normalizedStatus = rawStatus == 'approved'
+        ? AppConstants.verificationVerified
+        : rawStatus;
 
     return AppUser(
       uid: (map['uid'] as String?) ?? '',
@@ -149,6 +155,7 @@ class AppUser {
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),
       termsAccepted: map['termsAccepted'] as bool? ?? false,
+      locationVerified: map['locationVerified'] as bool? ?? false,
       createdAt: _parseDate(map['createdAt']),
       updatedAt: _parseDate(map['updatedAt']),
     );

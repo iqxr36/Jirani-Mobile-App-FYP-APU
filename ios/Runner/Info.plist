@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Fyp Flutter Application</string>
+	<string>Jirani</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>fyp_flutter_application</string>
+	<string>Jirani</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -60,13 +60,13 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Trust Community uses your camera for evidence when borrowing, lending, and completing services.</string>
+	<string>Jirani uses your camera for evidence when borrowing, lending, and completing services.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Trust Community needs photo library access to upload proof of residence.</string>
+	<string>Jirani needs photo library access to upload proof of residence.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Trust Community uses your location to verify that you are within an active partner community before enabling resident features.</string>
+	<string>Jirani uses your location to verify that you are within an active partner community before enabling resident features.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Trust Community uses background location to detect when you enter or leave your verified community zone and keep access secure.</string>
+	<string>Jirani uses background location to detect when you enter or leave your verified community zone and keep access secure.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

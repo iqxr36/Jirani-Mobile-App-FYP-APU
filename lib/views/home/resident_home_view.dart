@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/utils/verification_access.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
+import 'package:jirani/core/utils/verification_access.dart';
+import 'package:jirani/data/models/app_user.dart';
 import 'package:provider/provider.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/widgets/common/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 const String _kHomeServicesAsset = 'assets/Home Services(1)-Photoroom.png';
 const String _kShareItemsAsset = 'assets/Share Items-Photoroom.png';
 
-/// Resident home — Figma Group 26.
+/// Resident home - Figma Group 26.
 class ResidentHomeView extends StatefulWidget {
   const ResidentHomeView({super.key});
 
@@ -18,7 +19,9 @@ class ResidentHomeView extends StatefulWidget {
 }
 
 class _ResidentHomeViewState extends State<ResidentHomeView> {
-  final PageController _carouselController = PageController(viewportFraction: 0.88);
+  final PageController _carouselController = PageController(
+    viewportFraction: 0.88,
+  );
   int _carouselIndex = 0;
 
   static const _carouselSlides = <_CarouselSlide>[
@@ -26,15 +29,17 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
       title: 'BORROW & LEND WITH TRUSTED NEIGHBORS',
       subtitle:
           'Easily lend items, tools, or small loans within your community. Find what you need. Help those around you.',
-      assetPath: 'assets/home-carousel.png',
+      assetPath: _kShareItemsAsset,
     ),
     _CarouselSlide(
       title: 'HOME SERVICES FROM NEIGHBORS',
       subtitle: 'Book trusted help for everyday tasks in your building.',
+      assetPath: _kHomeServicesAsset,
     ),
     _CarouselSlide(
       title: 'SHARE ITEMS SAFELY',
       subtitle: 'List and discover items with proof and community trust.',
+      assetPath: _kShareItemsAsset,
     ),
   ];
 
@@ -66,20 +71,17 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     final user = context.watch<AuthViewModel>().currentUser;
     final firstName = _firstName(user?.fullName ?? '');
 
-    return ColoredBox(
-      color: Colors.white,
+    return JiraniBackground(
       child: SafeArea(
         bottom: false,
         child: CustomScrollView(
           slivers: [
-              SliverToBoxAdapter(
-                child: _buildHeader(context, user, firstName),
-              ),
-              if (user != null && !residentHasFullAppAccess(user))
-                SliverToBoxAdapter(child: _buildVerificationBanner(user)),
-              SliverToBoxAdapter(child: _buildCarousel()),
-              SliverToBoxAdapter(child: _buildPageIndicators()),
-              SliverToBoxAdapter(child: _buildQuickActions(context, user)),
+            SliverToBoxAdapter(child: _buildHeader(context, user, firstName)),
+            if (user != null && !residentHasFullAppAccess(user))
+              SliverToBoxAdapter(child: _buildVerificationBanner(user)),
+            SliverToBoxAdapter(child: _buildCarousel()),
+            SliverToBoxAdapter(child: _buildPageIndicators()),
+            SliverToBoxAdapter(child: _buildQuickActions(context, user)),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
@@ -91,56 +93,93 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     void locked() => _onLockedTap(context, user);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                '${_greetingForTime()}, $firstName 👋',
-                textAlign: TextAlign.left,
-                style: const TextStyle(
-                  color: _kBrandTeal,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Divider(
-                height: 1,
-                thickness: 2,
-                color: Colors.black.withValues(alpha: 0.15),
-              ),
-              const SizedBox(height: 4),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _greetingForTime(),
+                          style: const TextStyle(
+                            color: Color(0xFF59666B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          firstName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _kBrandTeal,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            height: 1.05,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _CommunityChip(
+                    label: user?.communityName.trim().isNotEmpty == true
+                        ? user!.communityName.trim()
+                        : 'Jirani',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.66),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.82),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 26,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _HeaderAction(
                         icon: Icons.forum_outlined,
                         label: 'Messages',
                         onTap: locked,
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 14),
                       _HeaderAction(
                         icon: Icons.groups_outlined,
                         label: 'My Neighbors',
                         onTap: locked,
                       ),
+                      const Spacer(),
+                      _HeaderAction(
+                        icon: Icons.notifications_outlined,
+                        label: 'Notifications',
+                        onTap: locked,
+                        showBadge: true,
+                      ),
                     ],
                   ),
-                  const Spacer(),
-                  _HeaderAction(
-                    icon: Icons.notifications_outlined,
-                    label: 'Notifications',
-                    onTap: locked,
-                    showBadge: true,
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -250,7 +289,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                       ? Image.asset(
                           assetPath,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => _quickActionPlaceholder(fallbackIcon),
+                          errorBuilder: (context, error, stackTrace) =>
+                              _quickActionPlaceholder(fallbackIcon),
                         )
                       : _quickActionPlaceholder(fallbackIcon),
                 ),
@@ -274,9 +314,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
               const Text(
                 'Quick Actions',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1F2937),
                 ),
               ),
               const SizedBox(height: 10),
@@ -311,7 +351,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
         color: _kBrandTeal.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Center(child: Icon(icon, size: 48, color: _kBrandTeal.withValues(alpha: 0.55))),
+      child: Center(
+        child: Icon(icon, size: 48, color: _kBrandTeal.withValues(alpha: 0.55)),
+      ),
     );
   }
 }
@@ -375,6 +417,51 @@ class _HeaderAction extends StatelessWidget {
   }
 }
 
+class _CommunityChip extends StatelessWidget {
+  const _CommunityChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 132, minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.apartment_rounded, size: 18, color: _kBrandTeal),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _kBrandTeal,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CarouselSlide {
   const _CarouselSlide({
     required this.title,
@@ -403,7 +490,7 @@ class _CarouselCard extends StatelessWidget {
             Image.asset(
               slide.assetPath!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _gradientFallback(),
+              errorBuilder: (context, error, stackTrace) => _gradientFallback(),
             )
           else
             _gradientFallback(),
@@ -466,10 +553,7 @@ class _CarouselCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            _kBrandTeal,
-            _kBrandTeal.withValues(alpha: 0.75),
-          ],
+          colors: [_kBrandTeal, _kBrandTeal.withValues(alpha: 0.75)],
         ),
       ),
       child: const Center(

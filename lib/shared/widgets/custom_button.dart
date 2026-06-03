@@ -1,1 +1,1 @@
-export 'package:fyp_flutter_application/widgets/custom_button.dart';
+export 'package:jirani/widgets/custom_button.dart';

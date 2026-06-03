@@ -1,7 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/data/models/community_model.dart';
-import 'package:fyp_flutter_application/services/community_service.dart';
+import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/services/community_service.dart';
+import 'package:jirani/widgets/common/jirani_logo.dart';
 import 'package:provider/provider.dart';
 
 import '../../viewmodels/auth_viewmodel.dart';
@@ -99,7 +100,9 @@ class _RegisterViewState extends State<RegisterView> {
           obscureText: obscureText,
           textInputAction: textInputAction,
           style: const TextStyle(fontSize: 15),
-          onFieldSubmitted: onFieldSubmitted != null ? (_) => onFieldSubmitted() : null,
+          onFieldSubmitted: onFieldSubmitted != null
+              ? (_) => onFieldSubmitted()
+              : null,
           decoration: _inputDecoration(hint: hint, suffixIcon: suffixIcon),
           validator: validator,
         ),
@@ -165,7 +168,7 @@ class _RegisterViewState extends State<RegisterView> {
                 : null,
             validator: hasOptions
                 ? (community) =>
-                    community == null ? 'Select your community' : null
+                      community == null ? 'Select your community' : null
                 : null,
           ),
         if (_communitiesError != null || !hasOptions && !_communitiesLoading)
@@ -207,7 +210,11 @@ class _RegisterViewState extends State<RegisterView> {
     final vm = context.read<AuthViewModel>();
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please accept the Community Guidelines and Terms of Service.')),
+        const SnackBar(
+          content: Text(
+            'Please accept the Community Guidelines and Terms of Service.',
+          ),
+        ),
       );
       return;
     }
@@ -235,7 +242,11 @@ class _RegisterViewState extends State<RegisterView> {
             child: IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _kBrandTeal),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: _kBrandTeal,
+              ),
               onPressed: vm.isLoading
                   ? null
                   : () {
@@ -247,7 +258,8 @@ class _RegisterViewState extends State<RegisterView> {
           Text(
             'Join the Community',
             textAlign: TextAlign.center,
-            style: textTheme.titleMedium?.copyWith(
+            style:
+                textTheme.titleMedium?.copyWith(
                   color: _kBrandTeal,
                   fontWeight: FontWeight.w600,
                   fontSize: 20,
@@ -263,20 +275,6 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  /// Community hero from `assets/auth1.png` (Figma); keeps layout compact.
-  Widget _buildCommunityHeroImage() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 350, maxHeight: 200),
-        child: Image.asset(
-          'assets/auth1.png',
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const SizedBox(height: 0),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -288,20 +286,22 @@ class _RegisterViewState extends State<RegisterView> {
         final bottomInset = MediaQuery.paddingOf(context).bottom;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(28, 0, 28, 28 + bottomInset),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildHeader(vm, textTheme),
                         const SizedBox(height: 10),
-                        _buildCommunityHeroImage(),
+                        const Center(child: JiraniLogo(height: 82)),
                         const SizedBox(height: 12),
                         Center(
                           child: ConstrainedBox(
@@ -309,15 +309,23 @@ class _RegisterViewState extends State<RegisterView> {
                             child: DecoratedBox(
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(_kCardRadius),
-                                border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
+                                borderRadius: BorderRadius.circular(
+                                  _kCardRadius,
+                                ),
+                                border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                ),
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 15,
+                                  vertical: 18,
+                                ),
                                 child: Form(
                                   key: _formKey,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       _buildFieldGroup(
                                         label: 'Full Name',
@@ -325,7 +333,9 @@ class _RegisterViewState extends State<RegisterView> {
                                         hint: 'John Doe',
                                         enabled: !loading,
                                         validator: (v) {
-                                          if (v == null || v.trim().isEmpty) return 'Enter your full name';
+                                          if (v == null || v.trim().isEmpty) {
+                                            return 'Enter your full name';
+                                          }
                                           return null;
                                         },
                                       ),
@@ -334,11 +344,16 @@ class _RegisterViewState extends State<RegisterView> {
                                         label: 'Email Address',
                                         controller: _emailController,
                                         hint: 'John@example.com',
-                                        keyboardType: TextInputType.emailAddress,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
                                         enabled: !loading,
                                         validator: (v) {
-                                          if (v == null || v.trim().isEmpty) return 'Enter your email';
-                                          if (!v.contains('@')) return 'Enter a valid email';
+                                          if (v == null || v.trim().isEmpty) {
+                                            return 'Enter your email';
+                                          }
+                                          if (!v.contains('@')) {
+                                            return 'Enter a valid email';
+                                          }
                                           return null;
                                         },
                                       ),
@@ -350,17 +365,32 @@ class _RegisterViewState extends State<RegisterView> {
                                         obscureText: _obscurePassword,
                                         enabled: !loading,
                                         suffixIcon: IconButton(
-                                          tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                                          tooltip: _obscurePassword
+                                              ? 'Show password'
+                                              : 'Hide password',
                                           icon: Icon(
-                                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                            color: Colors.black.withValues(alpha: 0.45),
+                                            _obscurePassword
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                            color: Colors.black.withValues(
+                                              alpha: 0.45,
+                                            ),
                                             size: 22,
                                           ),
-                                          onPressed: loading ? null : () => setState(() => _obscurePassword = !_obscurePassword),
+                                          onPressed: loading
+                                              ? null
+                                              : () => setState(
+                                                  () => _obscurePassword =
+                                                      !_obscurePassword,
+                                                ),
                                         ),
                                         validator: (v) {
-                                          if (v == null || v.isEmpty) return 'Enter a password';
-                                          if (v.length < 6) return 'At least 6 characters';
+                                          if (v == null || v.isEmpty) {
+                                            return 'Enter a password';
+                                          }
+                                          if (v.length < 6) {
+                                            return 'At least 6 characters';
+                                          }
                                           return null;
                                         },
                                       ),
@@ -372,19 +402,32 @@ class _RegisterViewState extends State<RegisterView> {
                                         obscureText: _obscureConfirmPassword,
                                         enabled: !loading,
                                         suffixIcon: IconButton(
-                                          tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
+                                          tooltip: _obscureConfirmPassword
+                                              ? 'Show password'
+                                              : 'Hide password',
                                           icon: Icon(
-                                            _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                            color: Colors.black.withValues(alpha: 0.45),
+                                            _obscureConfirmPassword
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                            color: Colors.black.withValues(
+                                              alpha: 0.45,
+                                            ),
                                             size: 22,
                                           ),
                                           onPressed: loading
                                               ? null
-                                              : () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                              : () => setState(
+                                                  () => _obscureConfirmPassword =
+                                                      !_obscureConfirmPassword,
+                                                ),
                                         ),
                                         validator: (v) {
-                                          if (v == null || v.isEmpty) return 'Confirm your password';
-                                          if (v != _passwordController.text) return 'Passwords do not match';
+                                          if (v == null || v.isEmpty) {
+                                            return 'Confirm your password';
+                                          }
+                                          if (v != _passwordController.text) {
+                                            return 'Passwords do not match';
+                                          }
                                           return null;
                                         },
                                       ),
@@ -400,45 +443,78 @@ class _RegisterViewState extends State<RegisterView> {
                                         onFieldSubmitted: _submit,
                                         enabled: !loading,
                                         validator: (v) {
-                                          if (v == null || v.trim().isEmpty) return 'Enter your phone number';
+                                          if (v == null || v.trim().isEmpty) {
+                                            return 'Enter your phone number';
+                                          }
                                           return null;
                                         },
                                       ),
                                       const SizedBox(height: 10),
                                       CheckboxTheme(
                                         data: CheckboxThemeData(
-                                          fillColor: WidgetStateProperty.resolveWith((states) {
-                                            if (states.contains(WidgetState.disabled)) return Colors.grey.shade400;
-                                            if (states.contains(WidgetState.selected)) return _kBrandTeal;
-                                            return null;
-                                          }),
-                                          checkColor: WidgetStateProperty.all(Colors.white),
-                                          side: BorderSide(color: Colors.grey.shade700, width: 1.5),
-                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          fillColor:
+                                              WidgetStateProperty.resolveWith((
+                                                states,
+                                              ) {
+                                                if (states.contains(
+                                                  WidgetState.disabled,
+                                                )) {
+                                                  return Colors.grey.shade400;
+                                                }
+                                                if (states.contains(
+                                                  WidgetState.selected,
+                                                )) {
+                                                  return _kBrandTeal;
+                                                }
+                                                return null;
+                                              }),
+                                          checkColor: WidgetStateProperty.all(
+                                            Colors.white,
+                                          ),
+                                          side: BorderSide(
+                                            color: Colors.grey.shade700,
+                                            width: 1.5,
+                                          ),
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
                                           visualDensity: VisualDensity.compact,
                                         ),
                                         child: CheckboxListTile(
                                           value: _acceptedTerms,
-                                          onChanged: loading ? null : (v) => setState(() => _acceptedTerms = v ?? false),
+                                          onChanged: loading
+                                              ? null
+                                              : (v) => setState(
+                                                  () => _acceptedTerms =
+                                                      v ?? false,
+                                                ),
                                           contentPadding: EdgeInsets.zero,
                                           dense: true,
-                                          controlAffinity: ListTileControlAffinity.leading,
+                                          controlAffinity:
+                                              ListTileControlAffinity.leading,
                                           title: RichText(
                                             text: TextSpan(
-                                              style: textTheme.bodySmall?.copyWith(
+                                              style:
+                                                  textTheme.bodySmall?.copyWith(
                                                     color: Colors.black87,
                                                     fontSize: 13,
                                                     height: 1.35,
                                                   ) ??
-                                                  const TextStyle(color: Colors.black87, fontSize: 13, height: 1.35),
+                                                  const TextStyle(
+                                                    color: Colors.black87,
+                                                    fontSize: 13,
+                                                    height: 1.35,
+                                                  ),
                                               children: [
-                                                const TextSpan(text: 'I agree to the '),
+                                                const TextSpan(
+                                                  text: 'I agree to the ',
+                                                ),
                                                 TextSpan(
                                                   text: 'Community Guidelines',
                                                   style: const TextStyle(
                                                     color: _kBrandTeal,
                                                     fontWeight: FontWeight.w600,
-                                                    decoration: TextDecoration.underline,
+                                                    decoration: TextDecoration
+                                                        .underline,
                                                   ),
                                                   recognizer: _guidelinesTap,
                                                 ),
@@ -448,7 +524,8 @@ class _RegisterViewState extends State<RegisterView> {
                                                   style: const TextStyle(
                                                     color: _kBrandTeal,
                                                     fontWeight: FontWeight.w600,
-                                                    decoration: TextDecoration.underline,
+                                                    decoration: TextDecoration
+                                                        .underline,
                                                   ),
                                                   recognizer: _termsTap,
                                                 ),
@@ -478,7 +555,10 @@ class _RegisterViewState extends State<RegisterView> {
                                     child: Text(
                                       vm.errorMessage!,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 SizedBox(
@@ -489,7 +569,8 @@ class _RegisterViewState extends State<RegisterView> {
                                       elevation: 0,
                                       backgroundColor: _kBrandTeal,
                                       foregroundColor: Colors.white,
-                                      disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.6),
+                                      disabledBackgroundColor: _kBrandTeal
+                                          .withValues(alpha: 0.6),
                                       disabledForegroundColor: Colors.white70,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
@@ -518,7 +599,9 @@ class _RegisterViewState extends State<RegisterView> {
                                 Text(
                                   'Already have an account?',
                                   textAlign: TextAlign.center,
-                                  style: textTheme.bodyMedium?.copyWith(color: Colors.black87),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: Colors.black87,
+                                  ),
                                 ),
                                 const SizedBox(height: 6),
                                 Align(
@@ -527,14 +610,20 @@ class _RegisterViewState extends State<RegisterView> {
                                       foregroundColor: _kBrandTeal,
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: loading
                                         ? null
                                         : () {
                                             vm.clearError();
-                                            Navigator.of(context).pushReplacement(
-                                              MaterialPageRoute<void>(builder: (_) => const LoginView()),
+                                            Navigator.of(
+                                              context,
+                                            ).pushReplacement(
+                                              MaterialPageRoute<void>(
+                                                builder: (_) =>
+                                                    const LoginView(),
+                                              ),
                                             );
                                           },
                                     child: const Text(

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/home/resident_home_view.dart';
-import 'package:fyp_flutter_application/widgets/common/verification_locked_overlay.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/home/resident_home_view.dart';
+import 'package:jirani/views/home/resident_marketplace_view.dart';
+import 'package:jirani/views/home/resident_services_view.dart';
+import 'package:jirani/views/profile/resident_profile_view.dart';
+import 'package:jirani/widgets/common/verification_locked_overlay.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
 enum ResidentTab { home, marketplace, services, profile }
 
-/// Main resident shell — Figma Group 26 bottom navigation + tab bodies.
+/// Main resident shell - Figma Group 26 bottom navigation + tab bodies.
 class ResidentMainShell extends StatefulWidget {
   const ResidentMainShell({super.key});
 
@@ -29,26 +31,21 @@ class _ResidentMainShellState extends State<ResidentMainShell> {
     final user = context.watch<AuthViewModel>().currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      extendBody: true,
+      backgroundColor: Colors.transparent,
       body: IndexedStack(
         index: _tab.index,
         children: [
           const ResidentHomeView(),
-          _LockedTabPlaceholder(
-            title: 'Marketplace',
-            icon: Icons.storefront_outlined,
+          VerificationLockedOverlay(
             user: user,
+            child: const ResidentMarketplaceView(),
           ),
-          _LockedTabPlaceholder(
-            title: 'Services',
-            icon: Icons.handyman_outlined,
+          VerificationLockedOverlay(
             user: user,
+            child: const ResidentServicesView(),
           ),
-          _LockedTabPlaceholder(
-            title: 'Profile',
-            icon: Icons.person_outline,
-            user: user,
-          ),
+          const ResidentProfileView(),
         ],
       ),
       bottomNavigationBar: _ResidentBottomNav(
@@ -59,54 +56,8 @@ class _ResidentMainShellState extends State<ResidentMainShell> {
   }
 }
 
-class _LockedTabPlaceholder extends StatelessWidget {
-  const _LockedTabPlaceholder({
-    required this.title,
-    required this.icon,
-    required this.user,
-  });
-
-  final String title;
-  final IconData icon;
-  final AppUser? user;
-
-  @override
-  Widget build(BuildContext context) {
-    return VerificationLockedOverlay(
-      user: user,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 56, color: _kBrandTeal.withValues(alpha: 0.5)),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: _kBrandTeal,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Coming soon',
-                style: TextStyle(color: Colors.black54),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ResidentBottomNav extends StatelessWidget {
-  const _ResidentBottomNav({
-    required this.selected,
-    required this.onSelected,
-  });
+  const _ResidentBottomNav({required this.selected, required this.onSelected});
 
   final ResidentTab selected;
   final ValueChanged<ResidentTab> onSelected;

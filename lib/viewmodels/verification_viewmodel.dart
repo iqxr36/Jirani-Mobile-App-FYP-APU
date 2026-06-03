@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/data/models/verification_request.dart';
-import 'package:fyp_flutter_application/data/repositories/verification_repository.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/data/repositories/verification_repository.dart';
 
 class VerificationViewModel extends ChangeNotifier {
   VerificationViewModel({VerificationRepository? repository})
-      : _repository = repository ?? VerificationRepository();
+    : _repository = repository ?? VerificationRepository();
 
   final VerificationRepository _repository;
 
@@ -97,14 +99,19 @@ class VerificationViewModel extends ChangeNotifier {
           break;
       }
     }
+    if (e is TimeoutException) {
+      return 'Upload timed out. Check your connection and try again.';
+    }
 
     final raw = e.toString();
     final lower = raw.toLowerCase();
-    if (lower.contains('unsupported operation') || lower.contains('_namespace')) {
+    if (lower.contains('unsupported operation') ||
+        lower.contains('_namespace')) {
       return 'This file could not be read. Please choose another file.';
     }
 
-    if (lower.contains('storage') && (lower.contains('denied') || lower.contains('unauthorized'))) {
+    if (lower.contains('storage') &&
+        (lower.contains('denied') || lower.contains('unauthorized'))) {
       return 'Upload blocked by Firebase Storage rules.';
     }
 

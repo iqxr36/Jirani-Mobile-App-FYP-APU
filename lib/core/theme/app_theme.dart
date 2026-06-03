@@ -20,7 +20,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: Colors.grey.shade50,
+      scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -56,7 +56,9 @@ class AppTheme {
           minimumSize: const Size(64, 44),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           textStyle: _buttonTextStyle,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -66,7 +68,9 @@ class AppTheme {
           minimumSize: const Size(64, 44),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           textStyle: _buttonTextStyle,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -76,7 +80,9 @@ class AppTheme {
           minimumSize: const Size(64, 44),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           textStyle: _buttonTextStyle,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

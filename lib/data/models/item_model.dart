@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 
 class ItemModel {
   const ItemModel({

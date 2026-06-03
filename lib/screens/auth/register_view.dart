@@ -1,1 +1,1 @@
-export 'package:fyp_flutter_application/views/auth/register_view.dart';
+export 'package:jirani/views/auth/register_view.dart';

@@ -1,4 +1,4 @@
-import 'package:fyp_flutter_application/data/repositories/item_repository.dart';
+import 'package:jirani/data/repositories/item_repository.dart';
 
 class ItemService extends ItemRepository {
   ItemService({

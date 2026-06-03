@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -26,7 +26,9 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _completePermissionFlow() async {
@@ -49,14 +51,14 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    await FirebaseFirestore.instance.collection(AppConstants.usersCollection).doc(uid).set(
-      {
-        'cameraEnabled': enabled,
-        'cameraPermissionStatus': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await FirebaseFirestore.instance
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .set({
+          'cameraEnabled': enabled,
+          'cameraPermissionStatus': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   Future<void> _handleEnableCamera() async {
@@ -120,7 +122,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
       child: Image.asset(
         'assets/cam-perm.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+        errorBuilder: (_, _, _) => _buildPlaceholderIllustration(),
       ),
     );
   }
@@ -129,9 +131,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     final softTeal = _kBrandTeal.withValues(alpha: 0.14);
     return Stack(
       alignment: Alignment.center,
-      children: [
-        Icon(Icons.camera_alt_outlined, size: 88, color: softTeal),
-      ],
+      children: [Icon(Icons.camera_alt_outlined, size: 88, color: softTeal)],
     );
   }
 
@@ -193,7 +193,10 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
                   SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
@@ -220,7 +223,9 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
           backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
           foregroundColor: _kBrandTeal,
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          disabledBackgroundColor: const Color(0xFF787880).withValues(alpha: 0.10),
+          disabledBackgroundColor: const Color(
+            0xFF787880,
+          ).withValues(alpha: 0.10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _buttonsLocked ? null : _handleMaybeLater,
@@ -237,7 +242,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -246,7 +251,9 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -266,7 +273,9 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,

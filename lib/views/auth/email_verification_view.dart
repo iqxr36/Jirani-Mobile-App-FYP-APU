@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/widgets/auth_feedback_banner.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 const Color _brandTeal = Color(0xFF006D77);
@@ -45,7 +45,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
   String get _displayEmail {
     final fromWidget = widget.email?.trim();
     if (fromWidget != null && fromWidget.isNotEmpty) return fromWidget;
-    return FirebaseAuth.instance.currentUser?.email?.trim() ?? 'john.doe@example.com';
+    return FirebaseAuth.instance.currentUser?.email?.trim() ??
+        'john.doe@example.com';
   }
 
   @override
@@ -133,17 +134,19 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
         return;
       }
       if (!user.emailVerified) {
-        setState(() => _errorBanner = 'Please verify your email before continuing.');
+        setState(
+          () => _errorBanner = 'Please verify your email before continuing.',
+        );
         return;
       }
 
-      await FirebaseFirestore.instance.collection(AppConstants.usersCollection).doc(user.uid).set(
-        {
-          'emailVerified': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .set({
+            'emailVerified': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
       await context.read<AuthViewModel>().refreshCurrentUser();
@@ -199,7 +202,11 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
           child: Image.asset(
             'assets/auth1.png',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Icon(Icons.mark_email_unread_outlined, size: 120, color: _brandTeal.withValues(alpha: 0.35)),
+            errorBuilder: (_, _, _) => Icon(
+              Icons.mark_email_unread_outlined,
+              size: 120,
+              color: _brandTeal.withValues(alpha: 0.35),
+            ),
           ),
         ),
       ),
@@ -210,11 +217,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     final email = _displayEmail;
     return Text.rich(
       TextSpan(
-        style: const TextStyle(
-          color: _mutedGrey,
-          fontSize: 14,
-          height: 1.35,
-        ),
+        style: const TextStyle(color: _mutedGrey, fontSize: 14, height: 1.35),
         children: [
           const TextSpan(text: "We've sent a secure verification link to\n"),
           TextSpan(
@@ -224,7 +227,9 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const TextSpan(text: '. Please click the\nlink to activate your account.'),
+          const TextSpan(
+            text: '. Please click the\nlink to activate your account.',
+          ),
         ],
       ),
       textAlign: TextAlign.center,
@@ -250,14 +255,15 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.access_time_rounded, size: 18, color: _mutedGrey.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.access_time_rounded,
+                    size: 18,
+                    color: _mutedGrey.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 8),
                   Text.rich(
                     TextSpan(
-                      style: const TextStyle(
-                        color: _mutedGrey,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: _mutedGrey, fontSize: 14),
                       children: [
                         const TextSpan(text: 'Resend Link in '),
                         TextSpan(
@@ -278,24 +284,38 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                   width: 132,
                   height: 44,
                   child: ElevatedButton(
-                    onPressed: (!canResend || _continueLoading) ? null : _handleResendLink,
+                    onPressed: (!canResend || _continueLoading)
+                        ? null
+                        : _handleResendLink,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
-                      backgroundColor: canResend ? _brandTeal : _brandTeal.withValues(alpha: 0.45),
+                      backgroundColor: canResend
+                          ? _brandTeal
+                          : _brandTeal.withValues(alpha: 0.45),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: _brandTeal.withValues(alpha: 0.35),
+                      disabledBackgroundColor: _brandTeal.withValues(
+                        alpha: 0.35,
+                      ),
                       padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: _resendLoading
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text(
                             'Resend Link',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                   ),
                 ),
@@ -326,7 +346,10 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Text(
                 'Continue',
@@ -341,7 +364,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -350,7 +373,9 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _maxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -370,16 +395,22 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _maxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 24),
-                        if (_successBanner != null) AuthFeedbackBanner.success(_successBanner!),
-                        if (_successBanner != null && _errorBanner != null) const SizedBox(height: 16),
-                        if (_errorBanner != null) AuthFeedbackBanner.failure(_errorBanner!),
-                        if (_successBanner != null || _errorBanner != null) const SizedBox(height: 16),
+                        if (_successBanner != null)
+                          AuthFeedbackBanner.success(_successBanner!),
+                        if (_successBanner != null && _errorBanner != null)
+                          const SizedBox(height: 16),
+                        if (_errorBanner != null)
+                          AuthFeedbackBanner.failure(_errorBanner!),
+                        if (_successBanner != null || _errorBanner != null)
+                          const SizedBox(height: 16),
                         _buildContinueButton(),
                       ],
                     ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/services/location_onboarding_prefs.dart';
-import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
-import 'package:fyp_flutter_application/views/verification/verification_permission_flow_view.dart';
+import 'package:jirani/services/location_onboarding_prefs.dart';
+import 'package:jirani/views/location/location_permission_view.dart';
+import 'package:jirani/views/verification/verification_permission_flow_view.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Foreground location: first-launch education + on-demand gate for verification / future geofence.

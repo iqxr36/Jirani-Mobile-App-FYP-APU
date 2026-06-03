@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Trust Community';
+  static const String appName = 'Jirani';
 
   // Roles
   static const String roleResident = 'resident';
@@ -26,8 +26,10 @@ class AppConstants {
   static const String documentTypeOtherProof = 'otherProof';
 
   /// Firebase Storage root folder for verification uploads (see storage rules).
-  static const String storageVerificationDocumentsPath = 'verification_documents';
+  static const String storageVerificationDocumentsPath =
+      'verification_documents';
   static const String storageItemImagesPath = 'item_images';
+
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
   static const String storageBorrowRequestProofsPath = 'borrow_request_proofs';
 
@@ -58,6 +60,7 @@ class AppConstants {
   static const String itemStatusArchived = 'archived';
 
   // Firestore collections
+  static const String adminsCollection = 'admins';
   static const String usersCollection = 'users';
   static const String itemsCollection = 'items';
   static const String communitiesCollection = 'communities';

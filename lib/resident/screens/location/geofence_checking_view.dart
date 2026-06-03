@@ -1,1 +1,1 @@
-export 'package:fyp_flutter_application/views/location/geofence_checking_view.dart';
+export 'package:jirani/views/location/geofence_checking_view.dart';

@@ -10,6 +10,7 @@ class VerificationRequest {
     required this.phoneNumber,
     required this.documentType,
     required this.documentUrl,
+    required this.communityId,
     required this.communityName,
     required this.unitNumber,
     required this.notes,
@@ -29,6 +30,7 @@ class VerificationRequest {
   final String phoneNumber;
   final String documentType;
   final String documentUrl;
+  final String communityId;
   final String communityName;
   final String unitNumber;
   final String notes;
@@ -48,6 +50,7 @@ class VerificationRequest {
     String? phoneNumber,
     String? documentType,
     String? documentUrl,
+    String? communityId,
     String? communityName,
     String? unitNumber,
     String? notes,
@@ -67,6 +70,7 @@ class VerificationRequest {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       documentType: documentType ?? this.documentType,
       documentUrl: documentUrl ?? this.documentUrl,
+      communityId: communityId ?? this.communityId,
       communityName: communityName ?? this.communityName,
       unitNumber: unitNumber ?? this.unitNumber,
       notes: notes ?? this.notes,
@@ -89,6 +93,7 @@ class VerificationRequest {
       'phoneNumber': phoneNumber,
       'documentType': documentType,
       'documentUrl': documentUrl,
+      'communityId': communityId,
       'communityName': communityName,
       'unitNumber': unitNumber,
       'notes': notes,
@@ -97,14 +102,17 @@ class VerificationRequest {
       'submittedAt': Timestamp.fromDate(submittedAt),
       'reviewedAt': reviewedAt != null ? Timestamp.fromDate(reviewedAt!) : null,
       'reviewedBy': reviewedBy,
-      'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
+      'cancelledAt': cancelledAt != null
+          ? Timestamp.fromDate(cancelledAt!)
+          : null,
       'cancelledBy': cancelledBy,
     };
   }
 
   factory VerificationRequest.fromMap(Map<String, dynamic> map) {
     final rawUserId = map['userId'] ?? map['residentUid'] ?? map['uid'];
-    final rawDocumentUrl = map['documentUrl'] ?? map['fileUrl'] ?? map['uploadedFileUrl'];
+    final rawDocumentUrl =
+        map['documentUrl'] ?? map['fileUrl'] ?? map['uploadedFileUrl'];
     final rawSubmittedAt = map['submittedAt'] ?? map['createdAt'];
 
     return VerificationRequest(
@@ -115,6 +123,7 @@ class VerificationRequest {
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
       documentType: (map['documentType'] as String?) ?? '',
       documentUrl: (rawDocumentUrl as String?) ?? '',
+      communityId: (map['communityId'] as String?) ?? '',
       communityName: (map['communityName'] as String?) ?? '',
       unitNumber: (map['unitNumber'] as String?) ?? '',
       notes: (map['notes'] as String?) ?? '',

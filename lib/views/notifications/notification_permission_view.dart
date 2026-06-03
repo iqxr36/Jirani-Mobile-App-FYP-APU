@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/views/camera/camera_permission_view.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/views/camera/camera_permission_view.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
@@ -13,10 +13,12 @@ class NotificationPermissionView extends StatefulWidget {
   const NotificationPermissionView({super.key});
 
   @override
-  State<NotificationPermissionView> createState() => _NotificationPermissionViewState();
+  State<NotificationPermissionView> createState() =>
+      _NotificationPermissionViewState();
 }
 
-class _NotificationPermissionViewState extends State<NotificationPermissionView> {
+class _NotificationPermissionViewState
+    extends State<NotificationPermissionView> {
   bool _allowing = false;
   bool _skipping = false;
 
@@ -24,7 +26,9 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _completePermissionFlow() {
@@ -74,13 +78,22 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
       if (status == AuthorizationStatus.authorized ||
           status == AuthorizationStatus.provisional) {
         final token = await FirebaseMessaging.instance.getToken();
-        final statusStr =
-            status == AuthorizationStatus.provisional ? 'provisional' : 'authorized';
-        await _saveNotificationPreference(enabled: true, status: statusStr, token: token);
+        final statusStr = status == AuthorizationStatus.provisional
+            ? 'provisional'
+            : 'authorized';
+        await _saveNotificationPreference(
+          enabled: true,
+          status: statusStr,
+          token: token,
+        );
         if (!mounted) return;
         _completePermissionFlow();
       } else {
-        await _saveNotificationPreference(enabled: false, status: 'denied', token: null);
+        await _saveNotificationPreference(
+          enabled: false,
+          status: 'denied',
+          token: null,
+        );
         if (!mounted) return;
         _showSnack(
           'Notifications are disabled. You can enable them later from settings.',
@@ -101,7 +114,11 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
     if (_buttonsLocked) return;
     setState(() => _skipping = true);
     try {
-      await _saveNotificationPreference(enabled: false, status: 'skipped', token: null);
+      await _saveNotificationPreference(
+        enabled: false,
+        status: 'skipped',
+        token: null,
+      );
       if (!mounted) return;
       _completePermissionFlow();
     } catch (_) {
@@ -121,7 +138,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
       child: Image.asset(
         'assets/perm2.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+        errorBuilder: (_, _, _) => _buildPlaceholderIllustration(),
       ),
     );
   }
@@ -131,10 +148,30 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
     return Stack(
       alignment: Alignment.center,
       children: [
-        Positioned(left: 20, top: 24, child: Icon(Icons.home_rounded, size: 26, color: softTeal)),
-        Positioned(right: 28, top: 32, child: Icon(Icons.person_outline_rounded, size: 24, color: softTeal)),
-        Positioned(left: 36, bottom: 32, child: Icon(Icons.shield_outlined, size: 22, color: softTeal)),
-        Positioned(right: 40, bottom: 28, child: Icon(Icons.chat_bubble_outline_rounded, size: 22, color: softTeal)),
+        Positioned(
+          left: 20,
+          top: 24,
+          child: Icon(Icons.home_rounded, size: 26, color: softTeal),
+        ),
+        Positioned(
+          right: 28,
+          top: 32,
+          child: Icon(Icons.person_outline_rounded, size: 24, color: softTeal),
+        ),
+        Positioned(
+          left: 36,
+          bottom: 32,
+          child: Icon(Icons.shield_outlined, size: 22, color: softTeal),
+        ),
+        Positioned(
+          right: 40,
+          bottom: 28,
+          child: Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 22,
+            color: softTeal,
+          ),
+        ),
         Container(
           width: 118,
           height: 168,
@@ -153,7 +190,11 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.notifications_active_rounded, size: 48, color: _kBrandTeal),
+              Icon(
+                Icons.notifications_active_rounded,
+                size: 48,
+                color: _kBrandTeal,
+              ),
               const SizedBox(height: 8),
               Container(
                 width: 56,
@@ -204,7 +245,11 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
                   color: _kBrandTeal.withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.notifications_active_rounded, color: _kBrandTeal, size: 28),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: _kBrandTeal,
+                  size: 28,
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -246,7 +291,10 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
                   SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
@@ -273,7 +321,9 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
           backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
           foregroundColor: _kBrandTeal,
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          disabledBackgroundColor: const Color(0xFF787880).withValues(alpha: 0.10),
+          disabledBackgroundColor: const Color(
+            0xFF787880,
+          ).withValues(alpha: 0.10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _buttonsLocked ? null : _handleMaybeLater,
@@ -290,7 +340,7 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -299,7 +349,9 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -319,7 +371,9 @@ class _NotificationPermissionViewState extends State<NotificationPermissionView>
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,

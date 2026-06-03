@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/models/service_model.dart';
-import 'package:fyp_flutter_application/models/service_request_model.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/models/service_model.dart';
+import 'package:jirani/models/service_request_model.dart';
 
 class ServiceService {
   ServiceService({

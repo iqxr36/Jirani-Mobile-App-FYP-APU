@@ -1,1 +1,1 @@
-export 'package:fyp_flutter_application/data/models/item_model.dart';
+export 'package:jirani/data/models/item_model.dart';

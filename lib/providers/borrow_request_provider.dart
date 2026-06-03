@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/models/item_model.dart';
-import 'package:fyp_flutter_application/models/borrow_request.dart';
-import 'package:fyp_flutter_application/services/borrow_request_service.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/models/item_model.dart';
+import 'package:jirani/models/borrow_request.dart';
+import 'package:jirani/services/borrow_request_service.dart';
 
 class BorrowRequestProvider extends ChangeNotifier {
   BorrowRequestProvider({BorrowRequestService? service}) : _service = service ?? BorrowRequestService();

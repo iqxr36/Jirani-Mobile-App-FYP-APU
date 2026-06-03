@@ -1,4 +1,4 @@
-name: fyp_flutter_application
+name: jirani
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -82,11 +82,20 @@ flutter:
     - assets/Location2.png
     - "assets/Location Map Ping.png"
     - assets/auth1.png
+    - assets/In-app-logo-Jirani.png
+    - assets/In-app-logo-dark-mode-Jirani.png
+    - "assets/IOS-app-icon-draw(1).PNG"
+    - "assets/IOS-app-icon-dark-mode-draw(1).PNG"
+    - "assets/Android-app-icon-draw(1).PNG"
+    - "assets/Android-app-logo-dark-mode-draw(1).PNG"
     - assets/perm1.png
     - assets/perm2.png
     - assets/cam-perm.png
     - "assets/Home Services(1)-Photoroom.png"
     - "assets/Share Items-Photoroom.png"
+    - "assets/pending review.png"
+    - "assets/verification rejected.png"
+    - "assets/verification approved.png"
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

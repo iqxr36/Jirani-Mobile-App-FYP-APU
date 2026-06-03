@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 350;
 
 /// Confirms that the resident is currently within the selected community area.
 class LocationVerifiedView extends StatelessWidget {
-  const LocationVerifiedView({
-    super.key,
-    required this.communityName,
-  });
+  const LocationVerifiedView({super.key, required this.communityName});
 
   final String communityName;
 
-  void _continueToVerification(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+  Future<void> _enterRestrictedApp(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    try {
+      await context.read<AuthViewModel>().markLocationVerified();
+      if (!context.mounted) return;
+      navigator.popUntil((route) => route.isFirst);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not save location verification. Try again.'),
+        ),
+      );
+    }
   }
 
   Widget _buildIllustration() {
@@ -23,12 +35,8 @@ class LocationVerifiedView extends StatelessWidget {
       child: Image.asset(
         'assets/Location1.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Center(
-          child: Icon(
-            Icons.location_on_rounded,
-            size: 112,
-            color: _kBrandTeal,
-          ),
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(Icons.location_on_rounded, size: 112, color: _kBrandTeal),
         ),
       ),
     );
@@ -130,16 +138,14 @@ class LocationVerifiedView extends StatelessWidget {
           elevation: 0,
           backgroundColor: _kBrandTeal,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: () => _continueToVerification(context),
+        onPressed: () => _enterRestrictedApp(context),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Enter Trust Community',
+              'Enter Restricted Access',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
             SizedBox(width: 8),
@@ -153,7 +159,7 @@ class LocationVerifiedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 16, 28, 20),
@@ -186,8 +192,8 @@ class LocationVerifiedView extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'You can now continue with residency\n'
-                    'verification while full access remains restricted.',
+                    'You can now browse the app in restricted mode.\n'
+                    'Submit verification documents from Profile.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF737378),

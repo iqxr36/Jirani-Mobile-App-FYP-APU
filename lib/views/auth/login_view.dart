@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/utils/validators.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/auth/forgot_password_view.dart';
-import 'package:fyp_flutter_application/views/auth/register_view.dart';
+import 'package:jirani/core/utils/validators.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/auth/forgot_password_view.dart';
+import 'package:jirani/views/auth/register_view.dart';
+import 'package:jirani/widgets/common/jirani_logo.dart';
 import 'package:provider/provider.dart';
 
-/// Resident login — Trust Community (Figma Group 13).
+/// Resident login - Jirani (Figma Group 13).
 /// Brand teal: #006D77
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kCardMaxWidth = 350;
@@ -66,6 +67,10 @@ class _LoginViewState extends State<LoginView> {
     await context.read<AuthViewModel>().signInWithGoogle();
   }
 
+  Future<void> _appleSignIn() async {
+    await context.read<AuthViewModel>().signInWithApple();
+  }
+
   static TextStyle _labelStyle(BuildContext context) {
     return Theme.of(context).textTheme.titleSmall!.copyWith(
       fontWeight: FontWeight.w600,
@@ -101,7 +106,7 @@ class _LoginViewState extends State<LoginView> {
     );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -118,6 +123,8 @@ class _LoginViewState extends State<LoginView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        const Center(child: JiraniLogo(height: 88)),
+                        const SizedBox(height: 14),
                         Text(
                           'Welcome to your Community!',
                           textAlign: TextAlign.center,
@@ -233,7 +240,7 @@ class _LoginViewState extends State<LoginView> {
                         Divider(height: 1, thickness: 1, color: dividerGrey),
                         const SizedBox(height: 16),
                         Text(
-                          'Sign in with Google',
+                          'Or continue with',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
@@ -247,6 +254,20 @@ class _LoginViewState extends State<LoginView> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _SocialIconButton(
+                              tooltip: 'Continue with Apple',
+                              onPressed: vm.isLoading ? null : _appleSignIn,
+                              child: const _AppleSignInIcon(),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 59,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              color: dividerGrey,
+                            ),
+                            _SocialIconButton(
+                              tooltip: 'Continue with Google',
                               onPressed: vm.isLoading ? null : _googleSignIn,
                               child: const _GoogleSignInIcon(),
                             ),
@@ -348,8 +369,13 @@ class _LoginViewState extends State<LoginView> {
 }
 
 class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton({required this.onPressed, required this.child});
+  const _SocialIconButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.child,
+  });
 
+  final String tooltip;
   final VoidCallback? onPressed;
   final Widget child;
 
@@ -359,10 +385,22 @@ class _SocialIconButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(padding: const EdgeInsets.all(8), child: child),
+        borderRadius: BorderRadius.circular(14),
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(width: 47, height: 47, child: Center(child: child)),
+        ),
       ),
     );
+  }
+}
+
+class _AppleSignInIcon extends StatelessWidget {
+  const _AppleSignInIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(Icons.apple, color: Colors.black, size: 36);
   }
 }
 

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/data/models/community_model.dart';
-import 'package:fyp_flutter_application/services/community_service.dart';
-import 'package:fyp_flutter_application/services/geofence_manager.dart';
-import 'package:fyp_flutter_application/services/location_access.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/location/geofence_checking_view.dart';
-import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
+import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/services/community_service.dart';
+import 'package:jirani/services/geofence_manager.dart';
+import 'package:jirani/services/location_access.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/location/geofence_checking_view.dart';
+import 'package:jirani/views/location/location_permission_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -83,7 +83,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
   Future<void> _changeCommunity(AuthViewModel viewModel) async {
     final selected = await showModalBottomSheet<CommunityModel>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -117,8 +117,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _CommunityOption(
                       community: community,
-                      selected:
-                          current?.communityId == community.communityId,
+                      selected: current?.communityId == community.communityId,
                       onTap: () => Navigator.of(modalContext).pop(community),
                     ),
                   ),
@@ -189,8 +188,8 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
 
   Future<void> _startNativeMonitoring(CommunityModel selectedCommunity) async {
     try {
-      final canRunInBackground =
-          await GeofenceManager.instance.hasBackgroundLocationPermission();
+      final canRunInBackground = await GeofenceManager.instance
+          .hasBackgroundLocationPermission();
       if (canRunInBackground) {
         await GeofenceManager.instance.startGeofencing([selectedCommunity]);
         return;
@@ -386,7 +385,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(26, 14, 26, 18 + bottomInset),
@@ -436,7 +435,8 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                             label: _isContinuing ? 'Saving...' : 'Continue',
                             background: _kBrandTeal,
                             foreground: Colors.white,
-                            onPressed: _isContinuing ||
+                            onPressed:
+                                _isContinuing ||
                                     _isLoadingCommunities ||
                                     community == null
                                 ? null
@@ -445,8 +445,9 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                           const SizedBox(height: 12),
                           _buildButton(
                             label: 'Change Community',
-                            background:
-                                const Color(0xFF787880).withValues(alpha: 0.16),
+                            background: const Color(
+                              0xFF787880,
+                            ).withValues(alpha: 0.16),
                             foreground: _kBrandTeal,
                             onPressed: _isContinuing || _communities.isEmpty
                                 ? null

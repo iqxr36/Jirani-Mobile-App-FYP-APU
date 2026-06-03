@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/services/location_onboarding_prefs.dart';
-import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
+import 'package:jirani/services/location_onboarding_prefs.dart';
+import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'community_confirmation_view.dart';
@@ -56,7 +56,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showLocationSettingsDialog() {
@@ -68,7 +70,10 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
           'Location services are turned off. Please enable location services to continue.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -90,7 +95,10 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
           'Please enable location permission from your phone settings to verify your community.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -206,7 +214,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     }
 
     if (permission == LocationPermission.denied) {
-      _showSnack('Location permission was denied. Trust Community needs location to verify your community.');
+      _showSnack(
+        'Location permission was denied. Jirani needs location to verify your community.',
+      );
       if (widget.nextBuilder != null) {
         await _openNextScreen();
       }
@@ -261,7 +271,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
       child: Image.asset(
         'assets/perm1.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+        errorBuilder: (_, _, _) => _buildPlaceholderIllustration(),
       ),
     );
   }
@@ -271,16 +281,25 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     return Stack(
       alignment: Alignment.center,
       children: [
-        Positioned(left: 24, top: 20, child: Icon(Icons.home_rounded, size: 28, color: softTeal)),
-        Positioned(right: 32, top: 36, child: Icon(Icons.person_outline_rounded, size: 26, color: softTeal)),
-        Positioned(right: 48, bottom: 28, child: Icon(Icons.map_outlined, size: 24, color: softTeal)),
+        Positioned(
+          left: 24,
+          top: 20,
+          child: Icon(Icons.home_rounded, size: 28, color: softTeal),
+        ),
+        Positioned(
+          right: 32,
+          top: 36,
+          child: Icon(Icons.person_outline_rounded, size: 26, color: softTeal),
+        ),
+        Positioned(
+          right: 48,
+          bottom: 28,
+          child: Icon(Icons.map_outlined, size: 24, color: softTeal),
+        ),
         Container(
           width: 120,
           height: 120,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: softTeal,
-          ),
+          decoration: BoxDecoration(shape: BoxShape.circle, color: softTeal),
         ),
         Icon(Icons.location_on_rounded, size: 88, color: _kBrandTeal),
       ],
@@ -301,7 +320,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
 
   Widget _buildSubtitle() {
     return const Text(
-      'This helps keep Trust Community safe\nfor real residents only.',
+      'This helps keep Jirani safe\nfor real residents only.',
       textAlign: TextAlign.center,
       style: TextStyle(
         color: Colors.black,
@@ -333,7 +352,11 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.lock_rounded, color: _kBrandTeal, size: 28),
+                child: const Icon(
+                  Icons.lock_rounded,
+                  color: _kBrandTeal,
+                  size: 28,
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -375,7 +398,10 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                   SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
@@ -388,7 +414,11 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.location_on_rounded, size: 18, color: Colors.white),
+                  Icon(
+                    Icons.location_on_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Enable Location',
@@ -410,7 +440,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
           backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
           foregroundColor: _kBrandTeal,
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          disabledBackgroundColor: const Color(0xFF787880).withValues(alpha: 0.10),
+          disabledBackgroundColor: const Color(
+            0xFF787880,
+          ).withValues(alpha: 0.10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _isLoading ? null : _handleNotNow,
@@ -427,7 +459,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -436,7 +468,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -458,7 +492,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,

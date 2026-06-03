@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/models/verification_request.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/models/verification_request.dart';
 
 import 'verification_upload_platform_stub.dart'
     if (dart.library.io) 'verification_upload_platform_io.dart';
@@ -24,13 +25,15 @@ class VerificationRepository {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+  static const Duration _uploadTimeout = Duration(seconds: 90);
+  static const Duration _networkTimeout = Duration(seconds: 25);
 
   User? get currentFirebaseUser => _auth.currentUser;
 
@@ -52,7 +55,11 @@ class VerificationRepository {
     }
 
     final sorted = snapshot.docs.toList()
-      ..sort((a, b) => submitted(b.data()['submittedAt']).compareTo(submitted(a.data()['submittedAt'])));
+      ..sort(
+        (a, b) => submitted(
+          b.data()['submittedAt'],
+        ).compareTo(submitted(a.data()['submittedAt'])),
+      );
 
     return VerificationRequest.fromMap(sorted.first.data());
   }
@@ -80,10 +87,10 @@ class VerificationRepository {
         .collection(AppConstants.verificationRequestsCollection)
         .doc(latest.id)
         .update({
-      'status': AppConstants.verificationRequestCancelled,
-      'cancelledAt': FieldValue.serverTimestamp(),
-      'cancelledBy': uid,
-    });
+          'status': AppConstants.verificationRequestCancelled,
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'cancelledBy': uid,
+        });
 
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
       'verificationStatus': AppConstants.verificationPending,
@@ -112,7 +119,11 @@ class VerificationRepository {
     }
 
     final uid = user.uid;
-    final userSnap = await _firestore.collection(AppConstants.usersCollection).doc(uid).get();
+    final userSnap = await _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get()
+        .timeout(_networkTimeout);
     final userData = userSnap.data();
     if (userData == null) {
       throw Exception('User profile not found.');
@@ -120,7 +131,10 @@ class VerificationRepository {
     final appUser = AppUser.fromMap(userData);
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileObjectName = _safeVerificationStorageObjectName(timestamp, originalFileName);
+    final fileObjectName = _safeVerificationStorageObjectName(
+      timestamp,
+      originalFileName,
+    );
 
     final ref = _storage
         .ref()
@@ -138,17 +152,31 @@ class VerificationRepository {
       metadata,
     );
 
-    uploadTask.snapshotEvents.listen((snapshot) {
+    final progressSub = uploadTask.snapshotEvents.listen((snapshot) {
       final total = snapshot.totalBytes;
       if (total > 0) {
         onUploadProgress?.call(snapshot.bytesTransferred / total);
       }
     });
 
-    await uploadTask;
-    final documentUrl = await ref.getDownloadURL();
+    try {
+      await uploadTask.timeout(
+        _uploadTimeout,
+        onTimeout: () async {
+          await uploadTask.cancel();
+          throw TimeoutException(
+            'Document upload timed out. Please check your connection and try again.',
+          );
+        },
+      );
+    } finally {
+      await progressSub.cancel();
+    }
+    final documentUrl = await ref.getDownloadURL().timeout(_networkTimeout);
 
-    final docRef = _firestore.collection(AppConstants.verificationRequestsCollection).doc();
+    final docRef = _firestore
+        .collection(AppConstants.verificationRequestsCollection)
+        .doc();
     final requestId = docRef.id;
 
     final request = VerificationRequest(
@@ -159,6 +187,7 @@ class VerificationRepository {
       phoneNumber: appUser.phoneNumber,
       documentType: documentType,
       documentUrl: documentUrl,
+      communityId: appUser.communityId,
       communityName: communityName.trim(),
       unitNumber: unitNumber.trim(),
       notes: notes?.trim() ?? '',
@@ -171,19 +200,23 @@ class VerificationRepository {
       cancelledBy: null,
     );
 
-    await docRef.set({
-      ...request.toMap(),
-      'submittedAt': FieldValue.serverTimestamp(),
-    });
+    await docRef
+        .set({...request.toMap(), 'submittedAt': FieldValue.serverTimestamp()})
+        .timeout(_networkTimeout);
 
-    await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
-      'verificationStatus': AppConstants.verificationSubmitted,
-      'communityName': communityName.trim(),
-      'unitNumber': unitNumber.trim(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .update({
+          'verificationStatus': AppConstants.verificationSubmitted,
+          'communityId': appUser.communityId,
+          'communityName': communityName.trim(),
+          'unitNumber': unitNumber.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        })
+        .timeout(_networkTimeout);
 
-    final saved = await docRef.get();
+    final saved = await docRef.get().timeout(_networkTimeout);
     final data = saved.data();
     if (data == null) {
       return request;
@@ -191,13 +224,19 @@ class VerificationRepository {
     return VerificationRequest.fromMap(data);
   }
 
-  /// `{timestamp}_verification_document.{ext}` — ext from [originalFileName] only, sanitized.
-  static String _safeVerificationStorageObjectName(int timestamp, String originalFileName) {
+  /// `{timestamp}_verification_document.{ext}` - ext from [originalFileName] only, sanitized.
+  static String _safeVerificationStorageObjectName(
+    int timestamp,
+    String originalFileName,
+  ) {
     final baseName = originalFileName.split(RegExp(r'[/\\]')).last;
     final dot = baseName.lastIndexOf('.');
     var ext = '';
     if (dot != -1 && dot < baseName.length - 1) {
-      ext = baseName.substring(dot + 1).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      ext = baseName
+          .substring(dot + 1)
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
     }
     if (ext.isEmpty) {
       throw VerificationUnsupportedFileTypeException(

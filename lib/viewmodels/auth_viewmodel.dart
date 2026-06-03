@@ -1,20 +1,21 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException, User;
+import 'package:firebase_auth/firebase_auth.dart'
+    show FirebaseAuthException, PhoneAuthCredential, User;
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/core/utils/validators.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/repositories/auth_repository.dart';
-import 'package:fyp_flutter_application/data/repositories/user_repository.dart';
+import 'package:jirani/core/utils/validators.dart';
+import 'package:jirani/data/models/admin_user.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/repositories/auth_repository.dart';
+import 'package:jirani/data/repositories/user_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  AuthViewModel({
-    AuthRepository? repository,
-    UserRepository? userRepository,
-  })  : _repository = repository ?? AuthRepository(),
-        _userRepository = userRepository ?? UserRepository() {
-    _authSubscription = _repository.authStateChanges.listen(_onAuthStateChanged);
+  AuthViewModel({AuthRepository? repository, UserRepository? userRepository})
+    : _repository = repository ?? AuthRepository(),
+      _userRepository = userRepository ?? UserRepository() {
+    _authSubscription = _repository.authStateChanges.listen(
+      _onAuthStateChanged,
+    );
   }
 
   final AuthRepository _repository;
@@ -30,6 +31,8 @@ class AuthViewModel extends ChangeNotifier {
   String? _successMessage;
   String? _profileErrorMessage;
   AppUser? _currentUser;
+  AdminUser? _currentAdmin;
+  bool _showEmailVerificationAfterRegister = false;
   bool _showAccountCreatedScreen = false;
   bool _showPhoneVerificationAfterRegister = false;
 
@@ -42,8 +45,12 @@ class AuthViewModel extends ChangeNotifier {
   String? get successMessage => _successMessage;
   String? get profileErrorMessage => _profileErrorMessage;
   AppUser? get currentUser => _currentUser;
+  AdminUser? get currentAdmin => _currentAdmin;
+  bool get showEmailVerificationAfterRegister =>
+      _showEmailVerificationAfterRegister;
   bool get showAccountCreatedScreen => _showAccountCreatedScreen;
-  bool get showPhoneVerificationAfterRegister => _showPhoneVerificationAfterRegister;
+  bool get showPhoneVerificationAfterRegister =>
+      _showPhoneVerificationAfterRegister;
 
   Future<void> register({
     required String fullName,
@@ -70,9 +77,12 @@ class AuthViewModel extends ChangeNotifier {
         communityName: communityName,
       );
       _firebaseUser = _repository.currentFirebaseUser;
-      _showPhoneVerificationAfterRegister = true;
+      _currentAdmin = null;
+      _showEmailVerificationAfterRegister = true;
+      _showPhoneVerificationAfterRegister = false;
       _showAccountCreatedScreen = false;
-      _successMessage = 'Account created. A verification email has been sent to your email address.';
+      _successMessage =
+          'Account created. A verification email has been sent to your email address.';
     } catch (e) {
       _errorMessage = _mapAuthError(e);
     } finally {
@@ -80,10 +90,7 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     debugPrint('[AuthProvider.login] started');
     _setLoading(true);
     clearError(notify: false);
@@ -92,15 +99,24 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       debugPrint('[AuthProvider.login] Firebase/Repository sign-in started');
-      _currentUser = await _repository.login(
-        email: email,
-        password: password,
+      await _repository.login(email: email, password: password);
+      await _loadCurrentProfiles();
+      if (_currentUser == null && _currentAdmin == null) {
+        throw Exception(_missingProfileMessage());
+      }
+      debugPrint(
+        '[AuthProvider.login] Repository login success, userUid=${_currentUser?.uid} adminUid=${_currentAdmin?.uid}',
       );
-      debugPrint('[AuthProvider.login] Repository login success, uid=${_currentUser?.uid}');
       _firebaseUser = _repository.currentFirebaseUser;
-      debugPrint('[AuthProvider.login] firebase user uid=${_firebaseUser?.uid}');
-      debugPrint('[AuthProvider.login] loaded role=${_currentUser?.role}');
-      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
+      debugPrint(
+        '[AuthProvider.login] firebase user uid=${_firebaseUser?.uid}',
+      );
+      debugPrint(
+        '[AuthProvider.login] loaded userRole=${_currentUser?.role} adminRole=${_currentAdmin?.role}',
+      );
+      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
+        _currentUser,
+      );
     } catch (e) {
       debugPrint('[AuthProvider.login] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -123,8 +139,11 @@ class AuthViewModel extends ChangeNotifier {
         return;
       }
       _currentUser = user;
+      _currentAdmin = null;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
+      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
+        _currentUser,
+      );
     } catch (e) {
       debugPrint('[AuthProvider.signInWithGoogle] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -146,8 +165,11 @@ class AuthViewModel extends ChangeNotifier {
         return;
       }
       _currentUser = user;
+      _currentAdmin = null;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = _needsResidencyVerificationPrompt(_currentUser);
+      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
+        _currentUser,
+      );
     } catch (e) {
       debugPrint('[AuthProvider.signInWithApple] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -163,6 +185,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       await _repository.logout();
       _currentUser = null;
+      _currentAdmin = null;
       _firebaseUser = null;
       _showAccountCreatedScreen = false;
       _successMessage = null;
@@ -193,8 +216,17 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// After email verification succeeds, continue to the phone verification step.
+  void exitEmailVerificationRegistrationFlow() {
+    _showEmailVerificationAfterRegister = false;
+    _showPhoneVerificationAfterRegister = true;
+    _showAccountCreatedScreen = false;
+    notifyListeners();
+  }
+
   /// After OTP step (success, back, or skip), show [AccountCreatedView].
   void exitPhoneVerificationRegistrationFlow() {
+    _showEmailVerificationAfterRegister = false;
     _showPhoneVerificationAfterRegister = false;
     _showAccountCreatedScreen = true;
     notifyListeners();
@@ -219,10 +251,26 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<String?> tryLinkPhoneWithCredential({
+    required PhoneAuthCredential credential,
+    required String phoneNumber,
+  }) async {
+    try {
+      await _repository.linkRegisteredUserWithPhoneCredential(
+        credential: credential,
+        phoneNumber: phoneNumber,
+      );
+      await refreshCurrentUser();
+      return null;
+    } catch (e) {
+      return _mapAuthError(e);
+    }
+  }
+
   Future<void> refreshCurrentUser() async {
     if (_firebaseUser == null) return;
     try {
-      _currentUser = await _repository.getCurrentAppUser();
+      await _loadCurrentProfiles();
       _profileErrorMessage = null;
       notifyListeners();
     } catch (e) {
@@ -315,6 +363,26 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> markLocationVerified() async {
+    final uid = _firebaseUser?.uid ?? _currentUser?.uid;
+    if (uid == null) {
+      throw Exception('You must be signed in to verify your location.');
+    }
+
+    await _userRepository.updateUserFields(
+      uid: uid,
+      fields: {
+        'locationVerified': true,
+        'locationVerificationStatus': 'passed',
+        'locationVerifiedCommunityName':
+            _currentUser?.communityName.trim() ?? '',
+      },
+    );
+    _currentUser = _currentUser?.copyWith(locationVerified: true);
+    _showAccountCreatedScreen = false;
+    notifyListeners();
+  }
+
   void clearError({bool notify = true}) {
     _errorMessage = null;
     if (notify) notifyListeners();
@@ -325,10 +393,9 @@ class AuthViewModel extends ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  bool _needsResidencyVerificationPrompt(AppUser? user) {
+  bool _needsLocationVerificationPrompt(AppUser? user) {
     if (user == null || !user.isResident) return false;
-    return user.verificationStatus == AppConstants.verificationPending ||
-        user.verificationStatus == AppConstants.verificationRejected;
+    return !user.locationVerified;
   }
 
   Future<void> _onAuthStateChanged(User? user) async {
@@ -337,8 +404,10 @@ class AuthViewModel extends ChangeNotifier {
 
     if (user == null) {
       _currentUser = null;
+      _currentAdmin = null;
       _profileLoading = false;
       _profileErrorMessage = null;
+      _showEmailVerificationAfterRegister = false;
       _showAccountCreatedScreen = false;
       _showPhoneVerificationAfterRegister = false;
       _authBootstrapComplete = true;
@@ -351,13 +420,23 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('[AuthProvider._onAuthStateChanged] Firestore profile fetch started');
-      _currentUser = await _repository.getCurrentAppUser();
-      debugPrint('[AuthProvider._onAuthStateChanged] Firestore profile fetch done role=${_currentUser?.role}');
-      _profileErrorMessage = _currentUser == null ? 'User profile not found in Firestore.' : null;
+      debugPrint(
+        '[AuthProvider._onAuthStateChanged] Firestore profile fetch started',
+      );
+      await _loadCurrentProfiles();
+      debugPrint(
+        '[AuthProvider._onAuthStateChanged] Firestore profile fetch done userRole=${_currentUser?.role} adminRole=${_currentAdmin?.role}',
+      );
+      _profileErrorMessage = _currentUser == null && _currentAdmin == null
+          ? _missingProfileMessage()
+          : null;
+      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
+        _currentUser,
+      );
     } catch (e) {
       debugPrint('[AuthProvider._onAuthStateChanged] error: $e');
       _currentUser = null;
+      _currentAdmin = null;
       _profileErrorMessage = e.toString();
     } finally {
       _profileLoading = false;
@@ -369,6 +448,27 @@ class AuthViewModel extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  Future<void> _loadCurrentProfiles() async {
+    final admin = await _repository.getCurrentAdminUser();
+    if (admin != null) {
+      _currentAdmin = admin;
+      _currentUser = null;
+      return;
+    }
+    _currentAdmin = null;
+    _currentUser = await _repository.getCurrentAppUser();
+  }
+
+  String _missingProfileMessage() {
+    final uid =
+        _firebaseUser?.uid ?? _repository.currentFirebaseUser?.uid ?? '';
+    final email =
+        _firebaseUser?.email ?? _repository.currentFirebaseUser?.email ?? '';
+    final uidText = uid.isEmpty ? 'unknown Firebase Auth UID' : uid;
+    final emailText = email.isEmpty ? '' : ' for $email';
+    return 'Profile not found in Firestore$emailText. Create admins/$uidText for an admin account, or users/$uidText for a resident account.';
   }
 
   String _mapAuthError(Object e) {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
@@ -24,10 +24,7 @@ bool isOutsideCommunityBoundary({
 
 /// Shown when the user's current location is outside the community boundary.
 class OutsideGeofenceView extends StatefulWidget {
-  const OutsideGeofenceView({
-    super.key,
-    required this.communityName,
-  });
+  const OutsideGeofenceView({super.key, required this.communityName});
 
   final String communityName;
 
@@ -51,7 +48,8 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            viewModel.errorMessage ?? 'Could not return to login. Please try again.',
+            viewModel.errorMessage ??
+                'Could not return to login. Please try again.',
           ),
         ),
       );
@@ -68,7 +66,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
       child: Image.asset(
         'assets/Location2.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Center(
+        errorBuilder: (_, _, _) => const Center(
           child: Icon(
             Icons.location_off_rounded,
             size: 112,
@@ -175,9 +173,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
           elevation: 0,
           backgroundColor: _kBrandTeal,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _returningToLogin ? null : () => Navigator.of(context).pop(),
         child: const Row(
@@ -205,9 +201,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
           backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
           foregroundColor: _kBrandTeal,
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _returningToLogin ? null : _returnToLogin,
         child: _returningToLogin
@@ -229,7 +223,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 16, 28, 20),

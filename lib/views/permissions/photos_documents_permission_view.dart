@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -29,7 +29,9 @@ class _PhotosDocumentsPermissionViewState
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _completePermissionStep() async {
@@ -54,14 +56,14 @@ class _PhotosDocumentsPermissionViewState
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    await FirebaseFirestore.instance.collection(AppConstants.usersCollection).doc(uid).set(
-      {
-        'photosDocumentsEnabled': enabled,
-        'photosDocumentsPermissionStatus': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await FirebaseFirestore.instance
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .set({
+          'photosDocumentsEnabled': enabled,
+          'photosDocumentsPermissionStatus': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   Future<void> _handleAllowAccess() async {
@@ -154,7 +156,11 @@ class _PhotosDocumentsPermissionViewState
           ),
           Positioned(
             top: 48,
-            child: Icon(Icons.photo_library_outlined, size: 54, color: _kBrandTeal),
+            child: Icon(
+              Icons.photo_library_outlined,
+              size: 54,
+              color: _kBrandTeal,
+            ),
           ),
           Positioned(
             bottom: 48,
@@ -223,7 +229,10 @@ class _PhotosDocumentsPermissionViewState
                   SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
@@ -250,7 +259,9 @@ class _PhotosDocumentsPermissionViewState
           backgroundColor: const Color(0xFF787880).withValues(alpha: 0.16),
           foregroundColor: _kBrandTeal,
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
-          disabledBackgroundColor: const Color(0xFF787880).withValues(alpha: 0.10),
+          disabledBackgroundColor: const Color(
+            0xFF787880,
+          ).withValues(alpha: 0.10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: _buttonsLocked ? null : _handleMaybeLater,
@@ -267,7 +278,7 @@ class _PhotosDocumentsPermissionViewState
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 18 + bottomInset),
@@ -276,7 +287,9 @@ class _PhotosDocumentsPermissionViewState
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -296,7 +309,9 @@ class _PhotosDocumentsPermissionViewState
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: _kMaxContentWidth,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,

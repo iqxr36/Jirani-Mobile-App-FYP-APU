@@ -2,21 +2,20 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/models/item_model.dart';
-import 'package:fyp_flutter_application/models/borrow_request.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/models/item_model.dart';
+import 'package:jirani/models/borrow_request.dart';
 
 class BorrowRequestService {
   BorrowRequestService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -43,7 +42,9 @@ class BorrowRequestService {
       throw Exception('This item is no longer available for borrowing.');
     }
     if (requestedStartDate.isAfter(expectedReturnDate)) {
-      throw Exception('Invalid date range. Start date must be on or before return date.');
+      throw Exception(
+        'Invalid date range. Start date must be on or before return date.',
+      );
     }
 
     final uid = _auth.currentUser?.uid;
@@ -104,29 +105,41 @@ class BorrowRequestService {
         'itemConditionAfter': null,
         'returnNotes': '',
         'ownerReturnNotes': '',
-        'depositDecision': item.hasDeposit ? AppConstants.depositDecisionPending : AppConstants.depositDecisionNotRequired,
+        'depositDecision': item.hasDeposit
+            ? AppConstants.depositDecisionPending
+            : AppConstants.depositDecisionNotRequired,
         'depositDecisionReason': '',
         'depositDecidedAt': null,
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to create borrow request.');
     }
   }
 
   Stream<List<BorrowRequest>> watchMyBorrowRequests(String borrowerId) {
-    return _requests.where('borrowerId', isEqualTo: borrowerId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((doc) => BorrowRequest.fromMap(doc.id, doc.data())).toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
+    return _requests.where('borrowerId', isEqualTo: borrowerId).snapshots().map(
+      (snapshot) {
+        final list = snapshot.docs
+            .map((doc) => BorrowRequest.fromMap(doc.id, doc.data()))
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      },
+    );
   }
 
   Stream<List<BorrowRequest>> watchIncomingRequests(String ownerId) {
-    return _requests.where('ownerId', isEqualTo: ownerId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((doc) => BorrowRequest.fromMap(doc.id, doc.data())).toList();
+    return _requests.where('ownerId', isEqualTo: ownerId).snapshots().map((
+      snapshot,
+    ) {
+      final list = snapshot.docs
+          .map((doc) => BorrowRequest.fromMap(doc.id, doc.data()))
+          .toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
     });
@@ -154,7 +167,9 @@ class BorrowRequestService {
       }
 
       final batch = _firestore.batch();
-      final itemRef = _firestore.collection(AppConstants.itemsCollection).doc(request.itemId);
+      final itemRef = _firestore
+          .collection(AppConstants.itemsCollection)
+          .doc(request.itemId);
       batch.update(requestRef, {
         'status': AppConstants.borrowStatusApproved,
         'approvedAt': FieldValue.serverTimestamp(),
@@ -181,7 +196,9 @@ class BorrowRequestService {
       await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to approve request.');
     }
@@ -219,7 +236,9 @@ class BorrowRequestService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to reject request.');
     }
@@ -251,7 +270,9 @@ class BorrowRequestService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to cancel request.');
     }
@@ -298,23 +319,31 @@ class BorrowRequestService {
         throw Exception('Only the borrower can confirm pickup readiness.');
       }
       if (request.status != AppConstants.borrowStatusApproved) {
-        throw Exception('Pickup readiness can only be confirmed after approval.');
+        throw Exception(
+          'Pickup readiness can only be confirmed after approval.',
+        );
       }
 
       String? proofUrl;
       if (localProofPath != null && localProofPath.trim().isNotEmpty) {
-        proofUrl = await _uploadProofImage(requestId: requestId, uid: borrowerId, localPath: localProofPath.trim());
+        proofUrl = await _uploadProofImage(
+          requestId: requestId,
+          uid: borrowerId,
+          localPath: localProofPath.trim(),
+        );
       }
 
       await requestRef.update({
         'status': AppConstants.borrowStatusPickupReady,
         'pickupConfirmedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        if (proofUrl != null) 'pickupProofImageUrl': proofUrl,
+        'pickupProofImageUrl': ?proofUrl,
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to confirm pickup readiness.');
     }
@@ -355,22 +384,30 @@ class BorrowRequestService {
         throw Exception('Only the item owner can confirm handover.');
       }
       if (request.status != AppConstants.borrowStatusPickupReady) {
-        throw Exception('Handover can only be confirmed when the borrower is ready for pickup.');
+        throw Exception(
+          'Handover can only be confirmed when the borrower is ready for pickup.',
+        );
       }
 
       String? proofUrl;
       if (localProofPath != null && localProofPath.trim().isNotEmpty) {
-        proofUrl = await _uploadProofImage(requestId: requestId, uid: ownerId, localPath: localProofPath.trim());
+        proofUrl = await _uploadProofImage(
+          requestId: requestId,
+          uid: ownerId,
+          localPath: localProofPath.trim(),
+        );
       }
 
       final batch = _firestore.batch();
-      final itemRef = _firestore.collection(AppConstants.itemsCollection).doc(request.itemId);
+      final itemRef = _firestore
+          .collection(AppConstants.itemsCollection)
+          .doc(request.itemId);
       batch.update(requestRef, {
         'status': AppConstants.borrowStatusActive,
         'handoverConfirmedAt': FieldValue.serverTimestamp(),
         'itemConditionBefore': cond,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (proofUrl != null) 'handoverProofImageUrl': proofUrl,
+        'handoverProofImageUrl': ?proofUrl,
       });
       batch.update(itemRef, {
         'status': AppConstants.itemStatusUnavailable,
@@ -379,7 +416,9 @@ class BorrowRequestService {
       await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to confirm handover.');
     }
@@ -410,12 +449,18 @@ class BorrowRequestService {
         AppConstants.borrowStatusHandedOver,
       };
       if (!activeStatuses.contains(request.status)) {
-        throw Exception('Return can only be submitted during active borrowing.');
+        throw Exception(
+          'Return can only be submitted during active borrowing.',
+        );
       }
 
       String? proofUrl;
       if (localProofPath != null && localProofPath.trim().isNotEmpty) {
-        proofUrl = await _uploadProofImage(requestId: requestId, uid: borrowerId, localPath: localProofPath.trim());
+        proofUrl = await _uploadProofImage(
+          requestId: requestId,
+          uid: borrowerId,
+          localPath: localProofPath.trim(),
+        );
       }
 
       await requestRef.update({
@@ -423,11 +468,13 @@ class BorrowRequestService {
         'returnSubmittedAt': FieldValue.serverTimestamp(),
         'returnNotes': returnNotes.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-        if (proofUrl != null) 'returnProofImageUrl': proofUrl,
+        'returnProofImageUrl': ?proofUrl,
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to submit return.');
     }
@@ -468,11 +515,15 @@ class BorrowRequestService {
         throw Exception('Only the item owner can confirm return.');
       }
       if (request.status != AppConstants.borrowStatusReturnSubmitted) {
-        throw Exception('Return confirmation is only available after the borrower submits return.');
+        throw Exception(
+          'Return confirmation is only available after the borrower submits return.',
+        );
       }
 
       final batch = _firestore.batch();
-      final itemRef = _firestore.collection(AppConstants.itemsCollection).doc(request.itemId);
+      final itemRef = _firestore
+          .collection(AppConstants.itemsCollection)
+          .doc(request.itemId);
       batch.update(requestRef, {
         'status': AppConstants.borrowStatusCompleted,
         'returnConfirmedAt': FieldValue.serverTimestamp(),
@@ -480,7 +531,9 @@ class BorrowRequestService {
         'itemConditionAfter': cond,
         'ownerReturnNotes': ownerReturnNotes.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'depositDecision': request.hasDeposit ? AppConstants.depositDecisionPending : AppConstants.depositDecisionNotRequired,
+        'depositDecision': request.hasDeposit
+            ? AppConstants.depositDecisionPending
+            : AppConstants.depositDecisionNotRequired,
         'depositDecisionReason': '',
         'depositDecidedAt': null,
       });
@@ -491,7 +544,9 @@ class BorrowRequestService {
       await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to confirm return.');
     }
@@ -509,10 +564,12 @@ class BorrowRequestService {
       throw Exception('Only the item owner can set deposit decision.');
     }
     final d = decision.trim();
-    if (d != AppConstants.depositDecisionReturnDeposit && d != AppConstants.depositDecisionWithholdDeposit) {
+    if (d != AppConstants.depositDecisionReturnDeposit &&
+        d != AppConstants.depositDecisionWithholdDeposit) {
       throw Exception('Invalid deposit decision.');
     }
-    if (d == AppConstants.depositDecisionWithholdDeposit && reason.trim().isEmpty) {
+    if (d == AppConstants.depositDecisionWithholdDeposit &&
+        reason.trim().isEmpty) {
       throw Exception('A reason is required when withholding the deposit.');
     }
     try {
@@ -525,7 +582,9 @@ class BorrowRequestService {
         throw Exception('Only the item owner can set deposit decision.');
       }
       if (request.status != AppConstants.borrowStatusCompleted) {
-        throw Exception('Deposit decision is only available after the borrow is completed.');
+        throw Exception(
+          'Deposit decision is only available after the borrow is completed.',
+        );
       }
       if (!request.hasDeposit) {
         throw Exception('This borrow request has no deposit.');
@@ -537,13 +596,18 @@ class BorrowRequestService {
       final batch = _firestore.batch();
       batch.update(requestRef, {
         'depositDecision': d,
-        'depositDecisionReason': d == AppConstants.depositDecisionWithholdDeposit ? reason.trim() : '',
+        'depositDecisionReason':
+            d == AppConstants.depositDecisionWithholdDeposit
+            ? reason.trim()
+            : '',
         'depositDecidedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (d == AppConstants.depositDecisionWithholdDeposit) {
-        final reportRef = _firestore.collection(AppConstants.reportsCollection).doc();
+        final reportRef = _firestore
+            .collection(AppConstants.reportsCollection)
+            .doc();
         batch.set(reportRef, {
           'type': AppConstants.reportTypeDepositDispute,
           'relatedBorrowRequestId': request.id,
@@ -562,7 +626,9 @@ class BorrowRequestService {
       await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for borrow request access.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
       }
       throw Exception(e.message ?? 'Failed to save deposit decision.');
     }

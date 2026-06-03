@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/models/borrow_request.dart';
-import 'package:fyp_flutter_application/models/review_model.dart';
-import 'package:fyp_flutter_application/services/review_service.dart';
+import 'package:jirani/models/borrow_request.dart';
+import 'package:jirani/models/review_model.dart';
+import 'package:jirani/services/review_service.dart';
 
 class ReviewProvider extends ChangeNotifier {
   ReviewProvider({ReviewService? service}) : _service = service ?? ReviewService();

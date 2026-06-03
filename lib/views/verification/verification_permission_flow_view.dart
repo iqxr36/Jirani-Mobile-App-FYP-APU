@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/services/verification_permission_prefs.dart';
-import 'package:fyp_flutter_application/views/camera/camera_permission_view.dart';
-import 'package:fyp_flutter_application/views/location/community_confirmation_view.dart';
-import 'package:fyp_flutter_application/views/location/location_permission_view.dart';
-import 'package:fyp_flutter_application/views/permissions/photos_documents_permission_view.dart';
+import 'package:jirani/services/verification_permission_prefs.dart';
+import 'package:jirani/views/camera/camera_permission_view.dart';
+import 'package:jirani/views/location/community_confirmation_view.dart';
+import 'package:jirani/views/location/location_permission_view.dart';
+import 'package:jirani/views/permissions/photos_documents_permission_view.dart';
 
-enum VerificationPermissionStage {
-  location,
-  camera,
-  photosDocuments,
-}
+enum VerificationPermissionStage { location, camera, photosDocuments }
 
 /// Routes the once-per-install verification permission sequence.
 class VerificationPermissionFlowView extends StatefulWidget {
@@ -85,7 +81,7 @@ class _VerificationPermissionFlowViewState
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: Center(child: CircularProgressIndicator()),
     );
   }

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/home/resident_main_shell.dart';
-import 'package:fyp_flutter_application/admin/screens/auth/admin_login_screen.dart';
-import 'package:fyp_flutter_application/views/auth/phone_verification_view.dart';
-import 'package:fyp_flutter_application/views/auth/resident_pre_auth_gate.dart';
-import 'package:fyp_flutter_application/resident/screens/auth/account_created_view.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/admin/screens/admin_dashboard_screen.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/home/resident_main_shell.dart';
+import 'package:jirani/admin/screens/auth/admin_login_screen.dart';
+import 'package:jirani/views/auth/email_verification_view.dart';
+import 'package:jirani/views/auth/phone_verification_view.dart';
+import 'package:jirani/views/auth/resident_pre_auth_gate.dart';
+import 'package:jirani/resident/screens/auth/account_created_view.dart';
 import 'package:provider/provider.dart';
+import 'package:jirani/views/location/resident_geofence_gate.dart';
 
 /// Routes the app based on [FirebaseAuth] session and loaded [AppUser] profile.
 class AuthWrapper extends StatelessWidget {
@@ -19,7 +22,7 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, vm, _) {
         debugPrint('[AuthWrapper] build start kIsWeb=$kIsWeb');
         debugPrint(
-          '[AuthWrapper] firebaseUser=${vm.firebaseUser?.uid} currentUser=${vm.currentUser?.uid} role=${vm.currentUser?.role} '
+          '[AuthWrapper] firebaseUser=${vm.firebaseUser?.uid} currentUser=${vm.currentUser?.uid} userRole=${vm.currentUser?.role} currentAdmin=${vm.currentAdmin?.uid} adminRole=${vm.currentAdmin?.role} '
           'isAuthBootstrapComplete=${vm.isAuthBootstrapComplete} isProfileLoading=${vm.isProfileLoading}',
         );
         if (!vm.isAuthBootstrapComplete) {
@@ -34,7 +37,9 @@ class AuthWrapper extends StatelessWidget {
             debugPrint('[AuthWrapper] route -> AdminLoginScreen');
             return const AdminLoginScreen();
           }
-          debugPrint('[AuthWrapper] route -> Resident pre-auth (onboarding or login)');
+          debugPrint(
+            '[AuthWrapper] route -> Resident pre-auth (onboarding or login)',
+          );
           return const ResidentPreAuthGate();
         }
 
@@ -45,17 +50,21 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (vm.currentUser == null) {
+        if (vm.currentUser == null && vm.currentAdmin == null) {
           return _MissingProfileScaffold(
-            message: vm.profileErrorMessage ?? 'Your account profile could not be loaded.',
+            message:
+                vm.profileErrorMessage ??
+                'Your account profile could not be loaded.',
             onLogout: () => context.read<AuthViewModel>().logout(),
             isLoggingOut: vm.isLoading,
           );
         }
 
-        final role = vm.currentUser!.role;
-        final isAdmin = role == AppConstants.roleCommunityAdmin || role == AppConstants.roleSystemAdmin;
-        if (kIsWeb && role == AppConstants.roleResident) {
+        final user = vm.currentUser;
+        final admin = vm.currentAdmin;
+        final role = user?.role ?? admin?.role ?? '';
+        final isAdmin = admin != null;
+        if (kIsWeb && user?.role == AppConstants.roleResident) {
           debugPrint('[AuthWrapper] route -> web resident blocked');
           return _MissingProfileScaffold(
             message: 'This account does not have admin access.',
@@ -71,14 +80,26 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (vm.showPhoneVerificationAfterRegister && vm.currentUser != null) {
+        if (vm.showEmailVerificationAfterRegister && user != null) {
+          debugPrint('[AuthWrapper] route -> EmailVerificationView');
+          return EmailVerificationView(
+            email: user.email,
+            onVerified: () => context
+                .read<AuthViewModel>()
+                .exitEmailVerificationRegistrationFlow(),
+          );
+        }
+
+        if (vm.showPhoneVerificationAfterRegister && user != null) {
           debugPrint('[AuthWrapper] route -> PhoneVerificationView');
-          final phone = vm.currentUser!.phoneNumber.trim();
+          final phone = user.phoneNumber.trim();
           return PhoneVerificationView(
             phoneNumber: phone,
             verificationId: null,
             resendToken: null,
-            onFlowFinished: () => context.read<AuthViewModel>().exitPhoneVerificationRegistrationFlow(),
+            onFlowFinished: () => context
+                .read<AuthViewModel>()
+                .exitPhoneVerificationRegistrationFlow(),
           );
         }
 
@@ -87,60 +108,20 @@ class AuthWrapper extends StatelessWidget {
           return const AccountCreatedView();
         }
 
-        if (role == AppConstants.roleResident) {
+        if (user?.role == AppConstants.roleResident) {
           debugPrint('[AuthWrapper] route -> ResidentMainShell (home)');
-          return const ResidentMainShell();
+          return ResidentGeofenceGate(
+            user: user!,
+            child: const ResidentMainShell(),
+          );
         }
 
-        debugPrint('[AuthWrapper] route -> admin signed-in placeholder');
-        return _AdminSignedInPlaceholder(
+        debugPrint('[AuthWrapper] route -> AdminDashboardScreen');
+        return AdminDashboardScreen(
           onLogout: () => context.read<AuthViewModel>().logout(),
           isLoggingOut: vm.isLoading,
         );
       },
-    );
-  }
-}
-
-class _AdminSignedInPlaceholder extends StatelessWidget {
-  const _AdminSignedInPlaceholder({
-    required this.onLogout,
-    required this.isLoggingOut,
-  });
-
-  final VoidCallback onLogout;
-  final bool isLoggingOut;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppConstants.appName)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Admin signed in.',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              const Text('Admin dashboard screens can be added here.'),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: isLoggingOut ? null : onLogout,
-                child: isLoggingOut
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Sign out'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -165,7 +146,11 @@ class _MissingProfileScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 48,
+              color: Colors.orange,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
@@ -176,7 +161,9 @@ class _MissingProfileScaffold extends StatelessWidget {
             Text(
               'If you just registered, try again in a moment. Otherwise contact support.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
             ),
             const Spacer(),
             FilledButton(

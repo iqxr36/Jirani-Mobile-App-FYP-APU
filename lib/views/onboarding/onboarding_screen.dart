@@ -71,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
@@ -147,7 +147,9 @@ class _BottomBar extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: Text(
               nextLabel,
@@ -249,20 +251,20 @@ class _OnboardingSlide extends StatelessWidget {
                   page.title,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
-                      ),
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   page.subtitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: _brand,
-                        fontWeight: FontWeight.w500,
-                        height: 1.35,
-                      ),
+                    color: _brand,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
                 ),
                 SizedBox(height: constraints.maxHeight * 0.06),
               ],

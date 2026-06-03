@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/utils/verification_access.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
+import 'package:jirani/core/utils/verification_access.dart';
+import 'package:jirani/data/models/app_user.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
-/// Blocks interaction on [child] when the resident is not admin-verified.
+/// Blocks interaction on [child] until residency and location gates pass.
 class VerificationLockedOverlay extends StatelessWidget {
   const VerificationLockedOverlay({
     super.key,
@@ -27,7 +27,7 @@ class VerificationLockedOverlay extends StatelessWidget {
       children: [
         child,
         Positioned.fill(
-          child: IgnorePointer(
+          child: AbsorbPointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.35),
@@ -68,7 +68,11 @@ class _VerificationBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 verificationStatusMessage(user?.verificationStatus ?? ''),
-                style: const TextStyle(fontSize: 13, height: 1.3, color: Colors.black87),
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.3,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ],

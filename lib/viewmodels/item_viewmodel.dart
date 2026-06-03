@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/models/item_model.dart';
-import 'package:fyp_flutter_application/data/repositories/item_repository.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/models/item_model.dart';
+import 'package:jirani/data/repositories/item_repository.dart';
 
 class ItemViewModel extends ChangeNotifier {
   ItemViewModel({ItemRepository? repository}) : _repository = repository ?? ItemRepository();

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/models/borrow_request.dart';
-import 'package:fyp_flutter_application/models/review_model.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/models/borrow_request.dart';
+import 'package:jirani/models/review_model.dart';
 
 class ReviewService {
   ReviewService({

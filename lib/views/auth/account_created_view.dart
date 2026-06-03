@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/views/verification/verification_permission_flow_view.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/verification/verification_permission_flow_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -49,7 +49,7 @@ class AccountCreatedView extends StatelessWidget {
               ),
               SizedBox(height: 50),
               Text(
-                'Your account is unverified until\nresidency verification is completed.',
+                'Confirm your community location to\nenter restricted access.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.black,
@@ -60,7 +60,7 @@ class AccountCreatedView extends StatelessWidget {
               ),
               SizedBox(height: 16),
               Text(
-                'Full access is restricted to verified\nresidents.',
+                'Full access unlocks after admin\napproval of your documents.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.black,
@@ -99,7 +99,7 @@ class AccountCreatedView extends StatelessWidget {
     );
   }
 
-  Widget _buildLaterButton(AuthViewModel viewModel) {
+  Widget _buildSignOutButton(AuthViewModel viewModel) {
     return SizedBox(
       height: 44,
       width: double.infinity,
@@ -111,11 +111,9 @@ class AccountCreatedView extends StatelessWidget {
           disabledForegroundColor: _kBrandTeal.withValues(alpha: 0.45),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: viewModel.isLoading
-            ? null
-            : viewModel.dismissAccountCreatedScreen,
+        onPressed: viewModel.isLoading ? null : viewModel.logout,
         child: const Text(
-          'Do it later',
+          'Sign out',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
@@ -128,7 +126,7 @@ class AccountCreatedView extends StatelessWidget {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(26, 56, 26, 18 + bottomInset),
@@ -142,7 +140,7 @@ class AccountCreatedView extends StatelessWidget {
                   const Spacer(),
                   _buildStartButton(context, viewModel),
                   const SizedBox(height: 12),
-                  _buildLaterButton(viewModel),
+                  _buildSignOutButton(viewModel),
                 ],
               ),
             ),

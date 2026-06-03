@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:fyp_flutter_application/models/report_model.dart';
-import 'package:fyp_flutter_application/services/report_service.dart';
+import 'package:jirani/models/report_model.dart';
+import 'package:jirani/services/report_service.dart';
 
 class ReportProvider extends ChangeNotifier {
   ReportProvider({ReportService? service}) : _service = service ?? ReportService();

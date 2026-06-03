@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/utils/validators.dart';
-import 'package:fyp_flutter_application/viewmodels/auth_viewmodel.dart';
-import 'package:fyp_flutter_application/widgets/auth_feedback_banner.dart';
+import 'package:jirani/core/utils/validators.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 /// Forgot password — Figma reset screen: header, card, success/error banners, bottom buttons.
@@ -73,7 +73,9 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
-        borderSide: BorderSide(color: AuthFeedbackBanner.errorRed.withValues(alpha: 0.8)),
+        borderSide: BorderSide(
+          color: AuthFeedbackBanner.errorRed.withValues(alpha: 0.8),
+        ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
@@ -93,18 +95,25 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             child: IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _kBrandTeal),
-              onPressed: vm.isLoading ? null : () => Navigator.of(context).pop(),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: _kBrandTeal,
+              ),
+              onPressed: vm.isLoading
+                  ? null
+                  : () => Navigator.of(context).pop(),
             ),
           ),
           Text(
             'Forgot Password?',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _kBrandTeal,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                    ) ??
+            style:
+                Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: _kBrandTeal,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ) ??
                 const TextStyle(
                   color: _kBrandTeal,
                   fontWeight: FontWeight.w700,
@@ -204,7 +213,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Text(
                 'Send Reset Link',
@@ -242,53 +254,56 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(28, 0, 28, 20 + bottomInset),
           child: CustomScrollView(
             slivers: [
-            SliverToBoxAdapter(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 350),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeader(context, vm),
-                      const SizedBox(height: 12),
-                      _buildResetCard(vm),
-                      const SizedBox(height: 28),
-                      if (_emailSent) AuthFeedbackBanner.success('Password reset email sent!'),
-                      if (vm.errorMessage != null) ...[
-                        if (_emailSent) const SizedBox(height: 16),
-                        AuthFeedbackBanner.failure(vm.errorMessage!),
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 350),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(context, vm),
+                        const SizedBox(height: 12),
+                        _buildResetCard(vm),
+                        const SizedBox(height: 28),
+                        if (_emailSent)
+                          AuthFeedbackBanner.success(
+                            'Password reset email sent!',
+                          ),
+                        if (vm.errorMessage != null) ...[
+                          if (_emailSent) const SizedBox(height: 16),
+                          AuthFeedbackBanner.failure(vm.errorMessage!),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 350),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildSendResetButton(vm),
-                      const SizedBox(height: 12),
-                      _buildReturnToLoginButton(vm),
-                      const SizedBox(height: 16),
-                    ],
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 350),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildSendResetButton(vm),
+                        const SizedBox(height: 12),
+                        _buildReturnToLoginButton(vm),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),

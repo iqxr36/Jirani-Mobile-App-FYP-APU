@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:fyp_flutter_application/core/constants/app_constants.dart';
-import 'package:fyp_flutter_application/data/models/app_user.dart';
-import 'package:fyp_flutter_application/data/models/item_model.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/data/models/item_model.dart';
 
 class ItemRepository {
   ItemRepository({

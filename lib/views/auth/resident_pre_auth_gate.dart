@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fyp_flutter_application/core/onboarding/resident_onboarding_prefs.dart';
-import 'package:fyp_flutter_application/views/auth/login_view.dart';
-import 'package:fyp_flutter_application/views/onboarding/onboarding_screen.dart';
+import 'package:jirani/core/onboarding/resident_onboarding_prefs.dart';
+import 'package:jirani/views/auth/login_view.dart';
+import 'package:jirani/views/onboarding/onboarding_screen.dart';
 
 /// Mobile-only: shows onboarding once, then [LoginView].
 class ResidentPreAuthGate extends StatefulWidget {
