@@ -28,16 +28,33 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function isValidAdminDoc(data) {
+      return data.isActive != false &&
+        data.role in ['communityAdmin', 'systemAdmin'];
+    }
+
     function isAdmin() {
-      return hasAdminProfile() &&
-        myAdminDoc().data.isActive != false &&
-        myAdminDoc().data.role in ['communityAdmin', 'systemAdmin'];
+      return hasAdminProfile() && isValidAdminDoc(myAdminDoc().data);
     }
 
     function isSystemAdmin() {
       return hasAdminProfile() &&
-        myAdminDoc().data.isActive != false &&
+        isValidAdminDoc(myAdminDoc().data) &&
         myAdminDoc().data.role == 'systemAdmin';
+    }
+
+    function adminCommunityId() {
+      return myAdminDoc().data.communityId;
+    }
+
+    function adminCanAccessCommunity(communityId) {
+      return isSystemAdmin() ||
+        (
+          isAdmin() &&
+          communityId is string &&
+          communityId != '' &&
+          communityId == adminCommunityId()
+        );
     }
 
     function isVerifiedResident() {
@@ -77,7 +94,8 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow get: if isOwner(uid) || isAdmin();
-      allow list: if isAdmin();
+      allow list: if isSystemAdmin() ||
+        (isAdmin() && resource.data.communityId == adminCommunityId());
 
       allow create: if isOwner(uid) &&
         request.resource.data.uid == uid &&
@@ -89,8 +107,8 @@ service cloud.firestore {
     }
 
     match /admins/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
-      allow list: if signedIn();
+      allow get: if isOwner(uid) || isSystemAdmin();
+      allow list: if isSystemAdmin();
       allow create, update, delete: if isSystemAdmin();
     }
 
@@ -101,7 +119,11 @@ service cloud.firestore {
 
     match /verificationRequests/{requestId} {
       allow read: if signedIn() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+        (
+          resource.data.userId == request.auth.uid ||
+          isSystemAdmin() ||
+          adminCanAccessCommunity(resource.data.communityId)
+        );
 
       allow create: if signedIn() &&
         request.resource.data.userId == request.auth.uid &&
@@ -185,17 +207,24 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow read: if isAdmin() ||
-        (
-          signedIn() &&
-          (resource.data.reporterId == request.auth.uid ||
-           resource.data.reportedUserId == request.auth.uid)
-        );
+      allow read: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (isAdmin() && !resource.data.keys().hasAny(['communityId']));
 
-      allow create: if signedIn() &&
-        request.resource.data.reporterId == request.auth.uid;
+      allow create: if hasProfile() &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.communityId == myUserDoc().data.communityId &&
+        request.resource.data.communityName == myUserDoc().data.communityName;
 
-      allow update, delete: if isAdmin();
+      allow update, delete: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (isAdmin() && !resource.data.keys().hasAny(['communityId']));
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId);
+      allow create, update, delete: if isSystemAdmin();
     }
 
     match /chats/{chatId} {

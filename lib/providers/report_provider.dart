@@ -1,17 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:jirani/models/report_model.dart';
 import 'package:jirani/services/report_service.dart';
 
 class ReportProvider extends ChangeNotifier {
-  ReportProvider({ReportService? service}) : _service = service ?? ReportService();
+  ReportProvider({ReportService? service})
+    : _service = service ?? ReportService();
 
   final ReportService _service;
 
   bool _busy = false;
   bool get isSubmitting => _busy;
-
-  Stream<List<ReportModel>> reportsForReporter(String reporterId) =>
-      _service.watchReportsByReporter(reporterId);
 
   Future<void> createReport({
     required String type,

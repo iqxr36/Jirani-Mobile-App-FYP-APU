@@ -451,12 +451,12 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadCurrentProfiles() async {
-    final admin = await _repository.getCurrentAdminUser();
-    if (admin != null) {
-      _currentAdmin = admin;
+    if (kIsWeb) {
       _currentUser = null;
+      _currentAdmin = await _repository.getCurrentAdminUser();
       return;
     }
+
     _currentAdmin = null;
     _currentUser = await _repository.getCurrentAppUser();
   }
@@ -468,7 +468,9 @@ class AuthViewModel extends ChangeNotifier {
         _firebaseUser?.email ?? _repository.currentFirebaseUser?.email ?? '';
     final uidText = uid.isEmpty ? 'unknown Firebase Auth UID' : uid;
     final emailText = email.isEmpty ? '' : ' for $email';
-    return 'Profile not found in Firestore$emailText. Create admins/$uidText for an admin account, or users/$uidText for a resident account.';
+    return kIsWeb
+        ? 'Admin profile not found in Firestore$emailText. Create admins/$uidText for this admin account.'
+        : 'Resident profile not found in Firestore$emailText. Create users/$uidText for this resident account.';
   }
 
   String _mapAuthError(Object e) {

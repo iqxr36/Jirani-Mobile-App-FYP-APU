@@ -24,6 +24,9 @@ class BorrowRequestService {
   CollectionReference<Map<String, dynamic>> get _requests =>
       _firestore.collection(AppConstants.borrowRequestsCollection);
 
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection(AppConstants.usersCollection);
+
   Future<void> createBorrowRequest({
     required ItemModel item,
     required AppUser borrower,
@@ -593,6 +596,12 @@ class BorrowRequestService {
         throw Exception('Deposit decision has already been recorded.');
       }
 
+      final ownerDoc = await _users.doc(ownerId).get();
+      final ownerData = ownerDoc.data();
+      if (ownerData == null) {
+        throw Exception('Owner profile not found.');
+      }
+
       final batch = _firestore.batch();
       batch.update(requestRef, {
         'depositDecision': d,
@@ -612,6 +621,8 @@ class BorrowRequestService {
           'type': AppConstants.reportTypeDepositDispute,
           'relatedBorrowRequestId': request.id,
           'itemId': request.itemId,
+          'communityId': (ownerData['communityId'] as String?) ?? '',
+          'communityName': (ownerData['communityName'] as String?) ?? '',
           'reporterId': ownerId,
           'reporterName': request.ownerName,
           'reportedUserId': request.borrowerId,

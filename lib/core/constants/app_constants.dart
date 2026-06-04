@@ -70,6 +70,7 @@ class AppConstants {
   static const String reviewsCollection = 'reviews';
   static const String servicesCollection = 'services';
   static const String serviceRequestsCollection = 'serviceRequests';
+  static const String transactionsCollection = 'transactions';
   static const String chatsCollection = 'chats';
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';

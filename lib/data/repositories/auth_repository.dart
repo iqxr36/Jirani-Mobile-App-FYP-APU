@@ -78,34 +78,51 @@ class AuthRepository {
   Future<AdminUser?> getCurrentAdminUser() async {
     debugPrint('[AuthRepository.getCurrentAdminUser] started');
     final user = _authService.currentUser;
+    debugPrint(
+      '[AuthRepository.getCurrentAdminUser] current FirebaseAuth UID=${user?.uid}',
+    );
     if (user == null) return null;
     await _authService.reloadCurrentUser();
     final refreshedUser = _authService.currentUser;
+    debugPrint(
+      '[AuthRepository.getCurrentAdminUser] refreshed FirebaseAuth UID=${refreshedUser?.uid}',
+    );
     if (refreshedUser == null) return null;
 
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      final doc = await _firestore
+      final docRef = _firestore
           .collection(AppConstants.adminsCollection)
-          .doc(refreshedUser.uid)
-          .get();
+          .doc(refreshedUser.uid);
+      debugPrint(
+        '[AuthRepository.getCurrentAdminUser] Firestore path=${docRef.path}',
+      );
+      final DocumentSnapshot<Map<String, dynamic>> doc;
+      try {
+        doc = await docRef.get();
+      } on FirebaseException catch (e) {
+        debugPrint(
+          '[AuthRepository.getCurrentAdminUser] Firestore read failed path=${docRef.path} code=${e.code} message=${e.message}',
+        );
+        throw Exception(
+          'Firestore read failed for ${docRef.path}: ${e.code}'
+          '${e.message == null ? '' : ' - ${e.message}'}',
+        );
+      }
 
+      debugPrint(
+        '[AuthRepository.getCurrentAdminUser] doc.exists=${doc.exists}',
+      );
       final data = doc.data();
+      debugPrint('[AuthRepository.getCurrentAdminUser] doc.data=$data');
       if (data != null) {
         return _mapAdminProfile({...data, 'uid': refreshedUser.uid});
       }
 
-      final email = refreshedUser.email?.trim() ?? '';
-      if (email.isNotEmpty) {
-        final emailMatch = await _firestore
-            .collection(AppConstants.adminsCollection)
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
-        if (emailMatch.docs.isNotEmpty) {
-          final match = emailMatch.docs.first;
-          return _mapAdminProfile({...match.data(), 'uid': match.id});
-        }
+      if (doc.exists) {
+        throw Exception(
+          'Admin document found at ${docRef.path}, but Firestore returned null data.',
+        );
       }
 
       if (attempt < maxAttempts - 1) {
@@ -113,13 +130,51 @@ class AuthRepository {
       }
     }
 
-    return null;
+    throw Exception(
+      'Admin document not found at ${AppConstants.adminsCollection}/${refreshedUser.uid}.',
+    );
   }
 
   AdminUser _mapAdminProfile(Map<String, dynamic> data) {
-    final admin = AdminUser.fromMap(data);
+    const fieldsUsedByAdminUser = <String>[
+      'uid',
+      'fullName',
+      'email',
+      'phoneNumber',
+      'role',
+      'communityId',
+      'communityName',
+      'profileImageUrl',
+      'permissions',
+      'isActive',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ];
+    for (final field in fieldsUsedByAdminUser) {
+      final value = data[field];
+      debugPrint(
+        '[AuthRepository._mapAdminProfile] AdminUser.fromMap field "$field" '
+        'type=${value.runtimeType} value=$value',
+      );
+    }
+
+    final AdminUser admin;
+    try {
+      admin = AdminUser.fromMap(data);
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[AuthRepository._mapAdminProfile] AdminUser.fromMap exception: $e',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      throw Exception('Admin document found but model mapping failed: $e');
+    }
+
     debugPrint(
-      '[AuthRepository.getCurrentAdminUser] profile found role=${admin.role}',
+      '[AuthRepository.getCurrentAdminUser] profile mapped '
+      'uid=${admin.uid} role=${admin.role} isActive=${admin.isActive} '
+      'email=${admin.email} communityId=${admin.communityId} '
+      'communityName=${admin.communityName} permissions=${admin.permissions}',
     );
     if (!admin.isActive) {
       throw Exception('This admin account is disabled.');

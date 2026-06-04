@@ -24,18 +24,23 @@ class AdminService {
     String? communityName,
     bool includeAllCommunities = false,
   }) {
+    final scopeCommunityId = (communityId ?? '').trim();
+    final scopeCommunityName = (communityName ?? '').trim();
     Query<Map<String, dynamic>> q = _firestore.collection(
       AppConstants.verificationRequestsCollection,
     );
 
     final s = (status ?? '').trim();
-    if (s.isNotEmpty && s != 'all') {
+    if (!includeAllCommunities) {
+      if (scopeCommunityId.isEmpty) {
+        return Stream.value(const <VerificationRequest>[]);
+      }
+      q = q.where('communityId', isEqualTo: scopeCommunityId);
+    } else if (s.isNotEmpty && s != 'all') {
       q = q.where('status', isEqualTo: s);
     }
 
     return q.snapshots().map((snapshot) {
-      final scopeCommunityId = (communityId ?? '').trim();
-      final scopeCommunityName = (communityName ?? '').trim();
       final requests = snapshot.docs
           .map((d) {
             final mapped = VerificationRequest.fromMap({
@@ -48,6 +53,9 @@ class AdminService {
             return mapped;
           })
           .where((request) {
+            if (s.isNotEmpty && s != 'all' && request.status != s) {
+              return false;
+            }
             if (includeAllCommunities) return true;
             if (scopeCommunityId.isNotEmpty &&
                 request.communityId == scopeCommunityId) {
@@ -70,9 +78,19 @@ class AdminService {
     String? communityName,
     bool includeAllCommunities = false,
   }) {
-    return _firestore.collection(AppConstants.usersCollection).snapshots().map((
-      snapshot,
-    ) {
+    final scopeCommunityId = (communityId ?? '').trim();
+    if (!includeAllCommunities && scopeCommunityId.isEmpty) {
+      return Stream.value(const <AppUser>[]);
+    }
+
+    Query<Map<String, dynamic>> q = _firestore.collection(
+      AppConstants.usersCollection,
+    );
+    if (!includeAllCommunities) {
+      q = q.where('communityId', isEqualTo: scopeCommunityId);
+    }
+
+    return q.snapshots().map((snapshot) {
       final users = snapshot.docs
           .map((doc) => AppUser.fromMap({...doc.data(), 'uid': doc.id}))
           .where((user) => user.role == AppConstants.roleResident)
@@ -96,9 +114,19 @@ class AdminService {
     String? communityName,
     bool includeAllCommunities = false,
   }) {
-    return _firestore.collection(AppConstants.itemsCollection).snapshots().map((
-      snapshot,
-    ) {
+    final scopeCommunityId = (communityId ?? '').trim();
+    if (!includeAllCommunities && scopeCommunityId.isEmpty) {
+      return Stream.value(const <ItemModel>[]);
+    }
+
+    Query<Map<String, dynamic>> q = _firestore.collection(
+      AppConstants.itemsCollection,
+    );
+    if (!includeAllCommunities) {
+      q = q.where('communityId', isEqualTo: scopeCommunityId);
+    }
+
+    return q.snapshots().map((snapshot) {
       final items = snapshot.docs
           .map((doc) => ItemModel.fromMap(doc.id, doc.data()))
           .where(
@@ -116,10 +144,23 @@ class AdminService {
     });
   }
 
-  Stream<List<ReportModel>> watchReports() {
-    return _firestore
-        .collection(AppConstants.reportsCollection)
-        .snapshots()
+  Stream<List<ReportModel>> watchReports({
+    String? communityId,
+    bool includeAllCommunities = false,
+  }) {
+    final scopeCommunityId = (communityId ?? '').trim();
+    if (!includeAllCommunities && scopeCommunityId.isEmpty) {
+      return Stream.value(const <ReportModel>[]);
+    }
+
+    Query<Map<String, dynamic>> q = _firestore.collection(
+      AppConstants.reportsCollection,
+    );
+    if (!includeAllCommunities) {
+      q = q.where('communityId', isEqualTo: scopeCommunityId);
+    }
+
+    return q.snapshots()
         .map((snapshot) {
           final reports = snapshot.docs
               .map((doc) => ReportModel.fromMap(doc.id, doc.data()))
@@ -338,32 +379,48 @@ class AdminService {
     String? communityName,
     bool includeAllCommunities = false,
   }) async {
-    final submitted = await _firestore
-        .collection(AppConstants.verificationRequestsCollection)
-        .where('status', isEqualTo: AppConstants.verificationSubmitted)
-        .get();
-    final verified = await _firestore
-        .collection(AppConstants.usersCollection)
-        .where(
-          'verificationStatus',
-          isEqualTo: AppConstants.verificationVerified,
-        )
-        .get();
-    final rejected = await _firestore
-        .collection(AppConstants.verificationRequestsCollection)
-        .where('status', isEqualTo: AppConstants.verificationRejected)
-        .get();
-    final totalUsers = await _firestore
-        .collection(AppConstants.usersCollection)
-        .get();
-    final items = await _firestore
-        .collection(AppConstants.itemsCollection)
-        .get();
-    final reports = await _firestore
-        .collection(AppConstants.reportsCollection)
-        .get();
     final scopeCommunityId = (communityId ?? '').trim();
     final scopeCommunityName = (communityName ?? '').trim();
+    if (!includeAllCommunities && scopeCommunityId.isEmpty) {
+      return const <String, int>{
+        'submittedRequests': 0,
+        'verifiedResidents': 0,
+        'rejectedRequests': 0,
+        'totalUsers': 0,
+        'activeListings': 0,
+        'openReports': 0,
+      };
+    }
+
+    Query<Map<String, dynamic>> verificationRequestsQuery = _firestore
+        .collection(AppConstants.verificationRequestsCollection);
+    Query<Map<String, dynamic>> usersQuery = _firestore.collection(
+      AppConstants.usersCollection,
+    );
+    Query<Map<String, dynamic>> itemsQuery = _firestore.collection(
+      AppConstants.itemsCollection,
+    );
+    Query<Map<String, dynamic>> reportsQuery = _firestore.collection(
+      AppConstants.reportsCollection,
+    );
+
+    if (!includeAllCommunities) {
+      verificationRequestsQuery = verificationRequestsQuery.where(
+        'communityId',
+        isEqualTo: scopeCommunityId,
+      );
+      usersQuery = usersQuery.where('communityId', isEqualTo: scopeCommunityId);
+      itemsQuery = itemsQuery.where('communityId', isEqualTo: scopeCommunityId);
+      reportsQuery = reportsQuery.where(
+        'communityId',
+        isEqualTo: scopeCommunityId,
+      );
+    }
+
+    final verificationRequests = await verificationRequestsQuery.get();
+    final totalUsers = await usersQuery.get();
+    final items = await itemsQuery.get();
+    final reports = await reportsQuery.get();
 
     bool inScope(Map<String, dynamic> data) {
       if (includeAllCommunities) return true;
@@ -384,9 +441,19 @@ class AdminService {
     }
 
     return <String, int>{
-      'submittedRequests': scopedCount(submitted),
-      'verifiedResidents': scopedCount(verified),
-      'rejectedRequests': scopedCount(rejected),
+      'submittedRequests': verificationRequests.docs.where((doc) {
+        return inScope(doc.data()) &&
+            doc.data()['status'] == AppConstants.verificationSubmitted;
+      }).length,
+      'verifiedResidents': totalUsers.docs.where((doc) {
+        return inScope(doc.data()) &&
+            doc.data()['verificationStatus'] ==
+                AppConstants.verificationVerified;
+      }).length,
+      'rejectedRequests': verificationRequests.docs.where((doc) {
+        return inScope(doc.data()) &&
+            doc.data()['status'] == AppConstants.verificationRejected;
+      }).length,
       'totalUsers': scopedCount(totalUsers),
       'activeListings': items.docs.where((doc) {
         final data = doc.data();
@@ -396,10 +463,12 @@ class AdminService {
                     AppConstants.serviceStatusActive);
       }).length,
       'openReports': reports.docs.where((doc) {
-        final status = (doc.data()['status'] as String?) ?? '';
-        return status.isEmpty ||
+        final data = doc.data();
+        final status = (data['status'] as String?) ?? '';
+        return inScope(data) &&
+            (status.isEmpty ||
             status == AppConstants.reportStatusOpen ||
-            status == AppConstants.reportStatusUnderReview;
+            status == AppConstants.reportStatusUnderReview);
       }).length,
     };
   }

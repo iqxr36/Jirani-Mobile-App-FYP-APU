@@ -2,14 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/models/borrow_request.dart';
-import 'package:jirani/models/report_model.dart';
 
 class ReportService {
-  ReportService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  ReportService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -20,13 +17,8 @@ class ReportService {
   CollectionReference<Map<String, dynamic>> get _borrowRequests =>
       _firestore.collection(AppConstants.borrowRequestsCollection);
 
-  Stream<List<ReportModel>> watchReportsByReporter(String reporterId) {
-    return _reports.where('reporterId', isEqualTo: reporterId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ReportModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
-  }
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection(AppConstants.usersCollection);
 
   Future<void> createReport({
     required String type,
@@ -60,20 +52,26 @@ class ReportService {
     }
 
     if (relatedBorrowRequestId.trim().isNotEmpty) {
-      final brSnap = await _borrowRequests.doc(relatedBorrowRequestId.trim()).get();
+      final brSnap = await _borrowRequests
+          .doc(relatedBorrowRequestId.trim())
+          .get();
       final brData = brSnap.data();
       if (brData == null) {
         throw Exception('Borrow request not found.');
       }
       final br = BorrowRequest.fromMap(brSnap.id, brData);
       if (br.status != AppConstants.borrowStatusCompleted) {
-        throw Exception('Reports can only be filed for completed borrow requests.');
+        throw Exception(
+          'Reports can only be filed for completed borrow requests.',
+        );
       }
       if (reporterId != br.borrowerId && reporterId != br.ownerId) {
         throw Exception('You are not a party to this borrow request.');
       }
       if (reportedUserId != br.borrowerId && reportedUserId != br.ownerId) {
-        throw Exception('Reported user must be the borrower or owner on this request.');
+        throw Exception(
+          'Reported user must be the borrower or owner on this request.',
+        );
       }
       if (reportedUserId == reporterId) {
         throw Exception('You cannot report yourself.');
@@ -81,10 +79,18 @@ class ReportService {
     }
 
     try {
+      final reporterDoc = await _users.doc(reporterId).get();
+      final reporterData = reporterDoc.data();
+      if (reporterData == null) {
+        throw Exception('Reporter profile not found.');
+      }
+
       await _reports.add({
         'type': type,
         'relatedBorrowRequestId': relatedBorrowRequestId.trim(),
         'itemId': itemId,
+        'communityId': (reporterData['communityId'] as String?) ?? '',
+        'communityName': (reporterData['communityName'] as String?) ?? '',
         'reporterId': reporterId,
         'reporterName': reporterName,
         'reportedUserId': reportedUserId,
@@ -97,7 +103,9 @@ class ReportService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for reports.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for reports.',
+        );
       }
       throw Exception(e.message ?? 'Failed to create report.');
     }

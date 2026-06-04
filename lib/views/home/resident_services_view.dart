@@ -3,7 +3,7 @@ import 'package:jirani/widgets/common/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);
-const double _kMaxContentWidth = 334;
+const double _kMaxContentWidth = 390;
 
 class ResidentServicesView extends StatelessWidget {
   const ResidentServicesView({super.key});
@@ -48,13 +48,19 @@ class ResidentServicesView extends StatelessWidget {
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(height: 64),
-                          _SearchField(hint: 'Search...'),
+                          SizedBox(height: 24),
+                          _PageHeader(
+                            title: 'Services',
+                            subtitle:
+                                'Find reliable help from people in your community.',
+                          ),
                           SizedBox(height: 20),
+                          _SearchField(hint: 'Search services...'),
+                          SizedBox(height: 16),
                           _CategoryChips(
                             labels: ['All', 'Handyman', 'Tutoring', 'Personal'],
                           ),
-                          SizedBox(height: 22),
+                          SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -63,7 +69,7 @@ class ResidentServicesView extends StatelessWidget {
                 SliverList.separated(
                   itemCount: _services.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
                   itemBuilder: (context, index) {
                     return Center(
                       child: ConstrainedBox(
@@ -75,13 +81,65 @@ class ResidentServicesView extends StatelessWidget {
                     );
                   },
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 106)),
+                const SliverToBoxAdapter(child: SizedBox(height: 112)),
               ],
             ),
-            const Positioned(right: 26, bottom: 18, child: _AddButton()),
+            const Positioned(right: 24, bottom: 24, child: _AddButton()),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 4,
+          height: 54,
+          decoration: BoxDecoration(
+            color: _kBrandTeal,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF1F2937),
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Color(0xFF59666B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -94,23 +152,34 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 59,
+      height: 58,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.14)),
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: Colors.black, size: 22),
-          const SizedBox(width: 18),
-          Text(
-            hint,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          const Icon(Icons.search_rounded, color: _kBrandTeal, size: 23),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              hint,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF59666B),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -150,23 +219,30 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 27,
-      constraints: const BoxConstraints(minWidth: 39),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 38,
+      constraints: const BoxConstraints(minWidth: 56),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: selected ? _kBrandTeal : Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: selected ? _kBrandTeal : Colors.black.withValues(alpha: 0.14),
+          color: selected ? _kBrandTeal : Colors.white.withValues(alpha: 0.88),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: selected ? 0.12 : 0.05),
+            blurRadius: selected ? 18 : 12,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: selected ? Colors.white : Colors.black,
+          color: selected ? Colors.white : const Color(0xFF1F2937),
           fontSize: 12,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -181,14 +257,22 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 236),
+      constraints: const BoxConstraints(minHeight: 284),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.16)),
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.09),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,49 +288,63 @@ class _ServiceCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2937),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 3),
                     Text(
                       data.category,
                       style: const TextStyle(
                         color: _kMutedText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          color: Color(0xFFFFCC00),
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            data.rating,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFCC00).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFFFCC00),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              data.rating,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF1F2937),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -258,35 +356,39 @@ class _ServiceCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2937),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     const Text(
                       'STARTING FROM',
                       style: TextStyle(
                         color: _kMutedText,
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       data.price,
                       style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        color: _kBrandTeal,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
               _StatusPill(label: data.status),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
@@ -310,13 +412,14 @@ class _ProviderAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 88,
-      height: 86,
+      width: 104,
+      height: 104,
       decoration: BoxDecoration(
         color: _kBrandTeal.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kBrandTeal.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: _kBrandTeal.withValues(alpha: 0.75), size: 44),
+      child: Icon(icon, color: _kBrandTeal.withValues(alpha: 0.75), size: 48),
     );
   }
 }
@@ -329,12 +432,12 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 27,
+      constraints: const BoxConstraints(minHeight: 32),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _kBrandTeal.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
@@ -356,16 +459,18 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 28,
+      height: 42,
       child: ElevatedButton(
         onPressed: () {},
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: _kBrandTeal,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
         ),
         child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
@@ -381,14 +486,15 @@ class _AddButton extends StatelessWidget {
     return Material(
       color: _kBrandTeal,
       shape: const CircleBorder(),
-      elevation: 3,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.24),
       child: InkWell(
         onTap: () {},
         customBorder: const CircleBorder(),
         child: const SizedBox(
-          width: 46,
-          height: 46,
-          child: Icon(Icons.add, color: Colors.white, size: 28),
+          width: 58,
+          height: 58,
+          child: Icon(Icons.add, color: Colors.white, size: 32),
         ),
       ),
     );

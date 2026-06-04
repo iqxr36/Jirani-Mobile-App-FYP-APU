@@ -156,7 +156,12 @@ class AdminProvider extends ChangeNotifier {
       _refreshLocalDashboardStats();
     }, onError: _handleStreamError);
 
-    _reportsSub = _service.watchReports().listen((reports) {
+    _reportsSub = _service
+        .watchReports(
+          communityId: _communityId,
+          includeAllCommunities: _includeAllCommunities,
+        )
+        .listen((reports) {
       _reports = reports;
       _refreshLocalDashboardStats();
     }, onError: _handleStreamError);
