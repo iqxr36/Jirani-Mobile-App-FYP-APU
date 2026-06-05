@@ -6,6 +6,7 @@ import 'package:jirani/services/location_access.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/location/geofence_checking_view.dart';
 import 'package:jirani/views/location/location_permission_view.dart';
+import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -81,52 +82,31 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
   }
 
   Future<void> _changeCommunity(AuthViewModel viewModel) async {
-    final selected = await showModalBottomSheet<CommunityModel>(
+    final current = _currentSelection(viewModel);
+    final selected = await showJiraniModalBottomSheet<CommunityModel>(
       context: context,
-      backgroundColor: Colors.transparent,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      title: 'Select Your Community',
+      subtitle: 'Available partner communities',
+      icon: Icons.apartment_rounded,
+      child: Builder(
+        builder: (modalContext) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ..._communities.map(
+                (community) => JiraniModalOption(
+                  title: community.name,
+                  subtitle: community.city,
+                  icon: Icons.apartment_rounded,
+                  selected: current?.communityId == community.communityId,
+                  onTap: () => Navigator.of(modalContext).pop(community),
+                ),
+              ),
+            ],
+          );
+        },
       ),
-      builder: (modalContext) {
-        final current = _currentSelection(viewModel);
-
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Select Your Community',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Available partner communities',
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                ..._communities.map(
-                  (community) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _CommunityOption(
-                      community: community,
-                      selected: current?.communityId == community.communityId,
-                      onTap: () => Navigator.of(modalContext).pop(community),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
 
     if (selected != null && mounted) {
@@ -460,68 +440,6 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CommunityOption extends StatelessWidget {
-  const _CommunityOption({
-    required this.community,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CommunityModel community;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _kBrandTeal.withValues(alpha: 0.10) : Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? _kBrandTeal
-                  : Colors.black.withValues(alpha: 0.14),
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.apartment_rounded, color: _kBrandTeal),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      community.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      community.city,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (selected)
-                const Icon(Icons.check_circle, color: _kBrandTeal, size: 20),
-            ],
           ),
         ),
       ),

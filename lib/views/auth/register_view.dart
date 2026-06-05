@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/data/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/widgets/common/jirani_logo.dart';
+import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:provider/provider.dart';
 
 import '../../viewmodels/auth_viewmodel.dart';
@@ -18,7 +20,8 @@ class RegisterView extends StatefulWidget {
 
 class _RegisterViewState extends State<RegisterView> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -111,6 +114,12 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Future<void> _loadActiveCommunities() async {
+    if (mounted) {
+      setState(() {
+        _communitiesLoading = true;
+        _communitiesError = null;
+      });
+    }
     try {
       final communities = await _communityService.fetchActiveCommunities();
       communities.sort((a, b) => a.name.compareTo(b.name));
@@ -129,8 +138,76 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
+  Future<void> _selectCommunity() async {
+    final selected = await showJiraniModalBottomSheet<CommunityModel>(
+      context: context,
+      title: 'Select Your Community',
+      subtitle: 'Available partner communities',
+      icon: Icons.apartment_rounded,
+      child: StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          if (_communitiesLoading) {
+            return const SizedBox(
+              height: 150,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+
+          if (_communitiesError != null) {
+            return _CommunityModalMessage(
+              icon: Icons.wifi_off_rounded,
+              title: 'Could not load communities',
+              message: _communitiesError!,
+              actionLabel: 'Try Again',
+              onAction: () async {
+                await _loadActiveCommunities();
+                if (mounted) setModalState(() {});
+              },
+            );
+          }
+
+          if (_activeCommunities.isEmpty) {
+            return _CommunityModalMessage(
+              icon: Icons.apartment_rounded,
+              title: 'No communities available',
+              message: 'Active communities will appear here once they are set up.',
+              actionLabel: 'Refresh',
+              onAction: () async {
+                await _loadActiveCommunities();
+                if (mounted) setModalState(() {});
+              },
+            );
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ..._activeCommunities.map(
+                (community) => JiraniModalOption(
+                  title: community.name,
+                  subtitle: community.city,
+                  icon: Icons.apartment_rounded,
+                  selected:
+                      _selectedCommunity?.communityId == community.communityId,
+                  onTap: () => Navigator.of(modalContext).pop(community),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedCommunity = selected);
+    }
+  }
+
   Widget _buildCommunityPicker({required bool enabled}) {
     final hasOptions = _activeCommunities.isNotEmpty;
+    final canSelect = enabled;
+    final selectedName = _selectedCommunity?.name;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,33 +220,32 @@ class _RegisterViewState extends State<RegisterView> {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           )
         else
-          DropdownButtonFormField<CommunityModel>(
-            key: ValueKey(_selectedCommunity?.communityId ?? 'none'),
-            initialValue: _selectedCommunity,
-            isExpanded: true,
-            decoration: _inputDecoration(
-              hint: hasOptions
-                  ? 'Select your community'
-                  : 'No active communities available',
-            ),
-            items: _activeCommunities
-                .map(
-                  (community) => DropdownMenuItem<CommunityModel>(
-                    value: community,
-                    child: Text(
-                      community.name,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: canSelect ? _selectCommunity : null,
+              borderRadius: BorderRadius.circular(_kFieldRadius),
+              child: InputDecorator(
+                decoration: _inputDecoration(
+                  hint: hasOptions
+                      ? 'Select your community'
+                      : 'No active communities available',
+                  suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
+                ),
+                isEmpty: selectedName == null || selectedName.isEmpty,
+                child: Text(
+                  selectedName ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: canSelect
+                        ? Colors.black
+                        : Colors.black.withValues(alpha: 0.38),
                   ),
-                )
-                .toList(growable: false),
-            onChanged: enabled && hasOptions
-                ? (community) => setState(() => _selectedCommunity = community)
-                : null,
-            validator: hasOptions
-                ? (community) =>
-                      community == null ? 'Select your community' : null
-                : null,
+                ),
+              ),
+            ),
           ),
         if (_communitiesError != null || !hasOptions && !_communitiesLoading)
           Padding(
@@ -198,7 +274,8 @@ class _RegisterViewState extends State<RegisterView> {
   void dispose() {
     _guidelinesTap.dispose();
     _termsTap.dispose();
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -219,9 +296,16 @@ class _RegisterViewState extends State<RegisterView> {
       return;
     }
     if (!_formKey.currentState!.validate()) return;
+    if (_activeCommunities.isNotEmpty && _selectedCommunity == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select your community.')),
+      );
+      return;
+    }
 
     await vm.register(
-      fullName: _fullNameController.text.trim(),
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       password: _passwordController.text,
@@ -328,16 +412,19 @@ class _RegisterViewState extends State<RegisterView> {
                                         CrossAxisAlignment.stretch,
                                     children: [
                                       _buildFieldGroup(
-                                        label: 'Full Name',
-                                        controller: _fullNameController,
-                                        hint: 'John Doe',
+                                        label: 'First Name',
+                                        controller: _firstNameController,
+                                        hint: 'John',
                                         enabled: !loading,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Enter your full name';
-                                          }
-                                          return null;
-                                        },
+                                        validator: Validators.validateFirstName,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _buildFieldGroup(
+                                        label: 'Last Name',
+                                        controller: _lastNameController,
+                                        hint: 'Doe',
+                                        enabled: !loading,
+                                        validator: Validators.validateLastName,
                                       ),
                                       const SizedBox(height: 12),
                                       _buildFieldGroup(
@@ -347,15 +434,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         keyboardType:
                                             TextInputType.emailAddress,
                                         enabled: !loading,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Enter your email';
-                                          }
-                                          if (!v.contains('@')) {
-                                            return 'Enter a valid email';
-                                          }
-                                          return null;
-                                        },
+                                        validator: Validators.validateEmail,
                                       ),
                                       const SizedBox(height: 12),
                                       _buildFieldGroup(
@@ -384,15 +463,7 @@ class _RegisterViewState extends State<RegisterView> {
                                                       !_obscurePassword,
                                                 ),
                                         ),
-                                        validator: (v) {
-                                          if (v == null || v.isEmpty) {
-                                            return 'Enter a password';
-                                          }
-                                          if (v.length < 6) {
-                                            return 'At least 6 characters';
-                                          }
-                                          return null;
-                                        },
+                                        validator: Validators.validatePassword,
                                       ),
                                       const SizedBox(height: 12),
                                       _buildFieldGroup(
@@ -421,15 +492,11 @@ class _RegisterViewState extends State<RegisterView> {
                                                       !_obscureConfirmPassword,
                                                 ),
                                         ),
-                                        validator: (v) {
-                                          if (v == null || v.isEmpty) {
-                                            return 'Confirm your password';
-                                          }
-                                          if (v != _passwordController.text) {
-                                            return 'Passwords do not match';
-                                          }
-                                          return null;
-                                        },
+                                        validator: (v) =>
+                                            Validators.validateConfirmPassword(
+                                              v,
+                                              _passwordController.text,
+                                            ),
                                       ),
                                       const SizedBox(height: 12),
                                       _buildCommunityPicker(enabled: !loading),
@@ -442,12 +509,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         textInputAction: TextInputAction.done,
                                         onFieldSubmitted: _submit,
                                         enabled: !loading,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Enter your phone number';
-                                          }
-                                          return null;
-                                        },
+                                        validator: Validators.validatePhone,
                                       ),
                                       const SizedBox(height: 10),
                                       CheckboxTheme(
@@ -649,6 +711,67 @@ class _RegisterViewState extends State<RegisterView> {
           ),
         );
       },
+    );
+  }
+}
+
+class _CommunityModalMessage extends StatelessWidget {
+  const _CommunityModalMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final Future<void> Function() onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _RegisterViewState._kBrandTeal, size: 38),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.62),
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 42,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: _RegisterViewState._kBrandTeal,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: onAction,
+              child: Text(actionLabel),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

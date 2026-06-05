@@ -64,14 +64,6 @@ class AuthWrapper extends StatelessWidget {
         final admin = vm.currentAdmin;
         final role = user?.role ?? admin?.role ?? '';
         final isAdmin = admin != null;
-        if (kIsWeb && user?.role == AppConstants.roleResident) {
-          debugPrint('[AuthWrapper] route -> web resident blocked');
-          return _MissingProfileScaffold(
-            message: 'This account does not have admin access.',
-            onLogout: () => context.read<AuthViewModel>().logout(),
-            isLoggingOut: vm.isLoading,
-          );
-        }
         if (role != AppConstants.roleResident && !isAdmin) {
           return _MissingProfileScaffold(
             message: 'Unknown role "$role". Please contact support.',
@@ -87,6 +79,9 @@ class AuthWrapper extends StatelessWidget {
             onVerified: () => context
                 .read<AuthViewModel>()
                 .exitEmailVerificationRegistrationFlow(),
+            onSkip: () => context
+                .read<AuthViewModel>()
+                .skipEmailVerificationRegistrationFlow(),
           );
         }
 

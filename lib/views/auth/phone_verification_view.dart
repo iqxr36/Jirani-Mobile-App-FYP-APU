@@ -605,6 +605,22 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     );
   }
 
+  Widget _buildSkipButton() {
+    if (widget.onFlowFinished == null) return const SizedBox.shrink();
+
+    return TextButton(
+      onPressed: _isLoading ? null : _leaveScreen,
+      style: TextButton.styleFrom(
+        foregroundColor: _brandTeal,
+        minimumSize: const Size.fromHeight(44),
+      ),
+      child: const Text(
+        'Do it later',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -660,6 +676,8 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                         if (_successBanner != null || _errorBanner != null)
                           const SizedBox(height: 16),
                         _buildContinueButton(),
+                        const SizedBox(height: 8),
+                        _buildSkipButton(),
                       ],
                     ),
                   ),

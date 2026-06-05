@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/data/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/views/auth/email_verification_view.dart';
+import 'package:jirani/views/auth/phone_verification_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:jirani/widgets/common/jirani_background.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +26,34 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   void _openVerificationProcess() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const VerificationProcessView()),
+    );
+  }
+
+  void _openEmailVerification(AppUser user) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => EmailVerificationView(
+          email: user.email,
+          sendLinkOnOpen: true,
+          onVerified: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+  }
+
+  void _openPhoneVerification(AppUser user) {
+    final phone = user.phoneNumber.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a phone number before verifying.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PhoneVerificationView(phoneNumber: phone),
+      ),
     );
   }
 
@@ -58,6 +88,12 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                     user: user,
                     onEditProfile: () => _showUnavailable('Edit Profile'),
                     onVerificationStatus: _openVerificationProcess,
+                    onVerifyEmail: user == null || user.emailVerified
+                        ? null
+                        : () => _openEmailVerification(user),
+                    onVerifyPhone: user == null || user.phoneVerified
+                        ? null
+                        : () => _openPhoneVerification(user),
                     onMyItems: () => _showUnavailable('My Items'),
                     onRatings: () => _showUnavailable('Ratings & Reviews'),
                     onMyServices: () => _showUnavailable('My Services'),
@@ -104,6 +140,8 @@ class _ProfileCard extends StatelessWidget {
     required this.user,
     required this.onEditProfile,
     required this.onVerificationStatus,
+    required this.onVerifyEmail,
+    required this.onVerifyPhone,
     required this.onMyItems,
     required this.onRatings,
     required this.onMyServices,
@@ -113,6 +151,8 @@ class _ProfileCard extends StatelessWidget {
   final AppUser? user;
   final VoidCallback onEditProfile;
   final VoidCallback onVerificationStatus;
+  final VoidCallback? onVerifyEmail;
+  final VoidCallback? onVerifyPhone;
   final VoidCallback onMyItems;
   final VoidCallback onRatings;
   final VoidCallback onMyServices;
@@ -240,6 +280,12 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 17),
+          _IdentityVerificationPanel(
+            user: user,
+            onVerifyEmail: onVerifyEmail,
+            onVerifyPhone: onVerifyPhone,
+          ),
+          const SizedBox(height: 17),
           Divider(
             height: 1,
             thickness: 2,
@@ -357,6 +403,159 @@ class _VerificationChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _IdentityVerificationPanel extends StatelessWidget {
+  const _IdentityVerificationPanel({
+    required this.user,
+    required this.onVerifyEmail,
+    required this.onVerifyPhone,
+  });
+
+  final AppUser? user;
+  final VoidCallback? onVerifyEmail;
+  final VoidCallback? onVerifyPhone;
+
+  @override
+  Widget build(BuildContext context) {
+    final email = user?.email.trim() ?? '';
+    final phone = user?.phoneNumber.trim() ?? '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        children: [
+          _IdentityVerificationRow(
+            icon: Icons.mark_email_read_outlined,
+            title: 'Email Address',
+            value: email.isEmpty ? 'No email saved' : email,
+            verified: user?.emailVerified ?? false,
+            actionLabel: 'Verify now',
+            onTap: onVerifyEmail,
+          ),
+          Divider(
+            height: 14,
+            color: Colors.black.withValues(alpha: 0.08),
+          ),
+          _IdentityVerificationRow(
+            icon: Icons.sms_outlined,
+            title: 'Phone Number',
+            value: phone.isEmpty ? 'No phone saved' : phone,
+            verified: user?.phoneVerified ?? false,
+            actionLabel: phone.isEmpty ? 'Add first' : 'Verify now',
+            onTap: onVerifyPhone,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IdentityVerificationRow extends StatelessWidget {
+  const _IdentityVerificationRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.verified,
+    required this.actionLabel,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final bool verified;
+  final String actionLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = verified ? const Color(0xFF34C759) : _kBrandTeal;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: verified ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: statusColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kMutedText,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      verified
+                          ? Icons.check_circle_rounded
+                          : Icons.arrow_forward_rounded,
+                      size: 12,
+                      color: statusColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      verified ? 'Verified' : actionLabel,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

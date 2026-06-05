@@ -4,7 +4,8 @@ import 'package:jirani/core/constants/app_constants.dart';
 class AppUser {
   const AppUser({
     required this.uid,
-    required this.fullName,
+    required this.firstName,
+    required this.lastName,
     required this.email,
     required this.phoneNumber,
     required this.emailVerified,
@@ -27,7 +28,8 @@ class AppUser {
   });
 
   final String uid;
-  final String fullName;
+  final String firstName;
+  final String lastName;
   final String email;
   final String phoneNumber;
   final bool emailVerified;
@@ -54,10 +56,12 @@ class AppUser {
   bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
   bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
   bool get isAdmin => isCommunityAdmin || isSystemAdmin;
+  String get fullName => '$firstName $lastName'.trim();
 
   AppUser copyWith({
     String? uid,
-    String? fullName,
+    String? firstName,
+    String? lastName,
     String? email,
     String? phoneNumber,
     bool? emailVerified,
@@ -80,7 +84,8 @@ class AppUser {
   }) {
     return AppUser(
       uid: uid ?? this.uid,
-      fullName: fullName ?? this.fullName,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       emailVerified: emailVerified ?? this.emailVerified,
@@ -106,6 +111,8 @@ class AppUser {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'uid': uid,
+      'firstName': firstName,
+      'lastName': lastName,
       'fullName': fullName,
       'email': email,
       'phoneNumber': phoneNumber,
@@ -135,10 +142,12 @@ class AppUser {
     final normalizedStatus = rawStatus == 'approved'
         ? AppConstants.verificationVerified
         : rawStatus;
+    final names = _parseNames(map);
 
     return AppUser(
       uid: (map['uid'] as String?) ?? '',
-      fullName: (map['fullName'] as String?) ?? '',
+      firstName: names.$1,
+      lastName: names.$2,
       email: (map['email'] as String?) ?? '',
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
       emailVerified: map['emailVerified'] as bool? ?? false,
@@ -159,6 +168,21 @@ class AppUser {
       createdAt: _parseDate(map['createdAt']),
       updatedAt: _parseDate(map['updatedAt']),
     );
+  }
+
+  static (String, String) _parseNames(Map<String, dynamic> map) {
+    final firstName = (map['firstName'] as String?)?.trim() ?? '';
+    final lastName = (map['lastName'] as String?)?.trim() ?? '';
+    if (firstName.isNotEmpty || lastName.isNotEmpty) {
+      return (firstName, lastName);
+    }
+
+    final legacyFullName = ((map['fullName'] as String?) ?? '').trim();
+    if (legacyFullName.isEmpty) return ('', '');
+
+    final parts = legacyFullName.split(RegExp(r'\s+'));
+    if (parts.length == 1) return (parts.first, '');
+    return (parts.first, parts.skip(1).join(' '));
   }
 
   static int _parseInt(dynamic value) {

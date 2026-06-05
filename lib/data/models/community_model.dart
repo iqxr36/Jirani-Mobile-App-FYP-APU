@@ -21,11 +21,24 @@ class CommunityModel {
   final Timestamp? createdAt;
 
   factory CommunityModel.fromMap(Map<String, dynamic> map, String id) {
+    final centerLocation = map['centerLocation'];
+    if (centerLocation is! GeoPoint) {
+      throw FormatException('Community $id is missing a GeoPoint boundary.');
+    }
+
+    final radius = map['radiusInMeters'];
+    final parsedRadius = radius is num
+        ? radius.toDouble()
+        : double.tryParse(radius?.toString() ?? '');
+    if (parsedRadius == null) {
+      throw FormatException('Community $id is missing a numeric radius.');
+    }
+
     return CommunityModel(
       communityId: id,
       name: (map['name'] as String?) ?? '',
-      centerLocation: map['centerLocation'] as GeoPoint,
-      radiusInMeters: (map['radiusInMeters'] as num).toDouble(),
+      centerLocation: centerLocation,
+      radiusInMeters: parsedRadius,
       isActive: (map['isActive'] as bool?) ?? false,
       city: (map['city'] as String?) ?? '',
       createdAt: map['createdAt'] as Timestamp?,

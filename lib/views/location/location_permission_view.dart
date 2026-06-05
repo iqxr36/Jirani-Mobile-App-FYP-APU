@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jirani/services/location_onboarding_prefs.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
+import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'community_confirmation_view.dart';
@@ -64,10 +65,12 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
   void _showLocationSettingsDialog() {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Location services'),
+      builder: (ctx) => JiraniDialog(
+        title: 'Location services',
+        icon: Icons.location_off_rounded,
         content: const Text(
           'Location services are turned off. Please enable location services to continue.',
+          style: TextStyle(height: 1.35),
         ),
         actions: [
           TextButton(
@@ -89,10 +92,12 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
   void _showAppSettingsDialog() {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Location Permission Required'),
+      builder: (ctx) => JiraniDialog(
+        title: 'Location Permission Required',
+        icon: Icons.my_location_rounded,
         content: const Text(
           'Please enable location permission from your phone settings to verify your community.',
+          style: TextStyle(height: 1.35),
         ),
         actions: [
           TextButton(

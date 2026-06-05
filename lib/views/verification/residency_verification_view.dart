@@ -6,6 +6,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/verification_status_view.dart';
+import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -122,38 +123,28 @@ class _ResidencyVerificationFormState
   }
 
   Future<void> _selectDocumentType() async {
-    final selected = await showModalBottomSheet<String>(
+    final selected = await showJiraniModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (modalContext) {
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 2, 22, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Select Document Type',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      title: 'Select Document Type',
+      subtitle: 'Choose the document you will upload for residency review.',
+      icon: Icons.description_rounded,
+      child: Builder(
+        builder: (modalContext) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final option in _documentTypes)
+                JiraniModalOption(
+                  title: option.label,
+                  icon: Icons.description_outlined,
+                  selected: option.value == _documentType,
+                  onTap: () => Navigator.of(modalContext).pop(option.value),
                 ),
-                const SizedBox(height: 12),
-                for (final option in _documentTypes)
-                  _DocumentTypeTile(
-                    label: option.label,
-                    selected: option.value == _documentType,
-                    onTap: () => Navigator.of(modalContext).pop(option.value),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
 
     if (selected != null && mounted) {
@@ -710,49 +701,6 @@ class _SubmitButton extends StatelessWidget {
         child: Text(
           isLoading ? 'Submitting...' : 'Submit Verification',
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-        ),
-      ),
-    );
-  }
-}
-
-class _DocumentTypeTile extends StatelessWidget {
-  const _DocumentTypeTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _kBrandTeal.withValues(alpha: 0.10) : Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (selected)
-                const Icon(Icons.check_circle, color: _kBrandTeal, size: 20),
-            ],
-          ),
         ),
       ),
     );

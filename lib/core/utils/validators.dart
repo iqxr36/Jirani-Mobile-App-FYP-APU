@@ -31,20 +31,43 @@ class Validators {
     return null;
   }
 
-  static String? validateRequiredField(String? value, {String fieldName = 'Field'}) {
+  static String? validateRequiredField(
+    String? value, {
+    String fieldName = 'Field',
+  }) {
     if ((value ?? '').trim().isEmpty) {
       return '$fieldName is required.';
     }
     return null;
   }
 
+  static final RegExp _personNameRegex = RegExp(r"^[A-Za-z][A-Za-z\s'-]*$");
+
+  static String? validateFirstName(String? value) {
+    return _validatePersonName(value, fieldName: 'First name');
+  }
+
+  static String? validateLastName(String? value) {
+    return _validatePersonName(value, fieldName: 'Last name');
+  }
+
   static String? validateFullName(String? value) {
-    final fullName = value?.trim() ?? '';
-    if (fullName.isEmpty) {
-      return 'Full name is required.';
+    return _validatePersonName(value, fieldName: 'Full name');
+  }
+
+  static String? _validatePersonName(
+    String? value, {
+    required String fieldName,
+  }) {
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) {
+      return '$fieldName is required.';
     }
-    if (fullName.length < 2) {
-      return 'Full name is too short.';
+    if (name.length < 2) {
+      return '$fieldName is too short.';
+    }
+    if (!_personNameRegex.hasMatch(name)) {
+      return '$fieldName can only contain letters, spaces, apostrophes, and hyphens.';
     }
     return null;
   }
@@ -104,7 +127,10 @@ class Validators {
     return null;
   }
 
-  static String? validatePositiveAmount(String? value, {String fieldName = 'Amount'}) {
+  static String? validatePositiveAmount(
+    String? value, {
+    String fieldName = 'Amount',
+  }) {
     final raw = value?.trim() ?? '';
     if (raw.isEmpty) {
       return '$fieldName is required.';

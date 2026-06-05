@@ -53,7 +53,8 @@ class AuthViewModel extends ChangeNotifier {
       _showPhoneVerificationAfterRegister;
 
   Future<void> register({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String email,
     required String phoneNumber,
     required String password,
@@ -68,7 +69,8 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       _currentUser = await _repository.register(
-        fullName: fullName,
+        firstName: firstName,
+        lastName: lastName,
         email: email,
         phoneNumber: phoneNumber,
         password: password,
@@ -114,9 +116,7 @@ class AuthViewModel extends ChangeNotifier {
       debugPrint(
         '[AuthProvider.login] loaded userRole=${_currentUser?.role} adminRole=${_currentAdmin?.role}',
       );
-      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
-        _currentUser,
-      );
+      _showAccountCreatedScreen = false;
     } catch (e) {
       debugPrint('[AuthProvider.login] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -141,9 +141,7 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = user;
       _currentAdmin = null;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
-        _currentUser,
-      );
+      _showAccountCreatedScreen = false;
     } catch (e) {
       debugPrint('[AuthProvider.signInWithGoogle] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -167,9 +165,7 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = user;
       _currentAdmin = null;
       _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
-        _currentUser,
-      );
+      _showAccountCreatedScreen = false;
     } catch (e) {
       debugPrint('[AuthProvider.signInWithApple] error: $e');
       _errorMessage = _mapAuthError(e);
@@ -222,6 +218,11 @@ class AuthViewModel extends ChangeNotifier {
     _showPhoneVerificationAfterRegister = true;
     _showAccountCreatedScreen = false;
     notifyListeners();
+  }
+
+  /// Lets new residents postpone email verification and continue onboarding.
+  void skipEmailVerificationRegistrationFlow() {
+    exitEmailVerificationRegistrationFlow();
   }
 
   /// After OTP step (success, back, or skip), show [AccountCreatedView].
@@ -302,7 +303,8 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> saveProfile({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String phoneNumber,
     required String communityName,
     required String unitNumber,
@@ -318,8 +320,12 @@ class AuthViewModel extends ChangeNotifier {
       final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
       final previousPhone = _currentUser?.phoneNumber ?? '';
       final phoneChanged = normalizedPhone != previousPhone;
+      final trimmedFirstName = firstName.trim();
+      final trimmedLastName = lastName.trim();
       final fields = <String, dynamic>{
-        'fullName': fullName.trim(),
+        'firstName': trimmedFirstName,
+        'lastName': trimmedLastName,
+        'fullName': '$trimmedFirstName $trimmedLastName'.trim(),
         'phoneNumber': normalizedPhone,
         'communityName': communityName.trim(),
         'unitNumber': unitNumber.trim(),
@@ -430,9 +436,9 @@ class AuthViewModel extends ChangeNotifier {
       _profileErrorMessage = _currentUser == null && _currentAdmin == null
           ? _missingProfileMessage()
           : null;
-      _showAccountCreatedScreen = _needsLocationVerificationPrompt(
-        _currentUser,
-      );
+      _showAccountCreatedScreen =
+          _showAccountCreatedScreen &&
+          _needsLocationVerificationPrompt(_currentUser);
     } catch (e) {
       debugPrint('[AuthProvider._onAuthStateChanged] error: $e');
       _currentUser = null;
@@ -453,7 +459,15 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> _loadCurrentProfiles() async {
     if (kIsWeb) {
       _currentUser = null;
-      _currentAdmin = await _repository.getCurrentAdminUser();
+      try {
+        _currentAdmin = await _repository.getCurrentAdminUser();
+      } catch (adminError) {
+        debugPrint(
+          '[AuthProvider._loadCurrentProfiles] admin profile lookup failed: $adminError',
+        );
+        _currentAdmin = null;
+        _currentUser = await _repository.getCurrentAppUser();
+      }
       return;
     }
 

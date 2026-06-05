@@ -65,6 +65,8 @@ service cloud.firestore {
     function ownSafeUserUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
+        'firstName',
+        'lastName',
         'fullName',
         'phoneNumber',
         'phoneVerified',
@@ -113,7 +115,9 @@ service cloud.firestore {
     }
 
     match /communities/{communityId} {
-      allow read: if signedIn();
+      // Community names and boundaries are needed before a resident profile exists
+      // during registration and location verification. Keep writes admin-only.
+      allow get, list: if true;
       allow write: if isAdmin();
     }
 

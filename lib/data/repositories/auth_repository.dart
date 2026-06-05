@@ -186,7 +186,8 @@ class AuthRepository {
   }
 
   Future<AppUser> register({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String email,
     required String phoneNumber,
     required String password,
@@ -194,6 +195,9 @@ class AuthRepository {
     String communityId = '',
     String communityName = '',
   }) async {
+    final trimmedFirstName = firstName.trim();
+    final trimmedLastName = lastName.trim();
+    final fullName = '$trimmedFirstName $trimmedLastName'.trim();
     final normalizedPhoneNumber = Validators.normalizePhoneNumber(phoneNumber);
     final credential = await _authService.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -212,7 +216,9 @@ class AuthRepository {
 
     await userDoc.set({
       'uid': firebaseUser.uid,
-      'fullName': fullName.trim(),
+      'firstName': trimmedFirstName,
+      'lastName': trimmedLastName,
+      'fullName': fullName,
       'email': email.trim(),
       'phoneNumber': normalizedPhoneNumber,
       'role': AppConstants.roleResident,
@@ -240,7 +246,8 @@ class AuthRepository {
       final now = DateTime.now();
       return AppUser(
         uid: firebaseUser.uid,
-        fullName: fullName.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
         email: email.trim(),
         phoneNumber: normalizedPhoneNumber,
         emailVerified: _authService.isEmailVerified,
@@ -360,9 +367,12 @@ class AuthRepository {
       }
       return existing;
     }
+    final names = _splitName(preferredFullName);
 
     await docRef.set({
       'uid': firebaseUser.uid,
+      'firstName': names.$1,
+      'lastName': names.$2,
       'fullName': preferredFullName,
       'email': preferredEmail,
       'phoneNumber': '',
@@ -398,6 +408,15 @@ class AuthRepository {
     }
 
     throw Exception('Could not create your profile. Please try again.');
+  }
+
+  (String, String) _splitName(String fullName) {
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return ('', '');
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 1) return (parts.first, '');
+    return (parts.first, parts.skip(1).join(' '));
   }
 
   /// Links SMS credential to the current user (email/password account) and updates Firestore.

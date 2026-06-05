@@ -18,7 +18,9 @@ class EmailVerificationView extends StatefulWidget {
     super.key,
     this.email,
     this.onVerified,
+    this.onSkip,
     this.onBack,
+    this.sendLinkOnOpen = false,
   });
 
   /// Falls back to [FirebaseAuth.instance.currentUser?.email] when null or empty.
@@ -27,8 +29,14 @@ class EmailVerificationView extends StatefulWidget {
   /// Called after Firebase reports verified and Firestore is merged.
   final VoidCallback? onVerified;
 
+  /// Called when the user chooses to verify later.
+  final VoidCallback? onSkip;
+
   /// Called when the user taps the back chevron.
   final VoidCallback? onBack;
+
+  /// Sends a fresh verification email as soon as this screen opens.
+  final bool sendLinkOnOpen;
 
   @override
   State<EmailVerificationView> createState() => _EmailVerificationViewState();
@@ -53,6 +61,11 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
   void initState() {
     super.initState();
     _startCountdown();
+    if (widget.sendLinkOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_handleResendLink(force: true));
+      });
+    }
   }
 
   @override
@@ -90,8 +103,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     }
   }
 
-  Future<void> _handleResendLink() async {
-    if (_secondsRemaining > 0 || _resendLoading) return;
+  Future<void> _handleResendLink({bool force = false}) async {
+    if ((!force && _secondsRemaining > 0) || _resendLoading) return;
     setState(() {
       _resendLoading = true;
       _successBanner = null;
@@ -359,6 +372,22 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     );
   }
 
+  Widget _buildSkipButton() {
+    if (widget.onSkip == null) return const SizedBox.shrink();
+
+    return TextButton(
+      onPressed: _continueLoading ? null : widget.onSkip,
+      style: TextButton.styleFrom(
+        foregroundColor: _brandTeal,
+        minimumSize: const Size.fromHeight(44),
+      ),
+      child: const Text(
+        'Do it later',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -412,6 +441,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                         if (_successBanner != null || _errorBanner != null)
                           const SizedBox(height: 16),
                         _buildContinueButton(),
+                        const SizedBox(height: 8),
+                        _buildSkipButton(),
                       ],
                     ),
                   ),

@@ -8,6 +8,7 @@ import 'package:jirani/models/service_request_model.dart';
 import 'package:jirani/models/service_model.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -1835,15 +1836,29 @@ class _RejectDialogState extends State<_RejectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Reject verification'),
+    return JiraniDialog(
+      title: 'Reject verification',
+      icon: Icons.cancel_outlined,
       content: TextField(
         controller: _controller,
         minLines: 3,
         maxLines: 5,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Reason',
           hintText: 'Explain what the resident needs to fix.',
+          filled: true,
+          fillColor: const Color(0xFFF8FAFA),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _AdminColors.primary),
+          ),
         ),
       ),
       actions: [

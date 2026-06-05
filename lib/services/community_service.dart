@@ -23,13 +23,20 @@ class CommunityService {
 
   Future<List<CommunityModel>> fetchActiveCommunities() async {
     try {
-      final snapshot = await _communities
-          .where('isActive', isEqualTo: true)
-          .get();
+      final snapshot = await _communities.get();
 
-      return snapshot.docs
-          .map((doc) => CommunityModel.fromMap(doc.data(), doc.id))
-          .toList(growable: false);
+      final communities = <CommunityModel>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final community = CommunityModel.fromMap(doc.data(), doc.id);
+          if (community.isActive) {
+            communities.add(community);
+          }
+        } catch (error) {
+          debugPrint('Skipping malformed community ${doc.id}: $error');
+        }
+      }
+      return communities;
     } catch (error) {
       debugPrint('Error fetching active communities: $error');
       rethrow;
@@ -42,7 +49,8 @@ class CommunityService {
       final data = document.data();
       if (data == null) return null;
 
-      return CommunityModel.fromMap(data, document.id);
+      final community = CommunityModel.fromMap(data, document.id);
+      return community.isActive ? community : null;
     } catch (error) {
       debugPrint('Error fetching community: $error');
       rethrow;

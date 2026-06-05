@@ -5,7 +5,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:jirani/data/models/app_user.dart';
 import 'package:jirani/data/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
+import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/location/community_confirmation_view.dart';
+import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
@@ -63,7 +65,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
 
   Future<void> _check() async {
     if (!mounted) return;
-    if (!widget.user.isResident || !widget.user.locationVerified) {
+    if (!widget.user.isResident) {
       setState(() {
         _checking = false;
         _insideBoundary = true;
@@ -126,11 +128,17 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
         boundary.latitude,
         boundary.longitude,
       );
+      final insideBoundary = distance <= boundary.radiusMeters;
+
+      if (!mounted) return;
+      if (insideBoundary && !widget.user.locationVerified) {
+        await context.read<AuthViewModel>().markLocationVerified();
+      }
 
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _insideBoundary = distance <= boundary.radiusMeters;
+        _insideBoundary = insideBoundary;
         _message = _insideBoundary
             ? null
             : 'You are outside $_communityName. Move closer and try again.';
