@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Verification documents: only the owning user may write; any signed-in
+    // user (e.g. admin) may read.
+    match /verification_documents/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Item images: any signed-in user may read; only the owner may write.
+    match /item_images/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Borrow-request proof images: any signed-in user may read; only the
+    // uploader (identified by their uid subfolder) may write.
+    match /borrow_request_proofs/{requestId}/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
