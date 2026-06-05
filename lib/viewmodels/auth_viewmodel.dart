@@ -80,11 +80,11 @@ class AuthViewModel extends ChangeNotifier {
       );
       _firebaseUser = _repository.currentFirebaseUser;
       _currentAdmin = null;
-      _showEmailVerificationAfterRegister = true;
+      _showEmailVerificationAfterRegister = false;
       _showPhoneVerificationAfterRegister = false;
-      _showAccountCreatedScreen = false;
+      _showAccountCreatedScreen = true;
       _successMessage =
-          'Account created. A verification email has been sent to your email address.';
+          'Account created. You can verify your email and phone later from your profile.';
     } catch (e) {
       _errorMessage = _mapAuthError(e);
     } finally {
@@ -225,11 +225,11 @@ class AuthViewModel extends ChangeNotifier {
     exitEmailVerificationRegistrationFlow();
   }
 
-  /// After OTP step (success, back, or skip), show [AccountCreatedView].
+  /// After OTP step (success, back, or skip), continue to the geofence gate.
   void exitPhoneVerificationRegistrationFlow() {
     _showEmailVerificationAfterRegister = false;
     _showPhoneVerificationAfterRegister = false;
-    _showAccountCreatedScreen = true;
+    _showAccountCreatedScreen = false;
     notifyListeners();
   }
 

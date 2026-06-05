@@ -313,6 +313,8 @@ class _RegisterViewState extends State<RegisterView> {
       communityId: _selectedCommunity?.communityId ?? '',
       communityName: _selectedCommunity?.name ?? '',
     );
+    if (!mounted || vm.errorMessage != null) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Widget _buildHeader(AuthViewModel vm, TextTheme textTheme) {
