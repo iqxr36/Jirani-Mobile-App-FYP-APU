@@ -8,7 +8,6 @@ import 'package:jirani/models/service_request_model.dart';
 import 'package:jirani/models/service_model.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
-import 'package:jirani/widgets/common/jirani_modal.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -1336,12 +1335,14 @@ class _Panel extends StatelessWidget {
     required this.child,
     this.action,
     this.padding = const EdgeInsets.all(20),
+    this.fillChild = false,
   });
 
   final String title;
   final String? action;
   final Widget child;
   final EdgeInsets padding;
+  final bool fillChild;
 
   @override
   Widget build(BuildContext context) {
@@ -1376,7 +1377,12 @@ class _Panel extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: _AdminColors.border),
-          Padding(padding: padding, child: child),
+          if (fillChild)
+            Expanded(
+              child: Padding(padding: padding, child: child),
+            )
+          else
+            Padding(padding: padding, child: child),
         ],
       ),
     );
@@ -1623,6 +1629,7 @@ class _VerificationRequestList extends StatelessWidget {
       title: 'Requests',
       action: requests.length.toString(),
       padding: EdgeInsets.zero,
+      fillChild: true,
       child: requests.isEmpty
           ? const _EmptyPanelMessage(
               icon: Icons.mark_email_read_rounded,
@@ -1836,29 +1843,15 @@ class _RejectDialogState extends State<_RejectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return JiraniDialog(
-      title: 'Reject verification',
-      icon: Icons.cancel_outlined,
+    return AlertDialog(
+      title: const Text('Reject verification'),
       content: TextField(
         controller: _controller,
         minLines: 3,
         maxLines: 5,
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           labelText: 'Reason',
           hintText: 'Explain what the resident needs to fix.',
-          filled: true,
-          fillColor: const Color(0xFFF8FAFA),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _AdminColors.primary),
-          ),
         ),
       ),
       actions: [
@@ -1920,7 +1913,8 @@ class _DocumentViewer extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Expanded(
+          SizedBox(
+            height: 190,
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
