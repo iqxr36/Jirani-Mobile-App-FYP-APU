@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/admin/widgets/ocr_review_dialog.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/data/models/item_model.dart';
 import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/models/extracted_document_data.dart';
 import 'package:jirani/models/borrow_request.dart';
 import 'package:jirani/models/report_model.dart';
 import 'package:jirani/models/service_request_model.dart';
 import 'package:jirani/models/service_model.dart';
 import 'package:jirani/providers/admin_provider.dart';
+import 'package:jirani/services/ocr_parser_service.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1721,57 +1724,60 @@ class _VerificationDetail extends StatelessWidget {
     return _Panel(
       title: r.fullName.isEmpty ? 'Resident Details' : r.fullName,
       action: r.status,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _InfoTile(label: 'Email Address', value: r.email),
-              _InfoTile(label: 'Phone Number', value: r.phoneNumber),
-              _InfoTile(label: 'Community Name', value: r.communityName),
-              _InfoTile(label: 'Unit Number', value: r.unitNumber),
+      fillChild: true,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                _InfoTile(label: 'Email Address', value: r.email),
+                _InfoTile(label: 'Phone Number', value: r.phoneNumber),
+                _InfoTile(label: 'Community Name', value: r.communityName),
+                _InfoTile(label: 'Unit Number', value: r.unitNumber),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _ExtractedTextPanel(request: r),
+            if (r.notes.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _StatusNotice(
+                icon: Icons.sticky_note_2_rounded,
+                title: 'Resident Notes',
+                body: r.notes,
+              ),
             ],
-          ),
-          const SizedBox(height: 20),
-          _DocumentViewer(request: r),
-          if (r.notes.trim().isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _StatusNotice(
-              icon: Icons.sticky_note_2_rounded,
-              title: 'Resident Notes',
-              body: r.notes,
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: canReview ? () => _approve(context, r) : null,
+                  icon: const Icon(Icons.check_circle_rounded),
+                  label: const Text('Approve Verification'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _AdminColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: canReview ? () => _reject(context, r) : null,
+                  icon: const Icon(Icons.cancel_rounded),
+                  label: const Text('Reject Request'),
+                ),
+                if (r.documentUrl.trim().isNotEmpty)
+                  OutlinedButton.icon(
+                    onPressed: () => _openDocument(context, r.documentUrl),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Open Document'),
+                  ),
+              ],
             ),
           ],
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: canReview ? () => _approve(context, r) : null,
-                icon: const Icon(Icons.check_circle_rounded),
-                label: const Text('Approve Verification'),
-              ),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: _AdminColors.accent,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: canReview ? () => _reject(context, r) : null,
-                icon: const Icon(Icons.cancel_rounded),
-                label: const Text('Reject Request'),
-              ),
-              if (r.documentUrl.trim().isNotEmpty)
-                OutlinedButton.icon(
-                  onPressed: () => _openDocument(context, r.documentUrl),
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Open Document'),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1780,16 +1786,31 @@ class _VerificationDetail extends StatelessWidget {
     BuildContext context,
     VerificationRequest request,
   ) async {
+    final reviewedOcrData = await _reviewOcrData(context, request);
+    if (reviewedOcrData == null || !context.mounted) return;
+
     final adminUid = context.read<AuthViewModel>().currentAdmin?.uid ?? '';
     await context.read<AdminProvider>().approveRequest(
       request: request,
       adminUid: adminUid,
+      reviewedOcrData: reviewedOcrData,
     );
     if (!context.mounted) return;
     final error = context.read<AdminProvider>().errorMessage;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(error ?? 'Verification approved.')));
+  }
+
+  Future<ExtractedDocumentData?> _reviewOcrData(
+    BuildContext context,
+    VerificationRequest request,
+  ) {
+    final parsedData = OcrParserService().processOcrText(request.ocrText);
+    return showDialog<ExtractedDocumentData>(
+      context: context,
+      builder: (context) => OcrReviewDialog(initialData: parsedData),
+    );
   }
 
   Future<void> _reject(
@@ -1872,13 +1893,18 @@ class _RejectDialogState extends State<_RejectDialog> {
   }
 }
 
-class _DocumentViewer extends StatelessWidget {
-  const _DocumentViewer({required this.request});
+// ---------------------------------------------------------------------------
+// _ExtractedTextPanel — replaces the old _DocumentViewer skeleton
+// ---------------------------------------------------------------------------
+
+class _ExtractedTextPanel extends StatelessWidget {
+  const _ExtractedTextPanel({required this.request});
 
   final VerificationRequest request;
 
   @override
   Widget build(BuildContext context) {
+    final status = request.ocrStatus.trim();
     return Container(
       constraints: const BoxConstraints(minHeight: 280),
       padding: const EdgeInsets.all(18),
@@ -1893,7 +1919,7 @@ class _DocumentViewer extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.description_rounded,
+                Icons.text_snippet_rounded,
                 color: _AdminColors.primary,
               ),
               const SizedBox(width: 8),
@@ -1907,70 +1933,206 @@ class _DocumentViewer extends StatelessWidget {
                 ),
               ),
               _StatusPill(
-                label: 'Document viewer',
+                label: 'Text extraction',
                 color: _AdminColors.primary,
               ),
             ],
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            height: 190,
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _AdminColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(height: 16, width: 120, color: _AdminColors.border),
-                  const SizedBox(height: 14),
-                  Container(height: 12, color: _AdminColors.border),
-                  const SizedBox(height: 8),
-                  Container(height: 12, color: _AdminColors.border),
-                  const SizedBox(height: 8),
-                  FractionallySizedBox(
-                    widthFactor: 0.72,
-                    alignment: Alignment.centerLeft,
-                    child: Container(height: 12, color: _AdminColors.border),
-                  ),
-                  const Spacer(),
-                  const Divider(color: _AdminColors.border),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.home_work_rounded,
-                        color: _AdminColors.muted,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          request.communityName.isEmpty
-                              ? 'Community proof'
-                              : request.communityName,
-                          style: const TextStyle(
-                            color: _AdminColors.ink,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+          switch (status) {
+            AppConstants.ocrStatusPending => const _OcrStatusView(
+              icon: Icons.schedule_rounded,
+              message: 'OCR queued. Waiting for backend processing.',
+            ),
+            AppConstants.ocrStatusProcessing => const _OcrStatusView(
+              icon: Icons.sync_rounded,
+              message: 'OCR is processing this document.',
+              showProgress: true,
+            ),
+            AppConstants.ocrStatusCompleted => _OcrResultView(request: request),
+            AppConstants.ocrStatusFailed => _OcrStatusView(
+              icon: Icons.info_outline_rounded,
+              message: request.ocrError?.trim().isNotEmpty == true
+                  ? request.ocrError!
+                  : 'OCR failed. Open the document and review it manually.',
+            ),
+            _ => const _OcrStatusView(
+              icon: Icons.hourglass_empty_rounded,
+              message: 'OCR has not started for this request yet.',
+            ),
+          },
+        ],
+      ),
+    );
+  }
+}
+
+class _OcrStatusView extends StatelessWidget {
+  const _OcrStatusView({
+    required this.icon,
+    required this.message,
+    this.showProgress = false,
+  });
+
+  final IconData icon;
+  final String message;
+  final bool showProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 120),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showProgress)
+              const CircularProgressIndicator(strokeWidth: 2)
+            else
+              Icon(icon, color: _AdminColors.muted, size: 32),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _AdminColors.muted, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OcrResultView extends StatelessWidget {
+  const _OcrResultView({required this.request});
+
+  final VerificationRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = request.ocrText.trim();
+    final parsedFields = _shouldParseDisplayFields(request)
+        ? _parseDisplayFields(request)
+        : request.ocrFields;
+    final visibleFields = Map<String, String>.from(parsedFields)
+      ..remove('type')
+      ..remove('fullText');
+    final showFullText =
+        request.documentType == AppConstants.documentTypeOtherProof ||
+        visibleFields.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (visibleFields.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: visibleFields.entries
+                .map((e) => _OcrFieldChip(label: e.key, value: e.value))
+                .toList(),
+          ),
+        ],
+        if (showFullText) ...[
+          if (visibleFields.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(color: _AdminColors.border),
+            const SizedBox(height: 12),
+          ],
+          const Text(
+            'FULL EXTRACTED TEXT',
+            style: TextStyle(
+              color: _AdminColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 240),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: _AdminColors.border),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                text.isEmpty ? 'No text was saved by OCR.' : text,
+                style: const TextStyle(
+                  color: _AdminColors.ink,
+                  fontSize: 13,
+                  height: 1.65,
+                ),
               ),
             ),
           ),
-          if (request.documentUrl.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SelectableText(
-              request.documentUrl,
-              maxLines: 1,
-              style: const TextStyle(color: _AdminColors.muted, fontSize: 12),
+        ],
+      ],
+    );
+  }
+
+  bool _shouldParseDisplayFields(VerificationRequest request) {
+    if (request.ocrText.trim().isEmpty) return false;
+    return request.documentType == AppConstants.documentTypeTenancyAgreement ||
+        request.documentType == AppConstants.documentTypeUtilityBill ||
+        request.documentType == AppConstants.documentTypeAccessCard;
+  }
+
+  Map<String, String> _parseDisplayFields(VerificationRequest request) {
+    final text = request.ocrText.trim();
+    if (text.isEmpty) return const {};
+    final parser = OcrParserService();
+    final parsed = switch (request.documentType) {
+      AppConstants.documentTypeTenancyAgreement =>
+        parser.extractTenancyAgreement(text),
+      AppConstants.documentTypeUtilityBill => parser.extractUtilityBill(text),
+      AppConstants.documentTypeAccessCard => parser.extractAccessCard(text),
+      AppConstants.documentTypeOtherProof => parser.extractOtherProof(text),
+      _ => parser.processOcrText(text),
+    };
+    return parsed.toFieldMap();
+  }
+}
+
+class _OcrFieldChip extends StatelessWidget {
+  const _OcrFieldChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _AdminColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _AdminColors.primary.withValues(alpha: 0.22)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '${_ocrFieldLabel(label)}: ',
+              style: const TextStyle(
+                color: _AdminColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                color: _AdminColors.ink,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -2581,6 +2743,23 @@ String _documentTypeLabel(String value) {
     AppConstants.documentTypeAccessCard => 'Access card',
     AppConstants.documentTypeOtherProof => 'Other proof',
     _ => value.trim().isEmpty ? 'Residency document' : value,
+  };
+}
+
+String _ocrFieldLabel(String value) {
+  return switch (value) {
+    'type' => 'Document Type',
+    'tenantName' => 'Tenant Name',
+    'landlordName' => 'Landlord Name',
+    'propertyAddress' => 'Property Address',
+    'unitNumber' => 'Unit Number',
+    'agreementDate' => 'Agreement Date',
+    'billType' => 'Bill Type',
+    'amount' => 'Amount',
+    'billDate' => 'Bill Date',
+    'cardNumber' => 'Card Number',
+    'fullText' => 'Full OCR Text',
+    _ => value,
   };
 }
 

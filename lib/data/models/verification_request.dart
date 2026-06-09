@@ -21,6 +21,12 @@ class VerificationRequest {
     required this.reviewedBy,
     this.cancelledAt,
     this.cancelledBy,
+    this.ocrStatus = '',
+    this.ocrText = '',
+    this.ocrFields = const {},
+    this.ocrError,
+    this.ocrProcessedAt,
+    this.storagePath = '',
   });
 
   final String id;
@@ -41,6 +47,12 @@ class VerificationRequest {
   final String? reviewedBy;
   final DateTime? cancelledAt;
   final String? cancelledBy;
+  final String ocrStatus;
+  final String ocrText;
+  final Map<String, String> ocrFields;
+  final String? ocrError;
+  final DateTime? ocrProcessedAt;
+  final String storagePath;
 
   VerificationRequest copyWith({
     String? id,
@@ -61,6 +73,12 @@ class VerificationRequest {
     String? reviewedBy,
     DateTime? cancelledAt,
     String? cancelledBy,
+    String? ocrStatus,
+    String? ocrText,
+    Map<String, String>? ocrFields,
+    String? ocrError,
+    DateTime? ocrProcessedAt,
+    String? storagePath,
   }) {
     return VerificationRequest(
       id: id ?? this.id,
@@ -81,6 +99,12 @@ class VerificationRequest {
       reviewedBy: reviewedBy ?? this.reviewedBy,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       cancelledBy: cancelledBy ?? this.cancelledBy,
+      ocrStatus: ocrStatus ?? this.ocrStatus,
+      ocrText: ocrText ?? this.ocrText,
+      ocrFields: ocrFields ?? this.ocrFields,
+      ocrError: ocrError ?? this.ocrError,
+      ocrProcessedAt: ocrProcessedAt ?? this.ocrProcessedAt,
+      storagePath: storagePath ?? this.storagePath,
     );
   }
 
@@ -106,6 +130,14 @@ class VerificationRequest {
           ? Timestamp.fromDate(cancelledAt!)
           : null,
       'cancelledBy': cancelledBy,
+      'ocrStatus': ocrStatus,
+      'ocrText': ocrText,
+      'ocrFields': ocrFields,
+      'ocrError': ocrError,
+      'ocrProcessedAt': ocrProcessedAt != null
+          ? Timestamp.fromDate(ocrProcessedAt!)
+          : null,
+      'storagePath': storagePath,
     };
   }
 
@@ -134,6 +166,12 @@ class VerificationRequest {
       reviewedBy: map['reviewedBy'] as String?,
       cancelledAt: _parseOptionalDate(map['cancelledAt']),
       cancelledBy: map['cancelledBy'] as String?,
+      ocrStatus: (map['ocrStatus'] as String?) ?? '',
+      ocrText: (map['ocrText'] as String?) ?? '',
+      ocrFields: _parseStringMap(map['ocrFields']),
+      ocrError: map['ocrError'] as String?,
+      ocrProcessedAt: _parseOptionalDate(map['ocrProcessedAt']),
+      storagePath: (map['storagePath'] as String?) ?? '',
     );
   }
 
@@ -152,5 +190,15 @@ class VerificationRequest {
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     if (value is String) return DateTime.tryParse(value);
     return null;
+  }
+
+  static Map<String, String> _parseStringMap(dynamic value) {
+    if (value is! Map) return const {};
+    return value.map(
+      (key, fieldValue) => MapEntry(
+        key.toString(),
+        fieldValue?.toString() ?? '',
+      ),
+    );
   }
 }

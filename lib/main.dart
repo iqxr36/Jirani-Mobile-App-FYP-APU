@@ -26,8 +26,8 @@ void main() async {
     );
     if (!kIsWeb) {
       await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.playIntegrity,
-        appleProvider: AppleProvider.deviceCheck,
+        providerAndroid: const AndroidPlayIntegrityProvider(),
+        providerApple: const AppleDeviceCheckProvider(),
       );
     }
     runApp(const TrustCommunityApp());

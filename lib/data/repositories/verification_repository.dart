@@ -198,6 +198,12 @@ class VerificationRepository {
       reviewedBy: null,
       cancelledAt: null,
       cancelledBy: null,
+      ocrStatus: AppConstants.ocrStatusPending,
+      ocrText: '',
+      ocrFields: const {},
+      ocrError: null,
+      ocrProcessedAt: null,
+      storagePath: ref.fullPath,
     );
 
     await docRef

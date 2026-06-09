@@ -19,6 +19,12 @@ class AppConstants {
   static const String verificationRequestPending = 'pending';
   static const String verificationRequestCancelled = 'cancelled';
 
+  /// OCR processing statuses for verification request documents.
+  static const String ocrStatusPending = 'pending';
+  static const String ocrStatusProcessing = 'processing';
+  static const String ocrStatusCompleted = 'completed';
+  static const String ocrStatusFailed = 'failed';
+
   /// Residency document kinds (stored on [VerificationRequest.documentType]).
   static const String documentTypeUtilityBill = 'utilityBill';
   static const String documentTypeTenancyAgreement = 'tenancyAgreement';

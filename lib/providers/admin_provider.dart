@@ -6,6 +6,7 @@ import 'package:jirani/data/models/admin_user.dart';
 import 'package:jirani/data/models/app_user.dart';
 import 'package:jirani/data/models/item_model.dart';
 import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/models/extracted_document_data.dart';
 import 'package:jirani/models/borrow_request.dart';
 import 'package:jirani/models/report_model.dart';
 import 'package:jirani/models/service_request_model.dart';
@@ -162,9 +163,9 @@ class AdminProvider extends ChangeNotifier {
           includeAllCommunities: _includeAllCommunities,
         )
         .listen((reports) {
-      _reports = reports;
-      _refreshLocalDashboardStats();
-    }, onError: _handleStreamError);
+          _reports = reports;
+          _refreshLocalDashboardStats();
+        }, onError: _handleStreamError);
 
     _borrowRequestsSub = _service.watchBorrowRequests().listen((requests) {
       _borrowRequests = requests;
@@ -180,6 +181,7 @@ class AdminProvider extends ChangeNotifier {
   Future<void> approveRequest({
     required VerificationRequest request,
     required String adminUid,
+    ExtractedDocumentData? reviewedOcrData,
   }) async {
     if (!_requestIsInAdminScope(request)) {
       _errorMessage = 'This request is outside your assigned community.';
@@ -197,6 +199,7 @@ class AdminProvider extends ChangeNotifier {
         requestId: request.id,
         residentUid: request.userId,
         adminUid: adminUid,
+        reviewedOcrData: reviewedOcrData,
       );
       debugPrint('[AdminProvider][approveRequest] service call completed');
       await loadVerificationRequestById(request.id);

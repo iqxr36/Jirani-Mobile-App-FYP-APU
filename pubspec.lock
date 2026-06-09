@@ -241,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.8"
+  extension:
+    dependency: transitive
+    description:
+      name: extension
+      sha256: be3a6b7f8adad2f6e2e8c63c895d19811fcf203e23466c6296267941d0ff4f24
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   fake_async:
     dependency: transitive
     description:
@@ -768,14 +776,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "8.0.0"
-  image_gallery_saver:
-    dependency: transitive
-    description:
-      name: image_gallery_saver
-      sha256: "0aba74216a4d9b0561510cb968015d56b701ba1bd94aace26aacdd8ae5761816"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.3"
   image_picker:
     dependency: "direct main"
     description:
@@ -1072,22 +1072,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  pdf_image_renderer:
-    dependency: transitive
-    description:
-      name: pdf_image_renderer
-      sha256: b5420b7f3e0671deedd68fdd9fe6a63c696fa90170de8d4c57c061aa83f08131
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.0"
-  pdf_to_image_converter:
+  pdfx:
     dependency: "direct main"
     description:
-      name: pdf_to_image_converter
-      sha256: dcebd814286a39727d9424fb79a2fa3d8b1609442ba83644a289c376cdd922ec
+      name: pdfx
+      sha256: "29db9b71d46bf2335e001f91693f2c3fbbf0760e4c2eb596bf4bafab211471c1"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.3"
+    version: "2.9.2"
   permission_handler:
     dependency: "direct main"
     description:
@@ -1144,6 +1136,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
+  photo_view:
+    dependency: transitive
+    description:
+      name: photo_view
+      sha256: "1fc3d970a91295fbd1364296575f854c9863f225505c28c46e0a03e48960c75e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.15.0"
   platform:
     dependency: transitive
     description:
@@ -1525,6 +1525,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_platform:
+    dependency: transitive
+    description:
+      name: universal_platform
+      sha256: "64e16458a0ea9b99260ceb5467a214c1f298d647c659af1bff6d3bf82536b1ec"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   url_launcher:
     dependency: "direct main"
     description:

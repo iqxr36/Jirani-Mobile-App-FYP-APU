@@ -5,6 +5,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/data/models/app_user.dart';
 import 'package:jirani/data/models/item_model.dart';
 import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/models/extracted_document_data.dart';
 import 'package:jirani/models/borrow_request.dart';
 import 'package:jirani/models/report_model.dart';
 import 'package:jirani/models/service_request_model.dart';
@@ -160,14 +161,13 @@ class AdminService {
       q = q.where('communityId', isEqualTo: scopeCommunityId);
     }
 
-    return q.snapshots()
-        .map((snapshot) {
-          final reports = snapshot.docs
-              .map((doc) => ReportModel.fromMap(doc.id, doc.data()))
-              .toList();
-          reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return reports;
-        });
+    return q.snapshots().map((snapshot) {
+      final reports = snapshot.docs
+          .map((doc) => ReportModel.fromMap(doc.id, doc.data()))
+          .toList();
+      reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return reports;
+    });
   }
 
   Stream<List<ServiceModel>> watchServices() {
@@ -230,6 +230,7 @@ class AdminService {
     required String requestId,
     required String residentUid,
     required String adminUid,
+    ExtractedDocumentData? reviewedOcrData,
   }) async {
     if (requestId.trim().isEmpty) {
       throw Exception('Verification request ID is missing.');
@@ -259,13 +260,18 @@ class AdminService {
     debugPrint('[AdminService][approve] requestRef=${requestRef.path}');
     debugPrint('[AdminService][approve] userRef=${userRef.path}');
 
-    batch.update(requestRef, {
+    final requestUpdates = <String, dynamic>{
       'status': AppConstants.verificationVerified,
       'reviewedAt': FieldValue.serverTimestamp(),
       'reviewedBy': adminUid,
       'rejectionReason': null,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (reviewedOcrData != null) {
+      requestUpdates.addAll(_reviewedOcrUpdates(reviewedOcrData, adminUid));
+    }
+
+    batch.update(requestRef, requestUpdates);
     batch.update(userRef, {
       'verificationStatus': AppConstants.verificationVerified,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -290,6 +296,20 @@ class AdminService {
       }
       throw Exception(e.message ?? e.code);
     }
+  }
+
+  Map<String, dynamic> _reviewedOcrUpdates(
+    ExtractedDocumentData data,
+    String adminUid,
+  ) {
+    return <String, dynamic>{
+      'documentType': data.type.name,
+      'ocrText': data.fullText,
+      'ocrFields': data.toFieldMap(),
+      'ocrStructuredData': data.toMap(),
+      'ocrReviewedAt': FieldValue.serverTimestamp(),
+      'ocrReviewedBy': adminUid,
+    };
   }
 
   Future<void> rejectVerificationRequest({
@@ -467,8 +487,8 @@ class AdminService {
         final status = (data['status'] as String?) ?? '';
         return inScope(data) &&
             (status.isEmpty ||
-            status == AppConstants.reportStatusOpen ||
-            status == AppConstants.reportStatusUnderReview);
+                status == AppConstants.reportStatusOpen ||
+                status == AppConstants.reportStatusUnderReview);
       }).length,
     };
   }
