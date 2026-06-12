@@ -10,6 +10,7 @@ export interface VerificationRequestData {
 const DOCUMENT_TYPE_UTILITY_BILL = "utilityBill";
 const DOCUMENT_TYPE_TENANCY_AGREEMENT = "tenancyAgreement";
 const DOCUMENT_TYPE_ACCESS_CARD = "accessCard";
+const DOCUMENT_TYPE_OTHER_PROOF = "otherProof";
 
 export function extractOcrFields(
   rawText: string,
@@ -20,9 +21,6 @@ export function extractOcrFields(
   const lines = nonEmptyLines(text);
 
   const fallbackDate = extractDate(text);
-
-  const fullName = request.fullName?.trim();
-  const unitNumber = request.unitNumber?.trim();
 
   switch (request.documentType) {
     case DOCUMENT_TYPE_TENANCY_AGREEMENT:
@@ -36,13 +34,11 @@ export function extractOcrFields(
       if (fallbackDate && !fields["Bill Date"]) fields["Bill Date"] = fallbackDate;
       break;
     case DOCUMENT_TYPE_ACCESS_CARD:
-      extractAccessCardFields(text, lines, fields, request);
+    case DOCUMENT_TYPE_OTHER_PROOF:
+      fields.fullText = text;
       break;
     default:
-      if (fullName && textContains(text, fullName)) fields["Name"] = fullName;
-      if (unitNumber && textContains(text, unitNumber)) {
-        fields["Unit Number"] = unitNumber;
-      }
+      fields.fullText = text;
       break;
   }
 
@@ -190,56 +186,6 @@ function extractUtilityBillFields(
   if (fullName && !fields["Tenant Name"] && textContains(text, fullName)) {
     fields["Tenant Name"] = fullName;
   }
-  if (
-    communityName &&
-    !fields["Property Address"] &&
-    textContains(text, communityName)
-  ) {
-    fields["Property Address"] = communityName;
-  }
-}
-
-function extractAccessCardFields(
-  text: string,
-  lines: string[],
-  fields: OcrFields,
-  request: VerificationRequestData,
-) {
-  const address = extractByLabels(lines, [
-    "Property Address",
-    "Residence Address",
-    "Apartment Name",
-    "Condominium",
-    "Apartment",
-    "Building",
-    "Address",
-  ]);
-  if (address) fields["Property Address"] = address;
-
-  const unit = extractByLabels(lines, [
-    "Unit Number",
-    "Apartment Number",
-    "Apartment No",
-    "House Number",
-    "House No",
-    "Lot No",
-    "Unit",
-  ]) || request.unitNumber?.trim();
-  if (unit && textContains(text, unit)) fields["Unit Number"] = unit;
-
-  const cardNumber = extractByLabels(lines, [
-    "Access Card Number",
-    "Access Card No",
-    "Resident Card Number",
-    "RFID Number",
-    "RFID No",
-    "Card Number",
-    "Card No",
-    "Card ID",
-  ]) || extractCardNumber(text);
-  if (cardNumber) fields["Card Number"] = cardNumber;
-
-  const communityName = request.communityName?.trim();
   if (
     communityName &&
     !fields["Property Address"] &&
@@ -404,12 +350,6 @@ function detectBillType(text: string): string {
     return "Maintenance";
   }
   return "Other";
-}
-
-function extractCardNumber(text: string): string | undefined {
-  const prefixed = text.match(/\b(?:AC|ACD|RFID)[- ]?[A-Z0-9]{4,}\b/i)?.[0];
-  if (prefixed) return prefixed.toUpperCase().replace(/\s+/g, "-");
-  return text.match(/\b\d{6,}\b/)?.[0];
 }
 
 function extractUnitNumber(value?: string): string | undefined {

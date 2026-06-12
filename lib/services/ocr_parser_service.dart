@@ -198,7 +198,13 @@ class OcrParserService {
       'rfid',
       'resident card',
       'proximity card',
+      'lift & door access',
+      'lift and door access',
     ])) {
+      return DocumentType.accessCard;
+    }
+    if (searchText.contains('access') &&
+        _containsAny(searchText, const ['lift', 'door', 'issued by'])) {
       return DocumentType.accessCard;
     }
 
@@ -361,17 +367,6 @@ class OcrParserService {
     final fullText = cleanOcrText(text);
     return ExtractedDocumentData(
       type: DocumentType.accessCard,
-      propertyAddress: cleanExtractedValue(
-        extractByLabels(fullText, _accessLabelsPropertyAddress),
-      ),
-      unitNumber: cleanExtractedValue(
-        extractByLabels(fullText, _accessLabelsUnitNumber),
-      ),
-      cardNumber:
-          cleanExtractedValue(
-            extractByLabels(fullText, _accessLabelsCardNumber),
-          ) ??
-          _extractCardNumberFallback(fullText),
       fullText: fullText,
     );
   }
@@ -386,6 +381,20 @@ class OcrParserService {
   ExtractedDocumentData processOcrText(String rawText) {
     final cleanedText = cleanOcrText(rawText);
     final type = detectDocumentType(cleanedText);
+    final parsed = extractByDocumentType(cleanedText, type);
+
+    debugPrint(
+      '[OcrParserService] detected document type: ${parsed.type.name}',
+    );
+    debugPrint('[OcrParserService] extracted fields: ${parsed.toMap()}');
+    return parsed;
+  }
+
+  ExtractedDocumentData extractByDocumentType(
+    String rawText,
+    DocumentType type,
+  ) {
+    final cleanedText = cleanOcrText(rawText);
     final parsed = switch (type) {
       DocumentType.tenancyAgreement => extractTenancyAgreement(cleanedText),
       DocumentType.utilityBill => extractUtilityBill(cleanedText),
@@ -393,11 +402,6 @@ class OcrParserService {
       DocumentType.otherProof ||
       DocumentType.unknown => extractOtherProof(cleanedText),
     };
-
-    debugPrint(
-      '[OcrParserService] detected document type: ${parsed.type.name}',
-    );
-    debugPrint('[OcrParserService] extracted fields: ${parsed.toMap()}');
     return parsed;
   }
 
@@ -531,26 +535,6 @@ class OcrParserService {
       r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})\b',
     ).firstMatch(text);
     return numericMatch?.group(0);
-  }
-
-  String? _extractCardNumberFallback(String text) {
-    final prefixedMatch = RegExp(
-      r'\b(?:AC|ACD|RFID)[- ]?[A-Z0-9]{4,}\b',
-      caseSensitive: false,
-    ).firstMatch(text);
-    final prefixed = cleanExtractedValue(prefixedMatch?.group(0));
-    if (prefixed != null) return prefixed.toUpperCase().replaceAll(' ', '-');
-
-    final labelPattern = RegExp(
-      r'\b(?:access\s*)?(?:card|rfid)(?:\s*(?:number|no|id))?\s*[:\-]\s*([A-Z]{0,5}[- ]?[A-Z0-9]{4,})\b',
-      caseSensitive: false,
-    );
-    final labelMatch = labelPattern.firstMatch(text);
-    final labelled = cleanExtractedValue(labelMatch?.group(1));
-    if (labelled != null) return labelled.toUpperCase().replaceAll(' ', '-');
-
-    final standaloneMatch = RegExp(r'\b\d{6,}\b').firstMatch(text);
-    return cleanExtractedValue(standaloneMatch?.group(0));
   }
 
   String? _extractUnitNumber(String? value) {

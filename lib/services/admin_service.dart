@@ -262,6 +262,7 @@ class AdminService {
 
     final requestUpdates = <String, dynamic>{
       'status': AppConstants.verificationVerified,
+      'adminStatus': AppConstants.adminStatusConfirmed,
       'reviewedAt': FieldValue.serverTimestamp(),
       'reviewedBy': adminUid,
       'rejectionReason': null,
@@ -306,6 +307,7 @@ class AdminService {
       'documentType': data.type.name,
       'ocrText': data.fullText,
       'ocrFields': data.toFieldMap(),
+      'extractedFields': _reviewedExtractedFields(data),
       'ocrStructuredData': data.toMap(),
       'ocrReviewedAt': FieldValue.serverTimestamp(),
       'ocrReviewedBy': adminUid,
@@ -352,6 +354,7 @@ class AdminService {
 
     batch.update(requestRef, {
       'status': AppConstants.verificationRejected,
+      'adminStatus': AppConstants.adminStatusRejected,
       'reviewedAt': FieldValue.serverTimestamp(),
       'reviewedBy': adminUid,
       'rejectionReason': reason,
@@ -382,6 +385,26 @@ class AdminService {
       }
       throw Exception(e.message ?? e.code);
     }
+  }
+
+  Map<String, dynamic> _reviewedExtractedFields(ExtractedDocumentData data) {
+    final fields = <String, dynamic>{};
+    void add(String key, String? value) {
+      final trimmed = value?.trim() ?? '';
+      if (trimmed.isEmpty) return;
+      fields[key] = <String, dynamic>{
+        'value': trimmed,
+        'confidence': 1.0,
+        'source': 'admin_review',
+      };
+    }
+
+    add('tenant_name', data.tenantName);
+    add('landlord_name', data.landlordName);
+    add('unit_number', data.unitNumber);
+    add('agreement_date', data.agreementDate);
+    add('property_address', data.propertyAddress);
+    return fields;
   }
 
   Future<List<AppUser>> getUsersByVerificationStatus(String status) async {

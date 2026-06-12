@@ -5,15 +5,12 @@ class JiraniLogo extends StatelessWidget {
 
   final double height;
 
-  static const _lightLogo = 'assets/In-app-logo-Jirani.png';
-  static const _darkLogo = 'assets/In-app-logo-dark-mode-Jirani.png';
+  static const _logo = 'assets/In-app Jirani no background.png';
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-
     return Image.asset(
-      brightness == Brightness.dark ? _darkLogo : _lightLogo,
+      _logo,
       height: height,
       fit: BoxFit.contain,
       semanticLabel: 'Jirani',

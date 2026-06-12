@@ -1806,10 +1806,43 @@ class _VerificationDetail extends StatelessWidget {
     BuildContext context,
     VerificationRequest request,
   ) {
-    final parsedData = OcrParserService().processOcrText(request.ocrText);
+    final structuredData = _structuredDataFromRequest(request);
+    if (structuredData != null) {
+      return showDialog<ExtractedDocumentData>(
+        context: context,
+        builder: (context) => OcrReviewDialog(initialData: structuredData),
+      );
+    }
+
+    final parser = OcrParserService();
+    final documentType = documentTypeFromValue(request.documentType);
+    final parsedData = documentType == DocumentType.unknown
+        ? parser.processOcrText(request.ocrText)
+        : parser.extractByDocumentType(request.ocrText, documentType);
     return showDialog<ExtractedDocumentData>(
       context: context,
       builder: (context) => OcrReviewDialog(initialData: parsedData),
+    );
+  }
+
+  ExtractedDocumentData? _structuredDataFromRequest(
+    VerificationRequest request,
+  ) {
+    final fields = request.extractedFields;
+    if (fields.isEmpty) return null;
+    String? value(String key) {
+      final trimmed = fields[key]?.value.trim() ?? '';
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    return ExtractedDocumentData(
+      type: DocumentType.tenancyAgreement,
+      tenantName: value('tenant_name'),
+      landlordName: value('landlord_name'),
+      propertyAddress: value('property_address'),
+      unitNumber: value('unit_number'),
+      agreementDate: value('agreement_date'),
+      fullText: request.ocrText,
     );
   }
 
@@ -2012,20 +2045,43 @@ class _OcrResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = request.ocrText.trim();
-    final parsedFields = _shouldParseDisplayFields(request)
-        ? _parseDisplayFields(request)
-        : request.ocrFields;
+    final fullTextOnly = _usesFullTextOnly(request.documentType);
+    final structuredFields = _structuredFieldEntries(request);
+    final Map<String, String> parsedFields;
+    if (structuredFields.isNotEmpty) {
+      parsedFields = const <String, String>{};
+    } else if (fullTextOnly) {
+      parsedFields = const <String, String>{};
+    } else if (_shouldParseDisplayFields(request)) {
+      parsedFields = _parseDisplayFields(request);
+    } else {
+      parsedFields = request.ocrFields;
+    }
     final visibleFields = Map<String, String>.from(parsedFields)
       ..remove('type')
       ..remove('fullText');
     final showFullText =
-        request.documentType == AppConstants.documentTypeOtherProof ||
-        visibleFields.isEmpty;
+        fullTextOnly || (visibleFields.isEmpty && structuredFields.isEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (visibleFields.isNotEmpty) ...[
+        if (structuredFields.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: structuredFields
+                .map(
+                  (e) => _OcrFieldChip(
+                    label: e.label,
+                    value: e.field.value,
+                    confidence: e.field.confidence,
+                    highlight: e.field.confidence < 0.75,
+                  ),
+                )
+                .toList(),
+          ),
+        ] else if (visibleFields.isNotEmpty) ...[
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -2077,8 +2133,12 @@ class _OcrResultView extends StatelessWidget {
   bool _shouldParseDisplayFields(VerificationRequest request) {
     if (request.ocrText.trim().isEmpty) return false;
     return request.documentType == AppConstants.documentTypeTenancyAgreement ||
-        request.documentType == AppConstants.documentTypeUtilityBill ||
-        request.documentType == AppConstants.documentTypeAccessCard;
+        request.documentType == AppConstants.documentTypeUtilityBill;
+  }
+
+  bool _usesFullTextOnly(String documentType) {
+    return documentType == AppConstants.documentTypeAccessCard ||
+        documentType == AppConstants.documentTypeOtherProof;
   }
 
   Map<String, String> _parseDisplayFields(VerificationRequest request) {
@@ -2089,53 +2149,104 @@ class _OcrResultView extends StatelessWidget {
       AppConstants.documentTypeTenancyAgreement =>
         parser.extractTenancyAgreement(text),
       AppConstants.documentTypeUtilityBill => parser.extractUtilityBill(text),
-      AppConstants.documentTypeAccessCard => parser.extractAccessCard(text),
       AppConstants.documentTypeOtherProof => parser.extractOtherProof(text),
       _ => parser.processOcrText(text),
     };
     return parsed.toFieldMap();
   }
+
+  List<_StructuredFieldEntry> _structuredFieldEntries(
+    VerificationRequest request,
+  ) {
+    const labels = <String, String>{
+      'tenant_name': 'Tenant Name',
+      'landlord_name': 'Landlord/Owner Name',
+      'unit_number': 'Unit Number',
+      'agreement_date': 'Agreement Date',
+      'property_address': 'Property Address',
+    };
+    return labels.entries
+        .map((entry) {
+          final field = request.extractedFields[entry.key];
+          if (field == null || field.value.trim().isEmpty) return null;
+          return _StructuredFieldEntry(label: entry.value, field: field);
+        })
+        .whereType<_StructuredFieldEntry>()
+        .toList();
+  }
 }
 
 class _OcrFieldChip extends StatelessWidget {
-  const _OcrFieldChip({required this.label, required this.value});
+  const _OcrFieldChip({
+    required this.label,
+    required this.value,
+    this.confidence,
+    this.highlight = false,
+  });
 
   final String label;
   final String value;
+  final double? confidence;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
+    final color = highlight ? _AdminColors.warning : _AdminColors.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: _AdminColors.primary.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _AdminColors.primary.withValues(alpha: 0.22)),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '${_ocrFieldLabel(label)}: ',
-              style: const TextStyle(
-                color: _AdminColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '${_ocrFieldLabel(label)}: ',
+                  style: const TextStyle(
+                    color: _AdminColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    color: _AdminColors.ink,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(
-                color: _AdminColors.ink,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+          ),
+          if (confidence != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              'Confidence ${(confidence! * 100).toStringAsFixed(0)}%',
+              style: TextStyle(
+                color: _AdminColors.muted,
+                fontSize: 11,
+                fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
+
+class _StructuredFieldEntry {
+  const _StructuredFieldEntry({required this.label, required this.field});
+
+  final String label;
+  final ExtractedVerificationField field;
 }
 
 class _ListingCard extends StatelessWidget {

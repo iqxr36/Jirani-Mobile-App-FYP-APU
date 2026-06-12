@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 357;
 const int _kMaxDocumentBytes = 10 * 1024 * 1024;
+const _kAllowedDocumentExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
 
 class ResidencyVerificationView extends StatelessWidget {
   const ResidencyVerificationView({super.key});
@@ -100,7 +101,7 @@ class _ResidencyVerificationFormState
   Future<void> _pickFromFiles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'],
+      allowedExtensions: _kAllowedDocumentExtensions,
       withData: true,
     );
     final file = result?.files.single;

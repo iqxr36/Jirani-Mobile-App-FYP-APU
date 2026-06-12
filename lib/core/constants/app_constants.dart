@@ -34,6 +34,7 @@ class AppConstants {
   /// Firebase Storage root folder for verification uploads (see storage rules).
   static const String storageVerificationDocumentsPath =
       'verification_documents';
+  static const String storageResidentDocumentsPath = 'resident_documents';
   static const String storageItemImagesPath = 'item_images';
 
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
@@ -78,6 +79,13 @@ class AppConstants {
   static const String serviceRequestsCollection = 'serviceRequests';
   static const String transactionsCollection = 'transactions';
   static const String chatsCollection = 'chats';
+
+  /// Admin review statuses for extracted verification document data.
+  static const String adminStatusProcessing = 'processing';
+  static const String adminStatusPendingReview = 'pending_review';
+  static const String adminStatusManualCheckRequired = 'manual_check_required';
+  static const String adminStatusConfirmed = 'confirmed';
+  static const String adminStatusRejected = 'rejected';
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
   static const String activityLogsCollection = 'activityLogs';

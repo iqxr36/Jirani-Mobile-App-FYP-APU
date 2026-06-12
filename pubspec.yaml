@@ -58,6 +58,8 @@ dependencies:
   intl: ^0.20.2
   permission_handler: ^11.4.0
   file_picker: ^8.1.7
+  path: ^1.9.1
+  mime: ^2.0.0
   geolocator: ^14.0.2
   native_geofence: ^1.2.2
   url_launcher: ^6.3.1
@@ -104,10 +106,11 @@ flutter:
     - assets/auth1.png
     - assets/In-app-logo-Jirani.png
     - assets/In-app-logo-dark-mode-Jirani.png
-    - "assets/IOS-app-icon-draw(1).PNG"
-    - "assets/IOS-app-icon-dark-mode-draw(1).PNG"
-    - "assets/Android-app-icon-draw(1).PNG"
-    - "assets/Android-app-logo-dark-mode-draw(1).PNG"
+    - "assets/In-app Jirani no background.png"
+    # - "assets/IOS-app-icon-draw(1).PNG"
+    # - "assets/IOS-app-icon-dark-mode-draw(1).PNG"
+    # - "assets/Android-app-icon-draw(1).PNG"
+    # - "assets/Android-app-logo-dark-mode-draw(1).PNG"
     - assets/perm1.png
     - assets/perm2.png
     - assets/cam-perm.png

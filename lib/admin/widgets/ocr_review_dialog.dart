@@ -128,15 +128,15 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     return switch (_type) {
       DocumentType.tenancyAgreement => [
         _textField(_tenantNameController, 'Tenant Name', required: true),
+        _textField(_landlordNameController, 'Landlord Name', required: true),
         _textField(_unitNumberController, 'Unit Number', required: true),
+        _textField(_agreementDateController, 'Agreement Date', required: true),
         _textField(
           _propertyAddressController,
           'Property Address',
           required: true,
           maxLines: 2,
         ),
-        _textField(_landlordNameController, 'Landlord Name', required: true),
-        _textField(_agreementDateController, 'Agreement Date', required: true),
         _textField(_fullTextController, 'Full OCR Text', maxLines: 8),
       ],
       DocumentType.utilityBill => [
@@ -167,14 +167,11 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
       ],
       DocumentType.accessCard => [
         _textField(
-          _propertyAddressController,
-          'Property Address',
+          _fullTextController,
+          'Full OCR Text',
           required: true,
-          maxLines: 2,
+          maxLines: 8,
         ),
-        _textField(_unitNumberController, 'Unit Number', required: true),
-        _textField(_cardNumberController, 'Card Number', required: true),
-        _textField(_fullTextController, 'Full OCR Text', maxLines: 8),
       ],
       DocumentType.otherProof || DocumentType.unknown => [
         _textField(
@@ -227,13 +224,10 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
             : null,
         propertyAddress:
             _type == DocumentType.tenancyAgreement ||
-                _type == DocumentType.utilityBill ||
-                _type == DocumentType.accessCard
+                _type == DocumentType.utilityBill
             ? _emptyToNull(_propertyAddressController.text)
             : null,
-        unitNumber:
-            _type == DocumentType.tenancyAgreement ||
-                _type == DocumentType.accessCard
+        unitNumber: _type == DocumentType.tenancyAgreement
             ? _emptyToNull(_unitNumberController.text)
             : null,
         agreementDate: _type == DocumentType.tenancyAgreement
@@ -246,9 +240,7 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         billDate: _type == DocumentType.utilityBill
             ? _emptyToNull(_billDateController.text)
             : null,
-        cardNumber: _type == DocumentType.accessCard
-            ? _emptyToNull(_cardNumberController.text)
-            : null,
+        cardNumber: null,
         fullText: _fullTextController.text.trim(),
       ),
     );

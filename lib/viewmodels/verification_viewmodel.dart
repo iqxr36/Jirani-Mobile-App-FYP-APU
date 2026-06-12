@@ -88,7 +88,7 @@ class VerificationViewModel extends ChangeNotifier {
 
   String _mapSubmitError(Object e) {
     if (e is VerificationUnsupportedFileTypeException) {
-      return 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.';
+      return e.message;
     }
     if (e is FirebaseException) {
       switch (e.code) {

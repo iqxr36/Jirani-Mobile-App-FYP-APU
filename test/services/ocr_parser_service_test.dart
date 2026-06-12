@@ -116,18 +116,25 @@ TNB electricity account number 123456
       expect(result.amount, 'RM 185.70');
     });
 
-    test('extracts access card fields with card number fallback', () {
+    test('keeps access card OCR as full text only', () {
       final result = parser.processOcrText('''
-Property Address: One South Residence
-Unit Number: A-18-07
-RFID-102993
-Access Card
+Lift & Door Access
+GARDEN
+@ONE SOUTH
+Serviced Apartment
+C-05-06 (6)
+2452718904
+Issued By
+ONE SOUTH JMB
 ''');
 
       expect(result.type, DocumentType.accessCard);
-      expect(result.propertyAddress, 'One South Residence');
-      expect(result.unitNumber, 'A-18-07');
-      expect(result.cardNumber, 'RFID-102993');
+      expect(result.propertyAddress, isNull);
+      expect(result.unitNumber, isNull);
+      expect(result.cardNumber, isNull);
+      expect(result.fullText, contains('Lift & Door Access'));
+      expect(result.fullText, contains('2452718904'));
+      expect(result.toFieldMap(), containsPair('fullText', result.fullText));
     });
 
     test('falls back to other proof when document is unclear', () {

@@ -7,6 +7,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/data/models/app_user.dart';
 import 'package:jirani/data/models/verification_request.dart';
+import 'package:mime/mime.dart';
+import 'package:path/path.dart' as path;
 
 import 'verification_upload_platform_stub.dart'
     if (dart.library.io) 'verification_upload_platform_io.dart';
@@ -130,20 +132,89 @@ class VerificationRepository {
     }
     final appUser = AppUser.fromMap(userData);
 
+    final docRef = _firestore
+        .collection(AppConstants.verificationRequestsCollection)
+        .doc();
+    final requestId = docRef.id;
+    final isTenancyAgreement =
+        documentType == AppConstants.documentTypeTenancyAgreement;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileObjectName = _safeVerificationStorageObjectName(
       timestamp,
       originalFileName,
+      tenancyAgreement: isTenancyAgreement,
     );
 
-    final ref = _storage
-        .ref()
-        .child(AppConstants.storageVerificationDocumentsPath)
-        .child(uid)
-        .child(fileObjectName);
-    final mime = _mimeTypeForStorageName(fileObjectName);
+    final ref = isTenancyAgreement
+        ? _storage
+              .ref()
+              .child(AppConstants.storageResidentDocumentsPath)
+              .child(uid)
+              .child(requestId)
+              .child(fileObjectName)
+        : _storage
+              .ref()
+              .child(AppConstants.storageVerificationDocumentsPath)
+              .child(uid)
+              .child(fileObjectName);
+    final mime = _mimeTypeForStorageName(fileObjectName, fileBytes);
 
-    final metadata = SettableMetadata(contentType: mime);
+    final request = VerificationRequest(
+      id: requestId,
+      userId: uid,
+      fullName: appUser.fullName,
+      email: appUser.email,
+      phoneNumber: appUser.phoneNumber,
+      documentType: documentType,
+      documentUrl: '',
+      communityId: appUser.communityId,
+      communityName: communityName.trim(),
+      unitNumber: unitNumber.trim(),
+      notes: notes?.trim() ?? '',
+      status: AppConstants.verificationSubmitted,
+      rejectionReason: null,
+      submittedAt: DateTime.now(),
+      reviewedAt: null,
+      reviewedBy: null,
+      cancelledAt: null,
+      cancelledBy: null,
+      ocrStatus: isTenancyAgreement
+          ? AppConstants.ocrStatusProcessing
+          : AppConstants.ocrStatusPending,
+      ocrText: '',
+      ocrFields: const {},
+      ocrError: null,
+      ocrProcessedAt: null,
+      storagePath: ref.fullPath,
+      adminStatus: isTenancyAgreement
+          ? AppConstants.adminStatusProcessing
+          : AppConstants.adminStatusPendingReview,
+    );
+
+    if (isTenancyAgreement) {
+      await docRef
+          .set({
+            ...request.toMap(),
+            'fileName': fileObjectName,
+            'filePath': ref.fullPath,
+            'residentId': uid,
+            'residentEmail': appUser.email,
+            'uploadedAt': FieldValue.serverTimestamp(),
+            'submittedAt': FieldValue.serverTimestamp(),
+            'processedAt': null,
+            'extractedFields': const <String, dynamic>{},
+          })
+          .timeout(_networkTimeout);
+    }
+
+    final metadata = SettableMetadata(
+      contentType: mime,
+      customMetadata: {
+        'documentId': requestId,
+        'residentId': uid,
+        'documentType': isTenancyAgreement ? 'tenancy_agreement' : documentType,
+      },
+    );
 
     final uploadTask = putVerificationObject(
       ref,
@@ -169,46 +240,29 @@ class VerificationRepository {
           );
         },
       );
+    } catch (_) {
+      rethrow;
     } finally {
       await progressSub.cancel();
     }
     final documentUrl = await ref.getDownloadURL().timeout(_networkTimeout);
 
-    final docRef = _firestore
-        .collection(AppConstants.verificationRequestsCollection)
-        .doc();
-    final requestId = docRef.id;
-
-    final request = VerificationRequest(
-      id: requestId,
-      userId: uid,
-      fullName: appUser.fullName,
-      email: appUser.email,
-      phoneNumber: appUser.phoneNumber,
-      documentType: documentType,
-      documentUrl: documentUrl,
-      communityId: appUser.communityId,
-      communityName: communityName.trim(),
-      unitNumber: unitNumber.trim(),
-      notes: notes?.trim() ?? '',
-      status: AppConstants.verificationSubmitted,
-      rejectionReason: null,
-      submittedAt: DateTime.now(),
-      reviewedAt: null,
-      reviewedBy: null,
-      cancelledAt: null,
-      cancelledBy: null,
-      ocrStatus: AppConstants.ocrStatusPending,
-      ocrText: '',
-      ocrFields: const {},
-      ocrError: null,
-      ocrProcessedAt: null,
-      storagePath: ref.fullPath,
-    );
-
-    await docRef
-        .set({...request.toMap(), 'submittedAt': FieldValue.serverTimestamp()})
-        .timeout(_networkTimeout);
+    if (isTenancyAgreement) {
+      await docRef
+          .update({
+            'documentUrl': documentUrl,
+            'fileUrl': documentUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          })
+          .timeout(_networkTimeout);
+    } else {
+      await docRef
+          .set({
+            ...request.copyWith(documentUrl: documentUrl).toMap(),
+            'submittedAt': FieldValue.serverTimestamp(),
+          })
+          .timeout(_networkTimeout);
+    }
 
     await _firestore
         .collection(AppConstants.usersCollection)
@@ -233,9 +287,10 @@ class VerificationRepository {
   /// `{timestamp}_verification_document.{ext}` - ext from [originalFileName] only, sanitized.
   static String _safeVerificationStorageObjectName(
     int timestamp,
-    String originalFileName,
-  ) {
-    final baseName = originalFileName.split(RegExp(r'[/\\]')).last;
+    String originalFileName, {
+    required bool tenancyAgreement,
+  }) {
+    final baseName = path.basename(originalFileName);
     final dot = baseName.lastIndexOf('.');
     var ext = '';
     if (dot != -1 && dot < baseName.length - 1) {
@@ -250,20 +305,38 @@ class VerificationRepository {
       );
     }
 
-    const allowed = {'jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'};
+    final allowed = tenancyAgreement
+        ? const {'jpg', 'jpeg', 'png', 'pdf'}
+        : const {'jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'};
     if (!allowed.contains(ext)) {
       throw VerificationUnsupportedFileTypeException(
-        'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
+        tenancyAgreement
+            ? 'Only JPG, JPEG, PNG, or PDF tenancy agreements are supported.'
+            : 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
       );
     }
 
     if (ext == 'jpeg') ext = 'jpg';
 
-    return '${timestamp}_verification_document.$ext';
+    if (!tenancyAgreement) {
+      return '${timestamp}_verification_document.$ext';
+    }
+
+    final stem = dot == -1 ? baseName : baseName.substring(0, dot);
+    final safeStem = stem
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    return '${safeStem.isEmpty ? 'tenancy_agreement' : safeStem}.$ext';
   }
 
   /// MIME for Firebase Storage metadata (jpg + jpeg both -> image/jpeg).
-  static String _mimeTypeForStorageName(String safeFileName) {
+  static String _mimeTypeForStorageName(
+    String safeFileName,
+    Uint8List fileBytes,
+  ) {
+    final detected = lookupMimeType(safeFileName, headerBytes: fileBytes);
+    if (detected != null) return detected;
     final lower = safeFileName.toLowerCase();
     if (lower.endsWith('.jpg')) return 'image/jpeg';
     if (lower.endsWith('.png')) return 'image/png';

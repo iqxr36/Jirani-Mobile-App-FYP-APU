@@ -27,6 +27,10 @@ class VerificationRequest {
     this.ocrError,
     this.ocrProcessedAt,
     this.storagePath = '',
+    this.adminStatus = '',
+    this.extractedFields = const {},
+    this.processedAt,
+    this.errorMessage,
   });
 
   final String id;
@@ -53,6 +57,10 @@ class VerificationRequest {
   final String? ocrError;
   final DateTime? ocrProcessedAt;
   final String storagePath;
+  final String adminStatus;
+  final Map<String, ExtractedVerificationField> extractedFields;
+  final DateTime? processedAt;
+  final String? errorMessage;
 
   VerificationRequest copyWith({
     String? id,
@@ -79,6 +87,10 @@ class VerificationRequest {
     String? ocrError,
     DateTime? ocrProcessedAt,
     String? storagePath,
+    String? adminStatus,
+    Map<String, ExtractedVerificationField>? extractedFields,
+    DateTime? processedAt,
+    String? errorMessage,
   }) {
     return VerificationRequest(
       id: id ?? this.id,
@@ -105,6 +117,10 @@ class VerificationRequest {
       ocrError: ocrError ?? this.ocrError,
       ocrProcessedAt: ocrProcessedAt ?? this.ocrProcessedAt,
       storagePath: storagePath ?? this.storagePath,
+      adminStatus: adminStatus ?? this.adminStatus,
+      extractedFields: extractedFields ?? this.extractedFields,
+      processedAt: processedAt ?? this.processedAt,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 
@@ -138,6 +154,14 @@ class VerificationRequest {
           ? Timestamp.fromDate(ocrProcessedAt!)
           : null,
       'storagePath': storagePath,
+      'adminStatus': adminStatus,
+      'extractedFields': extractedFields.map(
+        (key, value) => MapEntry(key, value.toMap()),
+      ),
+      'processedAt': processedAt != null
+          ? Timestamp.fromDate(processedAt!)
+          : null,
+      'errorMessage': errorMessage,
     };
   }
 
@@ -172,6 +196,10 @@ class VerificationRequest {
       ocrError: map['ocrError'] as String?,
       ocrProcessedAt: _parseOptionalDate(map['ocrProcessedAt']),
       storagePath: (map['storagePath'] as String?) ?? '',
+      adminStatus: (map['adminStatus'] as String?) ?? '',
+      extractedFields: _parseExtractedFields(map['extractedFields']),
+      processedAt: _parseOptionalDate(map['processedAt']),
+      errorMessage: map['errorMessage'] as String?,
     );
   }
 
@@ -195,10 +223,55 @@ class VerificationRequest {
   static Map<String, String> _parseStringMap(dynamic value) {
     if (value is! Map) return const {};
     return value.map(
-      (key, fieldValue) => MapEntry(
+      (key, fieldValue) =>
+          MapEntry(key.toString(), fieldValue?.toString() ?? ''),
+    );
+  }
+
+  static Map<String, ExtractedVerificationField> _parseExtractedFields(
+    dynamic value,
+  ) {
+    if (value is! Map) return const {};
+    return value.map((key, fieldValue) {
+      return MapEntry(
         key.toString(),
-        fieldValue?.toString() ?? '',
-      ),
+        ExtractedVerificationField.fromValue(fieldValue),
+      );
+    });
+  }
+}
+
+class ExtractedVerificationField {
+  const ExtractedVerificationField({
+    required this.value,
+    required this.confidence,
+    this.source = '',
+  });
+
+  final String value;
+  final double confidence;
+  final String source;
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'value': value,
+      'confidence': confidence,
+      if (source.isNotEmpty) 'source': source,
+    };
+  }
+
+  factory ExtractedVerificationField.fromValue(dynamic value) {
+    if (value is Map) {
+      final rawConfidence = value['confidence'];
+      return ExtractedVerificationField(
+        value: value['value']?.toString() ?? '',
+        confidence: rawConfidence is num ? rawConfidence.toDouble() : 0,
+        source: value['source']?.toString() ?? '',
+      );
+    }
+    return ExtractedVerificationField(
+      value: value?.toString() ?? '',
+      confidence: 0,
     );
   }
 }

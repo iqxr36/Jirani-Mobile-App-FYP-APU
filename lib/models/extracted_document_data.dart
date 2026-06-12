@@ -68,7 +68,9 @@ class ExtractedDocumentData {
     add('amount', amount);
     add('billDate', billDate);
     add('cardNumber', cardNumber);
-    if (includeFullText) add('fullText', fullText);
+    final fullTextOnlyDocument =
+        type == DocumentType.accessCard || type == DocumentType.otherProof;
+    if (includeFullText || fullTextOnlyDocument) add('fullText', fullText);
 
     return fields;
   }
@@ -122,6 +124,7 @@ DocumentType documentTypeFromValue(String value) {
 
   final lower = normalized.toLowerCase();
   return switch (lower) {
+    'tenancyagreement' || 'tenancy_agreement' => DocumentType.tenancyAgreement,
     'tenancy agreement' => DocumentType.tenancyAgreement,
     'utility bill' => DocumentType.utilityBill,
     'access card' => DocumentType.accessCard,
