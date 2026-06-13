@@ -3,7 +3,7 @@ import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/forgot_password_view.dart';
 import 'package:jirani/views/auth/register_view.dart';
-import 'package:jirani/widgets/common/jirani_logo.dart';
+import 'package:jirani/shared/widgets/jirani_logo.dart';
 import 'package:provider/provider.dart';
 
 /// Resident login - Jirani (Figma Group 13).

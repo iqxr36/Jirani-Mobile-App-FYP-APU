@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
-import 'package:jirani/widgets/auth_feedback_banner.dart';
+import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 const Color _brandTeal = Color(0xFF006D77);

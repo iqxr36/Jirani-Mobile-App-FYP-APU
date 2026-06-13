@@ -2,14 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/item_model.dart';
-import 'package:jirani/data/models/verification_request.dart';
-import 'package:jirani/models/extracted_document_data.dart';
-import 'package:jirani/models/borrow_request.dart';
-import 'package:jirani/models/report_model.dart';
-import 'package:jirani/models/service_request_model.dart';
-import 'package:jirani/models/service_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/item_model.dart';
+import 'package:jirani/shared/models/verification_request.dart';
+import 'package:jirani/shared/models/extracted_document_data.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/report_model.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
+import 'package:jirani/shared/models/service_model.dart';
 
 class AdminService {
   AdminService({FirebaseAuth? auth, FirebaseFirestore? firestore})

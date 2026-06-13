@@ -6,7 +6,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/providers/auth_provider.dart';
 import 'package:jirani/screens/auth/auth_wrapper.dart';
-import 'package:jirani/widgets/common/jirani_background.dart';
+import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 

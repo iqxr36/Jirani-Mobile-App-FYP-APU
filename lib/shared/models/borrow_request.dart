@@ -147,7 +147,8 @@ class BorrowRequest {
       borrowerEmail: borrowerEmail ?? this.borrowerEmail,
       borrowerPhoneNumber: borrowerPhoneNumber ?? this.borrowerPhoneNumber,
       borrowerVerified: borrowerVerified ?? this.borrowerVerified,
-      borrowerReputationScore: borrowerReputationScore ?? this.borrowerReputationScore,
+      borrowerReputationScore:
+          borrowerReputationScore ?? this.borrowerReputationScore,
       requestedStartDate: requestedStartDate ?? this.requestedStartDate,
       expectedReturnDate: expectedReturnDate ?? this.expectedReturnDate,
       pickupTime: pickupTime ?? this.pickupTime,
@@ -168,14 +169,16 @@ class BorrowRequest {
       returnConfirmedAt: returnConfirmedAt ?? this.returnConfirmedAt,
       completedAt: completedAt ?? this.completedAt,
       pickupProofImageUrl: pickupProofImageUrl ?? this.pickupProofImageUrl,
-      handoverProofImageUrl: handoverProofImageUrl ?? this.handoverProofImageUrl,
+      handoverProofImageUrl:
+          handoverProofImageUrl ?? this.handoverProofImageUrl,
       returnProofImageUrl: returnProofImageUrl ?? this.returnProofImageUrl,
       itemConditionBefore: itemConditionBefore ?? this.itemConditionBefore,
       itemConditionAfter: itemConditionAfter ?? this.itemConditionAfter,
       returnNotes: returnNotes ?? this.returnNotes,
       ownerReturnNotes: ownerReturnNotes ?? this.ownerReturnNotes,
       depositDecision: depositDecision ?? this.depositDecision,
-      depositDecisionReason: depositDecisionReason ?? this.depositDecisionReason,
+      depositDecisionReason:
+          depositDecisionReason ?? this.depositDecisionReason,
       depositDecidedAt: depositDecidedAt ?? this.depositDecidedAt,
     );
   }
@@ -200,9 +203,13 @@ class BorrowRequest {
       pickupTime: (data['pickupTime'] as String?) ?? '',
       message: (data['message'] as String?) ?? '',
       status: (data['status'] as String?) ?? AppConstants.borrowStatusPending,
-      hasUsageFee: data['hasUsageFee'] as bool? ?? ((_toDouble(data['usageFeeAmount']) ?? 0) > 0),
+      hasUsageFee:
+          data['hasUsageFee'] as bool? ??
+          ((_toDouble(data['usageFeeAmount']) ?? 0) > 0),
       usageFeeAmount: _toDouble(data['usageFeeAmount']),
-      hasDeposit: data['hasDeposit'] as bool? ?? ((_toDouble(data['depositAmount']) ?? 0) > 0),
+      hasDeposit:
+          data['hasDeposit'] as bool? ??
+          ((_toDouble(data['depositAmount']) ?? 0) > 0),
       depositAmount: _toDouble(data['depositAmount']),
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
@@ -255,21 +262,45 @@ class BorrowRequest {
       'approvedAt': approvedAt == null ? null : Timestamp.fromDate(approvedAt!),
       'rejectedAt': rejectedAt == null ? null : Timestamp.fromDate(rejectedAt!),
       'rejectionReason': rejectionReason,
-      'pickupConfirmedAt': pickupConfirmedAt == null ? null : Timestamp.fromDate(pickupConfirmedAt!),
-      'handoverConfirmedAt': handoverConfirmedAt == null ? null : Timestamp.fromDate(handoverConfirmedAt!),
-      'returnSubmittedAt': returnSubmittedAt == null ? null : Timestamp.fromDate(returnSubmittedAt!),
-      'returnConfirmedAt': returnConfirmedAt == null ? null : Timestamp.fromDate(returnConfirmedAt!),
-      'completedAt': completedAt == null ? null : Timestamp.fromDate(completedAt!),
-      'pickupProofImageUrl': pickupProofImageUrl.isEmpty ? null : pickupProofImageUrl,
-      'handoverProofImageUrl': handoverProofImageUrl.isEmpty ? null : handoverProofImageUrl,
-      'returnProofImageUrl': returnProofImageUrl.isEmpty ? null : returnProofImageUrl,
-      'itemConditionBefore': itemConditionBefore.isEmpty ? null : itemConditionBefore,
-      'itemConditionAfter': itemConditionAfter.isEmpty ? null : itemConditionAfter,
+      'pickupConfirmedAt': pickupConfirmedAt == null
+          ? null
+          : Timestamp.fromDate(pickupConfirmedAt!),
+      'handoverConfirmedAt': handoverConfirmedAt == null
+          ? null
+          : Timestamp.fromDate(handoverConfirmedAt!),
+      'returnSubmittedAt': returnSubmittedAt == null
+          ? null
+          : Timestamp.fromDate(returnSubmittedAt!),
+      'returnConfirmedAt': returnConfirmedAt == null
+          ? null
+          : Timestamp.fromDate(returnConfirmedAt!),
+      'completedAt': completedAt == null
+          ? null
+          : Timestamp.fromDate(completedAt!),
+      'pickupProofImageUrl': pickupProofImageUrl.isEmpty
+          ? null
+          : pickupProofImageUrl,
+      'handoverProofImageUrl': handoverProofImageUrl.isEmpty
+          ? null
+          : handoverProofImageUrl,
+      'returnProofImageUrl': returnProofImageUrl.isEmpty
+          ? null
+          : returnProofImageUrl,
+      'itemConditionBefore': itemConditionBefore.isEmpty
+          ? null
+          : itemConditionBefore,
+      'itemConditionAfter': itemConditionAfter.isEmpty
+          ? null
+          : itemConditionAfter,
       'returnNotes': returnNotes,
       'ownerReturnNotes': ownerReturnNotes,
       'depositDecision': depositDecision,
-      'depositDecisionReason': depositDecisionReason.isEmpty ? null : depositDecisionReason,
-      'depositDecidedAt': depositDecidedAt == null ? null : Timestamp.fromDate(depositDecidedAt!),
+      'depositDecisionReason': depositDecisionReason.isEmpty
+          ? null
+          : depositDecisionReason,
+      'depositDecidedAt': depositDecidedAt == null
+          ? null
+          : Timestamp.fromDate(depositDecidedAt!),
     };
   }
 
@@ -300,7 +331,11 @@ class BorrowRequest {
   static String _parseDepositDecision(Map<String, dynamic> data) {
     final raw = (data['depositDecision'] as String?)?.trim() ?? '';
     if (raw.isNotEmpty) return raw;
-    final hd = data['hasDeposit'] as bool? ?? ((_toDouble(data['depositAmount']) ?? 0) > 0);
-    return hd ? AppConstants.depositDecisionPending : AppConstants.depositDecisionNotRequired;
+    final hd =
+        data['hasDeposit'] as bool? ??
+        ((_toDouble(data['depositAmount']) ?? 0) > 0);
+    return hd
+        ? AppConstants.depositDecisionPending
+        : AppConstants.depositDecisionNotRequired;
   }
 }

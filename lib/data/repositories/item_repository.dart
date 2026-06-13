@@ -4,17 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/item_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/item_model.dart';
 
 class ItemRepository {
   ItemRepository({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -48,11 +48,13 @@ class ItemRepository {
       final q = (searchQuery ?? '').trim().toLowerCase();
       final filtered = q.isEmpty
           ? items
-          : items.where((item) {
-              return item.title.toLowerCase().contains(q) ||
-                  item.category.toLowerCase().contains(q) ||
-                  item.description.toLowerCase().contains(q);
-            }).toList(growable: false);
+          : items
+                .where((item) {
+                  return item.title.toLowerCase().contains(q) ||
+                      item.category.toLowerCase().contains(q) ||
+                      item.description.toLowerCase().contains(q);
+                })
+                .toList(growable: false);
 
       final sorted = filtered.toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -81,7 +83,10 @@ class ItemRepository {
 
   Future<ItemModel?> getItemById(String itemId) async {
     try {
-      final doc = await _firestore.collection(AppConstants.itemsCollection).doc(itemId).get();
+      final doc = await _firestore
+          .collection(AppConstants.itemsCollection)
+          .doc(itemId)
+          .get();
       final data = doc.data();
       if (data == null) return null;
       return ItemModel.fromMap(doc.id, data);
@@ -168,7 +173,9 @@ class ItemRepository {
       throw Exception('You must be signed in.');
     }
 
-    final docRef = _firestore.collection(AppConstants.itemsCollection).doc(itemId);
+    final docRef = _firestore
+        .collection(AppConstants.itemsCollection)
+        .doc(itemId);
     final snap = await docRef.get();
     final data = snap.data();
     if (data == null) {
@@ -182,7 +189,11 @@ class ItemRepository {
       final existing = ItemModel.fromMap(snap.id, data);
       var imageUrls = existing.imageUrls;
       if (newImagePaths != null && newImagePaths.isNotEmpty) {
-        final uploaded = await uploadItemImages(uid: uid, itemId: itemId, filePaths: newImagePaths);
+        final uploaded = await uploadItemImages(
+          uid: uid,
+          itemId: itemId,
+          filePaths: newImagePaths,
+        );
         imageUrls = <String>[...existing.imageUrls, ...uploaded];
       }
 
@@ -215,7 +226,9 @@ class ItemRepository {
       throw Exception('You must be signed in.');
     }
 
-    final docRef = _firestore.collection(AppConstants.itemsCollection).doc(itemId);
+    final docRef = _firestore
+        .collection(AppConstants.itemsCollection)
+        .doc(itemId);
     final snap = await docRef.get();
     final data = snap.data();
     if (data == null) {
@@ -264,7 +277,10 @@ class ItemRepository {
     return urls;
   }
 
-  static String _deriveLendingType({required bool hasUsageFee, required bool hasDeposit}) {
+  static String _deriveLendingType({
+    required bool hasUsageFee,
+    required bool hasDeposit,
+  }) {
     if (hasUsageFee && hasDeposit) return AppConstants.lendingTypeFeeAndDeposit;
     if (hasUsageFee) return AppConstants.lendingTypeSmallFee;
     if (hasDeposit) return AppConstants.lendingTypeDepositRequired;

@@ -1,16 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/models/service_model.dart';
-import 'package:jirani/models/service_request_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/service_model.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 
 class ServiceService {
-  ServiceService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  ServiceService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -22,19 +20,28 @@ class ServiceService {
       _firestore.collection(AppConstants.serviceRequestsCollection);
 
   Stream<List<ServiceModel>> watchActiveServices() {
-    return _services.where('status', isEqualTo: AppConstants.serviceStatusActive).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ServiceModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
+    return _services
+        .where('status', isEqualTo: AppConstants.serviceStatusActive)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((d) => ServiceModel.fromMap(d.id, d.data()))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
   Stream<List<ServiceModel>> watchMyServices(String providerId) {
-    return _services.where('providerId', isEqualTo: providerId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ServiceModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      return list;
-    });
+    return _services.where('providerId', isEqualTo: providerId).snapshots().map(
+      (snapshot) {
+        final list = snapshot.docs
+            .map((d) => ServiceModel.fromMap(d.id, d.data()))
+            .toList();
+        list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        return list;
+      },
+    );
   }
 
   Future<ServiceModel?> getService(String serviceId) async {
@@ -45,19 +52,30 @@ class ServiceService {
   }
 
   Stream<List<ServiceRequestModel>> watchMyServiceRequests(String requesterId) {
-    return _requests.where('requesterId', isEqualTo: requesterId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ServiceRequestModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
+    return _requests
+        .where('requesterId', isEqualTo: requesterId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((d) => ServiceRequestModel.fromMap(d.id, d.data()))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
-  Stream<List<ServiceRequestModel>> watchIncomingServiceRequests(String providerId) {
-    return _requests.where('providerId', isEqualTo: providerId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ServiceRequestModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
+  Stream<List<ServiceRequestModel>> watchIncomingServiceRequests(
+    String providerId,
+  ) {
+    return _requests.where('providerId', isEqualTo: providerId).snapshots().map(
+      (snapshot) {
+        final list = snapshot.docs
+            .map((d) => ServiceRequestModel.fromMap(d.id, d.data()))
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      },
+    );
   }
 
   Future<void> createService({
@@ -135,7 +153,9 @@ class ServiceService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for services.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for services.',
+        );
       }
       throw Exception(e.message ?? 'Failed to create service.');
     }
@@ -173,7 +193,9 @@ class ServiceService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for services.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for services.',
+        );
       }
       throw Exception(e.message ?? 'Failed to update service.');
     }
@@ -220,7 +242,9 @@ class ServiceService {
         'requesterId': requester.uid,
         'requesterName': requester.fullName,
         'message': msg,
-        'preferredDate': Timestamp.fromDate(DateTime(preferredDate.year, preferredDate.month, preferredDate.day)),
+        'preferredDate': Timestamp.fromDate(
+          DateTime(preferredDate.year, preferredDate.month, preferredDate.day),
+        ),
         'preferredTime': pt,
         'status': AppConstants.serviceRequestStatusPending,
         'createdAt': now,
@@ -228,7 +252,9 @@ class ServiceService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for service requests.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for service requests.',
+        );
       }
       throw Exception(e.message ?? 'Failed to submit service request.');
     }
@@ -318,7 +344,9 @@ class ServiceService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for service requests.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for service requests.',
+        );
       }
       throw Exception(e.message ?? 'Failed to update service request.');
     }

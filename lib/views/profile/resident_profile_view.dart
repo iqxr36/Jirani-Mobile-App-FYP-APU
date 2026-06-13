@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
 import 'package:jirani/views/auth/phone_verification_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
-import 'package:jirani/widgets/common/jirani_background.dart';
+import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -441,10 +441,7 @@ class _IdentityVerificationPanel extends StatelessWidget {
             actionLabel: 'Verify now',
             onTap: onVerifyEmail,
           ),
-          Divider(
-            height: 14,
-            color: Colors.black.withValues(alpha: 0.08),
-          ),
+          Divider(height: 14, color: Colors.black.withValues(alpha: 0.08)),
           _IdentityVerificationRow(
             icon: Icons.sms_outlined,
             title: 'Phone Number',

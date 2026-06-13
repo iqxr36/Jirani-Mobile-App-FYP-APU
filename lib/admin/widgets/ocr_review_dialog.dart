@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/models/extracted_document_data.dart';
+import 'package:jirani/shared/models/extracted_document_data.dart';
 
 class OcrReviewDialog extends StatefulWidget {
   const OcrReviewDialog({super.key, required this.initialData});
@@ -190,11 +190,12 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     bool required = false,
     int maxLines = 1,
   }) {
+    final minLines = maxLines > 1 ? (maxLines < 3 ? maxLines : 3) : 1;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
-        minLines: maxLines > 1 ? 3 : 1,
+        minLines: minLines,
         maxLines: maxLines,
         decoration: InputDecoration(labelText: label),
         validator: required

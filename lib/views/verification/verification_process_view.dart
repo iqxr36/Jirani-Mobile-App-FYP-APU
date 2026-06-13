@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/residency_verification_view.dart';

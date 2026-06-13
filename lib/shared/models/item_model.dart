@@ -111,13 +111,18 @@ class ItemModel {
   factory ItemModel.fromMap(String id, Map<String, dynamic> data) {
     final fee = _toDouble(data['feeAmount']);
     final deposit = _toDouble(data['depositAmount']);
-    final rawLendingType = (data['lendingType'] as String?) ?? AppConstants.lendingTypeFree;
+    final rawLendingType =
+        (data['lendingType'] as String?) ?? AppConstants.lendingTypeFree;
     final hasUsageFee =
         data['hasUsageFee'] as bool? ??
-        ((fee != null && fee > 0) || rawLendingType == AppConstants.lendingTypeSmallFee || rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
+        ((fee != null && fee > 0) ||
+            rawLendingType == AppConstants.lendingTypeSmallFee ||
+            rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
     final hasDeposit =
         data['hasDeposit'] as bool? ??
-        ((deposit != null && deposit > 0) || rawLendingType == AppConstants.lendingTypeDepositRequired || rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
+        ((deposit != null && deposit > 0) ||
+            rawLendingType == AppConstants.lendingTypeDepositRequired ||
+            rawLendingType == AppConstants.lendingTypeFeeAndDeposit);
 
     return ItemModel(
       id: id,
@@ -130,9 +135,13 @@ class ItemModel {
       title: (data['title'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
       category: (data['category'] as String?) ?? AppConstants.itemCategoryOther,
-      condition: (data['condition'] as String?) ?? AppConstants.itemConditionUsed,
+      condition:
+          (data['condition'] as String?) ?? AppConstants.itemConditionUsed,
       imageUrls: _toStringList(data['imageUrls']),
-      lendingType: _deriveLendingType(hasUsageFee: hasUsageFee, hasDeposit: hasDeposit),
+      lendingType: _deriveLendingType(
+        hasUsageFee: hasUsageFee,
+        hasDeposit: hasDeposit,
+      ),
       hasUsageFee: hasUsageFee,
       feeAmount: hasUsageFee ? fee : null,
       hasDeposit: hasDeposit,
@@ -160,7 +169,10 @@ class ItemModel {
       'category': category,
       'condition': condition,
       'imageUrls': imageUrls,
-      'lendingType': _deriveLendingType(hasUsageFee: hasUsageFee, hasDeposit: hasDeposit),
+      'lendingType': _deriveLendingType(
+        hasUsageFee: hasUsageFee,
+        hasDeposit: hasDeposit,
+      ),
       'hasUsageFee': hasUsageFee,
       'feeAmount': hasUsageFee ? feeAmount : null,
       'hasDeposit': hasDeposit,
@@ -202,7 +214,10 @@ class ItemModel {
     return const <String>[];
   }
 
-  static String _deriveLendingType({required bool hasUsageFee, required bool hasDeposit}) {
+  static String _deriveLendingType({
+    required bool hasUsageFee,
+    required bool hasDeposit,
+  }) {
     if (hasUsageFee && hasDeposit) return AppConstants.lendingTypeFeeAndDeposit;
     if (hasUsageFee) return AppConstants.lendingTypeSmallFee;
     if (hasDeposit) return AppConstants.lendingTypeDepositRequired;

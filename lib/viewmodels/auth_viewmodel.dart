@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuthException, PhoneAuthCredential, User;
 import 'package:flutter/foundation.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
-import 'package:jirani/data/models/admin_user.dart';
-import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/shared/models/admin_user.dart';
+import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/data/repositories/auth_repository.dart';
 import 'package:jirani/data/repositories/user_repository.dart';
 
@@ -355,18 +356,55 @@ class AuthViewModel extends ChangeNotifier {
       throw Exception('You must be signed in to select a community.');
     }
 
-    await _userRepository.updateUserFields(
-      uid: uid,
-      fields: {
-        'communityId': communityId.trim(),
-        'communityName': communityName.trim(),
-      },
-    );
+    final nextCommunityId = communityId.trim();
+    final nextCommunityName = communityName.trim();
+    final currentUser = _currentUser;
+    final shouldResetResidencyVerification =
+        currentUser?.verificationStatus == AppConstants.verificationVerified &&
+        _isCommunityChange(
+          currentUser: currentUser,
+          nextCommunityId: nextCommunityId,
+          nextCommunityName: nextCommunityName,
+        );
+    final fields = <String, dynamic>{
+      'communityId': nextCommunityId,
+      'communityName': nextCommunityName,
+    };
+
+    if (shouldResetResidencyVerification) {
+      fields.addAll({
+        'verificationStatus': AppConstants.verificationPending,
+        'locationVerified': false,
+        'locationVerificationStatus': AppConstants.verificationPending,
+        'locationVerifiedCommunityName': '',
+      });
+    }
+
+    await _userRepository.updateUserFields(uid: uid, fields: fields);
     _currentUser = _currentUser?.copyWith(
-      communityId: communityId.trim(),
-      communityName: communityName.trim(),
+      communityId: nextCommunityId,
+      communityName: nextCommunityName,
+      verificationStatus: shouldResetResidencyVerification
+          ? AppConstants.verificationPending
+          : null,
+      locationVerified: shouldResetResidencyVerification ? false : null,
     );
     notifyListeners();
+  }
+
+  bool _isCommunityChange({
+    required AppUser? currentUser,
+    required String nextCommunityId,
+    required String nextCommunityName,
+  }) {
+    if (currentUser == null) return false;
+
+    final currentCommunityId = currentUser.communityId.trim();
+    final currentCommunityName = currentUser.communityName.trim();
+    if (currentCommunityId.isNotEmpty && nextCommunityId.isNotEmpty) {
+      return currentCommunityId != nextCommunityId;
+    }
+    return currentCommunityName != nextCommunityName;
   }
 
   Future<void> markLocationVerified() async {

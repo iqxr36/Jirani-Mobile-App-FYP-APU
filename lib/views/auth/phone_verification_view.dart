@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 import '../../viewmodels/auth_viewmodel.dart';
-import '../../widgets/auth_feedback_banner.dart';
 
 const Color _brandTeal = Color(0xFF006D77);
 const Color _fieldBorder = Color(0xFFE0E0E0);

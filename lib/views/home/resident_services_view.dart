@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/widgets/common/jirani_background.dart';
+import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);

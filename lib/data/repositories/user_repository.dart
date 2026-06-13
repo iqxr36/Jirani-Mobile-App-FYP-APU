@@ -3,7 +3,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 
 class UserRepository {
   UserRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 

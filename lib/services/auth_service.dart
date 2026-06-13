@@ -1,8 +1,5 @@
 import 'package:jirani/data/repositories/auth_repository.dart';
 
 class AuthService extends AuthRepository {
-  AuthService({
-    super.authService,
-    super.firestore,
-  });
+  AuthService({super.authService, super.firestore});
 }

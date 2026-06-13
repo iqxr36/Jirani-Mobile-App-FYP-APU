@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/data/repositories/verification_repository.dart';
 
 class VerificationViewModel extends ChangeNotifier {

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jirani/services/location_onboarding_prefs.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
-import 'package:jirani/widgets/common/jirani_modal.dart';
+import 'package:jirani/shared/widgets/jirani_modal.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'community_confirmation_view.dart';

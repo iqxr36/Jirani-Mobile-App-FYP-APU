@@ -4,7 +4,7 @@ import 'package:jirani/views/home/resident_home_view.dart';
 import 'package:jirani/views/home/resident_marketplace_view.dart';
 import 'package:jirani/views/home/resident_services_view.dart';
 import 'package:jirani/views/profile/resident_profile_view.dart';
-import 'package:jirani/widgets/common/verification_locked_overlay.dart';
+import 'package:jirani/shared/widgets/verification_locked_overlay.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);

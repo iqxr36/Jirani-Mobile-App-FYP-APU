@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/models/service_model.dart';
-import 'package:jirani/models/service_request_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/service_model.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/services/service_service.dart';
 
 class ServiceProvider extends ChangeNotifier {
-  ServiceProvider({ServiceService? service}) : _service = service ?? ServiceService();
+  ServiceProvider({ServiceService? service})
+    : _service = service ?? ServiceService();
 
   final ServiceService _service;
 
@@ -23,18 +24,28 @@ class ServiceProvider extends ChangeNotifier {
   }
 
   Stream<List<ServiceModel>> myServicesStream(String providerId) {
-    return _myServicesCache.putIfAbsent(providerId, () => _service.watchMyServices(providerId));
+    return _myServicesCache.putIfAbsent(
+      providerId,
+      () => _service.watchMyServices(providerId),
+    );
   }
 
   Stream<List<ServiceRequestModel>> myRequestsStream(String requesterId) {
-    return _myReqCache.putIfAbsent(requesterId, () => _service.watchMyServiceRequests(requesterId));
+    return _myReqCache.putIfAbsent(
+      requesterId,
+      () => _service.watchMyServiceRequests(requesterId),
+    );
   }
 
   Stream<List<ServiceRequestModel>> incomingRequestsStream(String providerId) {
-    return _incomingCache.putIfAbsent(providerId, () => _service.watchIncomingServiceRequests(providerId));
+    return _incomingCache.putIfAbsent(
+      providerId,
+      () => _service.watchIncomingServiceRequests(providerId),
+    );
   }
 
-  Future<ServiceModel?> getService(String serviceId) => _service.getService(serviceId);
+  Future<ServiceModel?> getService(String serviceId) =>
+      _service.getService(serviceId);
 
   Future<void> createService({
     required AppUser provider,
@@ -71,7 +82,11 @@ class ServiceProvider extends ChangeNotifier {
     _busy = true;
     notifyListeners();
     try {
-      await _service.setServiceStatus(serviceId: serviceId, providerId: providerId, status: status);
+      await _service.setServiceStatus(
+        serviceId: serviceId,
+        providerId: providerId,
+        status: status,
+      );
     } finally {
       _busy = false;
       notifyListeners();
@@ -101,44 +116,68 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> acceptServiceRequest({required String requestId, required String providerId}) async {
+  Future<void> acceptServiceRequest({
+    required String requestId,
+    required String providerId,
+  }) async {
     _busy = true;
     notifyListeners();
     try {
-      await _service.acceptServiceRequest(requestId: requestId, providerId: providerId);
+      await _service.acceptServiceRequest(
+        requestId: requestId,
+        providerId: providerId,
+      );
     } finally {
       _busy = false;
       notifyListeners();
     }
   }
 
-  Future<void> rejectServiceRequest({required String requestId, required String providerId}) async {
+  Future<void> rejectServiceRequest({
+    required String requestId,
+    required String providerId,
+  }) async {
     _busy = true;
     notifyListeners();
     try {
-      await _service.rejectServiceRequest(requestId: requestId, providerId: providerId);
+      await _service.rejectServiceRequest(
+        requestId: requestId,
+        providerId: providerId,
+      );
     } finally {
       _busy = false;
       notifyListeners();
     }
   }
 
-  Future<void> cancelServiceRequest({required String requestId, required String requesterId}) async {
+  Future<void> cancelServiceRequest({
+    required String requestId,
+    required String requesterId,
+  }) async {
     _busy = true;
     notifyListeners();
     try {
-      await _service.cancelServiceRequest(requestId: requestId, requesterId: requesterId);
+      await _service.cancelServiceRequest(
+        requestId: requestId,
+        requesterId: requesterId,
+      );
     } finally {
       _busy = false;
       notifyListeners();
     }
   }
 
-  Future<void> completeServiceRequest({required String requestId, required String providerId}) async {
+  Future<void> completeServiceRequest({
+    required String requestId,
+    required String providerId,
+  }) async {
     _busy = true;
     notifyListeners();
     try {
-      await _service.completeServiceRequest(requestId: requestId, providerId: providerId);
+      await _service.completeServiceRequest(
+        requestId: requestId,
+        providerId: providerId,
+      );
     } finally {
       _busy = false;
       notifyListeners();

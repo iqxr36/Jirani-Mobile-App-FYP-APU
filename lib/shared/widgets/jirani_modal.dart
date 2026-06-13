@@ -86,7 +86,11 @@ class JiraniDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _JiraniModalHeader(title: title, subtitle: subtitle, icon: icon),
+                _JiraniModalHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  icon: icon,
+                ),
                 const SizedBox(height: 18),
                 content,
                 const SizedBox(height: 20),
@@ -151,7 +155,9 @@ class JiraniModalOption extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _kBrandTeal.withValues(alpha: selected ? 0.16 : 0.10),
+                    color: _kBrandTeal.withValues(
+                      alpha: selected ? 0.16 : 0.10,
+                    ),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: _kBrandTeal, size: 21),

@@ -1,17 +1,19 @@
 import 'package:flutter/foundation.dart';
-import 'package:jirani/models/borrow_request.dart';
-import 'package:jirani/models/review_model.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/review_model.dart';
 import 'package:jirani/services/review_service.dart';
 
 class ReviewProvider extends ChangeNotifier {
-  ReviewProvider({ReviewService? service}) : _service = service ?? ReviewService();
+  ReviewProvider({ReviewService? service})
+    : _service = service ?? ReviewService();
 
   final ReviewService _service;
 
   bool _busy = false;
   bool get isSubmitting => _busy;
 
-  Stream<List<ReviewModel>> reviewsForUser(String userId) => _service.watchReviewsForUser(userId);
+  Stream<List<ReviewModel>> reviewsForUser(String userId) =>
+      _service.watchReviewsForUser(userId);
 
   Future<bool> hasUserReviewedBorrowRequest({
     required String borrowRequestId,

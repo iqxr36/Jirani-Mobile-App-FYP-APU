@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/item_model.dart';
-import 'package:jirani/models/borrow_request.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/item_model.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/services/borrow_request_service.dart';
 
 class BorrowRequestProvider extends ChangeNotifier {
-  BorrowRequestProvider({BorrowRequestService? service}) : _service = service ?? BorrowRequestService();
+  BorrowRequestProvider({BorrowRequestService? service})
+    : _service = service ?? BorrowRequestService();
 
   final BorrowRequestService _service;
   StreamSubscription<List<BorrowRequest>>? _mySub;
@@ -30,18 +31,20 @@ class BorrowRequestProvider extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
-    _mySub = _service.watchMyBorrowRequests(borrowerId).listen(
-      (data) {
-        _myBorrowRequests = data;
-        _isLoading = false;
-        notifyListeners();
-      },
-      onError: (e) {
-        _errorMessage = e.toString();
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+    _mySub = _service
+        .watchMyBorrowRequests(borrowerId)
+        .listen(
+          (data) {
+            _myBorrowRequests = data;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            _errorMessage = e.toString();
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   void watchIncomingRequests(String ownerId) {
@@ -49,18 +52,20 @@ class BorrowRequestProvider extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
-    _incomingSub = _service.watchIncomingRequests(ownerId).listen(
-      (data) {
-        _incomingRequests = data;
-        _isLoading = false;
-        notifyListeners();
-      },
-      onError: (e) {
-        _errorMessage = e.toString();
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+    _incomingSub = _service
+        .watchIncomingRequests(ownerId)
+        .listen(
+          (data) {
+            _incomingRequests = data;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            _errorMessage = e.toString();
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   Future<void> createBorrowRequest({
@@ -99,7 +104,10 @@ class BorrowRequestProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _service.approveBorrowRequest(requestId: requestId, ownerId: ownerId);
+      await _service.approveBorrowRequest(
+        requestId: requestId,
+        ownerId: ownerId,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -138,7 +146,10 @@ class BorrowRequestProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _service.cancelBorrowRequest(requestId: requestId, borrowerId: borrowerId);
+      await _service.cancelBorrowRequest(
+        requestId: requestId,
+        borrowerId: borrowerId,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {

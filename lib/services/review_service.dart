@@ -1,15 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/models/borrow_request.dart';
-import 'package:jirani/models/review_model.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/review_model.dart';
 
 class ReviewService {
-  ReviewService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  ReviewService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -30,13 +28,19 @@ class ReviewService {
     required String borrowRequestId,
     required String reviewerId,
   }) async {
-    final snap = await _reviews.doc(reviewDocId(borrowRequestId, reviewerId)).get();
+    final snap = await _reviews
+        .doc(reviewDocId(borrowRequestId, reviewerId))
+        .get();
     return snap.exists;
   }
 
   Stream<List<ReviewModel>> watchReviewsForUser(String userId) {
-    return _reviews.where('revieweeId', isEqualTo: userId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((d) => ReviewModel.fromMap(d.id, d.data())).toList();
+    return _reviews.where('revieweeId', isEqualTo: userId).snapshots().map((
+      snapshot,
+    ) {
+      final list = snapshot.docs
+          .map((d) => ReviewModel.fromMap(d.id, d.data()))
+          .toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
     });
@@ -107,12 +111,16 @@ class ReviewService {
 
         final existing = await txn.get(reviewRef);
         if (existing.exists) {
-          throw Exception('You already submitted a review for this borrow request.');
+          throw Exception(
+            'You already submitted a review for this borrow request.',
+          );
         }
 
         final userSnap = await txn.get(userRef);
         if (!userSnap.exists) {
-          throw Exception('Missing user profile for the person being reviewed.');
+          throw Exception(
+            'Missing user profile for the person being reviewed.',
+          );
         }
         final u = userSnap.data();
 
@@ -141,7 +149,9 @@ class ReviewService {
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore rules for reviews.');
+        throw Exception(
+          'Permission denied. Check Firestore rules for reviews.',
+        );
       }
       throw Exception(e.message ?? 'Failed to submit review.');
     }

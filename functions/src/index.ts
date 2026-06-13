@@ -22,6 +22,8 @@ const DOCUMENT_AI_PROCESSOR_VERSION =
   `/processorVersions/${PROCESSOR_VERSION_ID}`;
 const MANUAL_CHECK_CONFIDENCE_THRESHOLD = 0.75;
 const RESIDENT_DOCUMENTS_PREFIX = "resident_documents/";
+const DOCUMENT_TYPE_ACCESS_CARD = "accessCard";
+const DOCUMENT_TYPE_OTHER_PROOF = "otherProof";
 const REQUIRED_FIELD_KEYS = [
   "tenant_name",
   "landlord_name",
@@ -282,8 +284,18 @@ async function extractDocumentFields(args: {
       fallbackUsed: false,
     };
   } catch (error) {
+    if (!shouldUseOcrFallback(args.requestData.documentType)) {
+      logger.error("Document AI extraction failed; OCR fallback disabled", {
+        requestId: args.requestId,
+        documentType: args.requestData.documentType,
+        error,
+      });
+      throw error;
+    }
+
     logger.error("Document AI extraction failed; using OCR fallback", {
       requestId: args.requestId,
+      documentType: args.requestData.documentType,
       error,
     });
     const fallback = await extractWithVisionOcr(args);
@@ -294,6 +306,11 @@ async function extractDocumentFields(args: {
       fallbackUsed: true,
     };
   }
+}
+
+function shouldUseOcrFallback(documentType: string | undefined): boolean {
+  return documentType === DOCUMENT_TYPE_ACCESS_CARD ||
+    documentType === DOCUMENT_TYPE_OTHER_PROOF;
 }
 
 async function extractWithDocumentAi(args: {

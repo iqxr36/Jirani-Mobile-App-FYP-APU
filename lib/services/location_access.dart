@@ -18,7 +18,9 @@ class LocationAccess {
 
   /// Once per install (resident home): show [LocationPermissionView] if services/permission not ready.
   /// If location is already usable, records onboarding as done without blocking the user.
-  static Future<void> showInitialOnboardingIfNeeded(BuildContext context) async {
+  static Future<void> showInitialOnboardingIfNeeded(
+    BuildContext context,
+  ) async {
     if (await LocationOnboardingPrefs.wasShown()) return;
 
     if (await isLocationReadyForUse()) {

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/location/community_confirmation_view.dart';

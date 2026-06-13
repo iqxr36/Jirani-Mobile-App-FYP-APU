@@ -1,10 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/validators.dart';
-import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
-import 'package:jirani/widgets/common/jirani_logo.dart';
-import 'package:jirani/widgets/common/jirani_modal.dart';
+import 'package:jirani/shared/widgets/jirani_logo.dart';
+import 'package:jirani/shared/widgets/jirani_modal.dart';
 import 'package:provider/provider.dart';
 
 import '../../viewmodels/auth_viewmodel.dart';
@@ -170,7 +170,8 @@ class _RegisterViewState extends State<RegisterView> {
             return _CommunityModalMessage(
               icon: Icons.apartment_rounded,
               title: 'No communities available',
-              message: 'Active communities will appear here once they are set up.',
+              message:
+                  'Active communities will appear here once they are set up.',
               actionLabel: 'Refresh',
               onAction: () async {
                 await _loadActiveCommunities();
@@ -297,9 +298,9 @@ class _RegisterViewState extends State<RegisterView> {
     }
     if (!_formKey.currentState!.validate()) return;
     if (_activeCommunities.isNotEmpty && _selectedCommunity == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select your community.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select your community.')));
       return;
     }
 

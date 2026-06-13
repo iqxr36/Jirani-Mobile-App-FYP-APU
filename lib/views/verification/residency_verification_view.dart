@@ -6,14 +6,22 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/verification_status_view.dart';
-import 'package:jirani/widgets/common/jirani_modal.dart';
+import 'package:jirani/shared/widgets/jirani_modal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 357;
 const int _kMaxDocumentBytes = 10 * 1024 * 1024;
-const _kAllowedDocumentExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+const _kPdfOnlyDocumentExtensions = ['pdf'];
+const _kImageAndPdfDocumentExtensions = [
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'heic',
+  'pdf',
+];
 
 class ResidencyVerificationView extends StatelessWidget {
   const ResidencyVerificationView({super.key});
@@ -83,6 +91,16 @@ class _ResidencyVerificationFormState
   }
 
   Future<void> _pickFromGallery() async {
+    final documentType = _documentType;
+    if (documentType == null) {
+      _showMessage('Select a document type before uploading.');
+      return;
+    }
+    if (!_allowsImageUpload(documentType)) {
+      _showMessage('This document type only accepts PDF files.');
+      return;
+    }
+
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
@@ -99,9 +117,15 @@ class _ResidencyVerificationFormState
   }
 
   Future<void> _pickFromFiles() async {
+    final documentType = _documentType;
+    if (documentType == null) {
+      _showMessage('Select a document type before uploading.');
+      return;
+    }
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: _kAllowedDocumentExtensions,
+      allowedExtensions: _allowedExtensionsFor(documentType),
       withData: true,
     );
     final file = result?.files.single;
@@ -113,6 +137,12 @@ class _ResidencyVerificationFormState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not read the selected file.')),
       );
+      return;
+    }
+
+    final extension = _fileExtension(file.name);
+    if (!_allowedExtensionsFor(documentType).contains(extension)) {
+      _showMessage(_unsupportedFileTypeMessage(documentType));
       return;
     }
 
@@ -149,7 +179,14 @@ class _ResidencyVerificationFormState
     );
 
     if (selected != null && mounted) {
-      setState(() => _documentType = selected);
+      setState(() {
+        _documentType = selected;
+        if (!_isCurrentFileAllowedFor(selected)) {
+          _fileName = null;
+          _localFilePath = null;
+          _fileBytes = null;
+        }
+      });
     }
   }
 
@@ -222,6 +259,48 @@ class _ResidencyVerificationFormState
     return 'Select document type';
   }
 
+  bool _allowsImageUpload(String documentType) {
+    return documentType == AppConstants.documentTypeAccessCard ||
+        documentType == AppConstants.documentTypeOtherProof;
+  }
+
+  List<String> _allowedExtensionsFor(String documentType) {
+    if (documentType == AppConstants.documentTypeTenancyAgreement ||
+        documentType == AppConstants.documentTypeUtilityBill) {
+      return _kPdfOnlyDocumentExtensions;
+    }
+    return _kImageAndPdfDocumentExtensions;
+  }
+
+  String _acceptedFormatsLabel(String? documentType) {
+    if (documentType == null) return 'Select a document type first.';
+    if (_allowsImageUpload(documentType)) {
+      return 'Accepted formats: JPG, PNG, WEBP, HEIC, or PDF.';
+    }
+    return 'Accepted format: PDF only.';
+  }
+
+  String _unsupportedFileTypeMessage(String documentType) {
+    return _allowsImageUpload(documentType)
+        ? 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.'
+        : 'Only PDF files are supported for this document type.';
+  }
+
+  bool _isCurrentFileAllowedFor(String documentType) {
+    final fileName = _fileName;
+    if (fileName == null) return true;
+    return _allowedExtensionsFor(
+      documentType,
+    ).contains(_fileExtension(fileName));
+  }
+
+  String _fileExtension(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot == -1 || dot == fileName.length - 1) return '';
+    final ext = fileName.substring(dot + 1).toLowerCase();
+    return ext == 'jpeg' ? 'jpg' : ext;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
@@ -231,6 +310,9 @@ class _ResidencyVerificationFormState
         ? user!.communityName.trim()
         : 'No community selected';
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final documentType = _documentType;
+    final allowsGalleryUpload =
+        documentType != null && _allowsImageUpload(documentType);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -290,7 +372,11 @@ class _ResidencyVerificationFormState
                           const SizedBox(height: 6),
                           _UploadPanel(
                             fileName: _fileName,
-                            onGalleryTap: verificationVm.isLoading
+                            acceptedFormats: _acceptedFormatsLabel(
+                              documentType,
+                            ),
+                            onGalleryTap:
+                                verificationVm.isLoading || !allowsGalleryUpload
                                 ? null
                                 : _pickFromGallery,
                             onFilesTap: verificationVm.isLoading
@@ -524,11 +610,13 @@ class _LineSelectField extends StatelessWidget {
 class _UploadPanel extends StatelessWidget {
   const _UploadPanel({
     required this.fileName,
+    required this.acceptedFormats,
     required this.onGalleryTap,
     required this.onFilesTap,
   });
 
   final String? fileName;
+  final String acceptedFormats;
   final VoidCallback? onGalleryTap;
   final VoidCallback? onFilesTap;
 
@@ -558,8 +646,8 @@ class _UploadPanel extends StatelessWidget {
             child: Text(
               selected
                   ? fileName!
-                  : 'Ensure the document is clear and shows your\nname and unit number.',
-              maxLines: 2,
+                  : 'Ensure the document is clear and shows your\nname and unit number.\n$acceptedFormats',
+              maxLines: selected ? 2 : 3,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(

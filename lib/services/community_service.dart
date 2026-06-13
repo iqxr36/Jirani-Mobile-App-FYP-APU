@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/shared/models/community_model.dart';
 
 class CommunityService {
   CommunityService({FirebaseFirestore? firestore})

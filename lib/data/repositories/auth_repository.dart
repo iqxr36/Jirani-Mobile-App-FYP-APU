@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
-import 'package:jirani/data/models/admin_user.dart';
-import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/shared/models/admin_user.dart';
+import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/services/firebase_auth_service.dart';
 
 class AuthRepository {

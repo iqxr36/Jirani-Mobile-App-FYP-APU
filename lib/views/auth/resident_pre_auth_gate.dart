@@ -49,9 +49,7 @@ class _ResidentPreAuthGateState extends State<ResidentPreAuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_showOnboarding) {
       return OnboardingScreen(onFinished: _finishOnboarding);

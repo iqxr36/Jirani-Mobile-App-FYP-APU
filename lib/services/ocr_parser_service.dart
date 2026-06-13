@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:jirani/models/extracted_document_data.dart';
+import 'package:jirani/shared/models/extracted_document_data.dart';
 
 class OcrParserService {
   static const _tenancyLabelsTenantName = [

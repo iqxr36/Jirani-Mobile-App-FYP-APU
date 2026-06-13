@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/verification_access.dart';
-import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/views/connections/resident_connections_view.dart';
 import 'package:provider/provider.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
-import 'package:jirani/widgets/common/jirani_background.dart';
+import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
@@ -64,6 +65,20 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
 
   void _onLockedTap(BuildContext context, AppUser? user) {
     showVerificationRequiredSnack(context, user: user);
+  }
+
+  void _openNeighbors(BuildContext context, AppUser? user) {
+    if (!residentHasFullAppAccess(user)) {
+      _onLockedTap(context, user);
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ResidentConnectionsView(communityName: user?.communityName),
+      ),
+    );
   }
 
   @override
@@ -167,8 +182,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                       const SizedBox(width: 14),
                       _HeaderAction(
                         icon: Icons.groups_outlined,
-                        label: 'My Neighbors',
-                        onTap: locked,
+                        label: 'My Community',
+                        onTap: () => _openNeighbors(context, user),
                       ),
                       const Spacer(),
                       _HeaderAction(
@@ -315,12 +330,11 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                                 ? Image.asset(
                                     assetPath,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (
-                                      context,
-                                      error,
-                                      stackTrace,
-                                    ) =>
-                                        _quickActionPlaceholder(fallbackIcon),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _quickActionPlaceholder(
+                                              fallbackIcon,
+                                            ),
                                   )
                                 : _quickActionPlaceholder(fallbackIcon),
                           ),

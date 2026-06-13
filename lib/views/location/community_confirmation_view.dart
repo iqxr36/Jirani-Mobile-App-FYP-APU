@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/services/geofence_manager.dart';
 import 'package:jirani/services/location_access.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/location/geofence_checking_view.dart';
 import 'package:jirani/views/location/location_permission_view.dart';
-import 'package:jirani/widgets/common/jirani_modal.dart';
+import 'package:jirani/shared/widgets/jirani_modal.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -114,6 +115,76 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     }
   }
 
+  bool _isChangingSavedCommunity(
+    AuthViewModel viewModel,
+    CommunityModel community,
+  ) {
+    final user = viewModel.currentUser;
+    if (user == null) return false;
+
+    final currentCommunityId = user.communityId.trim();
+    final currentCommunityName = user.communityName.trim();
+    final nextCommunityId = community.communityId.trim();
+    final nextCommunityName = community.name.trim();
+    if (currentCommunityId.isNotEmpty && nextCommunityId.isNotEmpty) {
+      return currentCommunityId != nextCommunityId;
+    }
+    return currentCommunityName != nextCommunityName;
+  }
+
+  bool _needsVerificationResetWarning(
+    AuthViewModel viewModel,
+    CommunityModel community,
+  ) {
+    return viewModel.currentUser?.verificationStatus ==
+            AppConstants.verificationVerified &&
+        _isChangingSavedCommunity(viewModel, community);
+  }
+
+  Future<bool> _confirmVerificationReset(CommunityModel community) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return JiraniDialog(
+          title: 'Change Community?',
+          subtitle: 'Residency verification is tied to your community.',
+          icon: Icons.warning_amber_rounded,
+          content: Text(
+            'If you change to ${community.name}, you will become unverified '
+            'in both your current community and the new community. You will '
+            'need to resubmit your residency document before you can access '
+            'verified resident features again.',
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: _kBrandTeal,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Change Community'),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed ?? false;
+  }
+
   Future<void> _continue(AuthViewModel viewModel) async {
     if (_isContinuing) return;
     final community = _currentSelection(viewModel);
@@ -123,6 +194,12 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
       );
       return;
     }
+
+    if (_needsVerificationResetWarning(viewModel, community)) {
+      final confirmed = await _confirmVerificationReset(community);
+      if (!mounted || !confirmed) return;
+    }
+
     setState(() => _isContinuing = true);
 
     try {

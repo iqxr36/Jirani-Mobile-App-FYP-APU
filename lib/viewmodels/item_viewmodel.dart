@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/item_model.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/data/repositories/item_repository.dart';
 
 class ItemViewModel extends ChangeNotifier {
-  ItemViewModel({ItemRepository? repository}) : _repository = repository ?? ItemRepository();
+  ItemViewModel({ItemRepository? repository})
+    : _repository = repository ?? ItemRepository();
 
   final ItemRepository _repository;
 
@@ -44,17 +45,17 @@ class ItemViewModel extends ChangeNotifier {
           communityId: _communityIdFilter,
         )
         .listen(
-      (items) {
-        _availableItems = items;
-        _isLoading = false;
-        notifyListeners();
-      },
-      onError: (e) {
-        _isLoading = false;
-        _errorMessage = e.toString();
-        notifyListeners();
-      },
-    );
+          (items) {
+            _availableItems = items;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            _isLoading = false;
+            _errorMessage = e.toString();
+            notifyListeners();
+          },
+        );
   }
 
   void watchMyItems() {

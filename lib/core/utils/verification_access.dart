@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
+import 'package:jirani/shared/models/app_user.dart';
 
 /// Whether the resident may use marketplace, services, borrowing, etc.
 bool residentHasFullAppAccess(AppUser? user) =>

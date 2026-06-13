@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:jirani/data/models/community_model.dart';
+import 'package:jirani/shared/models/community_model.dart';
 import 'package:native_geofence/native_geofence.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -74,10 +74,7 @@ class GeofenceManager {
             longitude: community.centerLocation.longitude,
           ),
           radiusMeters: community.radiusInMeters,
-          triggers: const {
-            GeofenceEvent.enter,
-            GeofenceEvent.exit,
-          },
+          triggers: const {GeofenceEvent.enter, GeofenceEvent.exit},
           iosSettings: const IosGeofenceSettings(initialTrigger: true),
           androidSettings: const AndroidGeofenceSettings(
             initialTriggers: {GeofenceEvent.enter},

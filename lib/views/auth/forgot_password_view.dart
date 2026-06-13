@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
-import 'package:jirani/widgets/auth_feedback_banner.dart';
+import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 /// Forgot password — Figma reset screen: header, card, success/error banners, bottom buttons.

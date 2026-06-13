@@ -5,8 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/models/app_user.dart';
-import 'package:jirani/data/models/verification_request.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/verification_request.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
 
@@ -36,6 +36,15 @@ class VerificationRepository {
   final FirebaseStorage _storage;
   static const Duration _uploadTimeout = Duration(seconds: 90);
   static const Duration _networkTimeout = Duration(seconds: 25);
+  static const Set<String> _pdfOnlyExtensions = {'pdf'};
+  static const Set<String> _imageAndPdfExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'heic',
+    'pdf',
+  };
 
   User? get currentFirebaseUser => _auth.currentUser;
 
@@ -142,7 +151,7 @@ class VerificationRepository {
     final fileObjectName = _safeVerificationStorageObjectName(
       timestamp,
       originalFileName,
-      tenancyAgreement: isTenancyAgreement,
+      documentType: documentType,
     );
 
     final ref = isTenancyAgreement
@@ -288,8 +297,10 @@ class VerificationRepository {
   static String _safeVerificationStorageObjectName(
     int timestamp,
     String originalFileName, {
-    required bool tenancyAgreement,
+    required String documentType,
   }) {
+    final tenancyAgreement =
+        documentType == AppConstants.documentTypeTenancyAgreement;
     final baseName = path.basename(originalFileName);
     final dot = baseName.lastIndexOf('.');
     var ext = '';
@@ -305,14 +316,10 @@ class VerificationRepository {
       );
     }
 
-    final allowed = tenancyAgreement
-        ? const {'jpg', 'jpeg', 'png', 'pdf'}
-        : const {'jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'};
+    final allowed = _allowedExtensionsForDocumentType(documentType);
     if (!allowed.contains(ext)) {
       throw VerificationUnsupportedFileTypeException(
-        tenancyAgreement
-            ? 'Only JPG, JPEG, PNG, or PDF tenancy agreements are supported.'
-            : 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
+        _unsupportedFileTypeMessage(documentType),
       );
     }
 
@@ -328,6 +335,30 @@ class VerificationRepository {
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
     return '${safeStem.isEmpty ? 'tenancy_agreement' : safeStem}.$ext';
+  }
+
+  static Set<String> _allowedExtensionsForDocumentType(String documentType) {
+    return switch (documentType) {
+      AppConstants.documentTypeTenancyAgreement ||
+      AppConstants.documentTypeUtilityBill => _pdfOnlyExtensions,
+      AppConstants.documentTypeAccessCard ||
+      AppConstants.documentTypeOtherProof => _imageAndPdfExtensions,
+      _ => _imageAndPdfExtensions,
+    };
+  }
+
+  static String _unsupportedFileTypeMessage(String documentType) {
+    return switch (documentType) {
+      AppConstants.documentTypeTenancyAgreement =>
+        'Only PDF tenancy agreements are supported.',
+      AppConstants.documentTypeUtilityBill =>
+        'Only PDF utility bills are supported.',
+      AppConstants.documentTypeAccessCard =>
+        'Only JPG, PNG, WEBP, HEIC, or PDF access cards are supported.',
+      AppConstants.documentTypeOtherProof =>
+        'Only JPG, PNG, WEBP, HEIC, or PDF other proof documents are supported.',
+      _ => 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
+    };
   }
 
   /// MIME for Firebase Storage metadata (jpg + jpeg both -> image/jpeg).
