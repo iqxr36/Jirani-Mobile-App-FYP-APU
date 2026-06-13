@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/verification_access.dart';
+import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/views/connections/resident_connections_view.dart';
 import 'package:provider/provider.dart';
@@ -84,6 +85,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
+    final incomingConnectionCount = context
+        .watch<ConnectionProvider>()
+        .incomingRequestCount;
     final firstName = _firstName(user?.fullName ?? '');
 
     return JiraniBackground(
@@ -91,7 +95,14 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
         bottom: false,
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(context, user, firstName)),
+            SliverToBoxAdapter(
+              child: _buildHeader(
+                context,
+                user,
+                firstName,
+                incomingConnectionCount,
+              ),
+            ),
             if (user != null && !residentHasFullAppAccess(user))
               SliverToBoxAdapter(child: _buildVerificationBanner(user)),
             SliverToBoxAdapter(child: _buildCarousel()),
@@ -104,7 +115,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppUser? user, String firstName) {
+  Widget _buildHeader(
+    BuildContext context,
+    AppUser? user,
+    String firstName,
+    int incomingConnectionCount,
+  ) {
     void locked() => _onLockedTap(context, user);
 
     return Padding(
@@ -184,6 +200,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                         icon: Icons.groups_outlined,
                         label: 'My Community',
                         onTap: () => _openNeighbors(context, user),
+                        badgeCount: incomingConnectionCount,
                       ),
                       const Spacer(),
                       _HeaderAction(
@@ -486,12 +503,14 @@ class _HeaderAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.showBadge = false,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool showBadge;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +542,32 @@ class _HeaderAction extends StatelessWidget {
                       child: Icon(icon, size: 24, color: _kBrandTeal),
                     ),
                   ),
-                  if (showBadge)
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF90170B),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          badgeCount > 9 ? '9+' : badgeCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (showBadge)
                     Positioned(
                       right: 1,
                       top: 1,

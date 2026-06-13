@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/providers/auth_provider.dart';
+import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/screens/auth/auth_wrapper.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
@@ -46,6 +47,14 @@ class TrustCommunityApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, ConnectionProvider>(
+          create: (_) => ConnectionProvider(),
+          update: (_, auth, provider) {
+            final connectionProvider = provider ?? ConnectionProvider();
+            connectionProvider.watchForUser(auth.currentUser);
+            return connectionProvider;
+          },
+        ),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

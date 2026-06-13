@@ -1761,7 +1761,7 @@ class _VerificationDetail extends StatelessWidget {
                 ),
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _AdminColors.accent,
+                    backgroundColor: const Color.fromARGB(255, 253, 69, 2),
                     foregroundColor: Colors.white,
                   ),
                   onPressed: canReview ? () => _reject(context, r) : null,

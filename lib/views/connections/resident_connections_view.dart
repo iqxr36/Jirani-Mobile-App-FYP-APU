@@ -1,8 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/providers/connection_provider.dart';
+import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/connection_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/views/connections/resident_connection_requests_view.dart';
+import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
@@ -19,44 +23,6 @@ class ResidentConnectionsView extends StatefulWidget {
 }
 
 class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
-  static const _neighbors = <_NeighborProfile>[
-    _NeighborProfile(
-      id: 'faisal',
-      name: 'Faisal Ahmed',
-      bio:
-          'Hi, my name is Faisal a tech student. I offer fixing tech devices...',
-    ),
-    _NeighborProfile(
-      id: 'abu',
-      name: 'Abu Khalil',
-      bio:
-          'Hi, my name is Abu Khalil a Carpenter. I offer home maintenance services...',
-    ),
-    _NeighborProfile(
-      id: 'june',
-      name: 'June Lee',
-      bio: 'Hi, my name is June Lee a teacher. I offer tutoring services...',
-    ),
-    _NeighborProfile(
-      id: 'sarah',
-      name: 'Sarah Kim',
-      bio:
-          'Hi, my name is Sarah Kim an undergraduate student. I offer babysitting services...',
-    ),
-  ];
-
-  final Set<String> _sentRequestIds = <String>{'faisal'};
-
-  void _toggleRequest(String id) {
-    setState(() {
-      if (_sentRequestIds.contains(id)) {
-        _sentRequestIds.remove(id);
-      } else {
-        _sentRequestIds.add(id);
-      }
-    });
-  }
-
   void _openConnectionRequests() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -66,11 +32,50 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
     );
   }
 
+  Future<void> _handleNeighborAction(AppUser neighbor) async {
+    final provider = context.read<ConnectionProvider>();
+    final connection = provider.connectionWith(neighbor.uid);
+    final messenger = ScaffoldMessenger.of(context);
+    final name = neighbor.fullName.isNotEmpty ? neighbor.fullName : 'neighbor';
+
+    try {
+      if (provider.hasIncomingRequest(neighbor.uid)) {
+        _openConnectionRequests();
+        return;
+      }
+      if (provider.hasOutgoingRequest(neighbor.uid) && connection != null) {
+        await provider.withdrawRequest(connection);
+        messenger.showSnackBar(
+          SnackBar(content: Text('Connection request to $name withdrawn.')),
+        );
+        return;
+      }
+      if (provider.isConnected(neighbor.uid)) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('You are already connected with $name.')),
+        );
+        return;
+      }
+
+      await provider.sendRequest(neighbor);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Connection request sent to $name.')),
+      );
+    } catch (_) {
+      final message =
+          provider.errorMessage ?? 'Unable to update this connection.';
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ConnectionProvider>();
     final communityName = widget.communityName?.trim().isNotEmpty == true
         ? widget.communityName!.trim().toUpperCase()
-        : 'ONE SOUTH RESIDENCE';
+        : (provider.currentUser?.communityName.trim().isNotEmpty == true
+              ? provider.currentUser!.communityName.trim().toUpperCase()
+              : 'ONE SOUTH RESIDENCE');
 
     return Scaffold(
       extendBody: true,
@@ -78,6 +83,7 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
       bottomNavigationBar: _BottomActionBar(
         onShowAll: () {},
         onMyConnections: _openConnectionRequests,
+        pendingCount: provider.incomingRequestCount,
       ),
       body: JiraniBackground(
         child: SafeArea(
@@ -115,9 +121,9 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
                         maxWidth: _kMaxContentWidth - 32,
                       ),
                       child: _NeighborGrid(
-                        neighbors: _neighbors,
-                        sentRequestIds: _sentRequestIds,
-                        onToggleRequest: _toggleRequest,
+                        neighbors: provider.communityResidents,
+                        connectionProvider: provider,
+                        onNeighborAction: _handleNeighborAction,
                       ),
                     ),
                   ),
@@ -236,13 +242,13 @@ class _CommunityPill extends StatelessWidget {
 class _NeighborGrid extends StatelessWidget {
   const _NeighborGrid({
     required this.neighbors,
-    required this.sentRequestIds,
-    required this.onToggleRequest,
+    required this.connectionProvider,
+    required this.onNeighborAction,
   });
 
-  final List<_NeighborProfile> neighbors;
-  final Set<String> sentRequestIds;
-  final ValueChanged<String> onToggleRequest;
+  final List<AppUser> neighbors;
+  final ConnectionProvider connectionProvider;
+  final ValueChanged<AppUser> onNeighborAction;
 
   @override
   Widget build(BuildContext context) {
@@ -263,8 +269,14 @@ class _NeighborGrid extends StatelessWidget {
                 width: cardWidth,
                 child: _NeighborCard(
                   neighbor: neighbor,
-                  requestSent: sentRequestIds.contains(neighbor.id),
-                  onToggleRequest: () => onToggleRequest(neighbor.id),
+                  connection: connectionProvider.connectionWith(neighbor.uid),
+                  incomingRequest: connectionProvider.hasIncomingRequest(
+                    neighbor.uid,
+                  ),
+                  outgoingRequest: connectionProvider.hasOutgoingRequest(
+                    neighbor.uid,
+                  ),
+                  onAction: () => onNeighborAction(neighbor),
                 ),
               ),
           ],
@@ -277,20 +289,29 @@ class _NeighborGrid extends StatelessWidget {
 class _NeighborCard extends StatelessWidget {
   const _NeighborCard({
     required this.neighbor,
-    required this.requestSent,
-    required this.onToggleRequest,
+    required this.connection,
+    required this.incomingRequest,
+    required this.outgoingRequest,
+    required this.onAction,
   });
 
-  final _NeighborProfile neighbor;
-  final bool requestSent;
-  final VoidCallback onToggleRequest;
+  final AppUser neighbor;
+  final ConnectionModel? connection;
+  final bool incomingRequest;
+  final bool outgoingRequest;
+  final VoidCallback onAction;
 
   @override
   Widget build(BuildContext context) {
+    final displayName = neighbor.fullName.isNotEmpty
+        ? neighbor.fullName
+        : 'Verified Neighbor';
+    final connected = connection?.isAccepted ?? false;
+
     return Semantics(
-      label: requestSent
-          ? 'Connection request sent to ${neighbor.name}'
-          : 'Neighbor profile for ${neighbor.name}',
+      label: connected
+          ? 'Connected neighbor profile for $displayName'
+          : 'Neighbor profile for $displayName',
       child: Material(
         color: Colors.transparent,
         child: Ink(
@@ -319,7 +340,7 @@ class _NeighborCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        neighbor.name,
+                        displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
@@ -339,7 +360,7 @@ class _NeighborCard extends StatelessWidget {
                 SizedBox(
                   height: 44,
                   child: Text(
-                    neighbor.bio,
+                    _neighborBio(neighbor),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.left,
@@ -353,8 +374,10 @@ class _NeighborCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 _ConnectButton(
-                  requestSent: requestSent,
-                  onPressed: onToggleRequest,
+                  connected: connected,
+                  incomingRequest: incomingRequest,
+                  outgoingRequest: outgoingRequest,
+                  onPressed: onAction,
                 ),
               ],
             ),
@@ -362,6 +385,18 @@ class _NeighborCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _neighborBio(AppUser neighbor) {
+    final unit = neighbor.unitNumber.trim();
+    final community = neighbor.communityName.trim();
+    if (unit.isNotEmpty && community.isNotEmpty) {
+      return 'Verified resident in $community, unit $unit.';
+    }
+    if (community.isNotEmpty) {
+      return 'Verified resident in $community.';
+    }
+    return 'Verified resident in your community.';
   }
 }
 
@@ -404,13 +439,35 @@ class _VerifiedBadge extends StatelessWidget {
 }
 
 class _ConnectButton extends StatelessWidget {
-  const _ConnectButton({required this.requestSent, required this.onPressed});
+  const _ConnectButton({
+    required this.connected,
+    required this.incomingRequest,
+    required this.outgoingRequest,
+    required this.onPressed,
+  });
 
-  final bool requestSent;
+  final bool connected;
+  final bool incomingRequest;
+  final bool outgoingRequest;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final label = connected
+        ? 'Connected'
+        : incomingRequest
+        ? 'Respond'
+        : outgoingRequest
+        ? 'Connection sent'
+        : 'Connect +';
+    final icon = connected
+        ? Icons.check_rounded
+        : incomingRequest
+        ? Icons.reply_rounded
+        : outgoingRequest
+        ? Icons.link_rounded
+        : null;
+
     return SizedBox(
       width: double.infinity,
       height: 28,
@@ -428,26 +485,29 @@ class _ConnectButton extends StatelessWidget {
         ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
-          child: requestSent
-              ? const Row(
-                  key: ValueKey('sent'),
+          child: icon == null
+              ? Text(
+                  label,
+                  key: ValueKey(label),
+                  style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : Row(
+                  key: ValueKey(label),
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.link_rounded, size: 10),
-                    SizedBox(width: 4),
+                    Icon(icon, size: 10),
+                    const SizedBox(width: 4),
                     Text(
-                      'Connection sent',
-                      style: TextStyle(
+                      label,
+                      style: const TextStyle(
                         fontSize: 8,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
-                )
-              : const Text(
-                  'Connect +',
-                  key: ValueKey('connect'),
-                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900),
                 ),
         ),
       ),
@@ -459,10 +519,12 @@ class _BottomActionBar extends StatelessWidget {
   const _BottomActionBar({
     required this.onShowAll,
     required this.onMyConnections,
+    required this.pendingCount,
   });
 
   final VoidCallback onShowAll;
   final VoidCallback onMyConnections;
+  final int pendingCount;
 
   @override
   Widget build(BuildContext context) {
@@ -529,12 +591,24 @@ class _BottomActionBar extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'My Connections',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            const Text(
+                              'My Connections',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (pendingCount > 0)
+                              Positioned(
+                                right: -8,
+                                top: -8,
+                                child: _CountBadge(count: pendingCount),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -543,6 +617,33 @@ class _BottomActionBar extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: const BoxDecoration(
+        color: Color(0xFF90170B),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        count > 9 ? '9+' : count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -590,16 +691,4 @@ class _EmptyConnectionsState extends StatelessWidget {
       ),
     );
   }
-}
-
-class _NeighborProfile {
-  const _NeighborProfile({
-    required this.id,
-    required this.name,
-    required this.bio,
-  });
-
-  final String id;
-  final String name;
-  final String bio;
 }

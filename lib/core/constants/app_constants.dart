@@ -79,6 +79,7 @@ class AppConstants {
   static const String serviceRequestsCollection = 'serviceRequests';
   static const String transactionsCollection = 'transactions';
   static const String chatsCollection = 'chats';
+  static const String connectionsCollection = 'connections';
 
   /// Admin review statuses for extracted verification document data.
   static const String adminStatusProcessing = 'processing';
@@ -89,6 +90,11 @@ class AppConstants {
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
   static const String activityLogsCollection = 'activityLogs';
+
+  // Connections
+  static const String connectionPending = 'pending';
+  static const String connectionAccepted = 'accepted';
+  static const String connectionDeclined = 'declined';
 
   // Activity log event types
   static const String activityVerificationApproved = 'verificationApproved';
