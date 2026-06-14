@@ -8,6 +8,23 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 390;
+const double _kPageGutter = 16;
+const double _kCardMaxWidth = _kMaxContentWidth - (_kPageGutter * 2);
+
+List<BoxShadow> _softSurfaceShadow({
+  double opacity = 0.10,
+  double blurRadius = 22,
+  double dy = 10,
+}) {
+  return [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: opacity),
+      blurRadius: blurRadius,
+      spreadRadius: -4,
+      offset: Offset(0, dy),
+    ),
+  ];
+}
 
 class ResidentConnectionRequestsView extends StatefulWidget {
   const ResidentConnectionRequestsView({super.key, this.communityName});
@@ -68,10 +85,11 @@ class _ResidentConnectionRequestsViewState
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ConnectionProvider>();
-    final activeTabErrorMessage = (_selectedTab == 0
-            ? provider.incomingRequestsError
-            : provider.connectionsError)
-        ?.trim();
+    final activeTabErrorMessage =
+        (_selectedTab == 0
+                ? provider.incomingRequestsError
+                : provider.connectionsError)
+            ?.trim();
     final communityName = widget.communityName?.trim().isNotEmpty == true
         ? widget.communityName!.trim().toUpperCase()
         : (provider.currentUser?.communityName.trim().isNotEmpty == true
@@ -93,7 +111,12 @@ class _ResidentConnectionRequestsViewState
                       maxWidth: _kMaxContentWidth,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                      padding: const EdgeInsets.fromLTRB(
+                        _kPageGutter,
+                        8,
+                        _kPageGutter,
+                        20,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -121,7 +144,7 @@ class _ResidentConnectionRequestsViewState
               ),
               if (_selectedTab == 0) ..._buildRequestsContent(provider),
               if (_selectedTab == 1) ..._buildNeighborsContent(provider),
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              const SliverToBoxAdapter(child: SizedBox(height: 56)),
             ],
           ),
         ),
@@ -141,28 +164,29 @@ class _ResidentConnectionRequestsViewState
     }
 
     return [
-      SliverList.separated(
-        itemCount: requests.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 14),
-        itemBuilder: (context, index) {
-          final request = requests[index];
-          final requester = provider.userById(request.fromUserId);
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(_kPageGutter, 18, _kPageGutter, 0),
+        sliver: SliverList.separated(
+          itemCount: requests.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 14),
+          itemBuilder: (context, index) {
+            final request = requests[index];
+            final requester = provider.userById(request.fromUserId);
 
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: _kMaxContentWidth - 32,
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _kCardMaxWidth),
+                child: _RequestCard(
+                  connection: request,
+                  requester: requester,
+                  submitting: provider.isSubmitting,
+                  onAccept: () => _accept(provider, request),
+                  onDecline: () => _decline(provider, request),
+                ),
               ),
-              child: _RequestCard(
-                connection: request,
-                requester: requester,
-                submitting: provider.isSubmitting,
-                onAccept: () => _accept(provider, request),
-                onDecline: () => _decline(provider, request),
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     ];
   }
@@ -180,26 +204,27 @@ class _ResidentConnectionRequestsViewState
     }
 
     return [
-      SliverList.separated(
-        itemCount: connections.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final connection = connections[index];
-          final neighborId = connection.otherUserId(currentUserId);
-          final neighbor = provider.userById(neighborId);
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: _kMaxContentWidth - 32,
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(_kPageGutter, 18, _kPageGutter, 0),
+        sliver: SliverList.separated(
+          itemCount: connections.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final connection = connections[index];
+            final neighborId = connection.otherUserId(currentUserId);
+            final neighbor = provider.userById(neighborId);
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _kCardMaxWidth),
+                child: _ConnectedNeighborRow(
+                  connection: connection,
+                  neighbor: neighbor,
+                  fallbackUserId: neighborId,
+                ),
               ),
-              child: _ConnectedNeighborRow(
-                connection: connection,
-                neighbor: neighbor,
-                fallbackUserId: neighborId,
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     ];
   }
@@ -253,25 +278,23 @@ class _CommunityBadge extends StatelessWidget {
     return Align(
       alignment: Alignment.center,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 44, maxWidth: 276),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        constraints: const BoxConstraints(minHeight: 50, maxWidth: 286),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.24)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.16),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
+          boxShadow: _softSurfaceShadow(opacity: 0.13, blurRadius: 18, dy: 8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.location_on_outlined, size: 18),
-            const SizedBox(width: 12),
+            const Icon(
+              Icons.location_on_outlined,
+              color: Color(0xFF1F2937),
+              size: 20,
+            ),
+            const SizedBox(width: 14),
             Flexible(
               child: Text(
                 label,
@@ -303,11 +326,13 @@ class _SegmentedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
-      padding: const EdgeInsets.all(4),
+      height: 50,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E7EB),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 16, dy: 8),
       ),
       child: Row(
         children: [
@@ -342,23 +367,36 @@ class _TabPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: selected ? _kBrandTeal : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: selected ? Colors.white : _kMutedText,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: selected ? _kBrandTeal : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: selected
+                    ? _softSurfaceShadow(opacity: 0.16, blurRadius: 12, dy: 5)
+                    : null,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.white : _kMutedText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ),
@@ -396,17 +434,18 @@ class _ConnectionStatusCard extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: hasError
             ? const Color(0xFFFFF4E5)
             : _kBrandTeal.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: hasError
               ? const Color(0xFFE29578).withValues(alpha: 0.34)
               : _kBrandTeal.withValues(alpha: 0.16),
         ),
+        boxShadow: _softSurfaceShadow(opacity: 0.05, blurRadius: 14, dy: 6),
       ),
       child: Row(
         children: [
@@ -459,18 +498,12 @@ class _RequestCard extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        boxShadow: _softSurfaceShadow(opacity: 0.12, blurRadius: 24, dy: 12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -544,8 +577,10 @@ class _RequestCard extends StatelessWidget {
                   onPressed: submitting ? null : onDecline,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF374151),
+                    backgroundColor: Colors.white.withValues(alpha: 0.78),
+                    minimumSize: const Size.fromHeight(44),
                     side: BorderSide(
-                      color: Colors.black.withValues(alpha: 0.22),
+                      color: Colors.black.withValues(alpha: 0.16),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -564,6 +599,7 @@ class _RequestCard extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: _kBrandTeal,
                     foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -616,19 +652,13 @@ class _ConnectedNeighborRow extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      constraints: const BoxConstraints(minHeight: 80),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      constraints: const BoxConstraints(minHeight: 88),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        boxShadow: _softSurfaceShadow(opacity: 0.09, blurRadius: 18, dy: 8),
       ),
       child: Row(
         children: [
@@ -804,11 +834,13 @@ class _EmptyStateCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Container(
+        constraints: const BoxConstraints(maxWidth: _kCardMaxWidth),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.88),
+          color: Colors.white.withValues(alpha: 0.93),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.1)),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 20, dy: 10),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

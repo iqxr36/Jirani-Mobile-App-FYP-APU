@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/verification_access.dart';
 import 'package:jirani/providers/connection_provider.dart';
@@ -12,6 +14,21 @@ const double _kMaxContentWidth = 390;
 const String _kHomeServicesAsset = 'assets/Home Services(1)-Photoroom.png';
 const String _kShareItemsAsset = 'assets/Share Items-Photoroom.png';
 
+List<BoxShadow> _softSurfaceShadow({
+  double opacity = 0.10,
+  double blurRadius = 24,
+  double dy = 12,
+}) {
+  return [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: opacity),
+      blurRadius: blurRadius,
+      spreadRadius: -4,
+      offset: Offset(0, dy),
+    ),
+  ];
+}
+
 /// Resident home - Figma Group 26.
 class ResidentHomeView extends StatefulWidget {
   const ResidentHomeView({super.key});
@@ -22,31 +39,57 @@ class ResidentHomeView extends StatefulWidget {
 
 class _ResidentHomeViewState extends State<ResidentHomeView> {
   final PageController _carouselController = PageController(
-    viewportFraction: 0.92,
+    viewportFraction: 0.86,
   );
+  Timer? _carouselTimer;
   int _carouselIndex = 0;
 
   static const _carouselSlides = <_CarouselSlide>[
     _CarouselSlide(
-      title: 'BORROW & LEND WITH TRUSTED NEIGHBORS',
+      title: 'RESIDENCE NEWS & EVENTS',
       subtitle:
-          'Easily lend items, tools, or small loans within your community. Find what you need. Help those around you.',
-      assetPath: _kShareItemsAsset,
+          'Latest announcements, notices, and community highlights from your residence will appear here.',
+      badge: 'COMING SOON',
+      icon: Icons.campaign_outlined,
     ),
     _CarouselSlide(
-      title: 'HOME SERVICES FROM NEIGHBORS',
-      subtitle: 'Book trusted help for everyday tasks in your building.',
-      assetPath: _kHomeServicesAsset,
+      title: 'UPCOMING COMMUNITY EVENTS',
+      subtitle:
+          'Resident events, activities, and shared facilities updates can be published by admins for everyone.',
+      badge: 'EVENTS',
+      icon: Icons.event_available_outlined,
     ),
     _CarouselSlide(
-      title: 'SHARE ITEMS SAFELY',
-      subtitle: 'List and discover items with proof and community trust.',
-      assetPath: _kShareItemsAsset,
+      title: 'IMPORTANT RESIDENCE NOTICES',
+      subtitle:
+          'Admin notices about maintenance, safety, and neighborhood reminders will be shown to residents.',
+      badge: 'NOTICE',
+      icon: Icons.apartment_rounded,
     ),
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _startCarouselTimer();
+  }
+
+  void _startCarouselTimer() {
+    _carouselTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (!mounted || !_carouselController.hasClients) return;
+
+      final nextIndex = (_carouselIndex + 1) % _carouselSlides.length;
+      _carouselController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
   void dispose() {
+    _carouselTimer?.cancel();
     _carouselController.dispose();
     super.dispose();
   }
@@ -122,6 +165,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     int incomingConnectionCount,
   ) {
     void locked() => _onLockedTap(context, user);
+    final communityName = user?.communityName.trim().isNotEmpty == true
+        ? user!.communityName.trim()
+        : 'Jirani Residence';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -162,11 +208,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  _CommunityChip(
-                    label: user?.communityName.trim().isNotEmpty == true
-                        ? user!.communityName.trim()
-                        : 'Jirani',
-                  ),
+                  _CommunityChip(label: communityName),
                 ],
               ),
               const SizedBox(height: 14),
@@ -231,6 +273,11 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
               color: _kBrandTeal.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: _kBrandTeal.withValues(alpha: 0.25)),
+              boxShadow: _softSurfaceShadow(
+                opacity: 0.05,
+                blurRadius: 18,
+                dy: 8,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -256,18 +303,22 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
 
   Widget _buildCarousel() {
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.only(top: 24),
       child: SizedBox(
-        height: 230,
+        height: 306,
         child: PageView.builder(
           controller: _carouselController,
+          clipBehavior: Clip.none,
           itemCount: _carouselSlides.length,
           onPageChanged: (i) => setState(() => _carouselIndex = i),
           itemBuilder: (context, index) {
             final slide = _carouselSlides[index];
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _CarouselCard(slide: slide),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 22),
+              child: _CarouselCard(
+                slide: slide,
+                active: index == _carouselIndex,
+              ),
             );
           },
         ),
@@ -277,7 +328,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
 
   Widget _buildPageIndicators() {
     return Padding(
-      padding: const EdgeInsets.only(top: 14, bottom: 10),
+      padding: const EdgeInsets.only(top: 0, bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_carouselSlides.length, (i) {
@@ -310,97 +361,113 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
         child: Semantics(
           button: true,
           label: semanticLabel,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(22),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.76),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.88),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.13),
+                  blurRadius: 28,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 1.22,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: _kBrandTeal.withValues(alpha: 0.07),
+                BoxShadow(
+                  color: _kBrandTeal.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  spreadRadius: -10,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(24),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.90),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1.22,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(17),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: _kBrandTeal.withValues(alpha: 0.07),
+                                border: Border.all(
+                                  color: _kBrandTeal.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: assetPath != null
+                                  ? Image.asset(
+                                      assetPath,
+                                      fit: BoxFit.contain,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              _quickActionPlaceholder(
+                                                fallbackIcon,
+                                              ),
+                                    )
+                                  : _quickActionPlaceholder(fallbackIcon),
                             ),
-                            child: assetPath != null
-                                ? Image.asset(
-                                    assetPath,
-                                    fit: BoxFit.contain,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            _quickActionPlaceholder(
-                                              fallbackIcon,
-                                            ),
-                                  )
-                                : _quickActionPlaceholder(fallbackIcon),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1F2937),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          height: 1.15,
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF1F2937),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            height: 1.15,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF59666B),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          height: 1.25,
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF59666B),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            height: 1.25,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: const [
-                          Text(
-                            'Open',
-                            style: TextStyle(
+                        const SizedBox(height: 10),
+                        Row(
+                          children: const [
+                            Text(
+                              'Open',
+                              style: TextStyle(
+                                color: _kBrandTeal,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_rounded,
                               color: _kBrandTeal,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
+                              size: 16,
                             ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            color: _kBrandTeal,
-                            size: 16,
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -609,7 +676,7 @@ class _CommunityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 132, minHeight: 44),
+      constraints: const BoxConstraints(maxWidth: 190, minHeight: 44),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.72),
@@ -631,12 +698,13 @@ class _CommunityChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: _kBrandTeal,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w800,
+                height: 1.15,
               ),
             ),
           ),
@@ -650,57 +718,52 @@ class _CarouselSlide {
   const _CarouselSlide({
     required this.title,
     required this.subtitle,
-    this.assetPath,
+    required this.badge,
+    required this.icon,
   });
 
   final String title;
   final String subtitle;
-  final String? assetPath;
+  final String badge;
+  final IconData icon;
 }
 
 class _CarouselCard extends StatelessWidget {
-  const _CarouselCard({required this.slide});
+  const _CarouselCard({required this.slide, required this.active});
 
   final _CarouselSlide slide;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 28,
-            offset: const Offset(0, 16),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: _softSurfaceShadow(
+          opacity: active ? 0.18 : 0.10,
+          blurRadius: active ? 30 : 20,
+          dy: active ? 16 : 10,
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(28),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (slide.assetPath != null)
-              Image.asset(
-                slide.assetPath!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _gradientFallback(),
-              )
-            else
-              _gradientFallback(),
+            _gradientFallback(),
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.28),
-                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.04),
+                    Colors.black.withValues(alpha: 0.18),
+                    Colors.black.withValues(alpha: 0.78),
                   ],
-                  stops: const [0, 0.45, 1],
+                  stops: const [0, 0.48, 1],
                 ),
               ),
             ),
@@ -715,22 +778,41 @@ class _CarouselCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.28),
                   ),
                 ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   child: Text(
-                    'NEIGHBORLY',
-                    style: TextStyle(
+                    slide.badge,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
                       fontSize: 11,
-                      letterSpacing: 0.8,
                     ),
                   ),
                 ),
               ),
             ),
+            Positioned(
+              right: 18,
+              top: 18,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(11),
+                  child: Icon(slide.icon, size: 24, color: Colors.white),
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -740,21 +822,20 @@ class _CarouselCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
-                      fontSize: 21,
-                      height: 1.08,
-                      letterSpacing: -0.2,
+                      fontSize: 24,
+                      height: 1.06,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     slide.subtitle,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.94),
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
                     ),
-                    maxLines: 3,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -770,11 +851,21 @@ class _CarouselCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_kBrandTeal, _kBrandTeal.withValues(alpha: 0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _kBrandTeal,
+            const Color(0xFF83C5BE),
+            const Color(0xFFE9C46A),
+          ],
         ),
       ),
-      child: const Center(
-        child: Icon(Icons.apartment_rounded, size: 56, color: Colors.white54),
+      child: Center(
+        child: Icon(
+          slide.icon,
+          size: 72,
+          color: Colors.white.withValues(alpha: 0.22),
+        ),
       ),
     );
   }

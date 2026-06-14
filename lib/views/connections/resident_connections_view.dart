@@ -11,6 +11,23 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 390;
+const double _kPageGutter = 16;
+const double _kCardMaxWidth = _kMaxContentWidth - (_kPageGutter * 2);
+
+List<BoxShadow> _softSurfaceShadow({
+  double opacity = 0.10,
+  double blurRadius = 22,
+  double dy = 10,
+}) {
+  return [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: opacity),
+      blurRadius: blurRadius,
+      spreadRadius: -4,
+      offset: Offset(0, dy),
+    ),
+  ];
+}
 
 class ResidentConnectionsView extends StatefulWidget {
   const ResidentConnectionsView({super.key, this.communityName});
@@ -98,7 +115,12 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
                       maxWidth: _kMaxContentWidth,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(
+                        _kPageGutter,
+                        8,
+                        _kPageGutter,
+                        8,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -113,12 +135,12 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: _kPageGutter),
                 sliver: SliverToBoxAdapter(
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(
-                        maxWidth: _kMaxContentWidth - 32,
+                        maxWidth: _kCardMaxWidth,
                       ),
                       child: _NeighborGrid(
                         neighbors: provider.communityResidents,
@@ -129,7 +151,7 @@ class _ResidentConnectionsViewState extends State<ResidentConnectionsView> {
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              const SliverToBoxAdapter(child: SizedBox(height: 124)),
             ],
           ),
         ),
@@ -183,58 +205,41 @@ class _CommunityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 280,
-          height: 2,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(999),
-          ),
+    return Align(
+      alignment: Alignment.center,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 50, maxWidth: 286),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
+          boxShadow: _softSurfaceShadow(opacity: 0.13, blurRadius: 18, dy: 8),
         ),
-        const SizedBox(height: 8),
-        Container(
-          constraints: const BoxConstraints(minHeight: 48, maxWidth: 276),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.28),
-                blurRadius: 4,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: Color(0xFF1F2937),
-                size: 20,
-              ),
-              const SizedBox(width: 24),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF111827),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.1,
-                  ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              color: Color(0xFF1F2937),
+              size: 20,
+            ),
+            const SizedBox(width: 14),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -258,16 +263,20 @@ class _NeighborGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const horizontalGap = 12.0;
-        final cardWidth = (constraints.maxWidth - horizontalGap) / 2;
+        const horizontalGap = 14.0;
+        final useSingleColumn = constraints.maxWidth < 520;
+        final cardWidth = useSingleColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - horizontalGap) / 2;
 
-        return Align(
-          alignment: Alignment.centerLeft,
+        return Center(
           child: Wrap(
-            alignment: WrapAlignment.start,
+            alignment: useSingleColumn
+                ? WrapAlignment.center
+                : WrapAlignment.start,
             runAlignment: WrapAlignment.start,
             spacing: horizontalGap,
-            runSpacing: 16,
+            runSpacing: 14,
             children: [
               for (final neighbor in neighbors)
                 SizedBox(
@@ -318,77 +327,72 @@ class _NeighborCard extends StatelessWidget {
       label: connected
           ? 'Connected neighbor profile for $displayName'
           : 'Neighbor profile for $displayName',
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          height: 201,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 18,
-                spreadRadius: -2,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 7, 8, 12),
-            child: Column(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        constraints: const BoxConstraints(minHeight: 156),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          boxShadow: _softSurfaceShadow(opacity: 0.11, blurRadius: 24, dy: 12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _NeighborAvatar(),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        displayName,
-                        maxLines: 1,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF111827),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          const _VerifiedBadge(),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _neighborBio(neighbor),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Color(0xFF111827),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          height: 1.2,
+                          color: _kMutedText,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    const _VerifiedBadge(),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 44,
-                  child: Text(
-                    _neighborBio(neighbor),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                    style: const TextStyle(
-                      color: _kMutedText,
-                      fontSize: 6.6,
-                      fontWeight: FontWeight.w600,
-                      height: 1.75,
-                    ),
+                    ],
                   ),
-                ),
-                const Spacer(),
-                _ConnectButton(
-                  connected: connected,
-                  incomingRequest: incomingRequest,
-                  outgoingRequest: outgoingRequest,
-                  onPressed: onAction,
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 14),
+            _ConnectButton(
+              connected: connected,
+              incomingRequest: incomingRequest,
+              outgoingRequest: outgoingRequest,
+              onPressed: onAction,
+            ),
+          ],
         ),
       ),
     );
@@ -413,8 +417,8 @@ class _NeighborAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 50,
-      height: 50,
+      width: 52,
+      height: 52,
       decoration: const BoxDecoration(
         color: Color(0xFFCFE4E9),
         shape: BoxShape.circle,
@@ -422,7 +426,7 @@ class _NeighborAvatar extends StatelessWidget {
       child: const Icon(
         Icons.person_outline_rounded,
         color: _kBrandTeal,
-        size: 42,
+        size: 40,
       ),
     );
   }
@@ -465,59 +469,56 @@ class _ConnectButton extends StatelessWidget {
         : incomingRequest
         ? 'Respond'
         : outgoingRequest
-        ? 'Connection sent'
-        : 'Connect +';
+        ? 'Request sent'
+        : 'Connect';
     final icon = connected
         ? Icons.check_rounded
         : incomingRequest
         ? Icons.reply_rounded
         : outgoingRequest
         ? Icons.link_rounded
-        : null;
+        : Icons.person_add_alt_1_rounded;
+    final secondary = outgoingRequest;
 
     return SizedBox(
       width: double.infinity,
-      height: 28,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: _kBrandTeal,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.zero,
-          minimumSize: const Size.fromHeight(28),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: icon == null
-              ? Text(
-                  label,
-                  key: ValueKey(label),
-                  style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
-                  ),
-                )
-              : Row(
-                  key: ValueKey(label),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, size: 10),
-                    const SizedBox(width: 4),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+      height: 44,
+      child: secondary
+          ? OutlinedButton.icon(
+              onPressed: onPressed,
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kBrandTeal,
+                backgroundColor: _kBrandTeal.withValues(alpha: 0.05),
+                minimumSize: const Size.fromHeight(44),
+                side: BorderSide(color: _kBrandTeal.withValues(alpha: 0.38)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
                 ),
-        ),
-      ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          : FilledButton.icon(
+              onPressed: onPressed,
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+              style: FilledButton.styleFrom(
+                backgroundColor: _kBrandTeal,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -535,92 +536,110 @@ class _BottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(8, 0, 8, 12 + safeBottom),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
           child: Container(
-            height: 64,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(32),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.14),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: _softSurfaceShadow(
+                opacity: 0.18,
+                blurRadius: 26,
+                dy: 12,
+              ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: FilledButton(
-                        onPressed: onShowAll,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _kBrandTeal,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          'Show All',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  height: 72,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.72),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: onMyConnections,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kBrandTeal,
-                          backgroundColor: _kBrandTeal.withValues(alpha: 0.06),
-                          side: BorderSide(
-                            color: _kBrandTeal.withValues(alpha: 0.5),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: [
-                            const Text(
-                              'My Connections',
-                              style: TextStyle(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: onShowAll,
+                            icon: const Icon(Icons.groups_rounded, size: 18),
+                            label: const Text('Show All'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _kBrandTeal,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
-                            if (pendingCount > 0)
-                              Positioned(
-                                right: -8,
-                                top: -8,
-                                child: _CountBadge(count: pendingCount),
-                              ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: OutlinedButton(
+                            onPressed: onMyConnections,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kBrandTeal,
+                              backgroundColor: _kBrandTeal.withValues(
+                                alpha: 0.06,
+                              ),
+                              side: BorderSide(
+                                color: _kBrandTeal.withValues(alpha: 0.42),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.people_alt_rounded, size: 18),
+                                const SizedBox(width: 6),
+                                const Flexible(
+                                  child: Text(
+                                    'My Connections',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                if (pendingCount > 0) ...[
+                                  const SizedBox(width: 6),
+                                  _CountBadge(count: pendingCount),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -666,9 +685,10 @@ class _EmptyConnectionsState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.84),
+        color: Colors.white.withValues(alpha: 0.93),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 20, dy: 10),
       ),
       child: const Column(
         mainAxisSize: MainAxisSize.min,

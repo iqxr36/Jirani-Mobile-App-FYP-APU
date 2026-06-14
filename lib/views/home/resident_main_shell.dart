@@ -75,9 +75,16 @@ class _ResidentBottomNav extends StatelessWidget {
           border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 24,
+              spreadRadius: -8,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: _kBrandTeal.withValues(alpha: 0.08),
+              blurRadius: 14,
+              spreadRadius: -10,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -148,6 +155,16 @@ class _NavItem extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? _kBrandTeal : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: _kBrandTeal.withValues(alpha: 0.22),
+                          blurRadius: 14,
+                          spreadRadius: -6,
+                          offset: const Offset(0, 7),
+                        ),
+                      ]
+                    : null,
               ),
               child: Icon(
                 icon,
