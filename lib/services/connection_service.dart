@@ -38,7 +38,7 @@ class ConnectionService {
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
-          'Unable to send request. A connection may already exist, or Firebase rules need to be deployed.',
+          'Unable to send request. You may already be connected, or Firebase rules need to be deployed.',
         );
       }
       rethrow;

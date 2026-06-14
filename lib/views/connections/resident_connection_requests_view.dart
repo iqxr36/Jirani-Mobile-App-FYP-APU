@@ -68,6 +68,10 @@ class _ResidentConnectionRequestsViewState
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ConnectionProvider>();
+    final activeTabErrorMessage = (_selectedTab == 0
+            ? provider.incomingRequestsError
+            : provider.connectionsError)
+        ?.trim();
     final communityName = widget.communityName?.trim().isNotEmpty == true
         ? widget.communityName!.trim().toUpperCase()
         : (provider.currentUser?.communityName.trim().isNotEmpty == true
@@ -101,6 +105,13 @@ class _ResidentConnectionRequestsViewState
                             selectedIndex: _selectedTab,
                             onTabChanged: (index) =>
                                 setState(() => _selectedTab = index),
+                          ),
+                          const SizedBox(height: 12),
+                          _ConnectionStatusCard(
+                            isLoading: provider.isLoading,
+                            errorMessage: activeTabErrorMessage,
+                            requestCount: provider.incomingRequests.length,
+                            neighborCount: provider.connections.length,
                           ),
                         ],
                       ),
@@ -136,7 +147,6 @@ class _ResidentConnectionRequestsViewState
         itemBuilder: (context, index) {
           final request = requests[index];
           final requester = provider.userById(request.fromUserId);
-          if (requester == null) return const SizedBox.shrink();
 
           return Center(
             child: ConstrainedBox(
@@ -146,6 +156,7 @@ class _ResidentConnectionRequestsViewState
               child: _RequestCard(
                 connection: request,
                 requester: requester,
+                submitting: provider.isSubmitting,
                 onAccept: () => _accept(provider, request),
                 onDecline: () => _decline(provider, request),
               ),
@@ -157,8 +168,9 @@ class _ResidentConnectionRequestsViewState
   }
 
   List<Widget> _buildNeighborsContent(ConnectionProvider provider) {
-    final neighbors = provider.acceptedNeighbors;
-    if (neighbors.isEmpty) {
+    final connections = provider.connections;
+    final currentUserId = provider.currentUser?.uid ?? '';
+    if (connections.isEmpty) {
       return [
         const SliverFillRemaining(
           hasScrollBody: false,
@@ -169,15 +181,22 @@ class _ResidentConnectionRequestsViewState
 
     return [
       SliverList.separated(
-        itemCount: neighbors.length,
+        itemCount: connections.length,
         separatorBuilder: (context, index) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
+          final connection = connections[index];
+          final neighborId = connection.otherUserId(currentUserId);
+          final neighbor = provider.userById(neighborId);
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: _kMaxContentWidth - 32,
               ),
-              child: _ConnectedNeighborRow(neighbor: neighbors[index]),
+              child: _ConnectedNeighborRow(
+                connection: connection,
+                neighbor: neighbor,
+                fallbackUserId: neighborId,
+              ),
             ),
           );
         },
@@ -348,24 +367,95 @@ class _TabPill extends StatelessWidget {
   }
 }
 
+class _ConnectionStatusCard extends StatelessWidget {
+  const _ConnectionStatusCard({
+    required this.isLoading,
+    required this.errorMessage,
+    required this.requestCount,
+    required this.neighborCount,
+  });
+
+  final bool isLoading;
+  final String? errorMessage;
+  final int requestCount;
+  final int neighborCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasError = errorMessage != null && errorMessage!.trim().isNotEmpty;
+    final icon = hasError
+        ? Icons.info_outline_rounded
+        : isLoading
+        ? Icons.sync_rounded
+        : Icons.verified_user_outlined;
+    final message = hasError
+        ? errorMessage!
+        : isLoading
+        ? 'Syncing your latest connection updates...'
+        : '$neighborCount connected neighbor${neighborCount == 1 ? '' : 's'} · $requestCount pending request${requestCount == 1 ? '' : 's'}';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: hasError
+            ? const Color(0xFFFFF4E5)
+            : _kBrandTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasError
+              ? const Color(0xFFE29578).withValues(alpha: 0.34)
+              : _kBrandTeal.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: hasError ? const Color(0xFFB45309) : _kBrandTeal,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: hasError ? const Color(0xFF92400E) : _kBrandTeal,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RequestCard extends StatelessWidget {
   const _RequestCard({
     required this.connection,
     required this.requester,
+    required this.submitting,
     required this.onAccept,
     required this.onDecline,
   });
 
   final ConnectionModel connection;
-  final AppUser requester;
+  final AppUser? requester;
+  final bool submitting;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
 
   @override
   Widget build(BuildContext context) {
-    final name = requester.fullName.isNotEmpty
-        ? requester.fullName
+    final name = requester?.fullName.isNotEmpty == true
+        ? requester!.fullName
         : 'Verified Neighbor';
+    final role = requester == null
+        ? 'Verified resident'
+        : _neighborRole(requester!);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -413,7 +503,7 @@ class _RequestCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _neighborRole(requester),
+                      role,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -451,7 +541,7 @@ class _RequestCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: onDecline,
+                  onPressed: submitting ? null : onDecline,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF374151),
                     side: BorderSide(
@@ -470,7 +560,7 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton(
-                  onPressed: onAccept,
+                  onPressed: submitting ? null : onAccept,
                   style: FilledButton.styleFrom(
                     backgroundColor: _kBrandTeal,
                     foregroundColor: Colors.white,
@@ -478,10 +568,22 @@ class _RequestCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Accept',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                  ),
+                  child: submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Accept',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -493,18 +595,28 @@ class _RequestCard extends StatelessWidget {
 }
 
 class _ConnectedNeighborRow extends StatelessWidget {
-  const _ConnectedNeighborRow({required this.neighbor});
+  const _ConnectedNeighborRow({
+    required this.connection,
+    required this.neighbor,
+    required this.fallbackUserId,
+  });
 
-  final AppUser neighbor;
+  final ConnectionModel connection;
+  final AppUser? neighbor;
+  final String fallbackUserId;
 
   @override
   Widget build(BuildContext context) {
-    final name = neighbor.fullName.isNotEmpty
-        ? neighbor.fullName
+    final name = neighbor?.fullName.isNotEmpty == true
+        ? neighbor!.fullName
         : 'Verified Neighbor';
+    final role = neighbor == null
+        ? 'Profile syncing · ${_shortUserId(fallbackUserId)}'
+        : _neighborRole(neighbor!);
 
-    return Container(
-      height: 72,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      constraints: const BoxConstraints(minHeight: 80),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.94),
@@ -559,7 +671,7 @@ class _ConnectedNeighborRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _neighborRole(neighbor),
+                  role,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -572,20 +684,38 @@ class _ConnectedNeighborRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: _kBrandTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Connected',
-              style: TextStyle(
-                color: _kBrandTeal,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Connected',
+                  style: TextStyle(
+                    color: _kBrandTeal,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Text(
+                _timeLabel(connection.updatedAt),
+                style: const TextStyle(
+                  color: _kMutedText,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -715,6 +845,11 @@ String _neighborRole(AppUser user) {
   final unit = user.unitNumber.trim();
   if (unit.isNotEmpty) return 'Resident neighbor - Unit $unit';
   return 'Resident neighbor';
+}
+
+String _shortUserId(String uid) {
+  if (uid.length <= 6) return uid;
+  return 'ID ${uid.substring(0, 6)}...';
 }
 
 String _timeLabel(DateTime date) {

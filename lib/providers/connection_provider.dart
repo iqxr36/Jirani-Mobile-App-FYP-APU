@@ -21,6 +21,7 @@ class ConnectionProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+  final Map<String, String> _streamErrors = <String, String>{};
   List<AppUser> _communityResidents = const <AppUser>[];
   List<ConnectionModel> _connections = const <ConnectionModel>[];
   List<ConnectionModel> _incomingRequests = const <ConnectionModel>[];
@@ -30,6 +31,10 @@ class ConnectionProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
+  String? get communityResidentsError => _streamErrors['communityResidents'];
+  String? get connectionsError => _streamErrors['myConnections'];
+  String? get incomingRequestsError => _streamErrors['incomingRequests'];
+  String? get outgoingRequestsError => _streamErrors['outgoingRequests'];
   List<AppUser> get communityResidents => _communityResidents;
   List<ConnectionModel> get connections => _connections;
   List<ConnectionModel> get incomingRequests => _incomingRequests;
@@ -55,6 +60,7 @@ class ConnectionProvider extends ChangeNotifier {
       _connections = const <ConnectionModel>[];
       _incomingRequests = const <ConnectionModel>[];
       _outgoingRequests = const <ConnectionModel>[];
+      _streamErrors.clear();
       _isLoading = false;
       _errorMessage = null;
       notifyListeners();
@@ -68,31 +74,35 @@ class ConnectionProvider extends ChangeNotifier {
     _residentsSub = _repository.watchCommunityResidents(user).listen((
       residents,
     ) {
+      _clearStreamError('communityResidents');
       _communityResidents = residents;
       _isLoading = false;
       notifyListeners();
-    }, onError: _handleStreamError);
+    }, onError: (error) => _handleStreamError('communityResidents', error));
     _connectionsSub = _repository.watchMyConnections(user.uid).listen((
       connections,
     ) {
+      _clearStreamError('myConnections');
       _connections = connections;
       _isLoading = false;
       notifyListeners();
-    }, onError: _handleStreamError);
+    }, onError: (error) => _handleStreamError('myConnections', error));
     _incomingSub = _repository.watchIncomingRequests(user.uid).listen((
       requests,
     ) {
+      _clearStreamError('incomingRequests');
       _incomingRequests = requests;
       _isLoading = false;
       notifyListeners();
-    }, onError: _handleStreamError);
+    }, onError: (error) => _handleStreamError('incomingRequests', error));
     _outgoingSub = _repository.watchOutgoingRequests(user.uid).listen((
       requests,
     ) {
+      _clearStreamError('outgoingRequests');
       _outgoingRequests = requests;
       _isLoading = false;
       notifyListeners();
-    }, onError: _handleStreamError);
+    }, onError: (error) => _handleStreamError('outgoingRequests', error));
   }
 
   AppUser? userById(String uid) {
@@ -215,10 +225,22 @@ class ConnectionProvider extends ChangeNotifier {
     }
   }
 
-  void _handleStreamError(Object error) {
-    _errorMessage = error.toString();
+  void _handleStreamError(String streamName, Object error) {
+    final message = error.toString();
+    _streamErrors[streamName] = message;
+    _refreshErrorMessage();
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _clearStreamError(String streamName) {
+    if (!_streamErrors.containsKey(streamName)) return;
+    _streamErrors.remove(streamName);
+    _refreshErrorMessage();
+  }
+
+  void _refreshErrorMessage() {
+    _errorMessage = _streamErrors.isEmpty ? null : _streamErrors.values.first;
   }
 
   void _cancelSubscriptions() {

@@ -258,28 +258,34 @@ class _NeighborGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth - 8) / 2;
+        const horizontalGap = 12.0;
+        final cardWidth = (constraints.maxWidth - horizontalGap) / 2;
 
-        return Wrap(
-          spacing: 8,
-          runSpacing: 16,
-          children: [
-            for (final neighbor in neighbors)
-              SizedBox(
-                width: cardWidth,
-                child: _NeighborCard(
-                  neighbor: neighbor,
-                  connection: connectionProvider.connectionWith(neighbor.uid),
-                  incomingRequest: connectionProvider.hasIncomingRequest(
-                    neighbor.uid,
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            alignment: WrapAlignment.start,
+            runAlignment: WrapAlignment.start,
+            spacing: horizontalGap,
+            runSpacing: 16,
+            children: [
+              for (final neighbor in neighbors)
+                SizedBox(
+                  width: cardWidth,
+                  child: _NeighborCard(
+                    neighbor: neighbor,
+                    connection: connectionProvider.connectionWith(neighbor.uid),
+                    incomingRequest: connectionProvider.hasIncomingRequest(
+                      neighbor.uid,
+                    ),
+                    outgoingRequest: connectionProvider.hasOutgoingRequest(
+                      neighbor.uid,
+                    ),
+                    onAction: () => onNeighborAction(neighbor),
                   ),
-                  outgoingRequest: connectionProvider.hasOutgoingRequest(
-                    neighbor.uid,
-                  ),
-                  onAction: () => onNeighborAction(neighbor),
                 ),
-              ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -318,13 +324,14 @@ class _NeighborCard extends StatelessWidget {
           height: 201,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.35)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.26),
-                blurRadius: 8,
-                offset: const Offset(0, 5),
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 18,
+                spreadRadius: -2,
+                offset: const Offset(0, 8),
               ),
             ],
           ),

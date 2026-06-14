@@ -61,14 +61,18 @@ service cloud.firestore {
         );
     }
 
+    function hasVerifiedResidentStatus(status) {
+      return status in ['verified', 'approved'];
+    }
+
     function isVerifiedResident() {
       return hasProfile() &&
-        myUserDoc().data.verificationStatus == 'verified';
+        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus);
     }
 
     function isVerifiedResidentData(data) {
       return data.role == 'resident' &&
-        data.verificationStatus == 'verified';
+        hasVerifiedResidentStatus(data.verificationStatus);
     }
 
     function canReadCommunityResident(data) {
@@ -90,6 +94,11 @@ service cloud.firestore {
         request.auth.uid in data.participants;
     }
 
+    function connectionParticipantQuery(data) {
+      return signedIn() &&
+        request.auth.uid in data.participants;
+    }
+
     function connectionOwnedByCurrentUser(data) {
       return signedIn() &&
         (data.fromUserId == request.auth.uid || data.toUserId == request.auth.uid);
@@ -100,6 +109,53 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(data.toUserId)) &&
         isVerifiedResidentData(userDoc(data.toUserId).data) &&
         userDoc(data.toUserId).data.communityId == myUserDoc().data.communityId;
+    }
+
+    function preservesConnectionIdentity() {
+      return request.resource.data.fromUserId == resource.data.fromUserId &&
+        request.resource.data.toUserId == resource.data.toUserId &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.participants == resource.data.participants &&
+        isValidConnectionParticipants(request.resource.data);
+    }
+
+    function senderCanRefreshPendingRequest() {
+      return signedIn() &&
+        request.auth.uid == resource.data.fromUserId &&
+        resource.data.status in ['pending', 'declined'] &&
+        request.resource.data.keys().hasOnly([
+          'fromUserId',
+          'toUserId',
+          'participants',
+          'communityId',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ]) &&
+        preservesConnectionIdentity() &&
+        request.resource.data.status == 'pending';
+    }
+
+    function recipientCanResolvePendingRequest() {
+      return signedIn() &&
+        request.auth.uid == resource.data.toUserId &&
+        resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt',
+        ]) &&
+        request.resource.data.status in ['accepted', 'declined'];
+    }
+
+    function participantCanDeleteConnection() {
+      return connectionParticipant(resource.data) &&
+        (
+          resource.data.status == 'accepted' ||
+          (
+            resource.data.status == 'pending' &&
+            request.auth.uid == resource.data.fromUserId
+          )
+        );
     }
 
     function ownSafeUserUpdate() {
@@ -290,7 +346,7 @@ service cloud.firestore {
       allow get: if connectionParticipant(resource.data) ||
         adminCanAccessCommunity(resource.data.communityId);
 
-      allow list: if connectionParticipant(resource.data) ||
+      allow list: if connectionParticipantQuery(resource.data) ||
         connectionOwnedByCurrentUser(resource.data) ||
         adminCanAccessCommunity(resource.data.communityId);
 
@@ -311,16 +367,10 @@ service cloud.firestore {
         isValidConnectionParticipants(request.resource.data) &&
         targetUserCanConnect(request.resource.data);
 
-      allow update: if signedIn() &&
-        resource.data.status == 'pending' &&
-        request.auth.uid == resource.data.toUserId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'updatedAt',
-        ]) &&
-        request.resource.data.status in ['accepted', 'declined'];
+      allow update: if recipientCanResolvePendingRequest() ||
+        senderCanRefreshPendingRequest();
 
-      allow delete: if connectionParticipant(resource.data) ||
+      allow delete: if participantCanDeleteConnection() ||
         adminCanAccessCommunity(resource.data.communityId);
     }
 
