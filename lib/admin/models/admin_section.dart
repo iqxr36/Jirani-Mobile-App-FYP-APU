@@ -16,6 +16,7 @@ enum AdminSection {
     'Directory and account controls',
     Icons.groups_2_rounded,
   ),
+  news('News', 'Publish resident updates and events', Icons.campaign_rounded),
   listings(
     'Listings',
     'Marketplace and task moderation',

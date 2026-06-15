@@ -5,11 +5,13 @@ import 'package:jirani/views/auth/email_verification_view.dart';
 import 'package:jirani/views/auth/phone_verification_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);
 const double _kMaxContentWidth = 350;
+const int _kMaxProfileImageBytes = 5 * 1024 * 1024;
 
 class ResidentProfileView extends StatefulWidget {
   const ResidentProfileView({super.key});
@@ -19,9 +21,11 @@ class ResidentProfileView extends StatefulWidget {
 }
 
 class _ResidentProfileViewState extends State<ResidentProfileView> {
+  final _imagePicker = ImagePicker();
   bool _darkTheme = false;
   bool _pushNotifications = true;
   bool _locationAlerts = true;
+  bool _profileImageSaving = false;
 
   void _openVerificationProcess() {
     Navigator.of(context).push<void>(
@@ -61,6 +65,47 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     await context.read<AuthViewModel>().logout();
   }
 
+  Future<void> _changeProfileImage() async {
+    if (_profileImageSaving) return;
+
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 720,
+      maxHeight: 720,
+      imageQuality: 82,
+    );
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    if (bytes.lengthInBytes > _kMaxProfileImageBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Choose an image under 5 MB for your profile photo.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _profileImageSaving = true);
+    final auth = context.read<AuthViewModel>();
+    final success = await auth.updateResidentProfileImage(
+      bytes: bytes,
+      originalFileName: picked.name,
+    );
+    if (!mounted) return;
+    setState(() => _profileImageSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Profile photo updated.'
+              : auth.errorMessage ?? 'Could not update profile photo.',
+        ),
+      ),
+    );
+  }
+
   void _showUnavailable(String label) {
     ScaffoldMessenger.of(
       context,
@@ -87,6 +132,8 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                   _ProfileCard(
                     user: user,
                     onEditProfile: () => _showUnavailable('Edit Profile'),
+                    onChangePhoto: user == null ? null : _changeProfileImage,
+                    isPhotoUpdating: _profileImageSaving,
                     onVerificationStatus: _openVerificationProcess,
                     onVerifyEmail: user == null || user.emailVerified
                         ? null
@@ -139,6 +186,8 @@ class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.user,
     required this.onEditProfile,
+    required this.onChangePhoto,
+    required this.isPhotoUpdating,
     required this.onVerificationStatus,
     required this.onVerifyEmail,
     required this.onVerifyPhone,
@@ -150,6 +199,8 @@ class _ProfileCard extends StatelessWidget {
 
   final AppUser? user;
   final VoidCallback onEditProfile;
+  final VoidCallback? onChangePhoto;
+  final bool isPhotoUpdating;
   final VoidCallback onVerificationStatus;
   final VoidCallback? onVerifyEmail;
   final VoidCallback? onVerifyPhone;
@@ -196,7 +247,11 @@ class _ProfileCard extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 18),
-                child: _ProfileAvatar(user: user),
+                child: _ProfileAvatar(
+                  user: user,
+                  onTap: onChangePhoto,
+                  isLoading: isPhotoUpdating,
+                ),
               ),
             ],
           ),
@@ -601,25 +656,113 @@ class _MetricChip extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.user});
+  const _ProfileAvatar({
+    required this.user,
+    required this.onTap,
+    required this.isLoading,
+  });
 
   final AppUser? user;
+  final VoidCallback? onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = user?.profileImageUrl.trim() ?? '';
 
-    return CircleAvatar(
-      radius: 46,
-      backgroundColor: const Color(0xFFCDE8EC),
-      foregroundImage: imageUrl.isEmpty ? null : NetworkImage(imageUrl),
-      onForegroundImageError: imageUrl.isEmpty
-          ? null
-          : (exception, stackTrace) {},
-      child: const Icon(
-        Icons.person_outline_rounded,
-        color: _kBrandTeal,
-        size: 62,
+    return Semantics(
+      button: onTap != null,
+      label: 'Change profile photo',
+      child: GestureDetector(
+        onTap: isLoading ? null : onTap,
+        child: SizedBox(
+          width: 108,
+          height: 108,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFCDE8EC),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      width: 4,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kBrandTeal.withValues(alpha: 0.18),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: imageUrl.isEmpty
+                        ? const Icon(
+                            Icons.person_outline_rounded,
+                            color: _kBrandTeal,
+                            size: 62,
+                          )
+                        : Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.person_outline_rounded,
+                              color: _kBrandTeal,
+                              size: 62,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              if (isLoading)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.34),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.6,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                right: 4,
+                bottom: 4,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: _kBrandTeal,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.photo_camera_outlined,
+                    color: Colors.white,
+                    size: 17,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

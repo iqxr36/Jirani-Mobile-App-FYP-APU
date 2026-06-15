@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/providers/auth_provider.dart';
+import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/screens/auth/auth_wrapper.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
@@ -26,10 +27,17 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     if (!kIsWeb) {
+      // DEVELOPMENT / TESTING ONLY
       await FirebaseAppCheck.instance.activate(
-        providerAndroid: const AndroidPlayIntegrityProvider(),
-        providerApple: const AppleDeviceCheckProvider(),
+        providerAndroid: const AndroidDebugProvider(),
+        providerApple: const AppleDebugProvider(),
       );
+
+      // PRODUCTION ONLY - enable this before release
+      // await FirebaseAppCheck.instance.activate(
+      //   providerAndroid: const AndroidPlayIntegrityProvider(),
+      //   providerApple: const AppleDeviceCheckProvider(),
+      // );
     }
     runApp(const TrustCommunityApp());
   } catch (e, stackTrace) {
@@ -53,6 +61,14 @@ class TrustCommunityApp extends StatelessWidget {
             final connectionProvider = provider ?? ConnectionProvider();
             connectionProvider.watchForUser(auth.currentUser);
             return connectionProvider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
+          create: (_) => ChatProvider(),
+          update: (_, auth, provider) {
+            final chatProvider = provider ?? ChatProvider();
+            chatProvider.watchForUser(auth.currentUser);
+            return chatProvider;
           },
         ),
       ],

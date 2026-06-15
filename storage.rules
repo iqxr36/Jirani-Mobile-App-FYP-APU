@@ -28,11 +28,43 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Profile photos: users/admins may upload only their own small image files.
+    match /profile_images/{accountType}/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        accountType in ['residents', 'admins'] &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'image/jpeg',
+          'image/png',
+          'image/webp'
+        ];
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Borrow-request proof images: any signed-in user may read; only the
     // uploader (identified by their uid subfolder) may write.
     match /borrow_request_proofs/{requestId}/{userId}/{allPaths=**} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Chat attachments: senders upload their own files; signed-in residents can
+    // read attachment URLs shown inside chats they can access in Firestore.
+    match /chat_attachments/{chatId}/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.auth.uid == userId &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'application/pdf',
+          'text/plain',
+          'application/octet-stream'
+        ];
     }
   }
 }

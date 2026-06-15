@@ -220,19 +220,31 @@ class AdminEmptyPanelMessage extends StatelessWidget {
 }
 
 class AdminAvatar extends StatelessWidget {
-  const AdminAvatar({super.key, required this.name, this.large = false});
+  const AdminAvatar({
+    super.key,
+    required this.name,
+    this.imageUrl = '',
+    this.large = false,
+  });
 
   final String name;
+  final String imageUrl;
   final bool large;
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        name.trim().isEmpty ? 'A' : name.trim()[0].toUpperCase();
+    final initial = name.trim().isEmpty ? 'A' : name.trim()[0].toUpperCase();
+    final trimmedImageUrl = imageUrl.trim();
     return CircleAvatar(
       radius: large ? 34 : 18,
       backgroundColor: AdminColors.primary,
       foregroundColor: Colors.white,
+      foregroundImage: trimmedImageUrl.isEmpty
+          ? null
+          : NetworkImage(trimmedImageUrl),
+      onForegroundImageError: trimmedImageUrl.isEmpty
+          ? null
+          : (exception, stackTrace) {},
       child: Text(
         initial,
         style: TextStyle(

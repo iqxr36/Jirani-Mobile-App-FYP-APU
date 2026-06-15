@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
@@ -13,11 +14,15 @@ class AuthRepository {
   AuthRepository({
     FirebaseAuthService? authService,
     FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
   }) : _authService = authService ?? FirebaseAuthService(),
-       _firestore = firestore ?? FirebaseFirestore.instance;
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseAuthService _authService;
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+  static const Duration _networkTimeout = Duration(seconds: 30);
 
   Stream<User?> get authStateChanges => _authService.authStateChanges;
 
@@ -133,6 +138,48 @@ class AuthRepository {
     throw Exception(
       'Admin document not found at ${AppConstants.adminsCollection}/${refreshedUser.uid}.',
     );
+  }
+
+  Future<String> uploadProfileImage({
+    required String uid,
+    required Uint8List bytes,
+    required String originalFileName,
+    required String accountFolder,
+  }) async {
+    if (bytes.isEmpty) {
+      throw Exception('The selected image is empty.');
+    }
+
+    final extension = _profileImageExtension(originalFileName);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage
+        .ref()
+        .child(AppConstants.storageProfileImagesPath)
+        .child(accountFolder)
+        .child(uid)
+        .child('avatar_$timestamp.$extension');
+
+    final metadata = SettableMetadata(
+      contentType: _profileImageContentType(extension),
+      customMetadata: {
+        'ownerUid': uid,
+        'accountType': accountFolder,
+        'originalFileName': originalFileName,
+      },
+    );
+
+    await ref.putData(bytes, metadata).timeout(_networkTimeout);
+    return ref.getDownloadURL().timeout(_networkTimeout);
+  }
+
+  Future<void> updateAdminProfileImageUrl({
+    required String uid,
+    required String profileImageUrl,
+  }) async {
+    await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
+      'profileImageUrl': profileImageUrl.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   AdminUser _mapAdminProfile(Map<String, dynamic> data) {
@@ -477,5 +524,22 @@ class AuthRepository {
 
   Future<void> logout() {
     return _authService.signOut();
+  }
+
+  static String _profileImageExtension(String fileName) {
+    final trimmed = fileName.trim().toLowerCase();
+    final extension = trimmed.contains('.') ? trimmed.split('.').last : 'jpg';
+    return switch (extension) {
+      'jpg' || 'jpeg' || 'png' || 'webp' => extension,
+      _ => 'jpg',
+    };
+  }
+
+  static String _profileImageContentType(String extension) {
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
   }
 }

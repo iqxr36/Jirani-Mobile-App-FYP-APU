@@ -86,8 +86,9 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
       return;
     }
 
+    final wasInsideBoundary = _insideBoundary;
     setState(() {
-      _checking = true;
+      _checking = !wasInsideBoundary;
       _message = null;
     });
 
@@ -205,7 +206,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
 
   @override
   Widget build(BuildContext context) {
-    if (_insideBoundary && !_checking) return widget.child;
+    if (_insideBoundary) return widget.child;
 
     return _GeofenceBlockScreen(
       checking: _checking,

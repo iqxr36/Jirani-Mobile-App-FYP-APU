@@ -347,6 +347,76 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateResidentProfileImage({
+    required Uint8List bytes,
+    required String originalFileName,
+  }) async {
+    final uid = _firebaseUser?.uid ?? _currentUser?.uid;
+    if (uid == null) {
+      _errorMessage = 'You must be signed in to update your profile image.';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    clearError(notify: false);
+
+    try {
+      final url = await _repository.uploadProfileImage(
+        uid: uid,
+        bytes: bytes,
+        originalFileName: originalFileName,
+        accountFolder: 'residents',
+      );
+      await _userRepository.updateUserFields(
+        uid: uid,
+        fields: {'profileImageUrl': url},
+      );
+      _currentUser = _currentUser?.copyWith(profileImageUrl: url);
+      return true;
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateAdminProfileImage({
+    required Uint8List bytes,
+    required String originalFileName,
+  }) async {
+    final uid = _firebaseUser?.uid ?? _currentAdmin?.uid;
+    if (uid == null) {
+      _errorMessage = 'You must be signed in to update your profile image.';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    clearError(notify: false);
+
+    try {
+      final url = await _repository.uploadProfileImage(
+        uid: uid,
+        bytes: bytes,
+        originalFileName: originalFileName,
+        accountFolder: 'admins',
+      );
+      await _repository.updateAdminProfileImageUrl(
+        uid: uid,
+        profileImageUrl: url,
+      );
+      _currentAdmin = await _repository.getCurrentAdminUser();
+      return true;
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> updateSelectedCommunity({
     required String communityId,
     required String communityName,

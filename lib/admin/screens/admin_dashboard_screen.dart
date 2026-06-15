@@ -3,6 +3,7 @@ import 'package:jirani/admin/models/admin_section.dart';
 import 'package:jirani/admin/screens/dashboard/admin_overview_screen.dart';
 import 'package:jirani/admin/screens/dashboard/admin_transactions_screen.dart';
 import 'package:jirani/admin/screens/listings/admin_listings_screen.dart';
+import 'package:jirani/admin/screens/news/admin_news_screen.dart';
 import 'package:jirani/admin/screens/reports/admin_reports_screen.dart';
 import 'package:jirani/admin/screens/settings/admin_settings_screen.dart';
 import 'package:jirani/admin/screens/users/admin_residents_screen.dart';
@@ -388,7 +389,10 @@ class _AdminTopBar extends StatelessWidget {
             icon: const Icon(Icons.notifications_none_rounded),
           ),
           const SizedBox(width: 10),
-          AdminAvatar(name: admin?.fullName ?? 'Admin'),
+          AdminAvatar(
+            name: admin?.fullName ?? 'Admin',
+            imageUrl: admin?.profileImageUrl ?? '',
+          ),
           const SizedBox(width: 8),
           IconButton(
             tooltip: 'Sign out',
@@ -432,6 +436,7 @@ class _AdminContent extends StatelessWidget {
               onSelectRequest: onSelectRequest,
             ),
             AdminSection.residents => const AdminResidentsScreen(),
+            AdminSection.news => const AdminNewsScreen(),
             AdminSection.listings => const AdminListingsScreen(),
             AdminSection.reports => const AdminReportsScreen(),
             AdminSection.transactions => const AdminTransactionsScreen(),

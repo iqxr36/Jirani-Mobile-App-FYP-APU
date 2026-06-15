@@ -36,9 +36,11 @@ class AppConstants {
       'verification_documents';
   static const String storageResidentDocumentsPath = 'resident_documents';
   static const String storageItemImagesPath = 'item_images';
+  static const String storageProfileImagesPath = 'profile_images';
 
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
   static const String storageBorrowRequestProofsPath = 'borrow_request_proofs';
+  static const String storageChatAttachmentsPath = 'chat_attachments';
 
   // Marketplace item categories
   static const String itemCategoryTools = 'tools';
@@ -90,6 +92,11 @@ class AppConstants {
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
   static const String activityLogsCollection = 'activityLogs';
+
+  // Chat message types
+  static const String chatMessageText = 'text';
+  static const String chatMessageImage = 'image';
+  static const String chatMessageFile = 'file';
 
   // Connections
   static const String connectionPending = 'pending';

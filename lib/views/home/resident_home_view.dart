@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:jirani/core/utils/verification_access.dart';
+import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/views/chat/resident_messages_view.dart';
 import 'package:jirani/views/connections/resident_connections_view.dart';
+import 'package:jirani/views/notifications/resident_notifications_view.dart';
 import 'package:provider/provider.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
@@ -125,12 +128,39 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     );
   }
 
+  void _openMessages(BuildContext context, AppUser? user) {
+    if (!residentHasFullAppAccess(user)) {
+      _onLockedTap(context, user);
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMessagesView(),
+      ),
+    );
+  }
+
+  void _openNotifications(BuildContext context, AppUser? user) {
+    if (!residentHasFullAppAccess(user)) {
+      _onLockedTap(context, user);
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentNotificationsView(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
     final incomingConnectionCount = context
         .watch<ConnectionProvider>()
         .incomingRequestCount;
+    final unreadMessageCount = context.watch<ChatProvider>().totalUnreadCount;
     final firstName = _firstName(user?.fullName ?? '');
 
     return JiraniBackground(
@@ -144,6 +174,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                 user,
                 firstName,
                 incomingConnectionCount,
+                unreadMessageCount,
               ),
             ),
             if (user != null && !residentHasFullAppAccess(user))
@@ -163,8 +194,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     AppUser? user,
     String firstName,
     int incomingConnectionCount,
+    int unreadMessageCount,
   ) {
-    void locked() => _onLockedTap(context, user);
     final communityName = user?.communityName.trim().isNotEmpty == true
         ? user!.communityName.trim()
         : 'Jirani Residence';
@@ -235,7 +266,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                       _HeaderAction(
                         icon: Icons.forum_outlined,
                         label: 'Messages',
-                        onTap: locked,
+                        onTap: () => _openMessages(context, user),
+                        badgeCount: unreadMessageCount,
                       ),
                       const SizedBox(width: 14),
                       _HeaderAction(
@@ -248,7 +280,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                       _HeaderAction(
                         icon: Icons.notifications_outlined,
                         label: 'Notifications',
-                        onTap: locked,
+                        onTap: () => _openNotifications(context, user),
                         showBadge: true,
                       ),
                     ],
