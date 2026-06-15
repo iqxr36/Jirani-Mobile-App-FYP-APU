@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 380;
 
 class ResidentMarketplaceView extends StatelessWidget {
   const ResidentMarketplaceView({super.key});
@@ -29,6 +30,8 @@ class ResidentMarketplaceView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sideInset = JiraniResponsive.scaled(context, 20);
+
     return JiraniBackground(
       child: SafeArea(
         bottom: false,
@@ -38,33 +41,36 @@ class ResidentMarketplaceView extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: _kMaxContentWidth,
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: 24),
-                          _PageHeader(
-                            title: 'Marketplace',
-                            subtitle:
-                                'Borrow useful items from trusted neighbors nearby.',
-                          ),
-                          SizedBox(height: 20),
-                          _SearchField(hint: 'Search in marketplace...'),
-                          SizedBox(height: 16),
-                          _CategoryChips(
-                            labels: [
-                              'All Items',
-                              'Tools',
-                              'Electronics',
-                              'Home',
-                            ],
-                          ),
-                          SizedBox(height: 24),
-                        ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: sideInset),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: _kMaxContentWidth,
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: 24),
+                            _PageHeader(
+                              title: 'Marketplace',
+                              subtitle:
+                                  'Borrow useful items from trusted neighbors nearby.',
+                            ),
+                            SizedBox(height: 20),
+                            _SearchField(hint: 'Search in marketplace...'),
+                            SizedBox(height: 16),
+                            _CategoryChips(
+                              labels: [
+                                'All Items',
+                                'Tools',
+                                'Electronics',
+                                'Home',
+                              ],
+                            ),
+                            SizedBox(height: 24),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -74,12 +80,15 @@ class ResidentMarketplaceView extends StatelessWidget {
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 20),
                   itemBuilder: (context, index) {
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxContentWidth,
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sideInset),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _kMaxContentWidth,
+                          ),
+                          child: _MarketplaceCard(item: _items[index]),
                         ),
-                        child: _MarketplaceCard(item: _items[index]),
                       ),
                     );
                   },
@@ -87,7 +96,11 @@ class ResidentMarketplaceView extends StatelessWidget {
                 const SliverToBoxAdapter(child: SizedBox(height: 112)),
               ],
             ),
-            const Positioned(right: 24, bottom: 24, child: _AddButton()),
+            Positioned(
+              right: sideInset,
+              bottom: JiraniResponsive.scaled(context, 24),
+              child: const _AddButton(),
+            ),
           ],
         ),
       ),
@@ -155,24 +168,32 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 58,
+      height: JiraniResponsive.scaled(context, 56),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 20),
+        ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            blurRadius: JiraniResponsive.scaled(context, 22),
+            offset: Offset(0, JiraniResponsive.scaled(context, 10)),
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(
+        horizontal: JiraniResponsive.scaled(context, 16),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: _kBrandTeal, size: 23),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.search_rounded,
+            color: _kBrandTeal,
+            size: JiraniResponsive.scaled(context, 22),
+          ),
+          SizedBox(width: JiraniResponsive.scaled(context, 12)),
           Expanded(
             child: Text(
               hint,
@@ -222,9 +243,11 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: JiraniResponsive.scaled(context, 40),
       constraints: const BoxConstraints(minWidth: 56),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(
+        horizontal: JiraniResponsive.scaled(context, 16),
+      ),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: selected ? _kBrandTeal : Colors.white,
@@ -260,29 +283,39 @@ class _MarketplaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 282),
+      constraints: BoxConstraints(
+        minHeight: JiraniResponsive.scaled(context, 266),
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 22),
+        ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.09),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            blurRadius: JiraniResponsive.scaled(context, 24),
+            offset: Offset(0, JiraniResponsive.scaled(context, 12)),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(14),
+      padding: JiraniResponsive.scaledEdgeInsets(
+        context,
+        left: 14,
+        top: 14,
+        right: 14,
+        bottom: 14,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 132,
+            height: JiraniResponsive.scaled(context, 124),
             child: Row(
               children: [
                 Expanded(flex: 3, child: _ItemImage(icon: item.icon)),
-                const SizedBox(width: 10),
+                SizedBox(width: JiraniResponsive.scaled(context, 10)),
                 Expanded(
                   flex: 2,
                   child: Column(
@@ -290,7 +323,7 @@ class _MarketplaceCard extends StatelessWidget {
                       Expanded(
                         child: _ItemImage(icon: item.icon, compact: true),
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: JiraniResponsive.scaled(context, 10)),
                       Expanded(
                         child: _ItemImage(icon: item.icon, compact: true),
                       ),
@@ -300,7 +333,7 @@ class _MarketplaceCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: JiraniResponsive.scaled(context, 14)),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -317,11 +350,11 @@ class _MarketplaceCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: JiraniResponsive.scaled(context, 8)),
               const _StatusPill(label: 'Available'),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: JiraniResponsive.scaled(context, 4)),
           Text(
             item.category,
             style: const TextStyle(
@@ -330,7 +363,7 @@ class _MarketplaceCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: JiraniResponsive.scaled(context, 12)),
           Row(
             children: [
               const CircleAvatar(
@@ -338,7 +371,7 @@ class _MarketplaceCard extends StatelessWidget {
                 backgroundColor: Color(0xFFCFE5E9),
                 child: Icon(Icons.person, size: 20, color: _kBrandTeal),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: JiraniResponsive.scaled(context, 8)),
               Expanded(
                 child: Text(
                   item.owner,
@@ -351,7 +384,7 @@ class _MarketplaceCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: JiraniResponsive.scaled(context, 8)),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -392,12 +425,14 @@ class _ItemImage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: _kBrandTeal.withValues(alpha: compact ? 0.08 : 0.12),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 16),
+        ),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.08)),
       ),
       child: Icon(
         icon,
-        size: compact ? 30 : 52,
+        size: JiraniResponsive.scaled(context, compact ? 28 : 48),
         color: _kBrandTeal.withValues(alpha: 0.72),
       ),
     );
@@ -436,6 +471,7 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = JiraniResponsive.scaled(context, 56);
     return Material(
       color: _kBrandTeal,
       shape: const CircleBorder(),
@@ -444,10 +480,14 @@ class _AddButton extends StatelessWidget {
       child: InkWell(
         onTap: () {},
         customBorder: const CircleBorder(),
-        child: const SizedBox(
-          width: 58,
-          height: 58,
-          child: Icon(Icons.add, color: Colors.white, size: 32),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Icon(
+            Icons.add,
+            color: Colors.white,
+            size: JiraniResponsive.scaled(context, 30),
+          ),
         ),
       ),
     );

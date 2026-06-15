@@ -3,6 +3,7 @@ import 'package:jirani/admin/models/admin_display_rows.dart';
 import 'package:jirani/admin/theme/admin_colors.dart';
 import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/widgets/admin_status_widgets.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -38,7 +39,9 @@ class AdminReportsScreen extends StatelessWidget {
         else
           LayoutBuilder(
             builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 900;
+              final wide = JiraniResponsive.isAdminWide(constraints.maxWidth);
+              final paneHeight = (MediaQuery.sizeOf(context).height - 220)
+                  .clamp(480.0, 740.0);
               final inbox = AdminPanel(
                 title: 'Report Inbox',
                 padding: EdgeInsets.zero,
@@ -101,7 +104,7 @@ class AdminReportsScreen extends StatelessWidget {
 
               if (wide) {
                 return SizedBox(
-                  height: 620,
+                  height: paneHeight,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -176,10 +179,7 @@ class AdminReportDetailSection extends StatelessWidget {
           for (final line in lines)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                line,
-                style: const TextStyle(color: AdminColors.ink),
-              ),
+              child: Text(line, style: const TextStyle(color: AdminColors.ink)),
             ),
         ],
       ),

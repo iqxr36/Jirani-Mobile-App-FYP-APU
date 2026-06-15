@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/theme/admin_colors.dart';
 import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -74,7 +75,7 @@ class AdminNewsScreen extends StatelessWidget {
         const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 920;
+            final wide = JiraniResponsive.isAdminWide(constraints.maxWidth);
             if (!wide) {
               return Column(
                 children: [

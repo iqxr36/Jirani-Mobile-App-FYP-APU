@@ -1,12 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/views/camera/camera_permission_view.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 /// Notification permission — Figma: illustration, title, info card, allow / maybe later.
 class NotificationPermissionView extends StatefulWidget {
@@ -19,6 +18,7 @@ class NotificationPermissionView extends StatefulWidget {
 
 class _NotificationPermissionViewState
     extends State<NotificationPermissionView> {
+  final _permissionRepository = VerificationPermissionRepository();
   bool _allowing = false;
   bool _skipping = false;
 
@@ -43,22 +43,11 @@ class _NotificationPermissionViewState
     required String status,
     String? token,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final data = <String, dynamic>{
-      'notificationEnabled': enabled,
-      'notificationPermissionStatus': status,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (token != null && token.isNotEmpty) {
-      data['fcmToken'] = token;
-    }
-
-    await FirebaseFirestore.instance
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .set(data, SetOptions(merge: true));
+    await _permissionRepository.saveNotificationPreference(
+      enabled: enabled,
+      status: status,
+      token: token,
+    );
   }
 
   Future<void> _handleAllowNotifications() async {
@@ -337,7 +326,7 @@ class _NotificationPermissionViewState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

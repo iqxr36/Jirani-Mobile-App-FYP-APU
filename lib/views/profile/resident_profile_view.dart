@@ -3,6 +3,7 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
 import 'package:jirani/views/auth/phone_verification_view.dart';
+import 'package:jirani/views/profile/resident_settings_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,7 +11,7 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 420;
 const int _kMaxProfileImageBytes = 5 * 1024 * 1024;
 
 class ResidentProfileView extends StatefulWidget {
@@ -57,6 +58,27 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => PhoneVerificationView(phoneNumber: phone),
+      ),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ResidentSettingsView(
+          darkTheme: _darkTheme,
+          pushNotifications: _pushNotifications,
+          locationAlerts: _locationAlerts,
+          onDarkThemeChanged: (value) => setState(() => _darkTheme = value),
+          onPushNotificationsChanged: (value) =>
+              setState(() => _pushNotifications = value),
+          onLocationAlertsChanged: (value) =>
+              setState(() => _locationAlerts = value),
+          onPrivacy: () => _showUnavailable('Privacy'),
+          onLanguage: () => _showUnavailable('Language'),
+          onPaymentMethods: () => _showUnavailable('Payment Methods'),
+          onHelp: () => _showUnavailable('Help & Support'),
+        ),
       ),
     );
   }
@@ -144,33 +166,8 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                     onMyItems: () => _showUnavailable('My Items'),
                     onRatings: () => _showUnavailable('Ratings & Reviews'),
                     onMyServices: () => _showUnavailable('My Services'),
+                    onSettings: _openSettings,
                     onLogout: _logout,
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'Settings',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _SettingsCard(
-                    darkTheme: _darkTheme,
-                    pushNotifications: _pushNotifications,
-                    locationAlerts: _locationAlerts,
-                    onDarkThemeChanged: (value) =>
-                        setState(() => _darkTheme = value),
-                    onPushNotificationsChanged: (value) =>
-                        setState(() => _pushNotifications = value),
-                    onLocationAlertsChanged: (value) =>
-                        setState(() => _locationAlerts = value),
-                    onPrivacy: () => _showUnavailable('Privacy'),
-                    onLanguage: () => _showUnavailable('Language'),
-                    onPaymentMethods: () => _showUnavailable('Payment Methods'),
-                    onHelp: () => _showUnavailable('Help & Support'),
                   ),
                 ],
               ),
@@ -194,6 +191,7 @@ class _ProfileCard extends StatelessWidget {
     required this.onMyItems,
     required this.onRatings,
     required this.onMyServices,
+    required this.onSettings,
     required this.onLogout,
   });
 
@@ -207,6 +205,7 @@ class _ProfileCard extends StatelessWidget {
   final VoidCallback onMyItems;
   final VoidCallback onRatings;
   final VoidCallback onMyServices;
+  final VoidCallback onSettings;
   final VoidCallback onLogout;
 
   @override
@@ -371,6 +370,11 @@ class _ProfileCard extends StatelessWidget {
             icon: Icons.article_outlined,
             label: 'My Services',
             onTap: onMyServices,
+          ),
+          _ProfileMenuRow(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            onTap: onSettings,
           ),
           _ProfileMenuRow(
             icon: Icons.logout_rounded,
@@ -793,7 +797,7 @@ class _ProfileMenuRow extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(6),
             child: SizedBox(
-              height: 41,
+              height: 48,
               child: Row(
                 children: [
                   Icon(icon, size: 20, color: color),
@@ -819,225 +823,6 @@ class _ProfileMenuRow extends StatelessWidget {
             height: 1,
             thickness: 1.5,
             color: Colors.black.withValues(alpha: 0.16),
-          ),
-      ],
-    );
-  }
-}
-
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({
-    required this.darkTheme,
-    required this.pushNotifications,
-    required this.locationAlerts,
-    required this.onDarkThemeChanged,
-    required this.onPushNotificationsChanged,
-    required this.onLocationAlertsChanged,
-    required this.onPrivacy,
-    required this.onLanguage,
-    required this.onPaymentMethods,
-    required this.onHelp,
-  });
-
-  final bool darkTheme;
-  final bool pushNotifications;
-  final bool locationAlerts;
-  final ValueChanged<bool> onDarkThemeChanged;
-  final ValueChanged<bool> onPushNotificationsChanged;
-  final ValueChanged<bool> onLocationAlertsChanged;
-  final VoidCallback onPrivacy;
-  final VoidCallback onLanguage;
-  final VoidCallback onPaymentMethods;
-  final VoidCallback onHelp;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.14)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _SettingsSwitchRow(
-            icon: Icons.notifications_outlined,
-            label: 'Push Notifications',
-            value: pushNotifications,
-            onChanged: onPushNotificationsChanged,
-          ),
-          _SettingsSwitchRow(
-            icon: Icons.location_on_outlined,
-            label: 'Location Alerts',
-            value: locationAlerts,
-            onChanged: onLocationAlertsChanged,
-          ),
-          _SettingsSwitchRow(
-            icon: Icons.dark_mode_outlined,
-            label: 'Dark Theme',
-            value: darkTheme,
-            onChanged: onDarkThemeChanged,
-          ),
-          _SettingsActionRow(
-            icon: Icons.lock_outline_rounded,
-            label: 'Privacy & Safety',
-            onTap: onPrivacy,
-          ),
-          _SettingsActionRow(
-            icon: Icons.language_rounded,
-            label: 'Language',
-            trailing: 'English',
-            onTap: onLanguage,
-          ),
-          _SettingsActionRow(
-            icon: Icons.account_balance_wallet_outlined,
-            label: 'Payment Methods',
-            onTap: onPaymentMethods,
-          ),
-          _SettingsActionRow(
-            icon: Icons.help_outline_rounded,
-            label: 'Help & Support',
-            onTap: onHelp,
-            showDivider: false,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsSwitchRow extends StatelessWidget {
-  const _SettingsSwitchRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SettingsBaseRow(
-      icon: icon,
-      label: label,
-      trailing: Switch.adaptive(
-        value: value,
-        activeThumbColor: _kBrandTeal,
-        activeTrackColor: _kBrandTeal.withValues(alpha: 0.24),
-        onChanged: onChanged,
-      ),
-    );
-  }
-}
-
-class _SettingsActionRow extends StatelessWidget {
-  const _SettingsActionRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.trailing,
-    this.showDivider = true,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final String? trailing;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SettingsBaseRow(
-      icon: icon,
-      label: label,
-      onTap: onTap,
-      showDivider: showDivider,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailing != null)
-            Text(
-              trailing!,
-              style: const TextStyle(
-                color: _kMutedText,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, size: 24),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsBaseRow extends StatelessWidget {
-  const _SettingsBaseRow({
-    required this.icon,
-    required this.label,
-    required this.trailing,
-    this.onTap,
-    this.showDivider = true,
-  });
-
-  final IconData icon;
-  final String label;
-  final Widget trailing;
-  final VoidCallback? onTap;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    final row = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 54),
-      child: Row(
-        children: [
-          Icon(icon, size: 21),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          trailing,
-        ],
-      ),
-    );
-
-    return Column(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: row,
-          ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: Colors.black.withValues(alpha: 0.10),
           ),
       ],
     );

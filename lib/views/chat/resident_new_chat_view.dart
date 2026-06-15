@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 420;
 
 class ResidentNewChatView extends StatelessWidget {
   const ResidentNewChatView({super.key});
@@ -55,7 +55,8 @@ class ResidentNewChatView extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
                       child: _NewChatIntro(
-                        loading: connectionProvider.isLoading ||
+                        loading:
+                            connectionProvider.isLoading ||
                             chatProvider.isSubmitting,
                         count: neighbors.length,
                       ),
@@ -71,7 +72,7 @@ class ResidentNewChatView extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
                       sliver: SliverList.separated(
                         itemCount: neighbors.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           return _NeighborChatTile(
                             neighbor: neighbors[index],

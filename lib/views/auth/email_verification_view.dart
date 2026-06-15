@@ -1,16 +1,15 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 const Color _brandTeal = Color(0xFF006D77);
 const Color _mutedGrey = Color(0xFF8A8A8A);
-const double _maxContentWidth = 350;
+const double _maxContentWidth = 390;
 
 /// Email verification — Figma Group 19: illustration, card with timer + resend + copy, Continue.
 class EmailVerificationView extends StatefulWidget {
@@ -139,31 +138,18 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
       _errorBanner = null;
     });
     try {
-      await FirebaseAuth.instance.currentUser?.reload();
+      final verified = await context
+          .read<AuthViewModel>()
+          .refreshEmailVerificationStatus();
       if (!mounted) return;
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        setState(() => _errorBanner = 'You are not signed in.');
-        return;
-      }
-      if (!user.emailVerified) {
+      if (!verified) {
         setState(
-          () => _errorBanner = 'Please verify your email before continuing.',
+          () => _errorBanner =
+              context.read<AuthViewModel>().errorMessage ??
+              'Please verify your email before continuing.',
         );
         return;
       }
-
-      await FirebaseFirestore.instance
-          .collection(AppConstants.usersCollection)
-          .doc(user.uid)
-          .set({
-            'emailVerified': true,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-      if (!mounted) return;
-      await context.read<AuthViewModel>().refreshCurrentUser();
-      if (!mounted) return;
 
       widget.onVerified?.call();
       if (widget.onVerified == null && Navigator.of(context).canPop()) {
@@ -390,7 +376,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/verification_status_view.dart';
@@ -11,7 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 357;
+const double _kMaxContentWidth = 390;
 const int _kMaxDocumentBytes = 10 * 1024 * 1024;
 const _kPdfOnlyDocumentExtensions = ['pdf'];
 const _kImageAndPdfDocumentExtensions = [
@@ -309,7 +310,7 @@ class _ResidencyVerificationFormState
     final communityName = hasCommunity
         ? user!.communityName.trim()
         : 'No community selected';
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
     final documentType = _documentType;
     final allowsGalleryUpload =
         documentType != null && _allowsImageUpload(documentType);
@@ -425,7 +426,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 39,
+      height: 48,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -434,7 +435,7 @@ class _TopBar extends StatelessWidget {
             child: IconButton(
               onPressed: onBack,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 35, height: 39),
+              constraints: const BoxConstraints.tightFor(width: 48, height: 48),
               icon: const Icon(
                 Icons.chevron_left_rounded,
                 color: _kBrandTeal,
@@ -698,7 +699,7 @@ class _UploadActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 34,
+      height: 48,
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, size: 15),
@@ -709,8 +710,8 @@ class _UploadActionButton extends StatelessWidget {
           backgroundColor: _kBrandTeal,
           foregroundColor: Colors.white,
           disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.55),
-          minimumSize: const Size(0, 34),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(0, 48),
+          tapTargetSize: MaterialTapTargetSize.padded,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
           textStyle: const TextStyle(
             fontSize: 11,

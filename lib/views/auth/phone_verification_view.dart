@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +12,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 const Color _brandTeal = Color(0xFF006D77);
 const Color _fieldBorder = Color(0xFFE0E0E0);
 const Color _mutedText = Color(0xFF8A8A8A);
-const double _maxContentWidth = 350;
+const double _maxContentWidth = 390;
 
 /// SMS OTP entry after registration - Figma Group 18.
 ///
@@ -623,7 +624,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

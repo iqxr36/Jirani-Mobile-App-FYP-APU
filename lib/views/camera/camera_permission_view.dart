@@ -1,12 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 /// Camera permission — Figma Group 25: illustration, title, info card, enable / maybe later.
 class CameraPermissionView extends StatefulWidget {
@@ -19,6 +18,7 @@ class CameraPermissionView extends StatefulWidget {
 }
 
 class _CameraPermissionViewState extends State<CameraPermissionView> {
+  final _permissionRepository = VerificationPermissionRepository();
   bool _enabling = false;
   bool _skipping = false;
 
@@ -48,17 +48,10 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     required bool enabled,
     required String status,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    await FirebaseFirestore.instance
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .set({
-          'cameraEnabled': enabled,
-          'cameraPermissionStatus': status,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+    await _permissionRepository.saveCameraPreference(
+      enabled: enabled,
+      status: status,
+    );
   }
 
   Future<void> _handleEnableCamera() async {
@@ -239,7 +232,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:jirani/data/repositories/chat_repository.dart';
@@ -28,7 +27,10 @@ class ChatProvider extends ChangeNotifier {
   int get totalUnreadCount {
     final uid = _currentUser?.uid;
     if (uid == null) return 0;
-    return _chats.fold<int>(0, (total, chat) => total + chat.unreadCountFor(uid));
+    return _chats.fold<int>(
+      0,
+      (total, chat) => total + chat.unreadCountFor(uid),
+    );
   }
 
   void watchForUser(AppUser? user) {
@@ -48,19 +50,21 @@ class ChatProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    _chatsSub = _repository.watchChats(user.uid).listen(
-      (chats) {
-        _chats = chats;
-        _isLoading = false;
-        _errorMessage = null;
-        notifyListeners();
-      },
-      onError: (Object error) {
-        _errorMessage = error.toString();
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+    _chatsSub = _repository
+        .watchChats(user.uid)
+        .listen(
+          (chats) {
+            _chats = chats;
+            _isLoading = false;
+            _errorMessage = null;
+            notifyListeners();
+          },
+          onError: (Object error) {
+            _errorMessage = error.toString();
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
@@ -120,10 +124,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> deleteChatForCurrentUser(ChatModel chat) async {
     final user = _requireCurrentUser();
     await _runAction(
-      () => _repository.deleteChatForUser(
-        chat: chat,
-        currentUserId: user.uid,
-      ),
+      () => _repository.deleteChatForUser(chat: chat, currentUserId: user.uid),
     );
   }
 

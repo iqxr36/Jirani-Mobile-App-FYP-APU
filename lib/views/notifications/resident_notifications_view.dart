@@ -3,7 +3,7 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 420;
 
 List<BoxShadow> _softShadow({
   double opacity = 0.10,

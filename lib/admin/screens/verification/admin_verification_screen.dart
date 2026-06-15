@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/theme/admin_colors.dart';
+import 'package:jirani/admin/services/admin_verification_review_service.dart';
 import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/widgets/admin_ocr_widgets.dart';
 import 'package:jirani/admin/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/widgets/ocr_review_dialog.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/admin_provider.dart';
-import 'package:jirani/services/ocr_parser_service.dart';
 import 'package:jirani/shared/models/extracted_document_data.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+final _reviewService = AdminVerificationReviewService();
 
 class AdminVerificationScreen extends StatelessWidget {
   const AdminVerificationScreen({
@@ -46,18 +49,9 @@ class AdminVerificationScreen extends StatelessWidget {
               value: admin.selectedStatusFilter,
               underline: const SizedBox.shrink(),
               items: const [
-                DropdownMenuItem(
-                  value: 'submitted',
-                  child: Text('Submitted'),
-                ),
-                DropdownMenuItem(
-                  value: 'verified',
-                  child: Text('Verified'),
-                ),
-                DropdownMenuItem(
-                  value: 'rejected',
-                  child: Text('Rejected'),
-                ),
+                DropdownMenuItem(value: 'submitted', child: Text('Submitted')),
+                DropdownMenuItem(value: 'verified', child: Text('Verified')),
+                DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                 DropdownMenuItem(value: 'all', child: Text('All')),
               ],
               onChanged: (value) {
@@ -75,7 +69,11 @@ class AdminVerificationScreen extends StatelessWidget {
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 900;
+            final wide = JiraniResponsive.isAdminWide(constraints.maxWidth);
+            final paneHeight = (MediaQuery.sizeOf(context).height - 220).clamp(
+              480.0,
+              760.0,
+            );
             final list = AdminVerificationRequestList(
               requests: requests,
               selectedId: selected?.id,
@@ -85,7 +83,7 @@ class AdminVerificationScreen extends StatelessWidget {
 
             if (wide) {
               return SizedBox(
-                height: 650,
+                height: paneHeight,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -143,8 +141,7 @@ class AdminVerificationRequestList extends StatelessWidget {
           ? const AdminEmptyPanelMessage(
               icon: Icons.mark_email_read_rounded,
               title: 'No requests in this queue',
-              body:
-                  'New resident verification submissions will appear here.',
+              body: 'New resident verification submissions will appear here.',
             )
           : ListView.separated(
               padding: const EdgeInsets.all(12),
@@ -206,8 +203,18 @@ class AdminVerificationRequestList extends StatelessWidget {
 
   String _formatRequestDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
@@ -312,52 +319,19 @@ class AdminVerificationDetail extends StatelessWidget {
     );
     if (!context.mounted) return;
     final error = context.read<AdminProvider>().errorMessage;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Verification approved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error ?? 'Verification approved.')));
   }
 
   Future<ExtractedDocumentData?> _reviewOcrData(
     BuildContext context,
     VerificationRequest request,
   ) {
-    final structuredData = _structuredDataFromRequest(request);
-    if (structuredData != null) {
-      return showDialog<ExtractedDocumentData>(
-        context: context,
-        builder: (context) => OcrReviewDialog(initialData: structuredData),
-      );
-    }
-
-    final parser = OcrParserService();
-    final documentType = documentTypeFromValue(request.documentType);
-    final parsedData = documentType == DocumentType.unknown
-        ? parser.processOcrText(request.ocrText)
-        : parser.extractByDocumentType(request.ocrText, documentType);
+    final parsedData = _reviewService.initialReviewData(request);
     return showDialog<ExtractedDocumentData>(
       context: context,
       builder: (context) => OcrReviewDialog(initialData: parsedData),
-    );
-  }
-
-  ExtractedDocumentData? _structuredDataFromRequest(
-    VerificationRequest request,
-  ) {
-    final fields = request.extractedFields;
-    if (fields.isEmpty) return null;
-    String? value(String key) {
-      final trimmed = fields[key]?.value.trim() ?? '';
-      return trimmed.isEmpty ? null : trimmed;
-    }
-
-    return ExtractedDocumentData(
-      type: DocumentType.tenancyAgreement,
-      tenantName: value('tenant_name'),
-      landlordName: value('landlord_name'),
-      propertyAddress: value('property_address'),
-      unitNumber: value('unit_number'),
-      agreementDate: value('agreement_date'),
-      fullText: request.ocrText,
     );
   }
 
@@ -378,9 +352,9 @@ class AdminVerificationDetail extends StatelessWidget {
     );
     if (!context.mounted) return;
     final error = context.read<AdminProvider>().errorMessage;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Verification rejected.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error ?? 'Verification rejected.')));
   }
 
   Future<void> _openDocument(BuildContext context, String url) async {
@@ -433,8 +407,7 @@ class _AdminRejectDialogState extends State<AdminRejectDialog> {
             backgroundColor: AdminColors.accent,
             foregroundColor: Colors.white,
           ),
-          onPressed: () =>
-              Navigator.of(context).pop(_controller.text.trim()),
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
           child: const Text('Reject Request'),
         ),
       ],

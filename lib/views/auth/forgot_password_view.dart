@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
@@ -251,7 +252,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AuthViewModel>();
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

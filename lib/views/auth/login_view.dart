@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/forgot_password_view.dart';
@@ -9,7 +10,7 @@ import 'package:provider/provider.dart';
 /// Resident login - Jirani (Figma Group 13).
 /// Brand teal: #006D77
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kCardMaxWidth = 350;
+const double _kCardMaxWidth = 390;
 const double _kBorderOpacity = 0.2;
 const double _kFieldRadius = 11;
 
@@ -87,7 +88,7 @@ class _LoginViewState extends State<LoginView> {
   Widget build(BuildContext context) {
     final vm = context.watch<AuthViewModel>();
     final dividerGrey = Colors.black.withValues(alpha: _kBorderOpacity);
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     final baseDecoration = InputDecoration(
       filled: true,

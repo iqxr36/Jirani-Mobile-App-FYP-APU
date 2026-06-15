@@ -9,7 +9,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 420;
 
 class ResidentMessagesView extends StatelessWidget {
   const ResidentMessagesView({super.key});
@@ -66,14 +66,16 @@ class ResidentMessagesView extends StatelessWidget {
                   if (chats.isEmpty)
                     SliverFillRemaining(
                       hasScrollBody: false,
-                      child: _EmptyInbox(onStartChat: () => _openNewChat(context)),
+                      child: _EmptyInbox(
+                        onStartChat: () => _openNewChat(context),
+                      ),
                     )
                   else
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
                       sliver: SliverList.separated(
                         itemCount: chats.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           return _ChatTile(
                             chat: chats[index],
@@ -285,8 +287,9 @@ class _ChatTile extends StatelessWidget {
                                   ? const Color(0xFF1F2937)
                                   : _kMutedText,
                               fontSize: 12,
-                              fontWeight:
-                                  unread > 0 ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: unread > 0
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                             ),
                           ),
                         ),

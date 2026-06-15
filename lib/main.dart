@@ -4,6 +4,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/auth_provider.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
@@ -76,7 +77,13 @@ class TrustCommunityApp extends StatelessWidget {
         title: AppConstants.appName,
         theme: AppTheme.lightTheme,
         builder: (context, child) {
-          return JiraniBackground(child: child ?? const SizedBox.shrink());
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(
+              textScaler: JiraniResponsive.clampedTextScaler(context),
+            ),
+            child: JiraniBackground(child: child ?? const SizedBox.shrink()),
+          );
         },
         home: const AuthWrapper(),
       ),

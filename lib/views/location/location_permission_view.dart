@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/services/location_onboarding_prefs.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:jirani/shared/widgets/jirani_modal.dart';
@@ -9,7 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'community_confirmation_view.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 /// Location permission — Figma Group 16: illustration, privacy card, enable / not now.
 class LocationPermissionView extends StatefulWidget {
@@ -461,7 +462,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

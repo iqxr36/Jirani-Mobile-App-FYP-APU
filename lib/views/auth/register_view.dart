@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
@@ -370,7 +371,7 @@ class _RegisterViewState extends State<RegisterView> {
       builder: (context, vm, _) {
         final loading = vm.isLoading;
 
-        final bottomInset = MediaQuery.paddingOf(context).bottom;
+        final bottomInset = JiraniResponsive.bottomInset(context);
 
         return Scaffold(
           backgroundColor: Colors.transparent,

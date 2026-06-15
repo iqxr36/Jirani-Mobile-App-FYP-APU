@@ -53,8 +53,8 @@ class AppTheme {
           elevation: 0,
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          minimumSize: const Size(64, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(64, 48),
+          tapTargetSize: MaterialTapTargetSize.padded,
           textStyle: _buttonTextStyle,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -65,8 +65,8 @@ class AppTheme {
         style: FilledButton.styleFrom(
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          minimumSize: const Size(64, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(64, 48),
+          tapTargetSize: MaterialTapTargetSize.padded,
           textStyle: _buttonTextStyle,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -77,8 +77,8 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          minimumSize: const Size(64, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(64, 48),
+          tapTargetSize: MaterialTapTargetSize.padded,
           textStyle: _buttonTextStyle,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -89,7 +89,8 @@ class AppTheme {
         style: TextButton.styleFrom(
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size(48, 48),
+          tapTargetSize: MaterialTapTargetSize.padded,
           textStyle: _buttonTextStyle,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),

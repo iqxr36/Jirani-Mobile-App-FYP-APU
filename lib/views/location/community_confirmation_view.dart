@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/services/geofence_manager.dart';
@@ -11,7 +12,7 @@ import 'package:jirani/shared/widgets/jirani_modal.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 class CommunityConfirmationView extends StatefulWidget {
   const CommunityConfirmationView({super.key});
@@ -439,7 +440,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
   Widget build(BuildContext context) {
     final viewModel = context.watch<AuthViewModel>();
     final community = _currentSelection(viewModel);
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

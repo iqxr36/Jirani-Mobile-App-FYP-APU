@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
@@ -7,7 +8,7 @@ import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 392;
+const double _kMaxContentWidth = 390;
 
 class VerificationStatusView extends StatelessWidget {
   const VerificationStatusView({
@@ -59,7 +60,7 @@ class _VerificationStatusContent extends StatelessWidget {
       userStatus: user?.verificationStatus,
       request: request,
     );
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

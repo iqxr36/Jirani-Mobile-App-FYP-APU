@@ -4,6 +4,7 @@ import 'package:jirani/admin/theme/admin_colors.dart';
 import 'package:jirani/admin/utils/admin_formatters.dart';
 import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/widgets/admin_status_widgets.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -18,8 +19,7 @@ class AdminOverviewScreen extends StatelessWidget {
     final totalUsers = stats['totalUsers'] ?? 0;
     final submitted = stats['submittedRequests'] ?? requests.length;
     final verified = stats['verifiedResidents'] ?? 0;
-    final activeListings =
-        stats['activeListings'] ?? admin.listings.length;
+    final activeListings = stats['activeListings'] ?? admin.listings.length;
     final openReports = stats['openReports'] ?? admin.reports.length;
 
     return AdminPageScroll(
@@ -62,7 +62,7 @@ class AdminOverviewScreen extends StatelessWidget {
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 900;
+            final wide = JiraniResponsive.isAdminWide(constraints.maxWidth);
             final chart = AdminPanel(
               title: 'User Growth',
               action: 'Last 6 months',
@@ -170,11 +170,7 @@ class AdminRecentActivityList extends StatelessWidget {
                     color: AdminColors.secondary.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    item.icon,
-                    color: AdminColors.primary,
-                    size: 21,
-                  ),
+                  child: Icon(item.icon, color: AdminColors.primary, size: 21),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

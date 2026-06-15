@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
 
 /// Confirms that the resident is currently within the selected community area.
 class LocationVerifiedView extends StatelessWidget {
@@ -28,9 +28,9 @@ class LocationVerifiedView extends StatelessWidget {
     }
   }
 
-  Widget _buildIllustration() {
+  Widget _buildIllustration(BuildContext context) {
     return SizedBox(
-      height: 255,
+      height: JiraniResponsive.clamp(context, 220, minFactor: 0.78),
       width: double.infinity,
       child: Image.asset(
         'assets/Location1.png',
@@ -158,58 +158,72 @@ class LocationVerifiedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final padding = JiraniResponsive.pagePadding(context, top: 16, bottom: 24);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 16, 28, 20),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
-              child: Column(
-                children: [
-                  const Text(
-                    'Location Verified',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _kBrandTeal,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: JiraniResponsiveCenter(
+                width: JiraniContentWidth.auth,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight > padding.vertical
+                        ? constraints.maxHeight - padding.vertical
+                        : 0,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Location Verified',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _kBrandTeal,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildIllustration(context),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'You are within your selected\ncommunity area.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        const Text(
+                          'You can now browse the app in restricted mode.\n'
+                          'Submit verification documents from Profile.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF737378),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        _buildResultCard(),
+                        const Spacer(),
+                        const SizedBox(height: 24),
+                        _buildContinueButton(context),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  _buildIllustration(),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'You are within your selected\ncommunity area.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'You can now browse the app in restricted mode.\n'
-                    'Submit verification documents from Profile.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF737378),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  _buildResultCard(),
-                  const Spacer(),
-                  _buildContinueButton(context),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

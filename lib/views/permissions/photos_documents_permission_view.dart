@@ -1,13 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 /// Photos and documents permission step for the verification onboarding flow.
 class PhotosDocumentsPermissionView extends StatefulWidget {
@@ -22,6 +21,7 @@ class PhotosDocumentsPermissionView extends StatefulWidget {
 
 class _PhotosDocumentsPermissionViewState
     extends State<PhotosDocumentsPermissionView> {
+  final _permissionRepository = VerificationPermissionRepository();
   bool _allowing = false;
   bool _skipping = false;
 
@@ -53,17 +53,10 @@ class _PhotosDocumentsPermissionViewState
     required bool enabled,
     required String status,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    await FirebaseFirestore.instance
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .set({
-          'photosDocumentsEnabled': enabled,
-          'photosDocumentsPermissionStatus': status,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+    await _permissionRepository.savePhotosDocumentsPreference(
+      enabled: enabled,
+      status: status,
+    );
   }
 
   Future<void> _handleAllowAccess() async {
@@ -275,7 +268,7 @@ class _PhotosDocumentsPermissionViewState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

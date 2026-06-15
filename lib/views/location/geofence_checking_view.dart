@@ -9,7 +9,7 @@ import 'location_verified_view.dart';
 import 'outside_geofence_view.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
+const double _kMaxContentWidth = 390;
 
 /// Acquires the user's position and verifies it against their community boundary.
 class GeofenceCheckingView extends StatefulWidget {

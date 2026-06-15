@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/verification/verification_permission_flow_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 350;
 
 /// Entry prompt for an unverified resident after authentication.
 class AccountCreatedView extends StatelessWidget {
@@ -24,53 +24,51 @@ class AccountCreatedView extends StatelessWidget {
   }
 
   Widget _buildStatusCard() {
-    return SizedBox(
-      height: 380,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
-        ),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-          child: Column(
-            children: [
-              _ResidentIcon(),
-              SizedBox(height: 12),
-              Text(
-                'Account Created!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _kBrandTeal,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ResidentIcon(),
+            SizedBox(height: 12),
+            Text(
+              'Account Created!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _kBrandTeal,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
               ),
-              SizedBox(height: 50),
-              Text(
-                'Confirm your community location to\nenter restricted access.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
+            ),
+            SizedBox(height: 40),
+            Text(
+              'Confirm your community location to\nenter restricted access.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
               ),
-              SizedBox(height: 16),
-              Text(
-                'Full access unlocks after admin\napproval of your documents.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Full access unlocks after admin\napproval of your documents.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -123,28 +121,40 @@ class AccountCreatedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<AuthViewModel>();
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final padding = JiraniResponsive.pagePadding(context, top: 48, bottom: 24);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(26, 56, 26, 18 + bottomInset),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildStatusCard(),
-                  const Spacer(),
-                  _buildStartButton(context, viewModel),
-                  const SizedBox(height: 12),
-                  _buildSignOutButton(viewModel),
-                ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: JiraniResponsiveCenter(
+                width: JiraniContentWidth.auth,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight > padding.vertical
+                        ? constraints.maxHeight - padding.vertical
+                        : 0,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildStatusCard(),
+                        const Spacer(),
+                        const SizedBox(height: 32),
+                        _buildStartButton(context, viewModel),
+                        const SizedBox(height: 12),
+                        _buildSignOutButton(viewModel),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

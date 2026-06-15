@@ -299,8 +299,27 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshEmailVerificationStatus() async {
-    await refreshCurrentUser();
+  Future<bool> refreshEmailVerificationStatus() async {
+    _setLoading(true);
+    clearError(notify: false);
+    _successMessage = null;
+
+    try {
+      await _repository.currentFirebaseUser?.reload();
+      _firebaseUser = _repository.currentFirebaseUser;
+      await _loadCurrentProfiles();
+      final verified =
+          _firebaseUser?.emailVerified ?? _currentUser?.emailVerified ?? false;
+      if (!verified) {
+        _errorMessage = 'Please verify your email before continuing.';
+      }
+      return verified;
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> saveProfile({

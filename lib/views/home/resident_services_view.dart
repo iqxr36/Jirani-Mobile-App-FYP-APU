@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF8E8E93);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 380;
 
 class ResidentServicesView extends StatelessWidget {
   const ResidentServicesView({super.key});
@@ -31,6 +32,8 @@ class ResidentServicesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sideInset = JiraniResponsive.scaled(context, 20);
+
     return JiraniBackground(
       child: SafeArea(
         bottom: false,
@@ -40,28 +43,36 @@ class ResidentServicesView extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: _kMaxContentWidth,
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: 24),
-                          _PageHeader(
-                            title: 'Services',
-                            subtitle:
-                                'Find reliable help from people in your community.',
-                          ),
-                          SizedBox(height: 20),
-                          _SearchField(hint: 'Search services...'),
-                          SizedBox(height: 16),
-                          _CategoryChips(
-                            labels: ['All', 'Handyman', 'Tutoring', 'Personal'],
-                          ),
-                          SizedBox(height: 24),
-                        ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: sideInset),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: _kMaxContentWidth,
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: 24),
+                            _PageHeader(
+                              title: 'Services',
+                              subtitle:
+                                  'Find reliable help from people in your community.',
+                            ),
+                            SizedBox(height: 20),
+                            _SearchField(hint: 'Search services...'),
+                            SizedBox(height: 16),
+                            _CategoryChips(
+                              labels: [
+                                'All',
+                                'Handyman',
+                                'Tutoring',
+                                'Personal',
+                              ],
+                            ),
+                            SizedBox(height: 24),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -71,12 +82,15 @@ class ResidentServicesView extends StatelessWidget {
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 20),
                   itemBuilder: (context, index) {
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxContentWidth,
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sideInset),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _kMaxContentWidth,
+                          ),
+                          child: _ServiceCard(data: _services[index]),
                         ),
-                        child: _ServiceCard(data: _services[index]),
                       ),
                     );
                   },
@@ -84,7 +98,11 @@ class ResidentServicesView extends StatelessWidget {
                 const SliverToBoxAdapter(child: SizedBox(height: 112)),
               ],
             ),
-            const Positioned(right: 24, bottom: 24, child: _AddButton()),
+            Positioned(
+              right: sideInset,
+              bottom: JiraniResponsive.scaled(context, 24),
+              child: const _AddButton(),
+            ),
           ],
         ),
       ),
@@ -152,24 +170,32 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 58,
+      height: JiraniResponsive.scaled(context, 56),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 20),
+        ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            blurRadius: JiraniResponsive.scaled(context, 22),
+            offset: Offset(0, JiraniResponsive.scaled(context, 10)),
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(
+        horizontal: JiraniResponsive.scaled(context, 16),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: _kBrandTeal, size: 23),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.search_rounded,
+            color: _kBrandTeal,
+            size: JiraniResponsive.scaled(context, 22),
+          ),
+          SizedBox(width: JiraniResponsive.scaled(context, 12)),
           Expanded(
             child: Text(
               hint,
@@ -219,9 +245,11 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: JiraniResponsive.scaled(context, 40),
       constraints: const BoxConstraints(minWidth: 56),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(
+        horizontal: JiraniResponsive.scaled(context, 16),
+      ),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: selected ? _kBrandTeal : Colors.white,
@@ -257,20 +285,30 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 284),
+      constraints: BoxConstraints(
+        minHeight: JiraniResponsive.scaled(context, 268),
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 22),
+        ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.09),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            blurRadius: JiraniResponsive.scaled(context, 24),
+            offset: Offset(0, JiraniResponsive.scaled(context, 12)),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: JiraniResponsive.scaledEdgeInsets(
+        context,
+        left: 15,
+        top: 15,
+        right: 15,
+        bottom: 15,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -278,7 +316,7 @@ class _ServiceCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _ProviderAvatar(icon: data.icon),
-              const SizedBox(width: 14),
+              SizedBox(width: JiraniResponsive.scaled(context, 12)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,7 +332,7 @@ class _ServiceCard extends StatelessWidget {
                         height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: JiraniResponsive.scaled(context, 3)),
                     Text(
                       data.category,
                       style: const TextStyle(
@@ -303,7 +341,7 @@ class _ServiceCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: JiraniResponsive.scaled(context, 10)),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -342,7 +380,7 @@ class _ServiceCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: JiraniResponsive.scaled(context, 16)),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -384,17 +422,17 @@ class _ServiceCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: JiraniResponsive.scaled(context, 10)),
               _StatusPill(label: data.status),
             ],
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: JiraniResponsive.scaled(context, 16)),
           Row(
             children: [
               Expanded(
                 child: _ActionButton(label: 'Message ${data.firstName}'),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: JiraniResponsive.scaled(context, 10)),
               const Expanded(child: _ActionButton(label: 'View Profile')),
             ],
           ),
@@ -412,14 +450,20 @@ class _ProviderAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 104,
-      height: 104,
+      width: JiraniResponsive.scaled(context, 92),
+      height: JiraniResponsive.scaled(context, 92),
       decoration: BoxDecoration(
         color: _kBrandTeal.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          JiraniResponsive.scaledRadius(context, 18),
+        ),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: _kBrandTeal.withValues(alpha: 0.75), size: 48),
+      child: Icon(
+        icon,
+        color: _kBrandTeal.withValues(alpha: 0.75),
+        size: JiraniResponsive.scaled(context, 42),
+      ),
     );
   }
 }
@@ -459,12 +503,14 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: JiraniResponsive.minTouchTarget,
       child: ElevatedButton(
         onPressed: () {},
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: JiraniResponsive.scaled(context, 10),
+          ),
           backgroundColor: _kBrandTeal,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -483,6 +529,7 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = JiraniResponsive.scaled(context, 56);
     return Material(
       color: _kBrandTeal,
       shape: const CircleBorder(),
@@ -491,10 +538,14 @@ class _AddButton extends StatelessWidget {
       child: InkWell(
         onTap: () {},
         customBorder: const CircleBorder(),
-        child: const SizedBox(
-          width: 58,
-          height: 58,
-          child: Icon(Icons.add, color: Colors.white, size: 32),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Icon(
+            Icons.add,
+            color: Colors.white,
+            size: JiraniResponsive.scaled(context, 30),
+          ),
         ),
       ),
     );

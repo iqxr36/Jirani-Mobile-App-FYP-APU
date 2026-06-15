@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -10,7 +11,7 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kBodyMuted = Color(0xFF8E8E93);
-const double _kMaxContentWidth = 357;
+const double _kMaxContentWidth = 390;
 
 class VerificationProcessView extends StatelessWidget {
   const VerificationProcessView({super.key});
@@ -38,7 +39,7 @@ class _VerificationProcessContent extends StatelessWidget {
     final user = context.watch<AuthViewModel>().currentUser;
     final verificationVm = context.watch<VerificationViewModel>();
     final request = verificationVm.currentRequest;
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = JiraniResponsive.bottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -326,7 +327,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 39,
+      height: 48,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -335,7 +336,7 @@ class _TopBar extends StatelessWidget {
             child: IconButton(
               onPressed: onBack,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 35, height: 39),
+              constraints: const BoxConstraints.tightFor(width: 48, height: 48),
               icon: const Icon(
                 Icons.chevron_left_rounded,
                 color: _kBrandTeal,

@@ -13,7 +13,7 @@ import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const double _kMaxContentWidth = 390;
+const double _kMaxContentWidth = 420;
 const String _kHomeServicesAsset = 'assets/Home Services(1)-Photoroom.png';
 const String _kShareItemsAsset = 'assets/Share Items-Photoroom.png';
 
@@ -135,9 +135,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     }
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const ResidentMessagesView(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const ResidentMessagesView()),
     );
   }
 

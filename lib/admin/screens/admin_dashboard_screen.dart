@@ -11,6 +11,7 @@ import 'package:jirani/admin/screens/verification/admin_verification_screen.dart
 import 'package:jirani/admin/theme/admin_colors.dart';
 import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/widgets/admin_status_widgets.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/admin_provider.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
@@ -53,19 +54,22 @@ class _AdminDashboardView extends StatefulWidget {
 class _AdminDashboardViewState extends State<_AdminDashboardView> {
   AdminSection _section = AdminSection.overview;
   String? _selectedRequestId;
+  String? _configuredAdminUid;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentAdmin = context.watch<AuthViewModel>().currentAdmin;
+    if (currentAdmin != null && currentAdmin.uid != _configuredAdminUid) {
+      _configuredAdminUid = currentAdmin.uid;
+      context.read<AdminProvider>().configureForAdmin(currentAdmin);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentAdmin = context.watch<AuthViewModel>().currentAdmin;
-    if (currentAdmin != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          context.read<AdminProvider>().configureForAdmin(currentAdmin);
-        }
-      });
-    }
-
-    final wide = MediaQuery.sizeOf(context).width >= 1024;
+    final wide =
+        JiraniResponsive.windowClass(context) == JiraniWindowClass.expanded;
     final content = _AdminContent(
       section: _section,
       selectedRequestId: _selectedRequestId,
