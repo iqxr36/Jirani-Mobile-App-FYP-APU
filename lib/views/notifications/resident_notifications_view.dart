@@ -72,6 +72,10 @@ class _ResidentNotificationsViewState extends State<ResidentNotificationsView> {
     };
   }
 
+  Future<void> _refreshNotifications() async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifications = _visibleNotifications.toList();
@@ -81,58 +85,64 @@ class _ResidentNotificationsViewState extends State<ResidentNotificationsView> {
       body: JiraniBackground(
         child: SafeArea(
           bottom: false,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: _kMaxContentWidth,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _NotificationsHeader(),
-                          const SizedBox(height: 18),
-                          const _HeroNoticeCard(),
-                          const SizedBox(height: 16),
-                          _FilterBar(
-                            filters: _filters,
-                            selectedIndex: _selectedFilter,
-                            onChanged: (index) =>
-                                setState(() => _selectedFilter = index),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+          child: RefreshIndicator(
+            color: _kBrandTeal,
+            onRefresh: _refreshNotifications,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _kMaxContentWidth,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _NotificationsHeader(),
+                            const SizedBox(height: 18),
+                            const _HeroNoticeCard(),
+                            const SizedBox(height: 16),
+                            _FilterBar(
+                              filters: _filters,
+                              selectedIndex: _selectedFilter,
+                              onChanged: (index) =>
+                                  setState(() => _selectedFilter = index),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList.separated(
-                  itemCount: notifications.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxContentWidth,
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList.separated(
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _kMaxContentWidth,
+                          ),
+                          child: _NotificationCard(
+                            notification: notifications[index],
+                          ),
                         ),
-                        child: _NotificationCard(
-                          notification: notifications[index],
-                        ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
-            ],
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              ],
+            ),
           ),
         ),
       ),

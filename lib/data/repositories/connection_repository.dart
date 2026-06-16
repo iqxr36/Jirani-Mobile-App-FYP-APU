@@ -55,19 +55,29 @@ class ConnectionRepository {
     );
   }
 
+  Future<void> removeConnectionsOutsideCommunity({
+    required String uid,
+    required String communityId,
+  }) {
+    return _service.removeConnectionsOutsideCommunity(
+      uid: uid,
+      communityId: communityId,
+    );
+  }
+
   Stream<List<AppUser>> watchCommunityResidents(AppUser currentUser) {
     return _service.watchCommunityResidents(currentUser);
   }
 
-  Stream<List<ConnectionModel>> watchMyConnections(String uid) {
-    return _service.watchMyConnections(uid);
+  Stream<List<ConnectionModel>> watchMyConnections(AppUser currentUser) {
+    return _service.watchMyConnections(currentUser);
   }
 
-  Stream<List<ConnectionModel>> watchIncomingRequests(String uid) {
-    return _service.watchIncomingRequests(uid);
+  Stream<List<ConnectionModel>> watchIncomingRequests(AppUser currentUser) {
+    return _service.watchIncomingRequests(currentUser);
   }
 
-  Stream<List<ConnectionModel>> watchOutgoingRequests(String uid) {
-    return _service.watchOutgoingRequests(uid);
+  Stream<List<ConnectionModel>> watchOutgoingRequests(AppUser currentUser) {
+    return _service.watchOutgoingRequests(currentUser);
   }
 }

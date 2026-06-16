@@ -50,8 +50,10 @@ class ConnectionProvider extends ChangeNotifier {
         .toList(growable: false);
   }
 
-  void watchForUser(AppUser? user) {
-    if (user?.uid == _currentUser?.uid) return;
+  void watchForUser(AppUser? user, {bool force = false}) {
+    final sameUser = user?.uid == _currentUser?.uid;
+    final sameCommunity = user?.communityId == _currentUser?.communityId;
+    if (!force && sameUser && sameCommunity) return;
     _currentUser = user;
     _cancelSubscriptions();
 
@@ -79,7 +81,7 @@ class ConnectionProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }, onError: (error) => _handleStreamError('communityResidents', error));
-    _connectionsSub = _repository.watchMyConnections(user.uid).listen((
+    _connectionsSub = _repository.watchMyConnections(user).listen((
       connections,
     ) {
       _clearStreamError('myConnections');
@@ -87,17 +89,13 @@ class ConnectionProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }, onError: (error) => _handleStreamError('myConnections', error));
-    _incomingSub = _repository.watchIncomingRequests(user.uid).listen((
-      requests,
-    ) {
+    _incomingSub = _repository.watchIncomingRequests(user).listen((requests) {
       _clearStreamError('incomingRequests');
       _incomingRequests = requests;
       _isLoading = false;
       notifyListeners();
     }, onError: (error) => _handleStreamError('incomingRequests', error));
-    _outgoingSub = _repository.watchOutgoingRequests(user.uid).listen((
-      requests,
-    ) {
+    _outgoingSub = _repository.watchOutgoingRequests(user).listen((requests) {
       _clearStreamError('outgoingRequests');
       _outgoingRequests = requests;
       _isLoading = false;

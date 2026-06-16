@@ -160,6 +160,10 @@ class _VerificationProcessContent extends StatelessWidget {
 
   bool _needsDocumentAction(AppUser? user, VerificationRequest? request) {
     final userStatus = user?.verificationStatus;
+    if (userStatus == AppConstants.verificationPending) {
+      return true;
+    }
+
     final requestStatus = request?.status;
     if (userStatus == AppConstants.verificationVerified ||
         requestStatus == AppConstants.verificationVerified ||
@@ -177,6 +181,10 @@ class _VerificationProcessContent extends StatelessWidget {
 
   String _documentActionLabel(AppUser? user, VerificationRequest? request) {
     final userStatus = user?.verificationStatus;
+    if (userStatus == AppConstants.verificationPending) {
+      return 'Submit Verification Documents';
+    }
+
     final requestStatus = request?.status;
     if (userStatus == AppConstants.verificationRejected ||
         requestStatus == AppConstants.verificationRejected ||
@@ -188,10 +196,21 @@ class _VerificationProcessContent extends StatelessWidget {
 
   bool _hasStatusUpdate(AppUser? user, VerificationRequest? request) {
     final userStatus = user?.verificationStatus;
-    return request != null ||
+    final effectiveRequest = _effectiveRequestForAccount(user, request);
+    return effectiveRequest != null ||
         userStatus == AppConstants.verificationSubmitted ||
         userStatus == AppConstants.verificationRejected ||
         userStatus == AppConstants.verificationVerified;
+  }
+
+  VerificationRequest? _effectiveRequestForAccount(
+    AppUser? user,
+    VerificationRequest? request,
+  ) {
+    if (user?.verificationStatus == AppConstants.verificationPending) {
+      return null;
+    }
+    return request;
   }
 
   List<_ProgressStepData> _buildSteps(
@@ -200,11 +219,17 @@ class _VerificationProcessContent extends StatelessWidget {
   ) {
     final userStatus =
         user?.verificationStatus ?? AppConstants.verificationPending;
-    final requestStatus = request?.status ?? userStatus;
-    final hasRequest = request != null;
-    final communityName = (request?.communityName.trim().isNotEmpty == true)
-        ? request!.communityName.trim()
-        : user?.communityName.trim() ?? '';
+    final effectiveRequest = _effectiveRequestForAccount(user, request);
+    final requestStatus = effectiveRequest?.status ?? userStatus;
+    final hasRequest = effectiveRequest != null;
+    final requestCommunityName = effectiveRequest?.communityName.trim() ?? '';
+    final userCommunityName = user?.communityName.trim() ?? '';
+    final communityName = requestCommunityName.isNotEmpty
+        ? requestCommunityName
+        : userCommunityName;
+    final submittedDate = hasRequest
+        ? _formatDate(effectiveRequest.submittedAt)
+        : null;
     final isVerified =
         userStatus == AppConstants.verificationVerified ||
         requestStatus == AppConstants.verificationVerified;
@@ -242,7 +267,7 @@ class _VerificationProcessContent extends StatelessWidget {
       _ProgressStepData(
         title: 'Upload Proof of Residence',
         description: hasRequest
-            ? 'Submitted ${_formatDate(request.submittedAt)} for management review.'
+            ? 'Submitted $submittedDate for management review.'
             : 'Submit a clear document such as a utility bill, tenancy agreement, or access card.',
         icon: Icons.badge_outlined,
         state: hasRequest && !isCancelled
@@ -254,7 +279,7 @@ class _VerificationProcessContent extends StatelessWidget {
       _ProgressStepData(
         title: 'Management Review',
         description: _reviewDescription(
-          request,
+          effectiveRequest,
           isVerified,
           isRejected,
           isCancelled,

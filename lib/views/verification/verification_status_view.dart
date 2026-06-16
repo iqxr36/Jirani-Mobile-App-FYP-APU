@@ -342,6 +342,23 @@ class _StatusPresentation {
     final requestStatus = request?.status;
     final normalizedStatus = _effectiveStatus(userStatus, requestStatus);
 
+    if (normalizedStatus == AppConstants.verificationPending) {
+      return const _StatusPresentation(
+        assetPath: 'assets/pending review.png',
+        title: 'Verification Not Started',
+        chipLabel: 'Pending',
+        chipIcon: Icons.hourglass_empty_rounded,
+        accent: _kBrandTeal,
+        fallbackIcon: Icons.fact_check_outlined,
+        imageWidth: 265,
+        imageHeight: 246,
+        details: _MessageCard(
+          text:
+              'Submit proof of residence to start verification for your selected community.',
+        ),
+      );
+    }
+
     if (normalizedStatus == AppConstants.verificationRejected) {
       final reason = request?.rejectionReason?.trim();
       return _StatusPresentation(
@@ -398,12 +415,19 @@ class _StatusPresentation {
   }
 
   static String _effectiveStatus(String? userStatus, String? requestStatus) {
-    if (userStatus == AppConstants.verificationVerified ||
-        requestStatus == AppConstants.verificationVerified) {
+    if (userStatus == AppConstants.verificationPending) {
+      return AppConstants.verificationPending;
+    }
+    if (userStatus == AppConstants.verificationVerified) {
       return AppConstants.verificationVerified;
     }
-    if (userStatus == AppConstants.verificationRejected ||
-        requestStatus == AppConstants.verificationRejected) {
+    if (userStatus == AppConstants.verificationRejected) {
+      return AppConstants.verificationRejected;
+    }
+    if (requestStatus == AppConstants.verificationVerified) {
+      return AppConstants.verificationVerified;
+    }
+    if (requestStatus == AppConstants.verificationRejected) {
       return AppConstants.verificationRejected;
     }
     return AppConstants.verificationSubmitted;

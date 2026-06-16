@@ -10,8 +10,8 @@ class ChatRepository {
 
   final ChatService _service;
 
-  Stream<List<ChatModel>> watchChats(String currentUserId) {
-    return _service.watchChats(currentUserId);
+  Stream<List<ChatModel>> watchChats(AppUser currentUser) {
+    return _service.watchChats(currentUser);
   }
 
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
@@ -39,16 +39,20 @@ class ChatRepository {
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
     required AppUser sender,
-    required Uint8List bytes,
+    Uint8List? bytes,
+    String? localFilePath,
     required String fileName,
     required String type,
+    required int fileSize,
   }) {
     return _service.sendAttachmentMessage(
       chat: chat,
       sender: sender,
       bytes: bytes,
+      localFilePath: localFilePath,
       fileName: fileName,
       type: type,
+      fileSize: fileSize,
     );
   }
 
@@ -63,10 +67,7 @@ class ChatRepository {
     required ChatModel chat,
     required String currentUserId,
   }) {
-    return _service.deleteChatForUser(
-      chat: chat,
-      currentUserId: currentUserId,
-    );
+    return _service.deleteChatForUser(chat: chat, currentUserId: currentUserId);
   }
 
   Future<void> reportChat({

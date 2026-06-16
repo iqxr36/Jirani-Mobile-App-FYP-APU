@@ -7,15 +7,64 @@ import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/agent_debug_log.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kMutedText = Color(0xFF6B7280);
+const int _kMaxImageBytes = 10 * 1024 * 1024;
+const int _kMaxFileBytes = 25 * 1024 * 1024;
+const int _kMaxVideoBytes = 50 * 1024 * 1024;
+
+const Set<String> _kImageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'heic'};
+const Set<String> _kVideoExtensions = {'mp4', 'mov', 'm4v', 'webm'};
+const Set<String> _kDocumentExtensions = {
+  'pdf',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
+  'ppt',
+  'pptx',
+  'txt',
+  'csv',
+};
+
+String _formatBytes(int bytes) {
+  if (bytes >= 1024 * 1024) {
+    final mb = bytes / (1024 * 1024);
+    return '${mb.toStringAsFixed(mb >= 10 ? 0 : 1)} MB';
+  }
+  if (bytes >= 1024) {
+    final kb = bytes / 1024;
+    return '${kb.toStringAsFixed(kb >= 10 ? 0 : 1)} KB';
+  }
+  return '$bytes B';
+}
+
+class _PickedChatAttachment {
+  const _PickedChatAttachment({
+    required this.fileName,
+    required this.type,
+    required this.fileSize,
+    this.bytes,
+    this.localFilePath,
+  });
+
+  final String fileName;
+  final String type;
+  final int fileSize;
+  final Uint8List? bytes;
+  final String? localFilePath;
+
+  bool get isImage => type == AppConstants.chatMessageImage;
+}
 
 class ResidentChatThreadView extends StatefulWidget {
   const ResidentChatThreadView({super.key, required this.initialChat});
@@ -35,23 +84,161 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
   void initState() {
     super.initState();
     _chatController = chat_core.InMemoryChatController();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _watchMessages());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_watchMessages());
+    });
   }
 
-  void _watchMessages() {
+  Future<void> _watchMessages() async {
+    await _messagesSub?.cancel();
+    if (!mounted) return;
+
     final provider = context.read<ChatProvider>();
     final currentUserId = provider.currentUser?.uid ?? '';
+    // #region agent log
+    unawaited(
+      agentDebugLog(
+        runId: 'pre-fix-freeze',
+        hypothesisId: 'H6',
+        location: 'lib/views/chat/resident_chat_thread_view.dart:46',
+        message: 'Entering chat message watcher',
+        data: <String, Object?>{
+          'chatId': agentDebugId(widget.initialChat.id),
+          'hasCurrentUser': provider.currentUser != null,
+          'currentUserId': agentDebugId(currentUserId),
+          'participantCount': widget.initialChat.participantIds.length,
+        },
+      ),
+    );
+    // #endregion
     _messagesSub = provider.watchMessages(widget.initialChat.id).listen((
       messages,
     ) {
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix',
+          hypothesisId: 'H5',
+          location: 'lib/views/chat/resident_chat_thread_view.dart:49',
+          message: 'Received chat messages before UI conversion',
+          data: <String, Object?>{
+            'chatId': agentDebugId(widget.initialChat.id),
+            'messageCount': messages.length,
+            'attachmentCount': messages
+                .where((message) => message.isImage || message.isFile)
+                .length,
+            'hasEmptyMediaUrl': messages.any(
+              (message) =>
+                  (message.isImage || message.isFile) &&
+                  message.mediaUrl.isEmpty,
+            ),
+          },
+        ),
+      );
+      // #endregion
       final chatMessages = messages
           .map((message) => message.toChatMessage(currentUserId: currentUserId))
           .toList(growable: false);
       _chatController.setMessages(chatMessages, animated: false);
-      final latestChat = provider.chatById(widget.initialChat.id) ??
-          widget.initialChat;
-      unawaited(provider.markChatRead(latestChat).catchError((_) {}));
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix-freeze',
+          hypothesisId: 'H7,H9',
+          location: 'lib/views/chat/resident_chat_thread_view.dart:82',
+          message: 'Chat messages converted and set on controller',
+          data: <String, Object?>{
+            'chatId': agentDebugId(widget.initialChat.id),
+            'messageCount': messages.length,
+            'convertedCount': chatMessages.length,
+            'lastMessageType': messages.isEmpty ? 'none' : messages.last.type,
+            'lastHasMediaUrl':
+                messages.isNotEmpty &&
+                (messages.last.isImage || messages.last.isFile) &&
+                messages.last.mediaUrl.isNotEmpty,
+          },
+        ),
+      );
+      // #endregion
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // #region agent log
+        unawaited(
+          agentDebugLog(
+            runId: 'pre-fix-freeze',
+            hypothesisId: 'H7',
+            location: 'lib/views/chat/resident_chat_thread_view.dart:101',
+            message: 'Post-frame reached after setting chat messages',
+            data: <String, Object?>{
+              'chatId': agentDebugId(widget.initialChat.id),
+              'messageCount': chatMessages.length,
+              'attachmentCount': messages
+                  .where((message) => message.isImage || message.isFile)
+                  .length,
+            },
+          ),
+        );
+        // #endregion
+      });
+      final latestChat =
+          provider.chatById(widget.initialChat.id) ?? widget.initialChat;
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix-freeze',
+          hypothesisId: 'H8',
+          location: 'lib/views/chat/resident_chat_thread_view.dart:99',
+          message: 'Scheduling markChatRead from message watcher',
+          data: <String, Object?>{
+            'chatId': agentDebugId(latestChat.id),
+            'currentUserId': agentDebugId(currentUserId),
+            'unreadForCurrentUser': latestChat.unreadCountFor(currentUserId),
+          },
+        ),
+      );
+      // #endregion
+      unawaited(
+        provider
+            .markChatRead(latestChat)
+            .then((_) {
+              // #region agent log
+              unawaited(
+                agentDebugLog(
+                  runId: 'pre-fix-freeze',
+                  hypothesisId: 'H8',
+                  location: 'lib/views/chat/resident_chat_thread_view.dart:132',
+                  message: 'markChatRead completed from message watcher',
+                  data: <String, Object?>{
+                    'chatId': agentDebugId(latestChat.id),
+                    'currentUserId': agentDebugId(currentUserId),
+                  },
+                ),
+              );
+              // #endregion
+            })
+            .catchError((Object error) {
+              // #region agent log
+              unawaited(
+                agentDebugLog(
+                  runId: 'pre-fix-freeze',
+                  hypothesisId: 'H8',
+                  location: 'lib/views/chat/resident_chat_thread_view.dart:147',
+                  message: 'markChatRead failed from message watcher',
+                  data: <String, Object?>{
+                    'chatId': agentDebugId(latestChat.id),
+                    'errorType': error.runtimeType.toString(),
+                    'error': error.toString(),
+                  },
+                ),
+              );
+              // #endregion
+            }),
+      );
     });
+  }
+
+  Future<void> _refreshMessages() async {
+    await _watchMessages();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 
   @override
@@ -88,41 +275,106 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
         imageQuality: 82,
       );
       if (image == null) return;
+      final fileSize = await image.length();
+      final validationError = _validateAttachment(
+        fileName: image.name,
+        fileSize: fileSize,
+        isPhotoPicker: true,
+      );
+      if (validationError != null) {
+        _showAttachmentError(validationError);
+        return;
+      }
+
       final bytes = await image.readAsBytes();
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix',
+          hypothesisId: 'H1,H3',
+          location: 'lib/views/chat/resident_chat_thread_view.dart:93',
+          message: 'Picked chat photo attachment',
+          data: <String, Object?>{
+            'byteLength': bytes.length,
+            'fileSize': fileSize,
+            'nameLength': image.name.length,
+            'extension': p.extension(image.name).toLowerCase(),
+          },
+        ),
+      );
+      // #endregion
       if (!mounted) return;
       await _previewAndSendAttachment(
-        bytes: bytes,
-        fileName: image.name,
-        type: AppConstants.chatMessageImage,
+        _PickedChatAttachment(
+          bytes: bytes,
+          fileName: image.name,
+          fileSize: fileSize,
+          type: AppConstants.chatMessageImage,
+        ),
       );
       return;
     }
 
-    final result = await FilePicker.platform.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(withData: false);
     final file = result?.files.single;
-    final bytes = file?.bytes;
-    if (file == null || bytes == null || !mounted) return;
-    await _previewAndSendAttachment(
-      bytes: bytes,
+    if (file == null || !mounted) return;
+
+    final validationError = _validateAttachment(
       fileName: file.name,
-      type: AppConstants.chatMessageFile,
+      fileSize: file.size,
+      isPhotoPicker: false,
+    );
+    if (validationError != null) {
+      _showAttachmentError(validationError);
+      return;
+    }
+
+    final bytes = file.bytes;
+    final localFilePath = file.path;
+    if (bytes == null && (localFilePath == null || localFilePath.isEmpty)) {
+      _showAttachmentError('This file could not be read. Please try another.');
+      return;
+    }
+
+    final type = _isImageFile(file.name)
+        ? AppConstants.chatMessageImage
+        : AppConstants.chatMessageFile;
+    // #region agent log
+    unawaited(
+      agentDebugLog(
+        runId: 'pre-fix',
+        hypothesisId: 'H1,H3',
+        location: 'lib/views/chat/resident_chat_thread_view.dart:119',
+        message: 'Picked chat file attachment',
+        data: <String, Object?>{
+          'byteLength': bytes?.length,
+          'fileSize': file.size,
+          'hasLocalPath': localFilePath?.isNotEmpty == true,
+          'nameLength': file.name.length,
+          'extension': p.extension(file.name).toLowerCase(),
+        },
+      ),
+    );
+    // #endregion
+    await _previewAndSendAttachment(
+      _PickedChatAttachment(
+        bytes: bytes,
+        fileName: file.name,
+        fileSize: file.size,
+        localFilePath: localFilePath,
+        type: type,
+      ),
     );
   }
 
-  Future<void> _previewAndSendAttachment({
-    required Uint8List bytes,
-    required String fileName,
-    required String type,
-  }) async {
+  Future<void> _previewAndSendAttachment(
+    _PickedChatAttachment attachment,
+  ) async {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MediaPreviewSheet(
-        bytes: bytes,
-        fileName: fileName,
-        isImage: type == AppConstants.chatMessageImage,
-      ),
+      builder: (_) => _MediaPreviewSheet(attachment: attachment),
     );
     if (confirmed != true || !mounted) return;
 
@@ -130,17 +382,87 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     final chat = provider.chatById(widget.initialChat.id) ?? widget.initialChat;
     final messenger = ScaffoldMessenger.of(context);
     try {
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix',
+          hypothesisId: 'H1,H2,H3,H4',
+          location: 'lib/views/chat/resident_chat_thread_view.dart:157',
+          message: 'Sending confirmed chat attachment',
+          data: <String, Object?>{
+            'chatId': agentDebugId(chat.id),
+            'byteLength': attachment.bytes?.length,
+            'fileSize': attachment.fileSize,
+            'hasLocalPath': attachment.localFilePath?.isNotEmpty == true,
+            'nameLength': attachment.fileName.length,
+            'extension': p.extension(attachment.fileName).toLowerCase(),
+            'type': attachment.type,
+          },
+        ),
+      );
+      // #endregion
       await provider.sendAttachmentMessage(
         chat: chat,
-        bytes: bytes,
-        fileName: fileName,
-        type: type,
+        bytes: attachment.bytes,
+        localFilePath: attachment.localFilePath,
+        fileName: attachment.fileName,
+        type: attachment.type,
+        fileSize: attachment.fileSize,
       );
     } catch (_) {
       messenger.showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Attachment not sent.')),
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Attachment not sent.'),
+        ),
       );
     }
+  }
+
+  String? _validateAttachment({
+    required String fileName,
+    required int fileSize,
+    required bool isPhotoPicker,
+  }) {
+    final extension = _extensionFor(fileName);
+    if (extension.isEmpty) {
+      return 'This file has no extension. Please choose another file.';
+    }
+
+    final isImage = _kImageExtensions.contains(extension);
+    final isVideo = _kVideoExtensions.contains(extension);
+    final isDocument = _kDocumentExtensions.contains(extension);
+    if (isPhotoPicker && !isImage) {
+      return 'Please choose a supported image file.';
+    }
+    if (!isPhotoPicker && !isImage && !isVideo && !isDocument) {
+      return 'Unsupported file type. Use an image, video, PDF, or document.';
+    }
+
+    final maxSize = isImage
+        ? _kMaxImageBytes
+        : isVideo
+        ? _kMaxVideoBytes
+        : _kMaxFileBytes;
+    if (fileSize > maxSize) {
+      return 'File is too large. Maximum allowed size is ${_formatBytes(maxSize)}.';
+    }
+    return null;
+  }
+
+  void _showAttachmentError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _isImageFile(String fileName) {
+    return _kImageExtensions.contains(_extensionFor(fileName));
+  }
+
+  String _extensionFor(String fileName) {
+    final extension = p.extension(fileName).toLowerCase();
+    return extension.startsWith('.') ? extension.substring(1) : extension;
   }
 
   Future<void> _openMessage(chat_core.Message message) async {
@@ -153,7 +475,12 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     if (source.isEmpty) return;
     final uri = Uri.tryParse(source);
     if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final messenger = ScaffoldMessenger.of(context);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!mounted || launched) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Could not open this attachment.')),
+    );
   }
 
   void _showChatDetails(ChatModel chat, String currentUserId) {
@@ -179,7 +506,9 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
       Navigator.of(context).pop();
     } catch (_) {
       messenger.showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Unable to delete chat.')),
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Unable to delete chat.'),
+        ),
       );
     }
   }
@@ -221,7 +550,9 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
       messenger.showSnackBar(const SnackBar(content: Text('Chat reported.')));
     } catch (_) {
       messenger.showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Unable to report chat.')),
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Unable to report chat.'),
+        ),
       );
     }
   }
@@ -253,41 +584,79 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(28),
                   ),
-                  child: Chat(
-                    currentUserId: currentUserId,
-                    resolveUser: (id) async {
-                      if (id == currentUserId) {
+                  child: RefreshIndicator(
+                    color: _kBrandTeal,
+                    onRefresh: _refreshMessages,
+                    child: Chat(
+                      currentUserId: currentUserId,
+                      resolveUser: (id) async {
+                        if (id == currentUserId) {
+                          return chat_core.User(
+                            id: currentUserId,
+                            name: currentUser?.fullName,
+                            imageSource: currentUser?.profileImageUrl,
+                          );
+                        }
                         return chat_core.User(
-                          id: currentUserId,
-                          name: currentUser?.fullName,
-                          imageSource: currentUser?.profileImageUrl,
-                        );
-                      }
-                      return chat_core.User(
-                        id: otherUserId,
-                        name: otherName,
-                        imageSource: otherImageUrl,
-                      );
-                    },
-                    chatController: _chatController,
-                    onMessageSend: _sendText,
-                    onAttachmentTap: _pickAttachment,
-                    onMessageTap: (context, message, {required index, required details}) {
-                      _openMessage(message);
-                    },
-                    builders: chat_core.Builders(
-                      chatAnimatedListBuilder: (context, itemBuilder) {
-                        return ChatAnimatedListReversed(
-                          itemBuilder: itemBuilder,
-                          bottomPadding: 86,
+                          id: otherUserId,
+                          name: otherName,
+                          imageSource: otherImageUrl,
                         );
                       },
-                      emptyChatListBuilder: (context) => const _EmptyThread(),
+                      chatController: _chatController,
+                      onMessageSend: _sendText,
+                      onAttachmentTap: _pickAttachment,
+                      onMessageTap:
+                          (
+                            context,
+                            message, {
+                            required index,
+                            required details,
+                          }) {
+                            _openMessage(message);
+                          },
+                      builders: chat_core.Builders(
+                        chatAnimatedListBuilder: (context, itemBuilder) {
+                          return ChatAnimatedListReversed(
+                            itemBuilder: itemBuilder,
+                            bottomPadding: 86,
+                          );
+                        },
+                        imageMessageBuilder:
+                            (
+                              context,
+                              message,
+                              index, {
+                              required isSentByMe,
+                              groupStatus,
+                            }) {
+                              return _SafeImageMessageCard(
+                                message: message,
+                                isSentByMe: isSentByMe,
+                              );
+                            },
+                        fileMessageBuilder:
+                            (
+                              context,
+                              message,
+                              index, {
+                              required isSentByMe,
+                              groupStatus,
+                            }) {
+                              return _SafeFileMessageCard(
+                                name: message.name,
+                                mimeType: message.mimeType,
+                                size: message.size,
+                                isSentByMe: isSentByMe,
+                              );
+                            },
+                        emptyChatListBuilder: (context) => const _EmptyThread(),
+                      ),
+                      theme: chat_core.ChatTheme.fromThemeData(
+                        Theme.of(context),
+                      ),
+                      backgroundColor: Colors.white.withValues(alpha: 0.92),
                     ),
-                    theme: chat_core.ChatTheme.fromThemeData(
-                      Theme.of(context),
-                    ),
-                    backgroundColor: Colors.white.withValues(alpha: 0.92),
                   ),
                 ),
               ),
@@ -372,6 +741,173 @@ class _ThreadHeader extends StatelessWidget {
   }
 }
 
+class _SafeImageMessageCard extends StatelessWidget {
+  const _SafeImageMessageCard({
+    required this.message,
+    required this.isSentByMe,
+  });
+
+  final chat_core.ImageMessage message;
+  final bool isSentByMe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
+      decoration: BoxDecoration(
+        color: isSentByMe ? _kBrandTeal.withValues(alpha: 0.12) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBrandTeal.withValues(alpha: 0.16)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 180,
+            child: Image.network(
+              message.source,
+              fit: BoxFit.cover,
+              cacheWidth: 520,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
+              },
+              errorBuilder: (_, _, _) => const Center(
+                child: Icon(Icons.broken_image_outlined, color: _kBrandTeal),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 12, 11),
+            child: Row(
+              children: [
+                const Icon(Icons.image_outlined, color: _kBrandTeal, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    message.text?.trim().isNotEmpty == true
+                        ? message.text!.trim()
+                        : 'Photo',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF1F2937),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (message.size != null)
+                  Text(
+                    _formatBytes(message.size!),
+                    style: const TextStyle(
+                      color: _kMutedText,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SafeFileMessageCard extends StatelessWidget {
+  const _SafeFileMessageCard({
+    required this.name,
+    required this.mimeType,
+    required this.size,
+    required this.isSentByMe,
+  });
+
+  final String name;
+  final String? mimeType;
+  final int? size;
+  final bool isSentByMe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: isSentByMe ? _kBrandTeal.withValues(alpha: 0.12) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBrandTeal.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: _kBrandTeal.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(_iconForMimeType(mimeType, name), color: _kBrandTeal),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.trim().isEmpty ? 'Attachment' : name.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2937),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  [
+                    if (mimeType?.trim().isNotEmpty == true) mimeType!.trim(),
+                    if (size != null) _formatBytes(size!),
+                  ].join(' - '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _kMutedText,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.open_in_new_rounded, color: _kBrandTeal, size: 18),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForMimeType(String? mimeType, String name) {
+    final mime = mimeType?.toLowerCase() ?? '';
+    final extension = p.extension(name).toLowerCase();
+    if (mime.startsWith('video/') ||
+        ['.mp4', '.mov', '.webm'].contains(extension)) {
+      return Icons.play_circle_outline_rounded;
+    }
+    if (mime == 'application/pdf' || extension == '.pdf') {
+      return Icons.picture_as_pdf_outlined;
+    }
+    return Icons.insert_drive_file_outlined;
+  }
+}
+
 class _AttachmentPickerSheet extends StatelessWidget {
   const _AttachmentPickerSheet();
 
@@ -408,18 +944,13 @@ class _AttachmentPickerSheet extends StatelessWidget {
 }
 
 class _MediaPreviewSheet extends StatelessWidget {
-  const _MediaPreviewSheet({
-    required this.bytes,
-    required this.fileName,
-    required this.isImage,
-  });
+  const _MediaPreviewSheet({required this.attachment});
 
-  final Uint8List bytes;
-  final String fileName;
-  final bool isImage;
+  final _PickedChatAttachment attachment;
 
   @override
   Widget build(BuildContext context) {
+    final bytes = attachment.bytes;
     return _SheetSurface(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -431,7 +962,7 @@ class _MediaPreviewSheet extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 14),
-          if (isImage)
+          if (attachment.isImage && bytes != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Image.memory(bytes, height: 220, fit: BoxFit.cover),
@@ -445,14 +976,26 @@ class _MediaPreviewSheet extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.insert_drive_file_outlined, color: _kBrandTeal),
+                  const Icon(
+                    Icons.insert_drive_file_outlined,
+                    color: _kBrandTeal,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      fileName,
+                      attachment.fileName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatBytes(attachment.fileSize),
+                    style: const TextStyle(
+                      color: _kMutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

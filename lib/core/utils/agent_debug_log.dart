@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-const _agentDebugSessionId = 'b1883a';
-const _agentDebugLogPath = 'debug-b1883a.log';
+const _agentDebugSessionId = 'd25731';
+const _agentDebugLogPath = 'debug-d25731.log';
 const _agentDebugEndpoint =
     'http://127.0.0.1:7679/ingest/555f9914-bbf7-410c-a0da-e3a57b261bed';
 
@@ -28,11 +28,9 @@ Future<void> agentDebugLog({
   debugPrint('[agent-debug] $line');
 
   try {
-    await File(_agentDebugLogPath).writeAsString(
-      '$line\n',
-      mode: FileMode.append,
-      flush: true,
-    );
+    await File(
+      _agentDebugLogPath,
+    ).writeAsString('$line\n', mode: FileMode.append, flush: true);
   } catch (_) {
     // Keep runtime behavior unchanged if file logging is unavailable.
   }

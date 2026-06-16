@@ -75,6 +75,7 @@ class TrustCommunityApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         builder: (context, child) {
           final media = MediaQuery.of(context);

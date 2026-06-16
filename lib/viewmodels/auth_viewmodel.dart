@@ -5,15 +5,20 @@ import 'package:firebase_auth/firebase_auth.dart'
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
+import 'package:jirani/data/repositories/connection_repository.dart';
 import 'package:jirani/shared/models/admin_user.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/data/repositories/auth_repository.dart';
 import 'package:jirani/data/repositories/user_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  AuthViewModel({AuthRepository? repository, UserRepository? userRepository})
-    : _repository = repository ?? AuthRepository(),
-      _userRepository = userRepository ?? UserRepository() {
+  AuthViewModel({
+    AuthRepository? repository,
+    UserRepository? userRepository,
+    ConnectionRepository? connectionRepository,
+  }) : _repository = repository ?? AuthRepository(),
+       _userRepository = userRepository ?? UserRepository(),
+       _connectionRepository = connectionRepository ?? ConnectionRepository() {
     _authSubscription = _repository.authStateChanges.listen(
       _onAuthStateChanged,
     );
@@ -21,6 +26,7 @@ class AuthViewModel extends ChangeNotifier {
 
   final AuthRepository _repository;
   final UserRepository _userRepository;
+  final ConnectionRepository _connectionRepository;
   StreamSubscription<User?>? _authSubscription;
 
   User? _firebaseUser;
@@ -448,13 +454,14 @@ class AuthViewModel extends ChangeNotifier {
     final nextCommunityId = communityId.trim();
     final nextCommunityName = communityName.trim();
     final currentUser = _currentUser;
+    final communityChanged = _isCommunityChange(
+      currentUser: currentUser,
+      nextCommunityId: nextCommunityId,
+      nextCommunityName: nextCommunityName,
+    );
     final shouldResetResidencyVerification =
         currentUser?.verificationStatus == AppConstants.verificationVerified &&
-        _isCommunityChange(
-          currentUser: currentUser,
-          nextCommunityId: nextCommunityId,
-          nextCommunityName: nextCommunityName,
-        );
+        communityChanged;
     final fields = <String, dynamic>{
       'communityId': nextCommunityId,
       'communityName': nextCommunityName,
@@ -467,6 +474,13 @@ class AuthViewModel extends ChangeNotifier {
         'locationVerificationStatus': AppConstants.verificationPending,
         'locationVerifiedCommunityName': '',
       });
+    }
+
+    if (communityChanged) {
+      await _connectionRepository.removeConnectionsOutsideCommunity(
+        uid: uid,
+        communityId: nextCommunityId,
+      );
     }
 
     await _userRepository.updateUserFields(uid: uid, fields: fields);

@@ -152,6 +152,16 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     );
   }
 
+  Future<void> _refreshHome(BuildContext context) async {
+    final auth = context.read<AuthViewModel>();
+    await auth.refreshCurrentUser();
+    if (!context.mounted) return;
+
+    final refreshedUser = auth.currentUser;
+    context.read<ConnectionProvider>().watchForUser(refreshedUser, force: true);
+    context.read<ChatProvider>().watchForUser(refreshedUser, force: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
@@ -164,24 +174,31 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     return JiraniBackground(
       child: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _buildHeader(
-                context,
-                user,
-                firstName,
-                incomingConnectionCount,
-                unreadMessageCount,
-              ),
+        child: RefreshIndicator(
+          color: _kBrandTeal,
+          onRefresh: () => _refreshHome(context),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-            if (user != null && !residentHasFullAppAccess(user))
-              SliverToBoxAdapter(child: _buildVerificationBanner(user)),
-            SliverToBoxAdapter(child: _buildCarousel()),
-            SliverToBoxAdapter(child: _buildPageIndicators()),
-            SliverToBoxAdapter(child: _buildQuickActions(context, user)),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
+            slivers: [
+              SliverToBoxAdapter(
+                child: _buildHeader(
+                  context,
+                  user,
+                  firstName,
+                  incomingConnectionCount,
+                  unreadMessageCount,
+                ),
+              ),
+              if (user != null && !residentHasFullAppAccess(user))
+                SliverToBoxAdapter(child: _buildVerificationBanner(user)),
+              SliverToBoxAdapter(child: _buildCarousel()),
+              SliverToBoxAdapter(child: _buildPageIndicators()),
+              SliverToBoxAdapter(child: _buildQuickActions(context, user)),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
         ),
       ),
     );

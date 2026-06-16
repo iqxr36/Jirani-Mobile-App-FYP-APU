@@ -33,8 +33,10 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
-  void watchForUser(AppUser? user) {
-    if (user?.uid == _currentUser?.uid) return;
+  void watchForUser(AppUser? user, {bool force = false}) {
+    final sameUser = user?.uid == _currentUser?.uid;
+    final sameCommunity = user?.communityId == _currentUser?.communityId;
+    if (!force && sameUser && sameCommunity) return;
     _currentUser = user;
     _chatsSub?.cancel();
 
@@ -51,7 +53,7 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     _chatsSub = _repository
-        .watchChats(user.uid)
+        .watchChats(user)
         .listen(
           (chats) {
             _chats = chats;
@@ -100,9 +102,11 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
-    required Uint8List bytes,
+    Uint8List? bytes,
+    String? localFilePath,
     required String fileName,
     required String type,
+    required int fileSize,
   }) async {
     final sender = _requireCurrentUser();
     await _runAction(
@@ -110,8 +114,10 @@ class ChatProvider extends ChangeNotifier {
         chat: chat,
         sender: sender,
         bytes: bytes,
+        localFilePath: localFilePath,
         fileName: fileName,
         type: type,
+        fileSize: fileSize,
       ),
     );
   }

@@ -28,6 +28,12 @@ class ResidentMessagesView extends StatelessWidget {
     );
   }
 
+  Future<void> _refreshInbox(BuildContext context) async {
+    final provider = context.read<ChatProvider>();
+    provider.watchForUser(provider.currentUser, force: true);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChatProvider>();
@@ -48,44 +54,51 @@ class ResidentMessagesView extends StatelessWidget {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  const SliverToBoxAdapter(child: _MessagesHeader()),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
-                      child: _InboxSummary(
-                        isLoading: provider.isLoading,
-                        unreadCount: provider.totalUnreadCount,
-                        chatCount: chats.length,
-                        errorMessage: provider.errorMessage,
-                      ),
-                    ),
+              child: RefreshIndicator(
+                color: _kBrandTeal,
+                onRefresh: () => _refreshInbox(context),
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  if (chats.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyInbox(
-                        onStartChat: () => _openNewChat(context),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
-                      sliver: SliverList.separated(
-                        itemCount: chats.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          return _ChatTile(
-                            chat: chats[index],
-                            currentUserId: provider.currentUser?.uid ?? '',
-                            onTap: () => _openThread(context, chats[index]),
-                          );
-                        },
+                  slivers: [
+                    const SliverToBoxAdapter(child: _MessagesHeader()),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+                        child: _InboxSummary(
+                          isLoading: provider.isLoading,
+                          unreadCount: provider.totalUnreadCount,
+                          chatCount: chats.length,
+                          errorMessage: provider.errorMessage,
+                        ),
                       ),
                     ),
-                ],
+                    if (chats.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyInbox(
+                          onStartChat: () => _openNewChat(context),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
+                        sliver: SliverList.separated(
+                          itemCount: chats.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            return _ChatTile(
+                              chat: chats[index],
+                              currentUserId: provider.currentUser?.uid ?? '',
+                              onTap: () => _openThread(context, chats[index]),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -104,6 +104,30 @@ class ConnectionService {
     await doc.delete();
   }
 
+  Future<void> removeConnectionsOutsideCommunity({
+    required String uid,
+    required String communityId,
+  }) async {
+    final targetCommunityId = communityId.trim();
+    final snapshot = await _connections
+        .where('participants', arrayContains: uid)
+        .get();
+
+    final batch = _firestore.batch();
+    var hasDeletes = false;
+    for (final doc in snapshot.docs) {
+      final connection = ConnectionModel.fromMap(doc.id, doc.data());
+      if (connection.communityId != targetCommunityId) {
+        batch.delete(doc.reference);
+        hasDeletes = true;
+      }
+    }
+
+    if (hasDeletes) {
+      await batch.commit();
+    }
+  }
+
   Stream<List<AppUser>> watchCommunityResidents(AppUser currentUser) {
     return _users
         .where('communityId', isEqualTo: currentUser.communityId)
@@ -128,36 +152,42 @@ class ConnectionService {
         });
   }
 
-  Stream<List<ConnectionModel>> watchMyConnections(String uid) {
+  Stream<List<ConnectionModel>> watchMyConnections(AppUser currentUser) {
     return _watchConnections(
       _connections
-          .where('participants', arrayContains: uid)
+          .where('participants', arrayContains: currentUser.uid)
           .where('status', isEqualTo: AppConstants.connectionAccepted),
+      communityId: currentUser.communityId,
     );
   }
 
-  Stream<List<ConnectionModel>> watchIncomingRequests(String uid) {
+  Stream<List<ConnectionModel>> watchIncomingRequests(AppUser currentUser) {
     return _watchConnections(
       _connections
-          .where('toUserId', isEqualTo: uid)
+          .where('toUserId', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: AppConstants.connectionPending),
+      communityId: currentUser.communityId,
     );
   }
 
-  Stream<List<ConnectionModel>> watchOutgoingRequests(String uid) {
+  Stream<List<ConnectionModel>> watchOutgoingRequests(AppUser currentUser) {
     return _watchConnections(
       _connections
-          .where('fromUserId', isEqualTo: uid)
+          .where('fromUserId', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: AppConstants.connectionPending),
+      communityId: currentUser.communityId,
     );
   }
 
   Stream<List<ConnectionModel>> _watchConnections(
-    Query<Map<String, dynamic>> query,
-  ) {
+    Query<Map<String, dynamic>> query, {
+    required String communityId,
+  }) {
+    final targetCommunityId = communityId.trim();
     return query.snapshots().map((snapshot) {
       final connections = snapshot.docs
           .map((doc) => ConnectionModel.fromMap(doc.id, doc.data()))
+          .where((connection) => connection.communityId == targetCommunityId)
           .toList(growable: false);
       connections.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return connections;

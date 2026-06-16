@@ -28,6 +28,10 @@ class ResidentMarketplaceView extends StatelessWidget {
     ),
   ];
 
+  Future<void> _refreshItems() async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+
   @override
   Widget build(BuildContext context) {
     final sideInset = JiraniResponsive.scaled(context, 20);
@@ -37,64 +41,70 @@ class ResidentMarketplaceView extends StatelessWidget {
         bottom: false,
         child: Stack(
           children: [
-            CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: sideInset),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxContentWidth,
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: 24),
-                            _PageHeader(
-                              title: 'Marketplace',
-                              subtitle:
-                                  'Borrow useful items from trusted neighbors nearby.',
-                            ),
-                            SizedBox(height: 20),
-                            _SearchField(hint: 'Search in marketplace...'),
-                            SizedBox(height: 16),
-                            _CategoryChips(
-                              labels: [
-                                'All Items',
-                                'Tools',
-                                'Electronics',
-                                'Home',
-                              ],
-                            ),
-                            SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+            RefreshIndicator(
+              color: _kBrandTeal,
+              onRefresh: _refreshItems,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-                SliverList.separated(
-                  itemCount: _items.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 20),
-                  itemBuilder: (context, index) {
-                    return Padding(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: sideInset),
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
                             maxWidth: _kMaxContentWidth,
                           ),
-                          child: _MarketplaceCard(item: _items[index]),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(height: 24),
+                              _PageHeader(
+                                title: 'Marketplace',
+                                subtitle:
+                                    'Borrow useful items from trusted neighbors nearby.',
+                              ),
+                              SizedBox(height: 20),
+                              _SearchField(hint: 'Search in marketplace...'),
+                              SizedBox(height: 16),
+                              _CategoryChips(
+                                labels: [
+                                  'All Items',
+                                  'Tools',
+                                  'Electronics',
+                                  'Home',
+                                ],
+                              ),
+                              SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 112)),
-              ],
+                    ),
+                  ),
+                  SliverList.separated(
+                    itemCount: _items.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 20),
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: sideInset),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _kMaxContentWidth,
+                            ),
+                            child: _MarketplaceCard(item: _items[index]),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 112)),
+                ],
+              ),
             ),
             Positioned(
               right: sideInset,

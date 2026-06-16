@@ -30,6 +30,10 @@ class ResidentServicesView extends StatelessWidget {
     ),
   ];
 
+  Future<void> _refreshServices() async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+
   @override
   Widget build(BuildContext context) {
     final sideInset = JiraniResponsive.scaled(context, 20);
@@ -39,64 +43,70 @@ class ResidentServicesView extends StatelessWidget {
         bottom: false,
         child: Stack(
           children: [
-            CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: sideInset),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: _kMaxContentWidth,
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: 24),
-                            _PageHeader(
-                              title: 'Services',
-                              subtitle:
-                                  'Find reliable help from people in your community.',
-                            ),
-                            SizedBox(height: 20),
-                            _SearchField(hint: 'Search services...'),
-                            SizedBox(height: 16),
-                            _CategoryChips(
-                              labels: [
-                                'All',
-                                'Handyman',
-                                'Tutoring',
-                                'Personal',
-                              ],
-                            ),
-                            SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+            RefreshIndicator(
+              color: _kBrandTeal,
+              onRefresh: _refreshServices,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-                SliverList.separated(
-                  itemCount: _services.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 20),
-                  itemBuilder: (context, index) {
-                    return Padding(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: sideInset),
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
                             maxWidth: _kMaxContentWidth,
                           ),
-                          child: _ServiceCard(data: _services[index]),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(height: 24),
+                              _PageHeader(
+                                title: 'Services',
+                                subtitle:
+                                    'Find reliable help from people in your community.',
+                              ),
+                              SizedBox(height: 20),
+                              _SearchField(hint: 'Search services...'),
+                              SizedBox(height: 16),
+                              _CategoryChips(
+                                labels: [
+                                  'All',
+                                  'Handyman',
+                                  'Tutoring',
+                                  'Personal',
+                                ],
+                              ),
+                              SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 112)),
-              ],
+                    ),
+                  ),
+                  SliverList.separated(
+                    itemCount: _services.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 20),
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: sideInset),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _kMaxContentWidth,
+                            ),
+                            child: _ServiceCard(data: _services[index]),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 112)),
+                ],
+              ),
             ),
             Positioned(
               right: sideInset,

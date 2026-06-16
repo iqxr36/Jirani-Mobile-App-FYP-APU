@@ -62,7 +62,10 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
     final currentAdmin = context.watch<AuthViewModel>().currentAdmin;
     if (currentAdmin != null && currentAdmin.uid != _configuredAdminUid) {
       _configuredAdminUid = currentAdmin.uid;
-      context.read<AdminProvider>().configureForAdmin(currentAdmin);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<AdminProvider>().configureForAdmin(currentAdmin);
+      });
     }
   }
 

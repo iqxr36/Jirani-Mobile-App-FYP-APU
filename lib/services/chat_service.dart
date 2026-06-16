@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,7 +29,9 @@ class ChatService {
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection(AppConstants.notificationsCollection);
 
-  Stream<List<ChatModel>> watchChats(String currentUserId) {
+  Stream<List<ChatModel>> watchChats(AppUser currentUser) {
+    final currentUserId = currentUser.uid;
+    final communityId = currentUser.communityId.trim();
     // #region agent log
     unawaited(
       agentDebugLog(
@@ -39,6 +42,7 @@ class ChatService {
         data: <String, Object?>{
           'currentUserId': agentDebugId(currentUserId),
           'queryField': 'participantLookup.<uid>',
+          'communityId': agentDebugId(communityId),
           'collection': AppConstants.chatsCollection,
         },
       ),
@@ -50,7 +54,11 @@ class ChatService {
         .map((snapshot) {
           final chats = snapshot.docs
               .map((doc) => ChatModel.fromMap(doc.id, doc.data()))
-              .where((chat) => !chat.isDeletedFor(currentUserId))
+              .where(
+                (chat) =>
+                    chat.communityId == communityId &&
+                    !chat.isDeletedFor(currentUserId),
+              )
               .toList(growable: false);
           chats.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
           return chats;
@@ -134,7 +142,8 @@ class ChatService {
             runId: 'post-fix',
             hypothesisId: 'H4',
             location: 'lib/services/chat_service.dart:130',
-            message: 'Chat did not exist; creating chat after allowed missing-doc read',
+            message:
+                'Chat did not exist; creating chat after allowed missing-doc read',
             data: <String, Object?>{
               'chatId': agentDebugId(chatId),
               'snapshotExists': snapshot.exists,
@@ -148,10 +157,7 @@ class ChatService {
           'lastMessageType': AppConstants.chatMessageText,
           'lastMessageAt': null,
           'lastSenderId': '',
-          'unreadCounts': <String, int>{
-            currentUser.uid: 0,
-            neighbor.uid: 0,
-          },
+          'unreadCounts': <String, int>{currentUser.uid: 0, neighbor.uid: 0},
           'deletedFor': <String>[],
           'createdAt': now,
         });
@@ -196,10 +202,16 @@ class ChatService {
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
     required AppUser sender,
-    required Uint8List bytes,
+    Uint8List? bytes,
+    String? localFilePath,
     required String fileName,
     required String type,
+    required int fileSize,
   }) async {
+    if (bytes == null && (localFilePath == null || localFilePath.isEmpty)) {
+      throw Exception('Attachment file data is missing.');
+    }
+
     final cleanFileName = fileName.trim().isEmpty
         ? 'attachment'
         : p.basename(fileName.trim());
@@ -212,19 +224,83 @@ class ChatService {
         '${AppConstants.storageChatAttachmentsPath}/${chat.id}/${sender.uid}/${messageDoc.id}$extension';
     final mimeType = lookupMimeType(cleanFileName, headerBytes: bytes);
     final ref = _storage.ref(storagePath);
+    final metadata = SettableMetadata(
+      contentType: mimeType ?? 'application/octet-stream',
+      customMetadata: {
+        'chatId': chat.id,
+        'senderId': sender.uid,
+        'fileName': cleanFileName,
+      },
+    );
 
-    await ref.putData(
-      bytes,
-      SettableMetadata(
-        contentType: mimeType ?? 'application/octet-stream',
-        customMetadata: {
-          'chatId': chat.id,
-          'senderId': sender.uid,
-          'fileName': cleanFileName,
+    // #region agent log
+    unawaited(
+      agentDebugLog(
+        runId: 'pre-fix',
+        hypothesisId: 'H2,H3',
+        location: 'lib/services/chat_service.dart:216',
+        message: 'Starting chat attachment upload',
+        data: <String, Object?>{
+          'chatId': agentDebugId(chat.id),
+          'senderId': agentDebugId(sender.uid),
+          'byteLength': bytes?.length,
+          'fileSize': fileSize,
+          'hasLocalPath': localFilePath?.isNotEmpty == true,
+          'extension': extension.toLowerCase(),
+          'mimeType': mimeType ?? 'application/octet-stream',
+          'storagePathId': agentDebugId(storagePath),
+          'type': type,
         },
       ),
     );
+    // #endregion
+
+    try {
+      final path = localFilePath;
+      if (path != null && path.isNotEmpty) {
+        await ref.putFile(File(path), metadata);
+      } else {
+        await ref.putData(bytes!, metadata);
+      }
+    } catch (error) {
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'pre-fix',
+          hypothesisId: 'H2,H3',
+          location: 'lib/services/chat_service.dart:241',
+          message: 'Chat attachment upload failed',
+          data: <String, Object?>{
+            'errorType': error.runtimeType.toString(),
+            'error': error.toString(),
+            'byteLength': bytes?.length,
+            'fileSize': fileSize,
+            'hasLocalPath': localFilePath?.isNotEmpty == true,
+            'extension': extension.toLowerCase(),
+            'mimeType': mimeType ?? 'application/octet-stream',
+          },
+        ),
+      );
+      // #endregion
+      rethrow;
+    }
     final url = await ref.getDownloadURL();
+    // #region agent log
+    unawaited(
+      agentDebugLog(
+        runId: 'pre-fix',
+        hypothesisId: 'H2,H4,H5',
+        location: 'lib/services/chat_service.dart:260',
+        message: 'Chat attachment upload succeeded',
+        data: <String, Object?>{
+          'chatId': agentDebugId(chat.id),
+          'downloadUrlLength': url.length,
+          'storagePathId': agentDebugId(storagePath),
+          'type': type,
+        },
+      ),
+    );
+    // #endregion
 
     await _sendMessage(
       chat: chat,
@@ -235,7 +311,7 @@ class ChatService {
       storagePath: storagePath,
       fileName: cleanFileName,
       mimeType: mimeType ?? '',
-      fileSize: bytes.length,
+      fileSize: fileSize,
       messageId: messageDoc.id,
     );
   }
@@ -255,16 +331,16 @@ class ChatService {
         data: <String, Object?>{
           'chatId': agentDebugId(chat.id),
           'currentUserId': agentDebugId(currentUserId),
-          'currentUserInParticipants': chat.participantIds.contains(currentUserId),
+          'currentUserInParticipants': chat.participantIds.contains(
+            currentUserId,
+          ),
           'participantCount': chat.participantIds.length,
         },
       ),
     );
     // #endregion
     try {
-      await chatRef.update({
-        'unreadCounts.$currentUserId': 0,
-      });
+      await chatRef.update({'unreadCounts.$currentUserId': 0});
     } catch (error) {
       // #region agent log
       unawaited(
@@ -351,10 +427,9 @@ class ChatService {
     }
 
     final chatRef = _chats.doc(chat.id);
-    final messageRef =
-        messageId == null
-            ? chatRef.collection(AppConstants.messagesCollection).doc()
-            : chatRef.collection(AppConstants.messagesCollection).doc(messageId);
+    final messageRef = messageId == null
+        ? chatRef.collection(AppConstants.messagesCollection).doc()
+        : chatRef.collection(AppConstants.messagesCollection).doc(messageId);
     final now = FieldValue.serverTimestamp();
     final batch = _firestore.batch();
     // #region agent log
