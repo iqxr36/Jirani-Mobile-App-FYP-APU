@@ -145,41 +145,12 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
   Future<bool> _confirmVerificationReset(CommunityModel community) async {
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierColor: const Color(0xFF071817).withValues(alpha: 0.62),
       builder: (dialogContext) {
-        return JiraniDialog(
-          title: 'Change Community?',
-          subtitle: 'Residency verification is tied to your community.',
-          icon: Icons.warning_amber_rounded,
-          content: Text(
-            'If you change to ${community.name}, you will become unverified '
-            'in both your current community and the new community. You will '
-            'need to resubmit your residency document before you can access '
-            'verified resident features again.',
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 1.45,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: _kBrandTeal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Change Community'),
-            ),
-          ],
+        return _CommunityChangeWarningDialog(
+          communityName: community.name,
+          onCancel: () => Navigator.of(dialogContext).pop(false),
+          onConfirm: () => Navigator.of(dialogContext).pop(true),
         );
       },
     );
@@ -520,6 +491,242 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CommunityChangeWarningDialog extends StatelessWidget {
+  const _CommunityChangeWarningDialog({
+    required this.communityName,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final String communityName;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 430),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.74)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.24),
+                  blurRadius: 32,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(height: 7, color: const Color(0xFFE29578)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFE29578,
+                              ).withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFFE29578,
+                                ).withValues(alpha: 0.30),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.move_down_rounded,
+                              color: Color(0xFF9A4D2D),
+                              size: 29,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Change community?',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: const Color(0xFF102B2A),
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Moving to $communityName will reset your residency access.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF556361),
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.42,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      const _WarningImpactRow(
+                        icon: Icons.verified_user_outlined,
+                        title: 'Verification will reset',
+                        subtitle:
+                            'You will become unverified in your current and new community.',
+                      ),
+                      const SizedBox(height: 8),
+                      const _WarningImpactRow(
+                        icon: Icons.lock_outline_rounded,
+                        title: 'Resident features will lock',
+                        subtitle:
+                            'Borrowing, lending, services, and marketplace actions pause.',
+                      ),
+                      const SizedBox(height: 8),
+                      const _WarningImpactRow(
+                        icon: Icons.description_outlined,
+                        title: 'Documents must be submitted again',
+                        subtitle:
+                            'Upload proof of residence for the new community.',
+                      ),
+                      const SizedBox(height: 22),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final useStackedButtons = constraints.maxWidth < 330;
+                          final cancelButton = OutlinedButton(
+                            onPressed: onCancel,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 50),
+                              foregroundColor: const Color(0xFF173836),
+                              side: const BorderSide(color: Color(0xFFD8E8E6)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Keep Current'),
+                          );
+                          final confirmButton = FilledButton(
+                            onPressed: onConfirm,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(0, 50),
+                              backgroundColor: const Color(0xFF006D77),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Change Community'),
+                          );
+
+                          if (useStackedButtons) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                confirmButton,
+                                const SizedBox(height: 10),
+                                cancelButton,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: cancelButton),
+                              const SizedBox(width: 10),
+                              Expanded(child: confirmButton),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WarningImpactRow extends StatelessWidget {
+  const _WarningImpactRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8F3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF1D7C8)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF9A4D2D), size: 21),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF2D211C),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF675247),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

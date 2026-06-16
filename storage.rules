@@ -50,21 +50,48 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Chat attachments: senders upload their own files; signed-in residents can
-    // read attachment URLs shown inside chats they can access in Firestore.
+    // Chat attachments: senders upload their own files; signed-in residents
+    // download attachment files through the app before previewing/opening them.
     match /chat_attachments/{chatId}/{userId}/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null &&
         request.auth.uid == userId &&
-        request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType in [
-          'image/jpeg',
-          'image/png',
-          'image/webp',
-          'application/pdf',
-          'text/plain',
-          'application/octet-stream'
-        ];
+        (
+          (
+            request.resource.size < 10 * 1024 * 1024 &&
+            request.resource.contentType in [
+              'image/jpeg',
+              'image/png',
+              'image/webp',
+              'image/heic',
+              'image/heif'
+            ]
+          ) ||
+          (
+            request.resource.size < 25 * 1024 * 1024 &&
+            request.resource.contentType in [
+              'application/pdf',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'application/vnd.ms-excel',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              'application/vnd.ms-powerpoint',
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              'text/plain',
+              'text/csv',
+              'application/octet-stream'
+            ]
+          ) ||
+          (
+            request.resource.size < 50 * 1024 * 1024 &&
+            request.resource.contentType in [
+              'video/mp4',
+              'video/quicktime',
+              'video/webm',
+              'video/x-m4v'
+            ]
+          )
+        );
     }
   }
 }

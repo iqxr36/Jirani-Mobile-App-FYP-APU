@@ -1,9 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/verification_status_view.dart';
@@ -46,8 +44,12 @@ class _ResidencyVerificationForm extends StatefulWidget {
 
 class _ResidencyVerificationFormState
     extends State<_ResidencyVerificationForm> {
-  final _unitController = TextEditingController();
+  final _blockController = TextEditingController();
+  final _floorController = TextEditingController();
+  final _unitOnFloorController = TextEditingController();
   final _notesController = TextEditingController();
+  final _floorFocusNode = FocusNode();
+  final _unitOnFloorFocusNode = FocusNode();
   final _imagePicker = ImagePicker();
 
   String? _documentType;
@@ -80,15 +82,71 @@ class _ResidencyVerificationFormState
     final user = context.read<AuthViewModel>().currentUser;
     final unitNumber = user?.unitNumber.trim() ?? '';
     if (unitNumber.isNotEmpty) {
-      _unitController.text = unitNumber;
+      _populateUnitFields(unitNumber);
     }
   }
 
   @override
   void dispose() {
-    _unitController.dispose();
+    _blockController.dispose();
+    _floorController.dispose();
+    _unitOnFloorController.dispose();
     _notesController.dispose();
+    _floorFocusNode.dispose();
+    _unitOnFloorFocusNode.dispose();
     super.dispose();
+  }
+
+  void _populateUnitFields(String unitNumber) {
+    final parts = unitNumber
+        .split(RegExp(r'[\s\-/]+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+
+    if (parts.length >= 3) {
+      _blockController.text = parts[0].toUpperCase();
+      _floorController.text = parts[1];
+      _unitOnFloorController.text = parts.sublist(2).join('-');
+      return;
+    }
+
+    if (parts.length == 2) {
+      _floorController.text = parts[0];
+      _unitOnFloorController.text = parts[1];
+      return;
+    }
+
+    _unitOnFloorController.text = unitNumber;
+  }
+
+  String get _formattedUnitNumber {
+    final block = _blockController.text.trim().toUpperCase();
+    final floor = _floorController.text.trim();
+    final unit = _unitOnFloorController.text.trim();
+
+    if (block.isEmpty || floor.isEmpty || unit.isEmpty) return '';
+    return '$block-$floor-$unit';
+  }
+
+  String? _unitValidationMessage() {
+    final block = _blockController.text.trim().toUpperCase();
+    final floor = _floorController.text.trim();
+    final unit = _unitOnFloorController.text.trim();
+
+    if (block.isEmpty) return 'Enter your block letter.';
+    if (!RegExp(r'^[A-Z]$').hasMatch(block)) {
+      return 'Block must be one alphabet letter.';
+    }
+    if (floor.isEmpty) return 'Enter your floor number.';
+    if (!RegExp(r'^[0-9]+$').hasMatch(floor)) {
+      return 'Floor must contain numbers only.';
+    }
+    if (unit.isEmpty) return 'Enter your unit number.';
+    if (!RegExp(r'^[0-9]+$').hasMatch(unit)) {
+      return 'Unit must contain numbers only.';
+    }
+
+    return null;
   }
 
   Future<void> _pickFromGallery() async {
@@ -192,19 +250,21 @@ class _ResidencyVerificationFormState
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+
     final user = context.read<AuthViewModel>().currentUser;
     final communityName = user?.communityName.trim() ?? '';
-    final unitNumber = _unitController.text.trim();
     final documentType = _documentType;
     final bytes = _fileBytes;
     final fileName = _fileName;
+    final unitValidationMessage = _unitValidationMessage();
 
     if (communityName.isEmpty) {
       _showMessage('Select your community before submitting verification.');
       return;
     }
-    if (unitNumber.isEmpty) {
-      _showMessage('Enter your unit number.');
+    if (unitValidationMessage != null) {
+      _showMessage(unitValidationMessage);
       return;
     }
     if (documentType == null) {
@@ -220,6 +280,7 @@ class _ResidencyVerificationFormState
       return;
     }
 
+    final unitNumber = _formattedUnitNumber;
     final verificationVm = context.read<VerificationViewModel>();
     final request = await verificationVm.submitVerificationRequest(
       documentType: documentType,
@@ -310,12 +371,13 @@ class _ResidencyVerificationFormState
     final communityName = hasCommunity
         ? user!.communityName.trim()
         : 'No community selected';
-    final bottomInset = JiraniResponsive.bottomInset(context);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final documentType = _documentType;
     final allowsGalleryUpload =
         documentType != null && _allowsImageUpload(documentType);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
@@ -354,10 +416,13 @@ class _ResidencyVerificationFormState
                           ),
                           const SizedBox(height: 19),
                           const _FieldLabel('Unit Number'),
-                          _LineTextField(
-                            controller: _unitController,
-                            hintText: 'e.g. B-12-3',
-                            textInputAction: TextInputAction.next,
+                          const SizedBox(height: 7),
+                          _UnitNumberFields(
+                            blockController: _blockController,
+                            floorController: _floorController,
+                            unitController: _unitOnFloorController,
+                            floorFocusNode: _floorFocusNode,
+                            unitFocusNode: _unitOnFloorFocusNode,
                           ),
                           const SizedBox(height: 19),
                           const _FieldLabel('Document Type'),
@@ -389,24 +454,29 @@ class _ResidencyVerificationFormState
                           const SizedBox(height: 7),
                           _NotesField(controller: _notesController),
                           const SizedBox(height: 18),
+                          if (verificationVm.isLoading) ...[
+                            LinearProgressIndicator(
+                              value: verificationVm.uploadProgress == 0
+                                  ? null
+                                  : verificationVm.uploadProgress,
+                              minHeight: 2,
+                              color: _kBrandTeal,
+                              backgroundColor: _kBrandTeal.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          _SubmitButton(
+                            isLoading: verificationVm.isLoading,
+                            onPressed: verificationVm.isLoading
+                                ? null
+                                : _submit,
+                          ),
+                          const SizedBox(height: 14),
                         ],
                       ),
                     ),
-                  ),
-                  if (verificationVm.isLoading) ...[
-                    LinearProgressIndicator(
-                      value: verificationVm.uploadProgress == 0
-                          ? null
-                          : verificationVm.uploadProgress,
-                      minHeight: 2,
-                      color: _kBrandTeal,
-                      backgroundColor: _kBrandTeal.withValues(alpha: 0.12),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  _SubmitButton(
-                    isLoading: verificationVm.isLoading,
-                    onPressed: verificationVm.isLoading ? null : _submit,
                   ),
                 ],
               ),
@@ -511,50 +581,175 @@ class _ReadOnlyLineField extends StatelessWidget {
   }
 }
 
-class _LineTextField extends StatelessWidget {
-  const _LineTextField({
-    required this.controller,
-    required this.hintText,
-    this.textInputAction,
+class _UnitNumberFields extends StatelessWidget {
+  const _UnitNumberFields({
+    required this.blockController,
+    required this.floorController,
+    required this.unitController,
+    required this.floorFocusNode,
+    required this.unitFocusNode,
   });
 
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputAction? textInputAction;
+  final TextEditingController blockController;
+  final TextEditingController floorController;
+  final TextEditingController unitController;
+  final FocusNode floorFocusNode;
+  final FocusNode unitFocusNode;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        textInputAction: textInputAction,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.black.withValues(alpha: 0.30),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+    return Row(
+      children: [
+        Expanded(
+          child: _UnitNumberSegmentField(
+            controller: blockController,
+            label: 'Block',
+            hintText: 'B',
+            keyboardType: TextInputType.text,
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+              LengthLimitingTextInputFormatter(1),
+              _UpperCaseTextFormatter(),
+            ],
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => floorFocusNode.requestFocus(),
           ),
-          isDense: true,
-          contentPadding: const EdgeInsets.fromLTRB(9, 15, 9, 12),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          filled: false,
+        ),
+        const _UnitNumberSeparator(),
+        Expanded(
+          child: _UnitNumberSegmentField(
+            controller: floorController,
+            focusNode: floorFocusNode,
+            label: 'Floor',
+            hintText: '12',
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => unitFocusNode.requestFocus(),
+          ),
+        ),
+        const _UnitNumberSeparator(),
+        Expanded(
+          child: _UnitNumberSegmentField(
+            controller: unitController,
+            focusNode: unitFocusNode,
+            label: 'Unit',
+            hintText: '3',
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textInputAction: TextInputAction.done,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UnitNumberSeparator extends StatelessWidget {
+  const _UnitNumberSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      child: Text(
+        '-',
+        style: TextStyle(
+          color: Colors.black.withValues(alpha: 0.45),
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
+  }
+}
+
+class _UnitNumberSegmentField extends StatelessWidget {
+  const _UnitNumberSegmentField({
+    required this.controller,
+    required this.label,
+    required this.hintText,
+    required this.keyboardType,
+    required this.inputFormatters,
+    required this.textInputAction,
+    this.focusNode,
+    this.textCapitalization = TextCapitalization.none,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final String label;
+  final String hintText;
+  final TextInputType keyboardType;
+  final List<TextInputFormatter> inputFormatters;
+  final TextInputAction textInputAction;
+  final TextCapitalization textCapitalization;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 58,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        textCapitalization: textCapitalization,
+        inputFormatters: inputFormatters,
+        onSubmitted: onSubmitted,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          counterText: '',
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          labelStyle: TextStyle(
+            color: Colors.black.withValues(alpha: 0.60),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+          hintStyle: TextStyle(
+            color: Colors.black.withValues(alpha: 0.28),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          isDense: true,
+          contentPadding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+            borderSide: BorderSide(color: _kBrandTeal, width: 1.2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
 

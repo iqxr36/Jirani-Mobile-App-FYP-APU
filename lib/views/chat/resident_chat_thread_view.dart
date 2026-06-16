@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
@@ -13,6 +15,8 @@ import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -466,21 +470,132 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
   }
 
   Future<void> _openMessage(chat_core.Message message) async {
-    String source = '';
     if (message is chat_core.ImageMessage) {
-      source = message.source;
-    } else if (message is chat_core.FileMessage) {
-      source = message.source;
+      _openImagePreview(message);
+      return;
     }
-    if (source.isEmpty) return;
-    final uri = Uri.tryParse(source);
-    if (uri == null) return;
+
+    if (message is! chat_core.FileMessage) return;
     final messenger = ScaffoldMessenger.of(context);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!mounted || launched) return;
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Could not open this attachment.')),
+    final storagePath = _storagePathFor(message);
+    if (storagePath.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Attachment file reference is missing.')),
+      );
+      return;
+    }
+
+    _showAttachmentProgress('Downloading ${message.name}...');
+    try {
+      final localFile = await _downloadAttachment(
+        storagePath: storagePath,
+        fileName: message.name,
+        messageId: message.id,
+        expectedSize: message.size,
+      );
+      if (!mounted) return;
+      _hideAttachmentProgress();
+
+      if (_isPdfFile(message.name, message.mimeType)) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => _PdfAttachmentPreviewScreen(
+              filePath: localFile.path,
+              fileName: message.name.trim().isEmpty
+                  ? 'Attachment.pdf'
+                  : message.name.trim(),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final launched = await launchUrl(Uri.file(localFile.path));
+      if (!mounted || launched) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Downloaded ${message.name.trim().isEmpty ? 'attachment' : message.name.trim()} locally.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _hideAttachmentProgress();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not download this attachment.')),
+      );
+    }
+  }
+
+  void _openImagePreview(chat_core.ImageMessage message) {
+    if (message.source.trim().isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _ImageAttachmentPreviewScreen(message: message),
+      ),
     );
+  }
+
+  String _storagePathFor(chat_core.Message message) {
+    final value = message.metadata?['storagePath'];
+    return value is String ? value.trim() : '';
+  }
+
+  bool _isPdfFile(String fileName, String? mimeType) {
+    return mimeType?.toLowerCase() == 'application/pdf' ||
+        _extensionFor(fileName) == 'pdf';
+  }
+
+  Future<File> _downloadAttachment({
+    required String storagePath,
+    required String fileName,
+    required String messageId,
+    int? expectedSize,
+  }) async {
+    final cacheDir = await getTemporaryDirectory();
+    final attachmentsDir = Directory(p.join(cacheDir.path, 'chat_attachments'));
+    if (!await attachmentsDir.exists()) {
+      await attachmentsDir.create(recursive: true);
+    }
+
+    final safeFileName = _safeLocalFileName(fileName);
+    final localFile = File(
+      p.join(attachmentsDir.path, '${messageId}_$safeFileName'),
+    );
+    if (await localFile.exists()) {
+      final localSize = await localFile.length();
+      if (expectedSize == null ||
+          expectedSize == 0 ||
+          localSize == expectedSize) {
+        return localFile;
+      }
+    }
+
+    await FirebaseStorage.instance.ref(storagePath).writeToFile(localFile);
+    return localFile;
+  }
+
+  String _safeLocalFileName(String fileName) {
+    final baseName = p.basename(fileName.trim()).replaceAll(
+      RegExp(r'[<>:"/\\|?*\x00-\x1F]'),
+      '_',
+    );
+    return baseName.isEmpty ? 'attachment' : baseName;
+  }
+
+  void _showAttachmentProgress(String message) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AttachmentProgressDialog(message: message),
+    );
+  }
+
+  void _hideAttachmentProgress() {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
   }
 
   void _showChatDetails(ChatModel chat, String currentUserId) {
@@ -905,6 +1020,159 @@ class _SafeFileMessageCard extends StatelessWidget {
       return Icons.picture_as_pdf_outlined;
     }
     return Icons.insert_drive_file_outlined;
+  }
+}
+
+class _ImageAttachmentPreviewScreen extends StatelessWidget {
+  const _ImageAttachmentPreviewScreen({required this.message});
+
+  final chat_core.ImageMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = message.text?.trim().isNotEmpty == true
+        ? message.text!.trim()
+        : 'Photo';
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 5,
+          child: Image.network(
+            message.source,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            },
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.broken_image_outlined,
+              color: Colors.white,
+              size: 52,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PdfAttachmentPreviewScreen extends StatefulWidget {
+  const _PdfAttachmentPreviewScreen({
+    required this.filePath,
+    required this.fileName,
+  });
+
+  final String filePath;
+  final String fileName;
+
+  @override
+  State<_PdfAttachmentPreviewScreen> createState() =>
+      _PdfAttachmentPreviewScreenState();
+}
+
+class _PdfAttachmentPreviewScreenState
+    extends State<_PdfAttachmentPreviewScreen> {
+  late final PdfControllerPinch _pdfController;
+  int _currentPage = 1;
+  int? _pagesCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfController = PdfControllerPinch(
+      document: PdfDocument.openFile(widget.filePath),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pagesCount = _pagesCount;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.fileName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: _kBrandTeal,
+        foregroundColor: Colors.white,
+        actions: [
+          if (pagesCount != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  '$_currentPage / $pagesCount',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: PdfViewPinch(
+        controller: _pdfController,
+        onDocumentLoaded: (document) {
+          setState(() => _pagesCount = document.pagesCount);
+        },
+        onPageChanged: (page) {
+          setState(() => _currentPage = page);
+        },
+        onDocumentError: (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open this PDF.')),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AttachmentProgressDialog extends StatelessWidget {
+  const _AttachmentProgressDialog({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
