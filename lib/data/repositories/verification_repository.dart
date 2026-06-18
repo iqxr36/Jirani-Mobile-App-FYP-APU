@@ -145,8 +145,7 @@ class VerificationRepository {
         .collection(AppConstants.verificationRequestsCollection)
         .doc();
     final requestId = docRef.id;
-    final isTenancyAgreement =
-        documentType == AppConstants.documentTypeTenancyAgreement;
+    final usesDocumentAiExtraction = _usesDocumentAiExtraction(documentType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileObjectName = _safeVerificationStorageObjectName(
       timestamp,
@@ -154,7 +153,7 @@ class VerificationRepository {
       documentType: documentType,
     );
 
-    final ref = isTenancyAgreement
+    final ref = usesDocumentAiExtraction
         ? _storage
               .ref()
               .child(AppConstants.storageResidentDocumentsPath)
@@ -187,7 +186,7 @@ class VerificationRepository {
       reviewedBy: null,
       cancelledAt: null,
       cancelledBy: null,
-      ocrStatus: isTenancyAgreement
+      ocrStatus: usesDocumentAiExtraction
           ? AppConstants.ocrStatusProcessing
           : AppConstants.ocrStatusPending,
       ocrText: '',
@@ -195,12 +194,12 @@ class VerificationRepository {
       ocrError: null,
       ocrProcessedAt: null,
       storagePath: ref.fullPath,
-      adminStatus: isTenancyAgreement
+      adminStatus: usesDocumentAiExtraction
           ? AppConstants.adminStatusProcessing
           : AppConstants.adminStatusPendingReview,
     );
 
-    if (isTenancyAgreement) {
+    if (usesDocumentAiExtraction) {
       await docRef
           .set({
             ...request.toMap(),
@@ -221,7 +220,7 @@ class VerificationRepository {
       customMetadata: {
         'documentId': requestId,
         'residentId': uid,
-        'documentType': isTenancyAgreement ? 'tenancy_agreement' : documentType,
+        'documentType': _storageMetadataDocumentType(documentType),
       },
     );
 
@@ -256,7 +255,7 @@ class VerificationRepository {
     }
     final documentUrl = await ref.getDownloadURL().timeout(_networkTimeout);
 
-    if (isTenancyAgreement) {
+    if (usesDocumentAiExtraction) {
       await docRef
           .update({
             'documentUrl': documentUrl,
@@ -358,6 +357,19 @@ class VerificationRepository {
       AppConstants.documentTypeOtherProof =>
         'Only JPG, PNG, WEBP, HEIC, or PDF other proof documents are supported.',
       _ => 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
+    };
+  }
+
+  static bool _usesDocumentAiExtraction(String documentType) {
+    return documentType == AppConstants.documentTypeTenancyAgreement ||
+        documentType == AppConstants.documentTypeUtilityBill;
+  }
+
+  static String _storageMetadataDocumentType(String documentType) {
+    return switch (documentType) {
+      AppConstants.documentTypeTenancyAgreement => 'tenancy_agreement',
+      AppConstants.documentTypeUtilityBill => 'utility_bill',
+      _ => documentType,
     };
   }
 

@@ -3,7 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/community_model.dart';
 
-class CommunityService {
+abstract class CommunityReader {
+  Future<List<CommunityModel>> fetchActiveCommunities();
+}
+
+class CommunityService implements CommunityReader {
   CommunityService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 

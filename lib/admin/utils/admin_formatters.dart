@@ -56,6 +56,25 @@ String adminOcrFieldLabel(String value) {
     'billType' => 'Bill Type',
     'amount' => 'Amount',
     'billDate' => 'Bill Date',
+    'accountNumber' => 'Account Number',
+    'utilityProvider' => 'Utility Provider',
+    'tenant_name' => 'Tenant Name',
+    'property_address' => 'Property Address',
+    'bill_type' => 'Bill Type',
+    'utility_provider' => 'Utility Provider',
+    'billHolderName' => 'Bill Holder Name',
+    'dueDate' => 'Due Date',
+    'serviceAddress' => 'Service Address',
+    'totalAmount' => 'Total Amount',
+    'utilityType' => 'Utility Type',
+    'account_number' => 'Account Number',
+    'bill_date' => 'Bill Date',
+    'bill_holder_name' => 'Bill Holder Name',
+    'due_date' => 'Due Date',
+    'service_address' => 'Service Address',
+    'total_amount' => 'Total Amount',
+    'utility_issuer_or_provider' => 'Utility Provider',
+    'utility_type' => 'Utility Type',
     'cardNumber' => 'Card Number',
     'fullText' => 'Full OCR Text',
     _ => value,
@@ -92,18 +111,15 @@ Color adminStatusColor(String status) {
     AppConstants.serviceStatusActive ||
     AppConstants.reportStatusResolved ||
     AppConstants.borrowStatusCompleted ||
-    AppConstants.serviceRequestStatusCompleted =>
-      AdminColors.success,
+    AppConstants.serviceRequestStatusCompleted => AdminColors.success,
     AppConstants.reportStatusOpen ||
     AppConstants.reportStatusUnderReview ||
     AppConstants.borrowStatusPending ||
-    AppConstants.serviceRequestStatusPending =>
-      AdminColors.warning,
+    AppConstants.serviceRequestStatusPending => AdminColors.warning,
     AppConstants.itemStatusArchived ||
     AppConstants.reportStatusDismissed ||
     AppConstants.borrowStatusRejected ||
-    AppConstants.serviceRequestStatusRejected =>
-      AdminColors.accent,
+    AppConstants.serviceRequestStatusRejected => AdminColors.accent,
     _ => AdminColors.primary,
   };
 }

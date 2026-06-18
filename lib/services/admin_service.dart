@@ -399,11 +399,29 @@ class AdminService {
       };
     }
 
-    add('tenant_name', data.tenantName);
-    add('landlord_name', data.landlordName);
-    add('unit_number', data.unitNumber);
-    add('agreement_date', data.agreementDate);
-    add('property_address', data.propertyAddress);
+    switch (data.type) {
+      case DocumentType.tenancyAgreement:
+        add('tenant_name', data.tenantName);
+        add('landlord_name', data.landlordName);
+        add('unit_number', data.unitNumber);
+        add('agreement_date', data.agreementDate);
+        add('property_address', data.propertyAddress);
+        break;
+      case DocumentType.utilityBill:
+        add('account_number', data.accountNumber);
+        add('bill_date', data.billDate);
+        add('bill_holder_name', data.billHolderName ?? data.tenantName);
+        add('due_date', data.dueDate);
+        add('service_address', data.serviceAddress ?? data.propertyAddress);
+        add('total_amount', data.totalAmount ?? data.amount);
+        add('utility_issuer_or_provider', data.utilityProvider);
+        add('utility_type', data.utilityType ?? data.billType);
+        break;
+      case DocumentType.accessCard:
+      case DocumentType.otherProof:
+      case DocumentType.unknown:
+        break;
+    }
     return fields;
   }
 

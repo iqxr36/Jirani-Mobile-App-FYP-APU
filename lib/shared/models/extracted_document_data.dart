@@ -17,6 +17,13 @@ class ExtractedDocumentData {
     this.billType,
     this.amount,
     this.billDate,
+    this.accountNumber,
+    this.billHolderName,
+    this.dueDate,
+    this.serviceAddress,
+    this.totalAmount,
+    this.utilityProvider,
+    this.utilityType,
     this.cardNumber,
     required this.fullText,
   });
@@ -30,6 +37,13 @@ class ExtractedDocumentData {
   final String? billType;
   final String? amount;
   final String? billDate;
+  final String? accountNumber;
+  final String? billHolderName;
+  final String? dueDate;
+  final String? serviceAddress;
+  final String? totalAmount;
+  final String? utilityProvider;
+  final String? utilityType;
   final String? cardNumber;
   final String fullText;
 
@@ -44,6 +58,13 @@ class ExtractedDocumentData {
       'billType': billType,
       'amount': amount,
       'billDate': billDate,
+      'accountNumber': accountNumber,
+      'billHolderName': billHolderName,
+      'dueDate': dueDate,
+      'serviceAddress': serviceAddress,
+      'totalAmount': totalAmount,
+      'utilityProvider': utilityProvider,
+      'utilityType': utilityType,
       'cardNumber': cardNumber,
       'fullText': fullText,
     };
@@ -59,15 +80,26 @@ class ExtractedDocumentData {
     }
 
     add('type', type.name);
-    add('tenantName', tenantName);
-    add('landlordName', landlordName);
-    add('propertyAddress', propertyAddress);
-    add('unitNumber', unitNumber);
-    add('agreementDate', agreementDate);
-    add('billType', billType);
-    add('amount', amount);
-    add('billDate', billDate);
-    add('cardNumber', cardNumber);
+    if (type == DocumentType.utilityBill) {
+      add('accountNumber', accountNumber);
+      add('billDate', billDate);
+      add('billHolderName', billHolderName ?? tenantName);
+      add('dueDate', dueDate);
+      add('serviceAddress', serviceAddress ?? propertyAddress);
+      add('totalAmount', totalAmount ?? amount);
+      add('utilityProvider', utilityProvider);
+      add('utilityType', utilityType ?? billType);
+    } else {
+      add('tenantName', tenantName);
+      add('landlordName', landlordName);
+      add('propertyAddress', propertyAddress);
+      add('unitNumber', unitNumber);
+      add('agreementDate', agreementDate);
+      add('billType', billType);
+      add('amount', amount);
+      add('billDate', billDate);
+      add('cardNumber', cardNumber);
+    }
     final fullTextOnlyDocument =
         type == DocumentType.accessCard || type == DocumentType.otherProof;
     if (includeFullText || fullTextOnlyDocument) add('fullText', fullText);
@@ -85,6 +117,13 @@ class ExtractedDocumentData {
     String? billType,
     String? amount,
     String? billDate,
+    String? accountNumber,
+    String? billHolderName,
+    String? dueDate,
+    String? serviceAddress,
+    String? totalAmount,
+    String? utilityProvider,
+    String? utilityType,
     String? cardNumber,
     String? fullText,
   }) {
@@ -98,6 +137,13 @@ class ExtractedDocumentData {
       billType: billType ?? this.billType,
       amount: amount ?? this.amount,
       billDate: billDate ?? this.billDate,
+      accountNumber: accountNumber ?? this.accountNumber,
+      billHolderName: billHolderName ?? this.billHolderName,
+      dueDate: dueDate ?? this.dueDate,
+      serviceAddress: serviceAddress ?? this.serviceAddress,
+      totalAmount: totalAmount ?? this.totalAmount,
+      utilityProvider: utilityProvider ?? this.utilityProvider,
+      utilityType: utilityType ?? this.utilityType,
       cardNumber: cardNumber ?? this.cardNumber,
       fullText: fullText ?? this.fullText,
     );
@@ -126,6 +172,7 @@ DocumentType documentTypeFromValue(String value) {
   return switch (lower) {
     'tenancyagreement' || 'tenancy_agreement' => DocumentType.tenancyAgreement,
     'tenancy agreement' => DocumentType.tenancyAgreement,
+    'utilitybill' || 'utility_bill' => DocumentType.utilityBill,
     'utility bill' => DocumentType.utilityBill,
     'access card' => DocumentType.accessCard,
     'other proof' => DocumentType.otherProof,

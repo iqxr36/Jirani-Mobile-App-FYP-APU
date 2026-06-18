@@ -35,6 +35,9 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
   late final TextEditingController _agreementDateController;
   late final TextEditingController _amountController;
   late final TextEditingController _billDateController;
+  late final TextEditingController _accountNumberController;
+  late final TextEditingController _dueDateController;
+  late final TextEditingController _utilityProviderController;
   late final TextEditingController _cardNumberController;
   late final TextEditingController _fullTextController;
   String _billType = 'Other';
@@ -46,22 +49,34 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     _type = data.type == DocumentType.unknown
         ? DocumentType.otherProof
         : data.type;
-    _tenantNameController = TextEditingController(text: data.tenantName ?? '');
+    _tenantNameController = TextEditingController(
+      text: data.billHolderName ?? data.tenantName ?? '',
+    );
     _landlordNameController = TextEditingController(
       text: data.landlordName ?? '',
     );
     _propertyAddressController = TextEditingController(
-      text: data.propertyAddress ?? '',
+      text: data.serviceAddress ?? data.propertyAddress ?? '',
     );
     _unitNumberController = TextEditingController(text: data.unitNumber ?? '');
     _agreementDateController = TextEditingController(
       text: data.agreementDate ?? '',
     );
-    _amountController = TextEditingController(text: data.amount ?? '');
+    _amountController = TextEditingController(
+      text: data.totalAmount ?? data.amount ?? '',
+    );
     _billDateController = TextEditingController(text: data.billDate ?? '');
+    _accountNumberController = TextEditingController(
+      text: data.accountNumber ?? '',
+    );
+    _dueDateController = TextEditingController(text: data.dueDate ?? '');
+    _utilityProviderController = TextEditingController(
+      text: data.utilityProvider ?? '',
+    );
     _cardNumberController = TextEditingController(text: data.cardNumber ?? '');
     _fullTextController = TextEditingController(text: data.fullText);
-    _billType = _billTypes.contains(data.billType) ? data.billType! : 'Other';
+    final utilityType = data.utilityType ?? data.billType;
+    _billType = _billTypes.contains(utilityType) ? utilityType! : 'Other';
   }
 
   @override
@@ -73,6 +88,9 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     _agreementDateController.dispose();
     _amountController.dispose();
     _billDateController.dispose();
+    _accountNumberController.dispose();
+    _dueDateController.dispose();
+    _utilityProviderController.dispose();
     _cardNumberController.dispose();
     _fullTextController.dispose();
     super.dispose();
@@ -140,9 +158,10 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         _textField(_fullTextController, 'Full OCR Text', maxLines: 8),
       ],
       DocumentType.utilityBill => [
+        _textField(_accountNumberController, 'Account Number'),
         DropdownButtonFormField<String>(
           initialValue: _billType,
-          decoration: const InputDecoration(labelText: 'Bill Type'),
+          decoration: const InputDecoration(labelText: 'Utility Type'),
           items: [
             for (final billType in _billTypes)
               DropdownMenuItem(value: billType, child: Text(billType)),
@@ -152,17 +171,19 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
             setState(() => _billType = value);
           },
           validator: (value) =>
-              _requiredMessage(value, 'Bill Type is required.'),
+              _requiredMessage(value, 'Utility Type is required.'),
         ),
-        _textField(_amountController, 'Amount', required: true),
-        _textField(_tenantNameController, 'Tenant Name'),
+        _textField(_utilityProviderController, 'Utility Provider'),
+        _textField(_amountController, 'Total Amount', required: true),
+        _textField(_tenantNameController, 'Bill Holder Name'),
         _textField(
           _propertyAddressController,
-          'Property Address',
+          'Service Address',
           required: true,
           maxLines: 2,
         ),
         _textField(_billDateController, 'Bill Date'),
+        _textField(_dueDateController, 'Due Date'),
         _textField(_fullTextController, 'Full OCR Text', maxLines: 8),
       ],
       DocumentType.accessCard => [
@@ -241,6 +262,25 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         billDate: _type == DocumentType.utilityBill
             ? _emptyToNull(_billDateController.text)
             : null,
+        accountNumber: _type == DocumentType.utilityBill
+            ? _emptyToNull(_accountNumberController.text)
+            : null,
+        billHolderName: _type == DocumentType.utilityBill
+            ? _emptyToNull(_tenantNameController.text)
+            : null,
+        dueDate: _type == DocumentType.utilityBill
+            ? _emptyToNull(_dueDateController.text)
+            : null,
+        serviceAddress: _type == DocumentType.utilityBill
+            ? _emptyToNull(_propertyAddressController.text)
+            : null,
+        totalAmount: _type == DocumentType.utilityBill
+            ? _emptyToNull(_amountController.text)
+            : null,
+        utilityProvider: _type == DocumentType.utilityBill
+            ? _emptyToNull(_utilityProviderController.text)
+            : null,
+        utilityType: _type == DocumentType.utilityBill ? _billType : null,
         cardNumber: null,
         fullText: _fullTextController.text.trim(),
       ),

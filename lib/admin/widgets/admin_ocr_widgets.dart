@@ -4,6 +4,7 @@ import 'package:jirani/admin/utils/admin_formatters.dart';
 import 'package:jirani/admin/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/services/ocr_parser_service.dart';
+import 'package:jirani/shared/models/extracted_document_data.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 
 class AdminExtractedTextPanel extends StatelessWidget {
@@ -127,14 +128,19 @@ class AdminOcrResultView extends StatelessWidget {
     final fullTextOnly = _usesFullTextOnly(request.documentType);
     final structuredFields = _structuredFieldEntries(request);
     final Map<String, String> parsedFields;
+    final bool showParsedConfidence;
     if (structuredFields.isNotEmpty) {
       parsedFields = const <String, String>{};
+      showParsedConfidence = false;
     } else if (fullTextOnly) {
       parsedFields = const <String, String>{};
+      showParsedConfidence = false;
     } else if (_shouldParseDisplayFields(request)) {
       parsedFields = _parseDisplayFields(request);
+      showParsedConfidence = true;
     } else {
       parsedFields = request.ocrFields;
+      showParsedConfidence = false;
     }
     final visibleFields = Map<String, String>.from(parsedFields)
       ..remove('type')
@@ -165,7 +171,15 @@ class AdminOcrResultView extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: visibleFields.entries
-                .map((e) => AdminOcrFieldChip(label: e.key, value: e.value))
+                .map(
+                  (e) => AdminOcrFieldChip(
+                    label: e.key,
+                    value: e.value,
+                    confidence: showParsedConfidence
+                        ? _parsedFieldConfidence(request.documentType)
+                        : null,
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -234,16 +248,19 @@ class AdminOcrResultView extends StatelessWidget {
     return parsed.toFieldMap();
   }
 
+  double? _parsedFieldConfidence(String documentType) {
+    return switch (documentTypeFromValue(documentType)) {
+      DocumentType.tenancyAgreement || DocumentType.utilityBill => 1.0,
+      DocumentType.accessCard ||
+      DocumentType.otherProof ||
+      DocumentType.unknown => null,
+    };
+  }
+
   List<AdminStructuredFieldEntry> _structuredFieldEntries(
     VerificationRequest request,
   ) {
-    const labels = <String, String>{
-      'tenant_name': 'Tenant Name',
-      'landlord_name': 'Landlord/Owner Name',
-      'unit_number': 'Unit Number',
-      'agreement_date': 'Agreement Date',
-      'property_address': 'Property Address',
-    };
+    final labels = _structuredFieldLabels(request.documentType);
     return labels.entries
         .map((entry) {
           final field = request.extractedFields[entry.key];
@@ -252,6 +269,31 @@ class AdminOcrResultView extends StatelessWidget {
         })
         .whereType<AdminStructuredFieldEntry>()
         .toList();
+  }
+
+  Map<String, String> _structuredFieldLabels(String documentType) {
+    return switch (documentTypeFromValue(documentType)) {
+      DocumentType.tenancyAgreement => const <String, String>{
+        'tenant_name': 'Tenant Name',
+        'landlord_name': 'Landlord/Owner Name',
+        'unit_number': 'Unit Number',
+        'agreement_date': 'Agreement Date',
+        'property_address': 'Property Address',
+      },
+      DocumentType.utilityBill => const <String, String>{
+        'account_number': 'Account Number',
+        'bill_date': 'Bill Date',
+        'bill_holder_name': 'Bill Holder Name',
+        'due_date': 'Due Date',
+        'service_address': 'Service Address',
+        'total_amount': 'Total Amount',
+        'utility_issuer_or_provider': 'Utility Provider',
+        'utility_type': 'Utility Type',
+      },
+      DocumentType.accessCard ||
+      DocumentType.otherProof ||
+      DocumentType.unknown => const <String, String>{},
+    };
   }
 }
 

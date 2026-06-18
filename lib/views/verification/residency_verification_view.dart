@@ -187,6 +187,8 @@ class _ResidencyVerificationFormState
       allowedExtensions: _allowedExtensionsFor(documentType),
       withData: true,
     );
+    if (!mounted) return;
+
     final file = result?.files.single;
     if (file == null) return;
 

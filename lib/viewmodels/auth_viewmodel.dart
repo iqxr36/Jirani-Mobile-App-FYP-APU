@@ -16,11 +16,34 @@ class AuthViewModel extends ChangeNotifier {
     AuthRepository? repository,
     UserRepository? userRepository,
     ConnectionRepository? connectionRepository,
+    bool listenToAuthChanges = true,
+    AppUser? initialCurrentUser,
   }) : _repository = repository ?? AuthRepository(),
        _userRepository = userRepository ?? UserRepository(),
        _connectionRepository = connectionRepository ?? ConnectionRepository() {
-    _authSubscription = _repository.authStateChanges.listen(
-      _onAuthStateChanged,
+    _currentUser = initialCurrentUser;
+    if (listenToAuthChanges) {
+      _authSubscription = _repository.authStateChanges.listen(
+        _onAuthStateChanged,
+      );
+    } else {
+      _authBootstrapComplete = true;
+    }
+  }
+
+  @visibleForTesting
+  factory AuthViewModel.forTesting({
+    AppUser? currentUser,
+    AuthRepository? repository,
+    UserRepository? userRepository,
+    ConnectionRepository? connectionRepository,
+  }) {
+    return AuthViewModel(
+      repository: repository,
+      userRepository: userRepository,
+      connectionRepository: connectionRepository,
+      listenToAuthChanges: false,
+      initialCurrentUser: currentUser,
     );
   }
 

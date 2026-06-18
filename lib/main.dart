@@ -58,9 +58,10 @@ class TrustCommunityApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-        ChangeNotifierProvider<NetworkStatusProvider>(
-          create: (_) => NetworkStatusProvider(),
-        ),
+        if (!kIsWeb)
+          ChangeNotifierProvider<NetworkStatusProvider>(
+            create: (_) => NetworkStatusProvider(),
+          ),
         ChangeNotifierProxyProvider<AuthProvider, ConnectionProvider>(
           create: (_) => ConnectionProvider(),
           update: (_, auth, provider) {
@@ -84,13 +85,14 @@ class TrustCommunityApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         builder: (context, child) {
           final media = MediaQuery.of(context);
+          final appBody = JiraniBackground(
+            child: child ?? const SizedBox.shrink(),
+          );
           return MediaQuery(
             data: media.copyWith(
               textScaler: JiraniResponsive.clampedTextScaler(context),
             ),
-            child: NetworkStatusOverlay(
-              child: JiraniBackground(child: child ?? const SizedBox.shrink()),
-            ),
+            child: kIsWeb ? appBody : NetworkStatusOverlay(child: appBody),
           );
         },
         home: const AuthWrapper(),

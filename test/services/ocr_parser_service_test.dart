@@ -89,10 +89,13 @@ The Landlord is legally required to maintain structural repairs.
     test('extracts utility bill amount from labelled currency', () {
       final result = parser.processOcrText('''
 Bill Type: Electricity
+Account Number: 1234567890
+Utility Provider: TNB
 Tenant Name: Abu Khalil
-Property Address: One South Residence
+Service Address: One South Residence
 Amount Due: RM 185.70
 Bill Date: 09/06/2026
+Due Date: 16/06/2026
 ''');
 
       expect(result.type, DocumentType.utilityBill);
@@ -101,6 +104,25 @@ Bill Date: 09/06/2026
       expect(result.propertyAddress, 'One South Residence');
       expect(result.amount, 'RM 185.70');
       expect(result.billDate, '09/06/2026');
+      expect(result.accountNumber, '1234567890');
+      expect(result.billHolderName, 'Abu Khalil');
+      expect(result.serviceAddress, 'One South Residence');
+      expect(result.totalAmount, 'RM 185.70');
+      expect(result.utilityProvider, 'TNB');
+      expect(result.utilityType, 'Electricity');
+      expect(result.dueDate, '16/06/2026');
+      final fields = result.toFieldMap();
+      expect(fields, containsPair('accountNumber', '1234567890'));
+      expect(fields, containsPair('billDate', '09/06/2026'));
+      expect(fields, containsPair('billHolderName', 'Abu Khalil'));
+      expect(fields, containsPair('dueDate', '16/06/2026'));
+      expect(fields, containsPair('serviceAddress', 'One South Residence'));
+      expect(fields, containsPair('totalAmount', 'RM 185.70'));
+      expect(fields, containsPair('utilityProvider', 'TNB'));
+      expect(fields, containsPair('utilityType', 'Electricity'));
+      expect(fields.containsKey('tenantName'), isFalse);
+      expect(fields.containsKey('propertyAddress'), isFalse);
+      expect(fields.containsKey('amount'), isFalse);
     });
 
     test('prefers payable amount over earlier currency amounts', () {

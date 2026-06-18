@@ -17,6 +17,7 @@ class VerificationViewModel extends ChangeNotifier {
   VerificationRequest? _currentRequest;
   double _uploadProgress = 0;
   String _selectedDocumentType = AppConstants.documentTypeUtilityBill;
+  bool _disposed = false;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -26,13 +27,13 @@ class VerificationViewModel extends ChangeNotifier {
 
   set selectedDocumentType(String value) {
     _selectedDocumentType = value;
-    notifyListeners();
+    _notifyIfActive();
   }
 
   Future<void> loadCurrentRequest() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _notifyIfActive();
 
     try {
       _currentRequest = await _repository.getCurrentUserLatestRequest();
@@ -40,7 +41,7 @@ class VerificationViewModel extends ChangeNotifier {
       _errorMessage = e.toString();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _notifyIfActive();
     }
   }
 
@@ -56,7 +57,7 @@ class VerificationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _uploadProgress = 0;
-    notifyListeners();
+    _notifyIfActive();
 
     try {
       final result = await _repository.submitVerificationRequest(
@@ -69,7 +70,7 @@ class VerificationViewModel extends ChangeNotifier {
         notes: notes,
         onUploadProgress: (p) {
           _uploadProgress = p.clamp(0.0, 1.0);
-          notifyListeners();
+          _notifyIfActive();
         },
       );
       _currentRequest = result;
@@ -82,7 +83,7 @@ class VerificationViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       _uploadProgress = 0;
-      notifyListeners();
+      _notifyIfActive();
     }
   }
 
@@ -121,7 +122,7 @@ class VerificationViewModel extends ChangeNotifier {
   Future<bool> cancelLatestVerificationRequest() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _notifyIfActive();
 
     try {
       await _repository.cancelLatestVerificationRequest();
@@ -134,12 +135,23 @@ class VerificationViewModel extends ChangeNotifier {
       return false;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _notifyIfActive();
     }
   }
 
   void clearError() {
     _errorMessage = null;
+    _notifyIfActive();
+  }
+
+  void _notifyIfActive() {
+    if (_disposed) return;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

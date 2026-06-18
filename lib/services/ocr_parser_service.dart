@@ -55,6 +55,8 @@ class OcrParserService {
   ];
 
   static const _utilityLabelsTenantName = [
+    'Bill Holder Name',
+    'Bill Holder',
     'Tenant',
     'Tenant Name',
     'Customer Name',
@@ -63,10 +65,19 @@ class OcrParserService {
     'Registered Name',
   ];
 
+  static const _utilityLabelsAccountNumber = [
+    'Account Number',
+    'Account No',
+    'Account',
+    'Customer Number',
+    'Customer No',
+    'Contract Account',
+  ];
+
   static const _utilityLabelsPropertyAddress = [
+    'Service Address',
     'Property Address',
     'Premises Address',
-    'Service Address',
     'Billing Address',
     'Supply Address',
     'Address',
@@ -78,6 +89,29 @@ class OcrParserService {
     'Invoice Date',
     'Statement Date',
     'Date',
+  ];
+
+  static const _utilityLabelsDueDate = [
+    'Due Date',
+    'Payment Due Date',
+    'Pay By Date',
+    'Pay Before',
+  ];
+
+  static const _utilityLabelsProvider = [
+    'Utility Provider',
+    'Utility Issuer or Provider',
+    'Provider',
+    'Issuer',
+    'Supplier',
+    'Company',
+  ];
+
+  static const _utilityLabelsType = [
+    'Utility Type',
+    'Bill Type',
+    'Service Type',
+    'Type',
   ];
 
   static const _amountLabels = [
@@ -127,8 +161,12 @@ class OcrParserService {
     ..._tenancyLabelsLandlordName,
     ..._tenancyLabelsAgreementDate,
     ..._utilityLabelsTenantName,
+    ..._utilityLabelsAccountNumber,
     ..._utilityLabelsPropertyAddress,
     ..._utilityLabelsBillDate,
+    ..._utilityLabelsDueDate,
+    ..._utilityLabelsProvider,
+    ..._utilityLabelsType,
     ..._amountLabels,
     ..._accessLabelsPropertyAddress,
     ..._accessLabelsUnitNumber,
@@ -344,21 +382,48 @@ class OcrParserService {
 
   ExtractedDocumentData extractUtilityBill(String text) {
     final fullText = cleanOcrText(text);
+    final accountNumber = cleanExtractedValue(
+      extractByLabels(fullText, _utilityLabelsAccountNumber),
+    );
+    final tenantName = cleanExtractedValue(
+      extractByLabels(fullText, _utilityLabelsTenantName),
+    );
+    final propertyAddress = cleanExtractedValue(
+      _extractMultilineByLabels(fullText, _utilityLabelsPropertyAddress),
+    );
+    final amount = extractAmount(fullText);
+    final billType = cleanExtractedValue(
+      extractByLabels(fullText, _utilityLabelsType),
+    );
+    final detectedUtilityType = detectBillType('${billType ?? ''}\n$fullText');
+    final billDate =
+        cleanExtractedValue(
+          extractByLabels(fullText, _utilityLabelsBillDate),
+        ) ??
+        extractDate(fullText);
+    final dueDate =
+        cleanExtractedValue(extractByLabels(fullText, _utilityLabelsDueDate)) ??
+        _extractDueDate(fullText);
+    final utilityProvider =
+        cleanExtractedValue(
+          extractByLabels(fullText, _utilityLabelsProvider),
+        ) ??
+        detectUtilityProvider(fullText);
+
     return ExtractedDocumentData(
       type: DocumentType.utilityBill,
-      billType: detectBillType(fullText),
-      amount: extractAmount(fullText),
-      tenantName: cleanExtractedValue(
-        extractByLabels(fullText, _utilityLabelsTenantName),
-      ),
-      propertyAddress: cleanExtractedValue(
-        extractByLabels(fullText, _utilityLabelsPropertyAddress),
-      ),
-      billDate:
-          cleanExtractedValue(
-            extractByLabels(fullText, _utilityLabelsBillDate),
-          ) ??
-          extractDate(fullText),
+      billType: detectedUtilityType,
+      amount: amount,
+      tenantName: tenantName,
+      propertyAddress: propertyAddress,
+      billDate: billDate,
+      accountNumber: accountNumber ?? _extractAccountNumber(fullText),
+      billHolderName: tenantName,
+      dueDate: dueDate,
+      serviceAddress: propertyAddress,
+      totalAmount: amount,
+      utilityProvider: utilityProvider,
+      utilityType: detectedUtilityType,
       fullText: fullText,
     );
   }
@@ -469,6 +534,23 @@ class OcrParserService {
     return _extractAmountValue(cleanedText);
   }
 
+  String? _extractAccountNumber(String text) {
+    final match = RegExp(
+      r'\b(?:account|acct|customer|contract)\s*(?:number|no\.?|account)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9 -]{4,})\b',
+      caseSensitive: false,
+    ).firstMatch(text);
+    return cleanExtractedValue(match?.group(1));
+  }
+
+  String? _extractDueDate(String text) {
+    final flattened = cleanOcrText(text).replaceAll('\n', ' ');
+    final match = RegExp(
+      r'\b(?:due date|payment due date|pay by|pay before)\s*[:#-]?\s*([A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\.?\s+\d{4}|\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b',
+      caseSensitive: false,
+    ).firstMatch(flattened);
+    return cleanExtractedValue(match?.group(1));
+  }
+
   String detectBillType(String text) {
     final labelled = extractByLabels(text, const ['Bill Type', 'Type']);
     final searchText = normalizeForSearch('${labelled ?? ''} $text');
@@ -496,6 +578,26 @@ class OcrParserService {
       return 'Maintenance';
     }
     return 'Other';
+  }
+
+  String? detectUtilityProvider(String text) {
+    final searchText = normalizeForSearch(text);
+    if (_containsAny(searchText, const ['tenaga nasional', 'tnb'])) {
+      return 'TNB';
+    }
+    if (_containsAny(searchText, const ['air selangor', 'syabas'])) {
+      return 'Air Selangor';
+    }
+    if (_containsAny(searchText, const ['unifi', 'telekom malaysia', 'tm'])) {
+      return 'Unifi';
+    }
+    if (_containsAny(searchText, const ['time fibre', 'time dotcom'])) {
+      return 'TIME';
+    }
+    if (_containsAny(searchText, const ['maxis fibre', 'maxis'])) {
+      return 'Maxis';
+    }
+    return null;
   }
 
   String? cleanExtractedValue(String? value) {

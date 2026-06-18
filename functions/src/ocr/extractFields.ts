@@ -147,12 +147,24 @@ function extractUtilityBillFields(
   fields: OcrFields,
   request: VerificationRequestData,
 ) {
-  fields["Bill Type"] = detectBillType(text);
+  fields["Utility Type"] = detectBillType(text);
+
+  const accountNumber = extractByLabels(lines, [
+    "Account Number",
+    "Account No",
+    "Customer Number",
+    "Customer No",
+    "Contract Account",
+    "Account",
+  ]) ?? extractAccountNumber(text);
+  if (accountNumber) fields["Account Number"] = accountNumber;
 
   const amount = extractAmount(text, lines);
-  if (amount) fields.Amount = amount;
+  if (amount) fields["Total Amount"] = amount;
 
   const tenant = extractByLabels(lines, [
+    "Bill Holder Name",
+    "Bill Holder",
     "Tenant Name",
     "Customer Name",
     "Account Name",
@@ -160,9 +172,9 @@ function extractUtilityBillFields(
     "Tenant",
     "Name",
   ]);
-  if (tenant) fields["Tenant Name"] = tenant;
+  if (tenant) fields["Bill Holder Name"] = tenant;
 
-  const address = extractByLabels(lines, [
+  const address = extractMultilineByLabels(lines, [
     "Property Address",
     "Premises Address",
     "Service Address",
@@ -170,7 +182,7 @@ function extractUtilityBillFields(
     "Supply Address",
     "Address",
   ]);
-  if (address) fields["Property Address"] = address;
+  if (address) fields["Service Address"] = address;
 
   const billDate = extractByLabels(lines, [
     "Bill Date",
@@ -180,6 +192,25 @@ function extractUtilityBillFields(
     "Date",
   ]);
   if (billDate) fields["Bill Date"] = billDate;
+
+  const dueDateValue = extractByLabels(lines, [
+    "Due Date",
+    "Payment Due Date",
+    "Pay By Date",
+    "Pay Before",
+  ]);
+  const dueDate = extractDate(dueDateValue ?? "");
+  if (dueDate) fields["Due Date"] = dueDate;
+
+  const provider = extractByLabels(lines, [
+    "Utility Provider",
+    "Utility Issuer or Provider",
+    "Provider",
+    "Issuer",
+    "Supplier",
+    "Company",
+  ]) ?? detectUtilityProvider(text);
+  if (provider) fields["Utility Provider"] = provider;
 
   const fullName = request.fullName?.trim();
   const communityName = request.communityName?.trim();
@@ -352,6 +383,24 @@ function detectBillType(text: string): string {
   return "Other";
 }
 
+function detectUtilityProvider(text: string): string | undefined {
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  if (/(tenaga nasional|tnb)/.test(normalized)) return "TNB";
+  if (/(air selangor|syabas)/.test(normalized)) return "Air Selangor";
+  if (/(unifi|telekom malaysia|\btm\b)/.test(normalized)) return "Unifi";
+  if (/(time fibre|time dotcom)/.test(normalized)) return "TIME";
+  if (/(maxis fibre|maxis)/.test(normalized)) return "Maxis";
+  return undefined;
+}
+
+function extractAccountNumber(text: string): string | undefined {
+  return cleanExtractedValue(
+    text.match(
+      /\b(?:account|acct|customer|contract)\s*(?:number|no\.?|account)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9 -]{4,})\b/i,
+    )?.[1],
+  );
+}
+
 function extractUnitNumber(value?: string): string | undefined {
   if (!value) return undefined;
   return value.match(/\b(?:[A-Z]{1,3}[- ]?)?\d{1,2}-\d{1,4}(?:-\d{1,4})?\b/i)?.[0];
@@ -409,8 +458,33 @@ function knownLabels(): string[] {
     "Advance Rental",
     "Permitted Use",
     "Number of Occupants",
+    "Account Number",
+    "Account No",
+    "Customer Number",
+    "Customer No",
+    "Contract Account",
+    "Bill Type",
     "Bill Date",
+    "Billing Date",
+    "Invoice Date",
+    "Statement Date",
+    "Due Date",
+    "Pay By Date",
+    "Pay Before",
     "Amount Due",
+    "Total Amount",
+    "Total Payable",
+    "Balance Due",
+    "Current Charges",
+    "Utility Provider",
+    "Utility Issuer or Provider",
+    "Provider",
+    "Issuer",
+    "Supplier",
+    "Company",
+    "Service Address",
+    "Billing Address",
+    "Supply Address",
     "Card Number",
     "Tenant",
     "Landlord",
@@ -425,7 +499,7 @@ function textContains(text: string, value: string): boolean {
 }
 
 function isLabelOnly(value: string): boolean {
-  return /^(tenant|tenant name|unit|unit number|property address|address|landlord|landlord name|owner|owner name|lessor|agreement date|bill date|date|amount|card number)\s*:?\s*$/i.test(
+  return /^(tenant|tenant name|bill holder|bill holder name|unit|unit number|property address|service address|billing address|supply address|address|landlord|landlord name|owner|owner name|lessor|agreement date|bill date|due date|date|amount|account number|utility provider|bill type|card number)\s*:?\s*$/i.test(
     value.trim(),
   );
 }
