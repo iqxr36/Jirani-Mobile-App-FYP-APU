@@ -1,26 +1,36 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuthException, PhoneAuthCredential, User;
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/community_change.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/data/repositories/connection_repository.dart';
 import 'package:jirani/shared/models/admin_user.dart';
 import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/data/repositories/auth_repository.dart';
+import 'package:jirani/data/repositories/chat_repository.dart';
 import 'package:jirani/data/repositories/user_repository.dart';
+import 'package:jirani/data/repositories/verification_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
   AuthViewModel({
     AuthRepository? repository,
     UserRepository? userRepository,
     ConnectionRepository? connectionRepository,
+    VerificationRepository? verificationRepository,
+    ChatRepository? chatRepository,
     bool listenToAuthChanges = true,
     AppUser? initialCurrentUser,
   }) : _repository = repository ?? AuthRepository(),
        _userRepository = userRepository ?? UserRepository(),
-       _connectionRepository = connectionRepository ?? ConnectionRepository() {
+       _connectionRepository = connectionRepository ?? ConnectionRepository(),
+       _verificationRepository =
+           verificationRepository ?? VerificationRepository(),
+       _chatRepository = chatRepository ?? ChatRepository() {
     _currentUser = initialCurrentUser;
     if (listenToAuthChanges) {
       _authSubscription = _repository.authStateChanges.listen(
@@ -37,11 +47,15 @@ class AuthViewModel extends ChangeNotifier {
     AuthRepository? repository,
     UserRepository? userRepository,
     ConnectionRepository? connectionRepository,
+    VerificationRepository? verificationRepository,
+    ChatRepository? chatRepository,
   }) {
     return AuthViewModel(
       repository: repository,
       userRepository: userRepository,
       connectionRepository: connectionRepository,
+      verificationRepository: verificationRepository,
+      chatRepository: chatRepository,
       listenToAuthChanges: false,
       initialCurrentUser: currentUser,
     );
@@ -50,6 +64,8 @@ class AuthViewModel extends ChangeNotifier {
   final AuthRepository _repository;
   final UserRepository _userRepository;
   final ConnectionRepository _connectionRepository;
+  final VerificationRepository _verificationRepository;
+  final ChatRepository _chatRepository;
   StreamSubscription<User?>? _authSubscription;
 
   User? _firebaseUser;
@@ -477,20 +493,32 @@ class AuthViewModel extends ChangeNotifier {
     final nextCommunityId = communityId.trim();
     final nextCommunityName = communityName.trim();
     final currentUser = _currentUser;
-    final communityChanged = _isCommunityChange(
-      currentUser: currentUser,
-      nextCommunityId: nextCommunityId,
-      nextCommunityName: nextCommunityName,
+    final communityChanged = isChangingSavedCommunity(
+      user: currentUser,
+      nextCommunity: CommunityModel(
+        communityId: nextCommunityId,
+        name: nextCommunityName,
+        centerLocation: const GeoPoint(0, 0),
+        radiusInMeters: 1,
+        isActive: true,
+        city: '',
+      ),
     );
-    final shouldResetResidencyVerification =
-        currentUser?.verificationStatus == AppConstants.verificationVerified &&
-        communityChanged;
     final fields = <String, dynamic>{
       'communityId': nextCommunityId,
       'communityName': nextCommunityName,
     };
 
-    if (shouldResetResidencyVerification) {
+    if (communityChanged) {
+      await _verificationRepository.cancelActiveVerificationRequestIfAny();
+      await _connectionRepository.removeConnectionsOutsideCommunity(
+        uid: uid,
+        communityId: nextCommunityId,
+      );
+      await _chatRepository.archiveChatsOutsideCommunity(
+        uid: uid,
+        communityId: nextCommunityId,
+      );
       fields.addAll({
         'verificationStatus': AppConstants.verificationPending,
         'locationVerified': false,
@@ -499,38 +527,16 @@ class AuthViewModel extends ChangeNotifier {
       });
     }
 
-    if (communityChanged) {
-      await _connectionRepository.removeConnectionsOutsideCommunity(
-        uid: uid,
-        communityId: nextCommunityId,
-      );
-    }
-
     await _userRepository.updateUserFields(uid: uid, fields: fields);
     _currentUser = _currentUser?.copyWith(
       communityId: nextCommunityId,
       communityName: nextCommunityName,
-      verificationStatus: shouldResetResidencyVerification
+      verificationStatus: communityChanged
           ? AppConstants.verificationPending
           : null,
-      locationVerified: shouldResetResidencyVerification ? false : null,
+      locationVerified: communityChanged ? false : null,
     );
     notifyListeners();
-  }
-
-  bool _isCommunityChange({
-    required AppUser? currentUser,
-    required String nextCommunityId,
-    required String nextCommunityName,
-  }) {
-    if (currentUser == null) return false;
-
-    final currentCommunityId = currentUser.communityId.trim();
-    final currentCommunityName = currentUser.communityName.trim();
-    if (currentCommunityId.isNotEmpty && nextCommunityId.isNotEmpty) {
-      return currentCommunityId != nextCommunityId;
-    }
-    return currentCommunityName != nextCommunityName;
   }
 
   Future<void> markLocationVerified() async {

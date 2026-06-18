@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/data/repositories/auth_repository.dart';
+import 'package:jirani/data/repositories/chat_repository.dart';
 import 'package:jirani/data/repositories/connection_repository.dart';
 import 'package:jirani/data/repositories/user_repository.dart';
+import 'package:jirani/data/repositories/verification_repository.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/community_model.dart';
@@ -170,6 +172,8 @@ class _TrackingAuthViewModel extends AuthViewModel {
         repository: _FakeAuthRepository(),
         userRepository: _FakeUserRepository(),
         connectionRepository: _FakeConnectionRepository(),
+        verificationRepository: _FakeVerificationRepository(),
+        chatRepository: _FakeChatRepository(),
         listenToAuthChanges: false,
         initialCurrentUser: currentUser,
       );
@@ -212,6 +216,26 @@ class _FakeUserRepository implements UserRepository {
 }
 
 class _FakeConnectionRepository implements ConnectionRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.isMethod) {
+      return Future<void>.value();
+    }
+    return null;
+  }
+}
+
+class _FakeVerificationRepository implements VerificationRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.isMethod) {
+      return Future<void>.value();
+    }
+    return null;
+  }
+}
+
+class _FakeChatRepository implements ChatRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) {
     if (invocation.isMethod) {

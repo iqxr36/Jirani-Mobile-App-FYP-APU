@@ -109,6 +109,31 @@ class VerificationRepository {
     });
   }
 
+  /// Cancels the latest submitted/pending verification request when the user
+  /// changes community. No-op when there is nothing cancellable.
+  Future<void> cancelActiveVerificationRequestIfAny() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final latest = await getCurrentUserLatestRequest();
+    if (latest == null) return;
+
+    final status = latest.status;
+    if (status != AppConstants.verificationSubmitted &&
+        status != AppConstants.verificationRequestPending) {
+      return;
+    }
+
+    await _firestore
+        .collection(AppConstants.verificationRequestsCollection)
+        .doc(latest.id)
+        .update({
+          'status': AppConstants.verificationRequestCancelled,
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'cancelledBy': user.uid,
+        });
+  }
+
   /// Uploads using [putData] on web; on IO, [localFilePath] allows [putFile] when the path is valid.
   Future<VerificationRequest> submitVerificationRequest({
     required String documentType,

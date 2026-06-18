@@ -247,8 +247,15 @@ service cloud.firestore {
         ]);
     }
 
+    function chatBelongsToMyCommunity(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data.communityId ==
+        myUserDoc().data.communityId;
+    }
+
     function validChatMessageCreate(chatId, data) {
-      return chatParticipantById(chatId) &&
+      return isVerifiedResident() &&
+        chatParticipantById(chatId) &&
+        chatBelongsToMyCommunity(chatId) &&
         data.chatId == chatId &&
         data.senderId == request.auth.uid;
     }

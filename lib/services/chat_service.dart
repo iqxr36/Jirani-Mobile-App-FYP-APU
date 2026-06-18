@@ -8,6 +8,7 @@ import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/agent_debug_log.dart';
+import 'package:jirani/core/utils/chat_access.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
@@ -388,6 +389,36 @@ class ChatService {
     });
   }
 
+  Future<void> archiveChatsOutsideCommunity({
+    required String uid,
+    required String communityId,
+  }) async {
+    final targetCommunityId = communityId.trim();
+    final snapshot = await _chats
+        .where('participantLookup.$uid', isEqualTo: true)
+        .get();
+
+    final batch = _firestore.batch();
+    var hasUpdates = false;
+    for (final doc in snapshot.docs) {
+      final chat = ChatModel.fromMap(doc.id, doc.data());
+      if (chat.communityId.trim() == targetCommunityId ||
+          chat.isDeletedFor(uid)) {
+        continue;
+      }
+      batch.update(doc.reference, {
+        'deletedFor': FieldValue.arrayUnion([uid]),
+        'unreadCounts.$uid': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      hasUpdates = true;
+    }
+
+    if (hasUpdates) {
+      await batch.commit();
+    }
+  }
+
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,
@@ -421,6 +452,8 @@ class ChatService {
     int fileSize = 0,
     String? messageId,
   }) async {
+    validateChatAccess(chat: chat, sender: sender);
+
     final recipientId = chat.otherParticipantId(sender.uid);
     if (recipientId.isEmpty) {
       throw Exception('Unable to find the chat recipient.');

@@ -70,6 +70,16 @@ class ChatRepository {
     return _service.deleteChatForUser(chat: chat, currentUserId: currentUserId);
   }
 
+  Future<void> archiveChatsOutsideCommunity({
+    required String uid,
+    required String communityId,
+  }) {
+    return _service.archiveChatsOutsideCommunity(
+      uid: uid,
+      communityId: communityId,
+    );
+  }
+
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,
