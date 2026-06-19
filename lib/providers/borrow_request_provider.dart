@@ -75,6 +75,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     required DateTime expectedReturnDate,
     required String pickupTime,
     required String message,
+    double? usageFeeAmount,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -87,6 +88,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         expectedReturnDate: expectedReturnDate,
         pickupTime: pickupTime,
         message: message,
+        usageFeeAmount: usageFeeAmount,
       );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -158,6 +160,30 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> completeManualPayment({
+    required String requestId,
+    required String borrowerId,
+    String chatId = '',
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.completeManualPayment(
+        requestId: requestId,
+        borrowerId: borrowerId,
+        chatId: chatId,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> confirmPickupReady({
     required String requestId,
     required String borrowerId,
@@ -184,6 +210,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     required String requestId,
     required String ownerId,
     required String conditionBefore,
+    String handoverCode = '',
     String? localProofPath,
   }) async {
     _isLoading = true;
@@ -194,6 +221,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         requestId: requestId,
         ownerId: ownerId,
         conditionBefore: conditionBefore,
+        handoverCode: handoverCode,
         localProofPath: localProofPath,
       );
     } catch (e) {
@@ -233,6 +261,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     required String ownerId,
     required String conditionAfter,
     required String ownerReturnNotes,
+    String returnCode = '',
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -243,6 +272,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         ownerId: ownerId,
         conditionAfter: conditionAfter,
         ownerReturnNotes: ownerReturnNotes,
+        returnCode: returnCode,
       );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

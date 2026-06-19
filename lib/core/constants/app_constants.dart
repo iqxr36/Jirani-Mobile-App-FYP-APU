@@ -118,6 +118,12 @@ class AppConstants {
   static const String borrowStatusReturnSubmitted = 'returnSubmitted';
   static const String borrowStatusCompleted = 'completed';
 
+  // Marketplace payment placeholders (Stripe will replace manual_v1 later)
+  static const String paymentStatusPending = 'pending';
+  static const String paymentStatusCompleted = 'completed';
+  static const String paymentStatusRefunded = 'refunded';
+  static const String paymentProviderManualV1 = 'manual_v1';
+
   /// Item condition at handover (owner selects).
   static const String borrowConditionBeforeExcellent = 'excellent';
   static const String borrowConditionBeforeGood = 'good';

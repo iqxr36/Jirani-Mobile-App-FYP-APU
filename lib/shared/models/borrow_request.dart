@@ -21,6 +21,12 @@ class BorrowRequest {
     required this.pickupTime,
     required this.message,
     required this.status,
+    required this.paymentStatus,
+    required this.paymentCompletedAt,
+    required this.paymentProvider,
+    required this.chatId,
+    required this.handoverCode,
+    required this.returnCode,
     required this.hasUsageFee,
     required this.usageFeeAmount,
     required this.hasDeposit,
@@ -65,6 +71,12 @@ class BorrowRequest {
   final String pickupTime;
   final String message;
   final String status;
+  final String paymentStatus;
+  final DateTime? paymentCompletedAt;
+  final String paymentProvider;
+  final String chatId;
+  final String handoverCode;
+  final String returnCode;
   final bool hasUsageFee;
   final double? usageFeeAmount;
   final bool hasDeposit;
@@ -109,6 +121,12 @@ class BorrowRequest {
     String? pickupTime,
     String? message,
     String? status,
+    String? paymentStatus,
+    DateTime? paymentCompletedAt,
+    String? paymentProvider,
+    String? chatId,
+    String? handoverCode,
+    String? returnCode,
     bool? hasUsageFee,
     double? usageFeeAmount,
     bool? hasDeposit,
@@ -154,6 +172,12 @@ class BorrowRequest {
       pickupTime: pickupTime ?? this.pickupTime,
       message: message ?? this.message,
       status: status ?? this.status,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentCompletedAt: paymentCompletedAt ?? this.paymentCompletedAt,
+      paymentProvider: paymentProvider ?? this.paymentProvider,
+      chatId: chatId ?? this.chatId,
+      handoverCode: handoverCode ?? this.handoverCode,
+      returnCode: returnCode ?? this.returnCode,
       hasUsageFee: hasUsageFee ?? this.hasUsageFee,
       usageFeeAmount: usageFeeAmount ?? this.usageFeeAmount,
       hasDeposit: hasDeposit ?? this.hasDeposit,
@@ -203,6 +227,14 @@ class BorrowRequest {
       pickupTime: (data['pickupTime'] as String?) ?? '',
       message: (data['message'] as String?) ?? '',
       status: (data['status'] as String?) ?? AppConstants.borrowStatusPending,
+      paymentStatus:
+          (data['paymentStatus'] as String?) ??
+          AppConstants.paymentStatusPending,
+      paymentCompletedAt: _toNullableDate(data['paymentCompletedAt']),
+      paymentProvider: (data['paymentProvider'] as String?) ?? '',
+      chatId: (data['chatId'] as String?) ?? '',
+      handoverCode: (data['handoverCode'] as String?) ?? '',
+      returnCode: (data['returnCode'] as String?) ?? '',
       hasUsageFee:
           data['hasUsageFee'] as bool? ??
           ((_toDouble(data['usageFeeAmount']) ?? 0) > 0),
@@ -253,6 +285,14 @@ class BorrowRequest {
       'pickupTime': pickupTime,
       'message': message,
       'status': status,
+      'paymentStatus': paymentStatus,
+      'paymentCompletedAt': paymentCompletedAt == null
+          ? null
+          : Timestamp.fromDate(paymentCompletedAt!),
+      'paymentProvider': paymentProvider.isEmpty ? null : paymentProvider,
+      'chatId': chatId.isEmpty ? null : chatId,
+      'handoverCode': handoverCode.isEmpty ? null : handoverCode,
+      'returnCode': returnCode.isEmpty ? null : returnCode,
       'hasUsageFee': hasUsageFee,
       'usageFeeAmount': hasUsageFee ? usageFeeAmount : null,
       'hasDeposit': hasDeposit,

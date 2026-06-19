@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/marketplace_borrow_flow.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
@@ -34,6 +35,7 @@ class BorrowRequestService {
     required DateTime expectedReturnDate,
     required String pickupTime,
     required String message,
+    double? usageFeeAmount,
   }) async {
     if (borrower.uid == item.ownerId) {
       throw Exception('You cannot borrow your own item.');
@@ -87,7 +89,15 @@ class BorrowRequestService {
         'pickupTime': pickupTime.trim(),
         'message': message.trim(),
         'status': AppConstants.borrowStatusPending,
-        'usageFeeAmount': item.hasUsageFee ? item.feeAmount : null,
+        'paymentStatus': AppConstants.paymentStatusPending,
+        'paymentCompletedAt': null,
+        'paymentProvider': '',
+        'chatId': '',
+        'handoverCode': '',
+        'returnCode': '',
+        'usageFeeAmount': item.hasUsageFee
+            ? (usageFeeAmount ?? item.feeAmount)
+            : null,
         'depositAmount': item.hasDeposit ? item.depositAmount : null,
         'hasUsageFee': item.hasUsageFee,
         'hasDeposit': item.hasDeposit,
@@ -175,6 +185,7 @@ class BorrowRequestService {
           .doc(request.itemId);
       batch.update(requestRef, {
         'status': AppConstants.borrowStatusApproved,
+        'paymentStatus': AppConstants.paymentStatusPending,
         'approvedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -281,6 +292,57 @@ class BorrowRequestService {
     }
   }
 
+  Future<void> completeManualPayment({
+    required String requestId,
+    required String borrowerId,
+    String chatId = '',
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != borrowerId) {
+      throw Exception('Only the borrower can complete this payment.');
+    }
+
+    try {
+      final requestRef = _requests.doc(requestId);
+      final snapshot = await requestRef.get();
+      final data = snapshot.data();
+      if (data == null) throw Exception('Borrow request not found.');
+      final request = BorrowRequest.fromMap(snapshot.id, data);
+
+      if (!MarketplaceBorrowFlow.canCompleteManualPayment(
+        request: request,
+        borrowerId: borrowerId,
+      )) {
+        throw Exception(
+          'Payment is only available after the owner approves this request.',
+        );
+      }
+
+      await requestRef.update({
+        'paymentStatus': AppConstants.paymentStatusCompleted,
+        'paymentCompletedAt': FieldValue.serverTimestamp(),
+        'paymentProvider': AppConstants.paymentProviderManualV1,
+        'chatId': chatId.trim().isEmpty
+            ? _marketplaceChatId(request.borrowerId, request.ownerId)
+            : chatId.trim(),
+        'handoverCode': request.handoverCode.trim().isEmpty
+            ? MarketplaceBorrowFlow.generateFourDigitCode()
+            : request.handoverCode,
+        'returnCode': request.returnCode.trim().isEmpty
+            ? MarketplaceBorrowFlow.generateFourDigitCode()
+            : request.returnCode,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
+      }
+      throw Exception(e.message ?? 'Failed to complete payment.');
+    }
+  }
+
   Future<String?> _uploadProofImage({
     required String requestId,
     required String uid,
@@ -326,6 +388,9 @@ class BorrowRequestService {
           'Pickup readiness can only be confirmed after approval.',
         );
       }
+      if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
+        throw Exception('Complete payment before coordinating handover.');
+      }
 
       String? proofUrl;
       if (localProofPath != null && localProofPath.trim().isNotEmpty) {
@@ -357,6 +422,7 @@ class BorrowRequestService {
     required String requestId,
     required String ownerId,
     required String conditionBefore,
+    String handoverCode = '',
     String? localProofPath,
   }) async {
     final uid = _auth.currentUser?.uid;
@@ -390,6 +456,13 @@ class BorrowRequestService {
         throw Exception(
           'Handover can only be confirmed when the borrower is ready for pickup.',
         );
+      }
+      if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
+        throw Exception('Payment must be completed before handover.');
+      }
+      final expectedCode = request.handoverCode.trim();
+      if (expectedCode.isNotEmpty && handoverCode.trim() != expectedCode) {
+        throw Exception('Invalid handover code.');
       }
 
       String? proofUrl;
@@ -489,6 +562,7 @@ class BorrowRequestService {
     required String ownerId,
     required String conditionAfter,
     required String ownerReturnNotes,
+    String returnCode = '',
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != ownerId) {
@@ -522,6 +596,17 @@ class BorrowRequestService {
           'Return confirmation is only available after the borrower submits return.',
         );
       }
+      final expectedCode = request.returnCode.trim();
+      if (expectedCode.isNotEmpty && returnCode.trim() != expectedCode) {
+        throw Exception('Invalid return code.');
+      }
+
+      final depositDecision = MarketplaceBorrowFlow.depositDecisionForReturn(
+        hasDeposit: request.hasDeposit,
+        conditionAfter: cond,
+      );
+      final shouldReleaseDeposit =
+          depositDecision == AppConstants.depositDecisionReturnDeposit;
 
       final batch = _firestore.batch();
       final itemRef = _firestore
@@ -534,11 +619,11 @@ class BorrowRequestService {
         'itemConditionAfter': cond,
         'ownerReturnNotes': ownerReturnNotes.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'depositDecision': request.hasDeposit
-            ? AppConstants.depositDecisionPending
-            : AppConstants.depositDecisionNotRequired,
+        'depositDecision': depositDecision,
         'depositDecisionReason': '',
-        'depositDecidedAt': null,
+        'depositDecidedAt': shouldReleaseDeposit
+            ? FieldValue.serverTimestamp()
+            : null,
       });
       batch.update(itemRef, {
         'status': AppConstants.itemStatusAvailable,
@@ -643,5 +728,10 @@ class BorrowRequestService {
       }
       throw Exception(e.message ?? 'Failed to save deposit decision.');
     }
+  }
+
+  static String _marketplaceChatId(String borrowerId, String ownerId) {
+    final ids = <String>[borrowerId, ownerId]..sort();
+    return ids.join('_');
   }
 }

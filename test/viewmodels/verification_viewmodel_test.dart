@@ -171,6 +171,9 @@ class _FakeVerificationRepository implements VerificationRepository {
   Future<void> cancelLatestVerificationRequest() async {}
 
   @override
+  Future<void> cancelActiveVerificationRequestIfAny() async {}
+
+  @override
   Future<VerificationRequest?> getCurrentUserLatestRequest() async => null;
 
   @override

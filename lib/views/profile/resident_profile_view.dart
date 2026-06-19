@@ -3,6 +3,7 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
 import 'package:jirani/views/auth/phone_verification_view.dart';
+import 'package:jirani/views/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/views/profile/resident_settings_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
@@ -80,6 +81,12 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
           onHelp: () => _showUnavailable('Help & Support'),
         ),
       ),
+    );
+  }
+
+  void _openMyItems() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ResidentMyItemsView()),
     );
   }
 
@@ -163,7 +170,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                     onVerifyPhone: user == null || user.phoneVerified
                         ? null
                         : () => _openPhoneVerification(user),
-                    onMyItems: () => _showUnavailable('My Items'),
+                    onMyItems: _openMyItems,
                     onRatings: () => _showUnavailable('Ratings & Reviews'),
                     onMyServices: () => _showUnavailable('My Services'),
                     onSettings: _openSettings,

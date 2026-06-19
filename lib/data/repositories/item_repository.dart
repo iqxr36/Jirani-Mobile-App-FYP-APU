@@ -112,6 +112,15 @@ class ItemRepository {
     if (uid == null) {
       throw Exception('You must be signed in to publish an item.');
     }
+    if (currentUser.uid != uid) {
+      throw Exception('You can only publish items from your own profile.');
+    }
+    if (!currentUser.isVerifiedResident) {
+      throw Exception('Only verified residents can list marketplace items.');
+    }
+    if (imagePaths.isEmpty) {
+      throw Exception('Add at least one item photo.');
+    }
 
     try {
       final docRef = _firestore.collection(AppConstants.itemsCollection).doc();

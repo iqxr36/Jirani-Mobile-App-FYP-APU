@@ -6,9 +6,12 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/auth_provider.dart';
+import 'package:jirani/providers/borrow_request_provider.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
+import 'package:jirani/providers/item_provider.dart';
 import 'package:jirani/providers/network_status_provider.dart';
+import 'package:jirani/providers/review_provider.dart';
 import 'package:jirani/screens/auth/auth_wrapper.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/shared/widgets/network_status_overlay.dart';
@@ -58,6 +61,11 @@ class TrustCommunityApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<ItemProvider>(create: (_) => ItemProvider()),
+        ChangeNotifierProvider<BorrowRequestProvider>(
+          create: (_) => BorrowRequestProvider(),
+        ),
+        ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
         if (!kIsWeb)
           ChangeNotifierProvider<NetworkStatusProvider>(
             create: (_) => NetworkStatusProvider(),
