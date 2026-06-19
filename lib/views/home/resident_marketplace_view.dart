@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/marketplace_borrow_flow.dart';
@@ -32,6 +33,8 @@ final DateFormat _compactDateFormat = DateFormat('MMM d');
 enum _MarketplaceSection { browse, requests }
 
 enum _RentalMode { daily, hourly }
+
+enum _PaymentMethod { googlePay, card }
 
 class _CategoryFilter {
   const _CategoryFilter(this.label, this.value);
@@ -104,6 +107,11 @@ class _ResidentMarketplaceViewState extends State<ResidentMarketplaceView> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
     final sideInset = JiraniResponsive.scaled(context, 20);
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
+    final addButtonBottom = keyboardInset > 0
+        ? keyboardInset + JiraniResponsive.scaled(context, 16)
+        : bottomSafeArea + JiraniResponsive.scaled(context, 104);
 
     return JiraniBackground(
       child: SafeArea(
@@ -182,7 +190,7 @@ class _ResidentMarketplaceViewState extends State<ResidentMarketplaceView> {
             ),
             Positioned(
               right: sideInset,
-              bottom: JiraniResponsive.scaled(context, 24),
+              bottom: addButtonBottom,
               child: _AddButton(onTap: () => _openAddItemFlow(context, user)),
             ),
           ],
@@ -433,37 +441,65 @@ class MarketplaceItemDetailView extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _AmountTile(
-                                    label: 'Borrowing Fee',
-                                    value: item.hasUsageFee
-                                        ? _money(item.feeAmount)
-                                        : 'Free',
-                                    helper: item.hasUsageFee
-                                        ? 'Base rate'
-                                        : 'No fee',
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _AmountTile(
-                                    label: 'Refundable Deposit',
-                                    value: item.hasDeposit
-                                        ? _money(item.depositAmount)
-                                        : 'None',
-                                    helper: item.hasDeposit
-                                        ? 'Returned after inspection'
-                                        : 'Not required',
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Deposit is held securely and refunded in full when the item is returned in good condition.',
+                              style: TextStyle(
+                                color: _kMutedText,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
                             ),
-                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassPanel(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _AmountTile(
+                                label: 'Borrowing Fee',
+                                value: item.hasUsageFee
+                                    ? _money(item.feeAmount)
+                                    : 'Free',
+                                helper: item.hasUsageFee
+                                    ? 'Base rate'
+                                    : 'No fee',
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _AmountTile(
+                                label: 'Refundable Deposit',
+                                value: item.hasDeposit
+                                    ? _money(item.depositAmount)
+                                    : 'None',
+                                helper: item.hasDeposit
+                                    ? 'Returned after inspection'
+                                    : 'Not required',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _SectionLabel('Lender'),
+                            const SizedBox(height: 10),
                             _OwnerRow(item: item),
-                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _GlassPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             const _SectionLabel('Description'),
                             const SizedBox(height: 8),
                             Text(
@@ -505,7 +541,7 @@ class MarketplaceItemDetailView extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      'Chat unlocks after the owner accepts and payment is completed.',
+                                      'Chat with the owner unlocks after approval and payment are completed.',
                                     ),
                                   ),
                                 );
@@ -550,8 +586,11 @@ class MarketplaceTransactionView extends StatefulWidget {
 
 class _MarketplaceTransactionViewState
     extends State<MarketplaceTransactionView> {
+  final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _returnNotesController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
+  XFile? _pickupProof;
+  _PaymentMethod _paymentMethod = _PaymentMethod.googlePay;
   int _rating = 5;
   bool _localReviewSubmitted = false;
 
@@ -623,11 +662,16 @@ class _MarketplaceTransactionViewState
                         returnNotesController: _returnNotesController,
                         reviewController: _reviewController,
                         rating: _rating,
+                        paymentMethod: _paymentMethod,
+                        pickupProofName: _pickupProof?.name,
                         localReviewSubmitted: _localReviewSubmitted,
                         onRatingChanged: (rating) =>
                             setState(() => _rating = rating),
+                        onPaymentMethodChanged: (method) =>
+                            setState(() => _paymentMethod = method),
                         onPayment: () => _completePayment(request, user),
                         onOpenChat: () => _openChat(request, user),
+                        onPickPickupProof: _pickPickupProof,
                         onPickupReady: () => _confirmPickupReady(request, user),
                         onSubmitReturn: () => _submitReturn(request, user),
                         onSubmitReview: () => _submitReview(request, user),
@@ -702,12 +746,101 @@ class _MarketplaceTransactionViewState
     }
   }
 
+  Future<void> _pickPickupProof() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD1D5DB),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Add Condition Photo',
+                  style: TextStyle(
+                    color: _kInk,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Optional proof for pickup. You can continue without a photo.',
+                  style: TextStyle(
+                    color: _kMutedText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _ProofSourceTile(
+                  icon: Icons.camera_alt_outlined,
+                  title: 'Take Photo',
+                  subtitle: 'Use your Android camera',
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                const SizedBox(height: 10),
+                _ProofSourceTile(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Choose from Gallery',
+                  subtitle: 'Select an existing photo',
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || source == null) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 82,
+      );
+      if (!mounted || picked == null) return;
+      setState(() => _pickupProof = picked);
+    } catch (_) {
+      if (!mounted) return;
+      final sourceName = source == ImageSource.camera ? 'camera' : 'gallery';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not open the $sourceName. You can continue without a condition photo.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _confirmPickupReady(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final provider = context.read<BorrowRequestProvider>();
     await provider.confirmPickupReady(
       requestId: request.id,
       borrowerId: user.uid,
+      localProofPath: _pickupProof?.path,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -771,10 +904,14 @@ class _TransactionBody extends StatelessWidget {
     required this.returnNotesController,
     required this.reviewController,
     required this.rating,
+    required this.paymentMethod,
+    required this.pickupProofName,
     required this.localReviewSubmitted,
     required this.onRatingChanged,
+    required this.onPaymentMethodChanged,
     required this.onPayment,
     required this.onOpenChat,
+    required this.onPickPickupProof,
     required this.onPickupReady,
     required this.onSubmitReturn,
     required this.onSubmitReview,
@@ -784,10 +921,14 @@ class _TransactionBody extends StatelessWidget {
   final TextEditingController returnNotesController;
   final TextEditingController reviewController;
   final int rating;
+  final _PaymentMethod paymentMethod;
+  final String? pickupProofName;
   final bool localReviewSubmitted;
   final ValueChanged<int> onRatingChanged;
+  final ValueChanged<_PaymentMethod> onPaymentMethodChanged;
   final VoidCallback onPayment;
   final VoidCallback onOpenChat;
+  final VoidCallback onPickPickupProof;
   final VoidCallback onPickupReady;
   final VoidCallback onSubmitReturn;
   final VoidCallback onSubmitReview;
@@ -818,11 +959,18 @@ class _TransactionBody extends StatelessWidget {
         );
       case AppConstants.borrowStatusApproved:
         if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
-          return _CheckoutCard(request: request, onPayment: onPayment);
+          return _CheckoutCard(
+            request: request,
+            paymentMethod: paymentMethod,
+            onPaymentMethodChanged: onPaymentMethodChanged,
+            onPayment: onPayment,
+          );
         }
         return _HandoverCard(
           request: request,
           onOpenChat: onOpenChat,
+          pickupProofName: pickupProofName,
+          onPickPickupProof: onPickPickupProof,
           onPickupReady: onPickupReady,
         );
       case AppConstants.borrowStatusPickupReady:
@@ -859,10 +1007,296 @@ class _TransactionBody extends StatelessWidget {
   }
 }
 
+class _CheckoutTitleBar extends StatelessWidget {
+  const _CheckoutTitleBar({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: _kBrandTeal,
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Divider(thickness: 1.4, color: Color(0xFFCFE5E9)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentMethodTile extends StatelessWidget {
+  const _PaymentMethodTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? _kBrandTeal.withValues(alpha: 0.10)
+          : const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? _kBrandTeal : const Color(0xFFE5E7EB),
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: _kBrandTeal, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kMutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? _kBrandTeal : _kMutedText,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProofSourceTile extends StatelessWidget {
+  const _ProofSourceTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 62),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: _kBrandTeal, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kMutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: _kMutedText),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackingStepCard extends StatelessWidget {
+  const _TrackingStepCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.child,
+    this.action,
+    this.footer,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? child;
+  final Widget? action;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _kBrandTeal, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: _kMutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (child != null) ...[const SizedBox(height: 12), child!],
+          if (action != null) ...[const SizedBox(height: 12), action!],
+          if (footer != null) ...[const SizedBox(height: 8), footer!],
+        ],
+      ),
+    );
+  }
+}
+
 class _CheckoutCard extends StatelessWidget {
-  const _CheckoutCard({required this.request, required this.onPayment});
+  const _CheckoutCard({
+    required this.request,
+    required this.paymentMethod,
+    required this.onPaymentMethodChanged,
+    required this.onPayment,
+  });
 
   final BorrowRequest request;
+  final _PaymentMethod paymentMethod;
+  final ValueChanged<_PaymentMethod> onPaymentMethodChanged;
   final VoidCallback onPayment;
 
   @override
@@ -874,57 +1308,95 @@ class _CheckoutCard extends StatelessWidget {
       deposit: deposit,
     );
 
-    return _GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _SectionLabel('Checkout'),
-          const SizedBox(height: 12),
-          _SummaryRow(label: 'Borrowing fee', value: _money(usageFee)),
-          const SizedBox(height: 8),
-          _SummaryRow(label: 'Refundable deposit', value: _money(deposit)),
-          const Divider(height: 26),
-          _SummaryRow(
-            label: 'Total due',
-            value: _money(total),
-            emphasized: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _CheckoutTitleBar(title: 'Checkout'),
+        const SizedBox(height: 14),
+        _GlassPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Transaction Summary'),
+              const SizedBox(height: 12),
+              _SummaryRow(label: 'Item', value: request.itemTitle),
+              const SizedBox(height: 8),
+              _SummaryRow(label: 'Duration', value: _requestDateRange(request)),
+              const SizedBox(height: 8),
+              _SummaryRow(label: 'Refundable deposit', value: _money(deposit)),
+              const SizedBox(height: 8),
+              _SummaryRow(label: 'Item fee', value: _money(usageFee)),
+              const Divider(height: 28),
+              _SummaryRow(
+                label: 'Total Due',
+                value: _money(total),
+                emphasized: true,
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _kBrandTeal.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.credit_card_rounded, color: _kBrandTeal),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Temporary in-app payment. Stripe will replace this button later.',
-                    style: TextStyle(
-                      color: _kInk,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3,
-                    ),
+        ),
+        const SizedBox(height: 14),
+        _GlassPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Payment Method'),
+              const SizedBox(height: 4),
+              const Text(
+                'Choose a payment method',
+                style: TextStyle(
+                  color: _kMutedText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _PaymentMethodTile(
+                icon: Icons.phone_iphone_rounded,
+                title: 'Google Pay',
+                subtitle: 'Fast in-app payment',
+                selected: paymentMethod == _PaymentMethod.googlePay,
+                onTap: () => onPaymentMethodChanged(_PaymentMethod.googlePay),
+              ),
+              const SizedBox(height: 10),
+              _PaymentMethodTile(
+                icon: Icons.credit_card_rounded,
+                title: 'Credit / Debit Card',
+                subtitle: 'Visa or Mastercard',
+                selected: paymentMethod == _PaymentMethod.card,
+                onTap: () => onPaymentMethodChanged(_PaymentMethod.card),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _kWarmAccent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text(
+                  'Temporary in-app payment. Stripe will replace this action later.',
+                  style: TextStyle(
+                    color: _kInk,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Consumer<BorrowRequestProvider>(
-            builder: (context, provider, _) {
-              return _PrimaryButton(
-                icon: Icons.lock_open_rounded,
-                label: provider.isLoading ? 'Processing...' : 'Pay Now',
-                onTap: provider.isLoading ? null : onPayment,
-              );
-            },
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 14),
+        Consumer<BorrowRequestProvider>(
+          builder: (context, provider, _) {
+            return _PrimaryButton(
+              icon: Icons.lock_open_rounded,
+              label: provider.isLoading ? 'Processing...' : 'Pay Now',
+              onTap: provider.isLoading ? null : onPayment,
+            );
+          },
+        ),
+      ],
     );
   }
 }
@@ -933,11 +1405,15 @@ class _HandoverCard extends StatelessWidget {
   const _HandoverCard({
     required this.request,
     required this.onOpenChat,
+    required this.pickupProofName,
+    required this.onPickPickupProof,
     required this.onPickupReady,
   });
 
   final BorrowRequest request;
   final VoidCallback onOpenChat;
+  final String? pickupProofName;
+  final VoidCallback onPickPickupProof;
   final VoidCallback onPickupReady;
 
   @override
@@ -946,41 +1422,64 @@ class _HandoverCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SectionLabel('Coordinate Pickup'),
-          const SizedBox(height: 10),
-          const Text(
-            'Chat with the lender, agree on a meetup spot, then share your handover code in person.',
-            style: TextStyle(
-              color: _kMutedText,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
+          const _SectionLabel('Transaction Tracking'),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Chat with lender',
+            message: 'Chat with lender for meetup.',
+            action: _SecondaryButton(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Open Chat',
+              onTap: onOpenChat,
             ),
           ),
-          const SizedBox(height: 14),
-          _CodeDisplay(label: 'Your Handover Code', code: request.handoverCode),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _SecondaryButton(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: 'Open Chat',
-                  onTap: onOpenChat,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Consumer<BorrowRequestProvider>(
-                  builder: (context, provider, _) {
-                    return _PrimaryButton(
-                      icon: Icons.handshake_rounded,
-                      label: provider.isLoading ? 'Sharing...' : 'I Am Ready',
-                      onTap: provider.isLoading ? null : onPickupReady,
-                    );
-                  },
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.camera_alt_outlined,
+            title: 'Item condition approval',
+            message:
+                'Take a quick photo of the item condition before taking it for a more secure transaction.',
+            action: _SecondaryButton(
+              icon: Icons.camera_alt_outlined,
+              label: pickupProofName == null
+                  ? 'Camera Approval'
+                  : 'Photo Added',
+              onTap: onPickPickupProof,
+            ),
+            footer: pickupProofName == null
+                ? null
+                : Text(
+                    pickupProofName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _kBrandTeal,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.pin_rounded,
+            title: 'Handover code confirmation',
+            message: 'Share this 4-digit code with the lender at pickup.',
+            action: Consumer<BorrowRequestProvider>(
+              builder: (context, provider, _) {
+                return _PrimaryButton(
+                  icon: Icons.handshake_rounded,
+                  label: provider.isLoading
+                      ? 'Confirming...'
+                      : 'Confirm Handover',
+                  onTap: provider.isLoading ? null : onPickupReady,
+                );
+              },
+            ),
+            child: _CodeDisplay(
+              label: 'Handover Code',
+              code: request.handoverCode,
+            ),
           ),
         ],
       ),
@@ -1003,19 +1502,19 @@ class _WaitingForHandoverCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SectionLabel('Meetup in Progress'),
-          const SizedBox(height: 10),
-          _CodeDisplay(label: 'Handover Code', code: request.handoverCode),
+          const _SectionLabel('Handover Confirmation'),
           const SizedBox(height: 12),
-          const Text(
-            'Give this code to the lender after they inspect the item condition. The borrow period starts after they confirm it.',
-            style: TextStyle(
-              color: _kMutedText,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
+          _TrackingStepCard(
+            icon: Icons.pin_rounded,
+            title: 'Handover code shared',
+            message:
+                'Give this code to the lender after they inspect the item condition. The borrow period starts after they confirm it.',
+            child: _CodeDisplay(
+              label: 'Handover Code',
+              code: request.handoverCode,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           _SecondaryButton(
             icon: Icons.chat_bubble_outline_rounded,
             label: 'Open Chat',
@@ -1047,18 +1546,21 @@ class _ActiveBorrowCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SectionLabel('Active Borrowing'),
-          const SizedBox(height: 10),
-          _CodeDisplay(label: 'Return Code', code: request.returnCode),
           const SizedBox(height: 12),
-          Text(
-            'Use the item until ${_shortDateFormat.format(request.expectedReturnDate)}. Share the return code when meeting the lender again.',
-            style: const TextStyle(
-              color: _kMutedText,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
+          _TrackingStepCard(
+            icon: Icons.inventory_2_outlined,
+            title: 'Use item until return date',
+            message:
+                'Use the item until ${_shortDateFormat.format(request.expectedReturnDate)}. Meet the lender again when you are ready to return it.',
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.keyboard_return_rounded,
+            title: 'Return code',
+            message: 'Share this code during the return meetup.',
+            child: _CodeDisplay(label: 'Return Code', code: request.returnCode),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: returnNotesController,
             minLines: 2,
@@ -1113,16 +1615,13 @@ class _ReturnSubmittedCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SectionLabel('Return Meetup'),
-          const SizedBox(height: 10),
-          _CodeDisplay(label: 'Return Code', code: request.returnCode),
           const SizedBox(height: 12),
-          const Text(
-            'Give this code to the lender after they inspect the item. If there are no issues, the deposit is released back to you.',
-            style: TextStyle(
-              color: _kMutedText,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
+          _TrackingStepCard(
+            icon: Icons.pin_rounded,
+            title: 'Return code confirmation',
+            message:
+                'Give this code to the lender after they inspect the item. If there are no issues, the deposit is released back to you.',
+            child: _CodeDisplay(label: 'Return Code', code: request.returnCode),
           ),
           const SizedBox(height: 14),
           _SecondaryButton(
@@ -1286,6 +1785,20 @@ class _TransactionHeader extends StatelessWidget {
                 const SizedBox(height: 8),
                 _StatusPill(label: _statusLabel(request)),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Lender profile view is coming soon.'),
+                ),
+              );
+            },
+            child: const Text(
+              'View Profile',
+              style: TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
         ],
@@ -1857,6 +2370,10 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
   double get _deposit =>
       widget.item.hasDeposit ? widget.item.depositAmount ?? 0 : 0;
 
+  String get _durationLabel => _mode == _RentalMode.daily
+      ? '$_dailyDuration days'
+      : '$_hourlyDuration hours';
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
@@ -1880,14 +2397,25 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Choose Borrowing Details',
+              'Choose Borrowing Dates',
               style: TextStyle(
                 color: _kInk,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
               ),
             ),
+            const SizedBox(height: 4),
+            const Text(
+              'Select your start and end dates',
+              style: TextStyle(
+                color: _kMutedText,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 16),
+            const _SectionLabel('Select Rental Type'),
+            const SizedBox(height: 8),
             _ModeSelector(
               selected: _mode,
               onChanged: (mode) => setState(() => _mode = mode),
@@ -1916,7 +2444,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              _SummaryRow(label: 'Duration', value: '$_dailyDuration days'),
+              _SummaryRow(label: 'Duration', value: _durationLabel),
             ] else ...[
               _PickerTile(
                 label: 'Borrow Date',
@@ -1947,7 +2475,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              _SummaryRow(label: 'Duration', value: '$_hourlyDuration hours'),
+              _SummaryRow(label: 'Duration', value: _durationLabel),
             ],
             const SizedBox(height: 12),
             TextField(
@@ -1960,7 +2488,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            _SummaryRow(label: 'Fee', value: _money(_usageFee)),
+            _SummaryRow(label: 'Item fee', value: _money(_usageFee)),
             const SizedBox(height: 8),
             _SummaryRow(label: 'Refundable deposit', value: _money(_deposit)),
             const Divider(height: 26),
@@ -1990,7 +2518,9 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
                     builder: (context, provider, _) {
                       return _PrimaryButton(
                         icon: Icons.check_rounded,
-                        label: provider.isLoading ? 'Sending...' : 'Request',
+                        label: provider.isLoading
+                            ? 'Sending...'
+                            : 'Confirm to Checkout',
                         onTap: provider.isLoading ? null : _submitRequest,
                       );
                     },
@@ -2753,12 +3283,17 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            color: emphasized ? _kBrandTeal : _kInk,
-            fontSize: emphasized ? 17 : 14,
-            fontWeight: FontWeight.w900,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: emphasized ? _kBrandTeal : _kInk,
+              fontSize: emphasized ? 17 : 14,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
@@ -3136,6 +3671,12 @@ String _money(double? value) {
       ? amount.toStringAsFixed(0)
       : amount.toStringAsFixed(2);
   return 'RM $text';
+}
+
+String _requestDateRange(BorrowRequest request) {
+  final start = _shortDateFormat.format(request.requestedStartDate);
+  final end = _shortDateFormat.format(request.expectedReturnDate);
+  return start == end ? start : '$start - $end';
 }
 
 String _categoryLabel(String category) {

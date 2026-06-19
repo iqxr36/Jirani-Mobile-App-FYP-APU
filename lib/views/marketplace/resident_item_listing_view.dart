@@ -3,11 +3,15 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/item_listing_form.dart';
+import 'package:jirani/core/utils/marketplace_borrow_flow.dart';
 import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/providers/borrow_request_provider.dart';
 import 'package:jirani/providers/item_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -19,6 +23,9 @@ const Color _kInk = Color(0xFF1F2937);
 const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 440;
 const int _kMaxPhotos = 5;
+final DateFormat _shortDateFormat = DateFormat('MMM d');
+
+enum _LenderDashboardTab { listed, incoming }
 
 class ResidentMyItemsView extends StatefulWidget {
   const ResidentMyItemsView({super.key});
@@ -29,6 +36,7 @@ class ResidentMyItemsView extends StatefulWidget {
 
 class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
   String? _watchingUid;
+  _LenderDashboardTab _selectedTab = _LenderDashboardTab.listed;
 
   @override
   void didChangeDependencies() {
@@ -37,7 +45,9 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
     if (user == null || _watchingUid == user.uid) return;
     _watchingUid = user.uid;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<ItemProvider>().watchMyItems();
+      if (!mounted) return;
+      context.read<ItemProvider>().watchMyItems();
+      context.read<BorrowRequestProvider>().watchIncomingRequests(user.uid);
     });
   }
 
@@ -95,79 +105,172 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
                       ),
                       const SizedBox(height: 16),
                       _ProfileListingSummary(user: user),
+                      const SizedBox(height: 14),
+                      _LenderDashboardTabs(
+                        selected: _selectedTab,
+                        onChanged: (tab) => setState(() => _selectedTab = tab),
+                      ),
                       const SizedBox(height: 18),
                     ],
                   ),
                 ),
               ),
-              Consumer<ItemProvider>(
-                builder: (context, provider, _) {
-                  if (provider.isLoading && provider.myItems.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: _InsetContent(
-                        sideInset: sideInset,
-                        child: const _StateCard(
-                          icon: Icons.hourglass_top_rounded,
-                          title: 'Loading your items',
-                          message:
-                              'Checking your active and archived listings.',
-                        ),
-                      ),
-                    );
-                  }
-
-                  final error = provider.errorMessage;
-                  if (error != null && error.isNotEmpty) {
-                    return SliverToBoxAdapter(
-                      child: _InsetContent(
-                        sideInset: sideInset,
-                        child: _StateCard(
-                          icon: Icons.error_outline_rounded,
-                          title: 'Items unavailable',
-                          message: error.replaceFirst('Exception: ', ''),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final items = provider.myItems;
-                  if (items.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: _InsetContent(
-                        sideInset: sideInset,
-                        child: _EmptyMyItemsCard(
-                          onAdd: user == null
-                              ? null
-                              : () => _openListingForm(context),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SliverList.separated(
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return _InsetContent(
-                        sideInset: sideInset,
-                        child: _MyItemCard(
-                          item: item,
-                          onEdit: () => _openListingForm(context, item: item),
-                          onArchive: item.isArchived
-                              ? null
-                              : () => _confirmArchive(context, item),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+              if (_selectedTab == _LenderDashboardTab.listed)
+                _buildListedItemsSliver(sideInset: sideInset, user: user)
+              else
+                _buildIncomingRequestsSliver(sideInset: sideInset, user: user),
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildListedItemsSliver({
+    required double sideInset,
+    required AppUser? user,
+  }) {
+    return Consumer2<ItemProvider, BorrowRequestProvider>(
+      builder: (context, itemProvider, requestProvider, _) {
+        if (itemProvider.isLoading && itemProvider.myItems.isEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: const _StateCard(
+                icon: Icons.hourglass_top_rounded,
+                title: 'Loading your items',
+                message: 'Checking your active and archived listings.',
+              ),
+            ),
+          );
+        }
+
+        final error = itemProvider.errorMessage;
+        if (error != null && error.isNotEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: _StateCard(
+                icon: Icons.error_outline_rounded,
+                title: 'Items unavailable',
+                message: error.replaceFirst('Exception: ', ''),
+              ),
+            ),
+          );
+        }
+
+        final items = itemProvider.myItems;
+        if (items.isEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: _EmptyMyItemsCard(
+                onAdd: user == null ? null : () => _openListingForm(context),
+              ),
+            ),
+          );
+        }
+
+        return SliverList.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 14),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final pendingCount = _pendingRequestCountForItem(
+              item.id,
+              requestProvider.incomingRequests,
+            );
+            final locked = _listingHasLiveBorrow(item);
+            return _InsetContent(
+              sideInset: sideInset,
+              child: _MyItemCard(
+                item: item,
+                pendingRequestCount: pendingCount,
+                locked: locked,
+                onEdit: locked
+                    ? null
+                    : () => _openListingForm(context, item: item),
+                onArchive: item.isArchived || locked
+                    ? null
+                    : () => _confirmArchive(context, item),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildIncomingRequestsSliver({
+    required double sideInset,
+    required AppUser? user,
+  }) {
+    return Consumer<BorrowRequestProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoading && provider.incomingRequests.isEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: const _StateCard(
+                icon: Icons.hourglass_top_rounded,
+                title: 'Loading requests',
+                message: 'Checking borrower requests for your listed items.',
+              ),
+            ),
+          );
+        }
+
+        final error = provider.errorMessage;
+        if (error != null && error.isNotEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: _StateCard(
+                icon: Icons.error_outline_rounded,
+                title: 'Requests unavailable',
+                message: error.replaceFirst('Exception: ', ''),
+              ),
+            ),
+          );
+        }
+
+        final requests = provider.incomingRequests;
+        if (requests.isEmpty) {
+          return SliverToBoxAdapter(
+            child: _InsetContent(
+              sideInset: sideInset,
+              child: const _StateCard(
+                icon: Icons.mark_email_unread_outlined,
+                title: 'No incoming requests yet',
+                message:
+                    'Borrow requests from residents will appear here for approval.',
+              ),
+            ),
+          );
+        }
+
+        return SliverList.separated(
+          itemCount: requests.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 14),
+          itemBuilder: (context, index) {
+            final request = requests[index];
+            return _InsetContent(
+              sideInset: sideInset,
+              child: _IncomingRequestCard(
+                request: request,
+                onOpen: () => _openRequestDetail(context, request),
+                onApprove: user == null || !_requestIsPending(request)
+                    ? null
+                    : () => _approveRequest(context, request, user),
+                onReject: user == null || !_requestIsPending(request)
+                    ? null
+                    : () => _rejectRequest(context, request, user),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -207,6 +310,299 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
     await provider.archiveItem(item.id);
     if (!context.mounted) return;
     _showSnack(context, provider.errorMessage ?? 'Item archived.');
+  }
+
+  void _openRequestDetail(BuildContext context, BorrowRequest request) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ResidentLenderRequestDetailView(initialRequest: request),
+      ),
+    );
+  }
+
+  Future<void> _approveRequest(
+    BuildContext context,
+    BorrowRequest request,
+    AppUser user,
+  ) async {
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.approveBorrowRequest(
+      requestId: request.id,
+      ownerId: user.uid,
+    );
+    if (!context.mounted) return;
+    _showSnack(
+      context,
+      provider.errorMessage ??
+          'Request approved. Waiting for borrower payment.',
+    );
+  }
+
+  Future<void> _rejectRequest(
+    BuildContext context,
+    BorrowRequest request,
+    AppUser user,
+  ) async {
+    final reason = await _showRejectReasonSheet(context);
+    if (reason == null || !context.mounted) return;
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.rejectBorrowRequest(
+      requestId: request.id,
+      ownerId: user.uid,
+      rejectionReason: reason,
+    );
+    if (!context.mounted) return;
+    _showSnack(context, provider.errorMessage ?? 'Request rejected.');
+  }
+}
+
+class ResidentLenderRequestDetailView extends StatelessWidget {
+  const ResidentLenderRequestDetailView({
+    super.key,
+    required this.initialRequest,
+  });
+
+  final BorrowRequest initialRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthViewModel>().currentUser;
+    final sideInset = JiraniResponsive.scaled(context, 20);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: JiraniBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Consumer<BorrowRequestProvider>(
+            builder: (context, provider, _) {
+              final request = provider.incomingRequests.firstWhere(
+                (candidate) => candidate.id == initialRequest.id,
+                orElse: () => initialRequest,
+              );
+              final pending = _requestIsPending(request);
+              return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _InsetContent(
+                      sideInset: sideInset,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _CircleIconButton(
+                                icon: Icons.arrow_back_rounded,
+                                tooltip: 'Back',
+                                onTap: () => Navigator.of(context).pop(),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Request Details',
+                                  style: TextStyle(
+                                    color: _kInk,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _GlassPanel(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  children: [
+                                    _RequestItemThumb(
+                                      request: request,
+                                      size: 94,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            request.itemTitle,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: _kInk,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              height: 1.15,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _StatusPill(
+                                            label: _requestStatusLabel(request),
+                                            tone: _requestStatusTone(request),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                const _SectionLabel('Borrower'),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    _RequestBorrowerAvatar(
+                                      request: request,
+                                      radius: 28,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _BorrowerSummary(request: request),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _GlassPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const _SectionLabel('Borrowing Details'),
+                                const SizedBox(height: 12),
+                                _DetailRow(
+                                  label: 'Dates',
+                                  value: _requestDateRange(request),
+                                ),
+                                if (request.pickupTime.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _DetailRow(
+                                    label: 'Pickup time',
+                                    value: request.pickupTime.trim(),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                _RequestMoneyRow(request: request),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _GlassPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const _SectionLabel('Borrower Message'),
+                                const SizedBox(height: 8),
+                                Text(
+                                  request.message.trim().isEmpty
+                                      ? 'No message provided.'
+                                      : request.message.trim(),
+                                  style: const TextStyle(
+                                    color: _kMutedText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (pending)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _DangerButton(
+                                    label: 'Reject Request',
+                                    icon: Icons.close_rounded,
+                                    onTap: user == null || provider.isLoading
+                                        ? null
+                                        : () => _rejectRequestFromDetail(
+                                            context,
+                                            request,
+                                            user,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _PrimaryButton(
+                                    label: provider.isLoading
+                                        ? 'Approving...'
+                                        : 'Approve Request',
+                                    icon: Icons.check_rounded,
+                                    onTap: user == null || provider.isLoading
+                                        ? null
+                                        : () => _approveRequestFromDetail(
+                                            context,
+                                            request,
+                                            user,
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            _StateCard(
+                              icon: Icons.info_outline_rounded,
+                              title: _requestStatusLabel(request),
+                              message: _requestReadOnlyMessage(request),
+                            ),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approveRequestFromDetail(
+    BuildContext context,
+    BorrowRequest request,
+    AppUser user,
+  ) async {
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.approveBorrowRequest(
+      requestId: request.id,
+      ownerId: user.uid,
+    );
+    if (!context.mounted) return;
+    _showSnack(
+      context,
+      provider.errorMessage ??
+          'Request approved. Waiting for borrower payment.',
+    );
+  }
+
+  Future<void> _rejectRequestFromDetail(
+    BuildContext context,
+    BorrowRequest request,
+    AppUser user,
+  ) async {
+    final reason = await _showRejectReasonSheet(context);
+    if (reason == null || !context.mounted) return;
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.rejectBorrowRequest(
+      requestId: request.id,
+      ownerId: user.uid,
+      rejectionReason: reason,
+    );
+    if (!context.mounted) return;
+    _showSnack(context, provider.errorMessage ?? 'Request rejected.');
   }
 }
 
@@ -613,6 +1009,7 @@ class _DetailsStep extends StatelessWidget {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: category,
+                      isExpanded: true,
                       decoration: _inputDecoration(
                         label: 'Category',
                         hint: 'Select a category',
@@ -621,7 +1018,11 @@ class _DetailsStep extends StatelessWidget {
                           .map(
                             (option) => DropdownMenuItem<String>(
                               value: option.value,
-                              child: Text(option.label),
+                              child: Text(
+                                option.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           )
                           .toList(),
@@ -632,6 +1033,7 @@ class _DetailsStep extends StatelessWidget {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: condition,
+                      isExpanded: true,
                       decoration: _inputDecoration(
                         label: 'Condition',
                         hint: 'Select condition',
@@ -640,7 +1042,11 @@ class _DetailsStep extends StatelessWidget {
                           .map(
                             (option) => DropdownMenuItem<String>(
                               value: option.value,
-                              child: Text(option.label),
+                              child: Text(
+                                option.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           )
                           .toList(),
@@ -692,6 +1098,7 @@ class _FinancialStep extends StatelessWidget {
         children: [
           DropdownButtonFormField<ItemListingPricingType>(
             initialValue: pricingType,
+            isExpanded: true,
             decoration: _inputDecoration(
               label: 'Pricing Type',
               hint: 'Select a pricing type',
@@ -700,7 +1107,11 @@ class _FinancialStep extends StatelessWidget {
                 .map(
                   (type) => DropdownMenuItem<ItemListingPricingType>(
                     value: type,
-                    child: Text(type.label),
+                    child: Text(
+                      type.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),
@@ -1092,15 +1503,93 @@ class _EmptyMyItemsCard extends StatelessWidget {
   }
 }
 
+class _LenderDashboardTabs extends StatelessWidget {
+  const _LenderDashboardTabs({required this.selected, required this.onChanged});
+
+  final _LenderDashboardTab selected;
+  final ValueChanged<_LenderDashboardTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DashboardTabButton(
+              label: 'My Listed Items',
+              selected: selected == _LenderDashboardTab.listed,
+              onTap: () => onChanged(_LenderDashboardTab.listed),
+            ),
+          ),
+          Expanded(
+            child: _DashboardTabButton(
+              label: 'Incoming Requests',
+              selected: selected == _LenderDashboardTab.incoming,
+              onTap: () => onChanged(_LenderDashboardTab.incoming),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardTabButton extends StatelessWidget {
+  const _DashboardTabButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? _kBrandTeal.withValues(alpha: 0.14) : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: selected ? Border.all(color: _kBrandTeal) : null,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? _kBrandTeal : _kMutedText,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MyItemCard extends StatelessWidget {
   const _MyItemCard({
     required this.item,
+    required this.pendingRequestCount,
+    required this.locked,
     required this.onEdit,
     required this.onArchive,
   });
 
   final ItemModel item;
-  final VoidCallback onEdit;
+  final int pendingRequestCount;
+  final bool locked;
+  final VoidCallback? onEdit;
   final VoidCallback? onArchive;
 
   @override
@@ -1141,8 +1630,18 @@ class _MyItemCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _StatusPill(label: _statusLabel(item)),
+                        _StatusPill(
+                          label: _statusLabel(item),
+                          tone: _itemStatusTone(item),
+                        ),
                         const SizedBox(width: 8),
+                        if (pendingRequestCount > 0) ...[
+                          _StatusPill(
+                            label: '$pendingRequestCount pending',
+                            tone: _StatusTone.warning,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Flexible(
                           child: Text(
                             item.hasUsageFee ? _money(item.feeAmount) : 'Free',
@@ -1162,6 +1661,20 @@ class _MyItemCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _ListingMoneyRow(item: item),
+          if (locked) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'This listing is locked while a borrower transaction is in progress.',
+              style: TextStyle(
+                color: _kMutedText,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -1206,6 +1719,399 @@ class _ItemThumb extends StatelessWidget {
             ? const Icon(Icons.inventory_2_rounded, color: _kBrandTeal)
             : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
       ),
+    );
+  }
+}
+
+class _ListingMoneyRow extends StatelessWidget {
+  const _ListingMoneyRow({required this.item});
+
+  final ItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MiniInfoTile(
+            label: 'Fee',
+            value: item.hasUsageFee ? _money(item.feeAmount) : 'Free',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniInfoTile(
+            label: 'Deposit',
+            value: item.hasDeposit ? _money(item.depositAmount) : 'None',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IncomingRequestCard extends StatelessWidget {
+  const _IncomingRequestCard({
+    required this.request,
+    required this.onOpen,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final BorrowRequest request;
+  final VoidCallback onOpen;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(22),
+        child: _GlassPanel(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _RequestBorrowerAvatar(request: request, radius: 22),
+                  const SizedBox(width: 10),
+                  Expanded(child: _BorrowerSummary(request: request)),
+                  const SizedBox(width: 8),
+                  _StatusPill(
+                    label: _requestStatusLabel(request),
+                    tone: _requestStatusTone(request),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _RequestItemThumb(request: request, size: 74),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.itemTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _kInk,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _requestDateRange(request),
+                          style: const TextStyle(
+                            color: _kMutedText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (request.pickupTime.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Pickup: ${request.pickupTime.trim()}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _kMutedText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _RequestMoneyRow(request: request),
+              if (_requestIsPending(request)) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DangerButton(
+                        label: 'Reject',
+                        icon: Icons.close_rounded,
+                        onTap: onReject,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Consumer<BorrowRequestProvider>(
+                        builder: (context, provider, _) {
+                          return _PrimaryButton(
+                            label: provider.isLoading
+                                ? 'Approving...'
+                                : 'Approve',
+                            icon: Icons.check_rounded,
+                            onTap: provider.isLoading ? null : onApprove,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BorrowerSummary extends StatelessWidget {
+  const _BorrowerSummary({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          request.borrowerName.isEmpty ? 'Resident' : request.borrowerName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _kInk,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Icon(
+              request.borrowerVerified
+                  ? Icons.verified_user_rounded
+                  : Icons.person_outline_rounded,
+              color: request.borrowerVerified ? _kBrandTeal : _kMutedText,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                request.borrowerVerified ? 'Verified resident' : 'Resident',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _kMutedText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.star_rounded, color: Color(0xFFE5A500), size: 14),
+            const SizedBox(width: 2),
+            Text(
+              request.borrowerReputationScore.toStringAsFixed(1),
+              style: const TextStyle(
+                color: _kMutedText,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestBorrowerAvatar extends StatelessWidget {
+  const _RequestBorrowerAvatar({required this.request, this.radius = 24});
+
+  final BorrowRequest request;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = request.borrowerName.trim();
+    final initial = name.isEmpty ? 'R' : name[0].toUpperCase();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: _kBrandTeal.withValues(alpha: 0.12),
+      child: Text(
+        initial,
+        style: const TextStyle(color: _kBrandTeal, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _RequestItemThumb extends StatelessWidget {
+  const _RequestItemThumb({required this.request, required this.size});
+
+  final BorrowRequest request;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: size,
+        height: size,
+        color: _kBrandTeal.withValues(alpha: 0.10),
+        child: request.itemImageUrl.isEmpty
+            ? const Icon(Icons.inventory_2_rounded, color: _kBrandTeal)
+            : CachedNetworkImage(
+                imageUrl: request.itemImageUrl,
+                fit: BoxFit.cover,
+              ),
+      ),
+    );
+  }
+}
+
+class _RequestMoneyRow extends StatelessWidget {
+  const _RequestMoneyRow({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MiniInfoTile(
+            label: 'Fee',
+            value: request.hasUsageFee
+                ? _money(request.usageFeeAmount)
+                : 'Free',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniInfoTile(
+            label: 'Deposit',
+            value: request.hasDeposit ? _money(request.depositAmount) : 'None',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniInfoTile(
+            label: 'Total',
+            value: _money(
+              MarketplaceBorrowFlow.totalDue(
+                usageFee: request.usageFeeAmount,
+                deposit: request.depositAmount,
+              ),
+            ),
+            emphasized: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniInfoTile extends StatelessWidget {
+  const _MiniInfoTile({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? _kBrandTeal.withValues(alpha: 0.10)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _kMutedText,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: emphasized ? _kBrandTeal : _kInk,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 92,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: _kMutedText,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: _kInk,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1507,31 +2413,50 @@ class _CircleIconButton extends StatelessWidget {
   }
 }
 
+enum _StatusTone { neutral, success, warning, danger }
+
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
+  const _StatusPill({required this.label, this.tone = _StatusTone.success});
 
   final String label;
+  final _StatusTone tone;
 
   @override
   Widget build(BuildContext context) {
-    final archived = label == 'Archived';
+    final colors = switch (tone) {
+      _StatusTone.success => (
+        background: _kBrandTeal.withValues(alpha: 0.10),
+        foreground: _kBrandTeal,
+      ),
+      _StatusTone.warning => (
+        background: const Color(0xFFFFF7ED),
+        foreground: const Color(0xFFB45309),
+      ),
+      _StatusTone.danger => (
+        background: _DangerColors.surface,
+        foreground: _kDanger,
+      ),
+      _StatusTone.neutral => (
+        background: _kMutedText.withValues(alpha: 0.12),
+        foreground: _kMutedText,
+      ),
+    };
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: archived
-            ? _kMutedText.withValues(alpha: 0.12)
-            : _kBrandTeal.withValues(alpha: 0.10),
+        color: colors.background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: archived ? _kMutedText : _kBrandTeal,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-        ),
+        ).copyWith(color: colors.foreground),
       ),
     );
   }
@@ -1630,6 +2555,204 @@ String _statusLabel(ItemModel item) {
   if (item.status == AppConstants.itemStatusUnavailable) return 'Unavailable';
   if (item.status == AppConstants.itemStatusBorrowed) return 'Borrowed';
   return item.status;
+}
+
+_StatusTone _itemStatusTone(ItemModel item) {
+  if (item.isArchived || item.status == AppConstants.itemStatusArchived) {
+    return _StatusTone.neutral;
+  }
+  if (item.status == AppConstants.itemStatusAvailable) {
+    return _StatusTone.success;
+  }
+  return _StatusTone.warning;
+}
+
+bool _listingHasLiveBorrow(ItemModel item) {
+  if (item.isArchived || item.status == AppConstants.itemStatusArchived) {
+    return false;
+  }
+  return item.status != AppConstants.itemStatusAvailable;
+}
+
+int _pendingRequestCountForItem(String itemId, List<BorrowRequest> requests) {
+  return requests
+      .where(
+        (request) => request.itemId == itemId && _requestIsPending(request),
+      )
+      .length;
+}
+
+bool _requestIsPending(BorrowRequest request) {
+  return request.status == AppConstants.borrowStatusPending;
+}
+
+String _requestDateRange(BorrowRequest request) {
+  final start = _shortDateFormat.format(request.requestedStartDate);
+  final end = _shortDateFormat.format(request.expectedReturnDate);
+  return start == end ? start : '$start - $end';
+}
+
+String _requestStatusLabel(BorrowRequest request) {
+  switch (request.status) {
+    case AppConstants.borrowStatusPending:
+      return 'Pending';
+    case AppConstants.borrowStatusApproved:
+      return MarketplaceBorrowFlow.isPaymentComplete(request)
+          ? 'Paid'
+          : 'Approved';
+    case AppConstants.borrowStatusRejected:
+      return 'Rejected';
+    case AppConstants.borrowStatusCancelled:
+      return 'Cancelled';
+    case AppConstants.borrowStatusPickupReady:
+      return 'Pickup Ready';
+    case AppConstants.borrowStatusHandedOver:
+    case AppConstants.borrowStatusActive:
+      return 'Active';
+    case AppConstants.borrowStatusReturnSubmitted:
+      return 'Returning';
+    case AppConstants.borrowStatusCompleted:
+      return 'Completed';
+    default:
+      return request.status;
+  }
+}
+
+_StatusTone _requestStatusTone(BorrowRequest request) {
+  switch (request.status) {
+    case AppConstants.borrowStatusPending:
+      return _StatusTone.warning;
+    case AppConstants.borrowStatusRejected:
+    case AppConstants.borrowStatusCancelled:
+      return _StatusTone.danger;
+    case AppConstants.borrowStatusCompleted:
+      return _StatusTone.success;
+    default:
+      return _StatusTone.neutral;
+  }
+}
+
+String _requestReadOnlyMessage(BorrowRequest request) {
+  switch (request.status) {
+    case AppConstants.borrowStatusApproved:
+      return MarketplaceBorrowFlow.isPaymentComplete(request)
+          ? 'The borrower has paid. Handover confirmation comes in the next lender pass.'
+          : 'Request approved. The borrower must complete payment before pickup coordination continues.';
+    case AppConstants.borrowStatusRejected:
+      return request.rejectionReason.isEmpty
+          ? 'This request has been rejected.'
+          : request.rejectionReason;
+    case AppConstants.borrowStatusCancelled:
+      return 'The borrower cancelled this request.';
+    case AppConstants.borrowStatusCompleted:
+      return 'This borrowing transaction is complete.';
+    default:
+      return 'This request is no longer pending, so approval actions are locked.';
+  }
+}
+
+Future<String?> _showRejectReasonSheet(BuildContext context) async {
+  final controller = TextEditingController();
+  String? errorText;
+  try {
+    return await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD1D5DB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Reject Request',
+                      style: TextStyle(
+                        color: _kInk,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Add a short reason so the borrower understands your decision.',
+                      style: TextStyle(
+                        color: _kMutedText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: controller,
+                      minLines: 3,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.done,
+                      decoration: _inputDecoration(
+                        label: 'Reason',
+                        hint: 'Example: Item is unavailable that day',
+                      ).copyWith(errorText: errorText),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SecondaryButton(
+                            label: 'Cancel',
+                            icon: Icons.close_rounded,
+                            onTap: () => Navigator.of(context).pop(),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _DangerButton(
+                            label: 'Reject',
+                            icon: Icons.block_rounded,
+                            onTap: () {
+                              final reason = controller.text.trim();
+                              if (reason.isEmpty) {
+                                setSheetState(() {
+                                  errorText = 'Reason is required.';
+                                });
+                                return;
+                              }
+                              Navigator.of(context).pop(reason);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  } finally {
+    controller.dispose();
+  }
 }
 
 void _showSnack(BuildContext context, String message) {
