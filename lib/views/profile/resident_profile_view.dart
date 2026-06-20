@@ -4,6 +4,7 @@ import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
 import 'package:jirani/views/auth/phone_verification_view.dart';
 import 'package:jirani/views/marketplace/resident_item_listing_view.dart';
+import 'package:jirani/views/profile/resident_reviews_view.dart';
 import 'package:jirani/views/profile/resident_settings_view.dart';
 import 'package:jirani/views/verification/verification_process_view.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
@@ -90,6 +91,12 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  void _openRatings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ResidentReviewsView()),
+    );
+  }
+
   Future<void> _logout() async {
     await context.read<AuthViewModel>().logout();
   }
@@ -171,7 +178,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                         ? null
                         : () => _openPhoneVerification(user),
                     onMyItems: _openMyItems,
-                    onRatings: () => _showUnavailable('Ratings & Reviews'),
+                    onRatings: _openRatings,
                     onMyServices: () => _showUnavailable('My Services'),
                     onSettings: _openSettings,
                     onLogout: _logout,
@@ -321,9 +328,20 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
+          if (user?.trustedResident == true) ...[
+            const SizedBox(height: 10),
+            const _TrustedResidentBadge(),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
+              _MetricChip(
+                value: user == null || (user?.totalReviews ?? 0) == 0
+                    ? '-'
+                    : user!.communityTrustScore.toStringAsFixed(1),
+                label: 'Trust',
+              ),
+              const SizedBox(width: 8),
               _MetricChip(
                 value: '${user?.completedBorrowings ?? 0}',
                 label: 'Borrowed',
@@ -335,8 +353,8 @@ class _ProfileCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _MetricChip(
-                value: '${user?.completedServices ?? 0}',
-                label: 'Services',
+                value: '${user?.totalReviews ?? 0}',
+                label: 'Reviews',
               ),
             ],
           ),
@@ -661,6 +679,41 @@ class _MetricChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TrustedResidentBadge extends StatelessWidget {
+  const _TrustedResidentBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFC857)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.workspace_premium_rounded,
+            size: 16,
+            color: Color(0xFF9A6700),
+          ),
+          SizedBox(width: 6),
+          Text(
+            'Trusted Resident',
+            style: TextStyle(
+              color: Color(0xFF7A5200),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }

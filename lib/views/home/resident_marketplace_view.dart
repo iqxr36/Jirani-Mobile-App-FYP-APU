@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/marketplace_borrow_flow.dart';
@@ -586,16 +585,17 @@ class MarketplaceTransactionView extends StatefulWidget {
 
 class _MarketplaceTransactionViewState
     extends State<MarketplaceTransactionView> {
-  final ImagePicker _imagePicker = ImagePicker();
+  final TextEditingController _handoverCodeController = TextEditingController();
   final TextEditingController _returnNotesController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
-  XFile? _pickupProof;
   _PaymentMethod _paymentMethod = _PaymentMethod.googlePay;
   int _rating = 5;
   bool _localReviewSubmitted = false;
+  String? _reviewReleaseCheckedRequestId;
 
   @override
   void dispose() {
+    _handoverCodeController.dispose();
     _returnNotesController.dispose();
     _reviewController.dispose();
     super.dispose();
@@ -616,6 +616,7 @@ class _MarketplaceTransactionViewState
     final user = context.watch<AuthViewModel>().currentUser;
     final requestProvider = context.watch<BorrowRequestProvider>();
     final request = _currentRequest(requestProvider);
+    _publishEligibleReviewsOnce(request);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -661,9 +662,9 @@ class _MarketplaceTransactionViewState
                         request: request,
                         returnNotesController: _returnNotesController,
                         reviewController: _reviewController,
+                        handoverCodeController: _handoverCodeController,
                         rating: _rating,
                         paymentMethod: _paymentMethod,
-                        pickupProofName: _pickupProof?.name,
                         localReviewSubmitted: _localReviewSubmitted,
                         onRatingChanged: (rating) =>
                             setState(() => _rating = rating),
@@ -671,7 +672,6 @@ class _MarketplaceTransactionViewState
                             setState(() => _paymentMethod = method),
                         onPayment: () => _completePayment(request, user),
                         onOpenChat: () => _openChat(request, user),
-                        onPickPickupProof: _pickPickupProof,
                         onPickupReady: () => _confirmPickupReady(request, user),
                         onSubmitReturn: () => _submitReturn(request, user),
                         onSubmitReview: () => _submitReview(request, user),
@@ -742,108 +742,27 @@ class _MarketplaceTransactionViewState
     }
   }
 
-  Future<void> _pickPickupProof() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD1D5DB),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Add Condition Photo',
-                  style: TextStyle(
-                    color: _kInk,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Optional proof for pickup. You can continue without a photo.',
-                  style: TextStyle(
-                    color: _kMutedText,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _ProofSourceTile(
-                  icon: Icons.camera_alt_outlined,
-                  title: 'Take Photo',
-                  subtitle: 'Use your Android camera',
-                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
-                ),
-                const SizedBox(height: 10),
-                _ProofSourceTile(
-                  icon: Icons.photo_library_outlined,
-                  title: 'Choose from Gallery',
-                  subtitle: 'Select an existing photo',
-                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (!mounted || source == null) return;
-
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1600,
-        imageQuality: 82,
-      );
-      if (!mounted || picked == null) return;
-      setState(() => _pickupProof = picked);
-    } catch (_) {
-      if (!mounted) return;
-      final sourceName = source == ImageSource.camera ? 'camera' : 'gallery';
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not open the $sourceName. You can continue without a condition photo.',
-          ),
-        ),
-      );
-    }
-  }
-
   Future<void> _confirmPickupReady(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
+    final code = _handoverCodeController.text.trim();
+    if (!RegExp(r'^\d{4}$').hasMatch(code)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter the 4-digit arrival code.')),
+      );
+      return;
+    }
     final provider = context.read<BorrowRequestProvider>();
     await provider.confirmPickupReady(
       requestId: request.id,
       borrowerId: user.uid,
-      localProofPath: _pickupProof?.path,
+      handoverCode: code,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           provider.errorMessage ??
-              'Handover readiness shared. Give the code to the lender.',
+              'Pickup confirmed. Borrowing is now in progress.',
         ),
       ),
     );
@@ -883,7 +802,11 @@ class _MarketplaceTransactionViewState
       if (!mounted) return;
       setState(() => _localReviewSubmitted = true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Review submitted. Thank you.')),
+        const SnackBar(
+          content: Text(
+            'Review submitted. It stays hidden until both reviews are in or the 3-day grace period ends.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -892,6 +815,22 @@ class _MarketplaceTransactionViewState
       );
     }
   }
+
+  void _publishEligibleReviewsOnce(BorrowRequest request) {
+    if (request.status != AppConstants.borrowStatusCompleted ||
+        _reviewReleaseCheckedRequestId == request.id) {
+      return;
+    }
+    _reviewReleaseCheckedRequestId = request.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        context.read<ReviewProvider>().publishEligibleReviewsForBorrowRequest(
+          request,
+        ),
+      );
+    });
+  }
 }
 
 class _TransactionBody extends StatelessWidget {
@@ -899,15 +838,14 @@ class _TransactionBody extends StatelessWidget {
     required this.request,
     required this.returnNotesController,
     required this.reviewController,
+    required this.handoverCodeController,
     required this.rating,
     required this.paymentMethod,
-    required this.pickupProofName,
     required this.localReviewSubmitted,
     required this.onRatingChanged,
     required this.onPaymentMethodChanged,
     required this.onPayment,
     required this.onOpenChat,
-    required this.onPickPickupProof,
     required this.onPickupReady,
     required this.onSubmitReturn,
     required this.onSubmitReview,
@@ -916,15 +854,14 @@ class _TransactionBody extends StatelessWidget {
   final BorrowRequest request;
   final TextEditingController returnNotesController;
   final TextEditingController reviewController;
+  final TextEditingController handoverCodeController;
   final int rating;
   final _PaymentMethod paymentMethod;
-  final String? pickupProofName;
   final bool localReviewSubmitted;
   final ValueChanged<int> onRatingChanged;
   final ValueChanged<_PaymentMethod> onPaymentMethodChanged;
   final VoidCallback onPayment;
   final VoidCallback onOpenChat;
-  final VoidCallback onPickPickupProof;
   final VoidCallback onPickupReady;
   final VoidCallback onSubmitReturn;
   final VoidCallback onSubmitReview;
@@ -962,17 +899,13 @@ class _TransactionBody extends StatelessWidget {
             onPayment: onPayment,
           );
         }
-        return _HandoverCard(
-          request: request,
-          onOpenChat: onOpenChat,
-          pickupProofName: pickupProofName,
-          onPickPickupProof: onPickPickupProof,
-          onPickupReady: onPickupReady,
-        );
+        return _WaitingForLenderArrivalCard(onOpenChat: onOpenChat);
       case AppConstants.borrowStatusPickupReady:
-        return _WaitingForHandoverCard(
+        return _ConfirmPickupCodeCard(
           request: request,
+          handoverCodeController: handoverCodeController,
           onOpenChat: onOpenChat,
+          onConfirmPickup: onPickupReady,
         );
       case AppConstants.borrowStatusActive:
       case AppConstants.borrowStatusHandedOver:
@@ -1123,86 +1056,6 @@ class _PaymentMethodTile extends StatelessWidget {
   }
 }
 
-class _ProofSourceTile extends StatelessWidget {
-  const _ProofSourceTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 62),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kBrandTeal.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: _kBrandTeal, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kInk,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kMutedText,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, color: _kMutedText),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _TrackingStepCard extends StatelessWidget {
   const _TrackingStepCard({
     required this.icon,
@@ -1210,7 +1063,6 @@ class _TrackingStepCard extends StatelessWidget {
     required this.message,
     this.child,
     this.action,
-    this.footer,
   });
 
   final IconData icon;
@@ -1218,7 +1070,6 @@ class _TrackingStepCard extends StatelessWidget {
   final String message;
   final Widget? child;
   final Widget? action;
-  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -1275,7 +1126,6 @@ class _TrackingStepCard extends StatelessWidget {
           ),
           if (child != null) ...[const SizedBox(height: 12), child!],
           if (action != null) ...[const SizedBox(height: 12), action!],
-          if (footer != null) ...[const SizedBox(height: 8), footer!],
         ],
       ),
     );
@@ -1397,20 +1247,10 @@ class _CheckoutCard extends StatelessWidget {
   }
 }
 
-class _HandoverCard extends StatelessWidget {
-  const _HandoverCard({
-    required this.request,
-    required this.onOpenChat,
-    required this.pickupProofName,
-    required this.onPickPickupProof,
-    required this.onPickupReady,
-  });
+class _WaitingForLenderArrivalCard extends StatelessWidget {
+  const _WaitingForLenderArrivalCard({required this.onOpenChat});
 
-  final BorrowRequest request;
   final VoidCallback onOpenChat;
-  final String? pickupProofName;
-  final VoidCallback onPickPickupProof;
-  final VoidCallback onPickupReady;
 
   @override
   Widget build(BuildContext context) {
@@ -1423,7 +1263,7 @@ class _HandoverCard extends StatelessWidget {
           _TrackingStepCard(
             icon: Icons.chat_bubble_outline_rounded,
             title: 'Chat with lender',
-            message: 'Chat with lender for meetup.',
+            message: 'Coordinate the pickup meetup with the lender.',
             action: _SecondaryButton(
               icon: Icons.chat_bubble_outline_rounded,
               label: 'Open Chat',
@@ -1431,51 +1271,11 @@ class _HandoverCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _TrackingStepCard(
-            icon: Icons.camera_alt_outlined,
-            title: 'Item condition approval',
+          const _TrackingStepCard(
+            icon: Icons.hourglass_top_rounded,
+            title: 'Waiting for lender arrival',
             message:
-                'Take a quick photo of the item condition before taking it for a more secure transaction.',
-            action: _SecondaryButton(
-              icon: Icons.camera_alt_outlined,
-              label: pickupProofName == null
-                  ? 'Camera Approval'
-                  : 'Photo Added',
-              onTap: onPickPickupProof,
-            ),
-            footer: pickupProofName == null
-                ? null
-                : Text(
-                    pickupProofName!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _kBrandTeal,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 12),
-          _TrackingStepCard(
-            icon: Icons.pin_rounded,
-            title: 'Handover code confirmation',
-            message: 'Share this 4-digit code with the lender at pickup.',
-            action: Consumer<BorrowRequestProvider>(
-              builder: (context, provider, _) {
-                return _PrimaryButton(
-                  icon: Icons.handshake_rounded,
-                  label: provider.isLoading
-                      ? 'Confirming...'
-                      : 'Confirm Handover',
-                  onTap: provider.isLoading ? null : onPickupReady,
-                );
-              },
-            ),
-            child: _CodeDisplay(
-              label: 'Handover Code',
-              code: request.handoverCode,
-            ),
+                'When the lender is physically ready to hand over the item, they will tap Arrive / Handover and show you a 4-digit arrival code.',
           ),
         ],
       ),
@@ -1483,14 +1283,18 @@ class _HandoverCard extends StatelessWidget {
   }
 }
 
-class _WaitingForHandoverCard extends StatelessWidget {
-  const _WaitingForHandoverCard({
+class _ConfirmPickupCodeCard extends StatelessWidget {
+  const _ConfirmPickupCodeCard({
     required this.request,
+    required this.handoverCodeController,
     required this.onOpenChat,
+    required this.onConfirmPickup,
   });
 
   final BorrowRequest request;
+  final TextEditingController handoverCodeController;
   final VoidCallback onOpenChat;
+  final VoidCallback onConfirmPickup;
 
   @override
   Widget build(BuildContext context) {
@@ -1498,19 +1302,51 @@ class _WaitingForHandoverCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SectionLabel('Handover Confirmation'),
+          const _SectionLabel('Confirm Pickup'),
           const SizedBox(height: 12),
           _TrackingStepCard(
             icon: Icons.pin_rounded,
-            title: 'Handover code shared',
+            title: 'Enter arrival code',
             message:
-                'Give this code to the lender after they inspect the item condition. The borrow period starts after they confirm it.',
-            child: _CodeDisplay(
-              label: 'Handover Code',
-              code: request.handoverCode,
+                'The lender has started handover. Enter the 4-digit code from their screen after receiving the item.',
+            action: Consumer<BorrowRequestProvider>(
+              builder: (context, provider, _) {
+                return _PrimaryButton(
+                  icon: Icons.handshake_rounded,
+                  label: provider.isLoading
+                      ? 'Confirming...'
+                      : 'Confirm Pickup',
+                  onTap: provider.isLoading ? null : onConfirmPickup,
+                );
+              },
+            ),
+            child: TextField(
+              controller: handoverCodeController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _kInk,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+              decoration: _inputDecoration(
+                label: 'Arrival Code',
+                hint: '0000',
+              ).copyWith(counterText: ''),
             ),
           ),
           const SizedBox(height: 12),
+          if (request.handoverProofImageUrl.trim().isNotEmpty) ...[
+            _TrackingStepCard(
+              icon: Icons.camera_alt_outlined,
+              title: 'Lender proof recorded',
+              message:
+                  'The lender added a condition proof photo before handover.',
+            ),
+            const SizedBox(height: 12),
+          ],
           _SecondaryButton(
             icon: Icons.chat_bubble_outline_rounded,
             label: 'Open Chat',
@@ -1550,13 +1386,6 @@ class _ActiveBorrowCard extends StatelessWidget {
                 'Use the item until ${_shortDateFormat.format(request.expectedReturnDate)}. Meet the lender again when you are ready to return it.',
           ),
           const SizedBox(height: 12),
-          _TrackingStepCard(
-            icon: Icons.keyboard_return_rounded,
-            title: 'Return code',
-            message: 'Share this code during the return meetup.',
-            child: _CodeDisplay(label: 'Return Code', code: request.returnCode),
-          ),
-          const SizedBox(height: 12),
           TextField(
             controller: returnNotesController,
             minLines: 2,
@@ -1582,9 +1411,7 @@ class _ActiveBorrowCard extends StatelessWidget {
                   builder: (context, provider, _) {
                     return _PrimaryButton(
                       icon: Icons.keyboard_return_rounded,
-                      label: provider.isLoading
-                          ? 'Starting...'
-                          : 'Start Return',
+                      label: provider.isLoading ? 'Starting...' : 'Return Item',
                       onTap: provider.isLoading ? null : onSubmitReturn,
                     );
                   },
@@ -1688,12 +1515,23 @@ class _CompletedCard extends StatelessWidget {
           if (depositReleased) ...[
             const SizedBox(height: 18),
             Text(
-              'How was your experience with ${request.ownerName}?',
+              'Rate the Lender',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _kInk,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Did the item match the description, and was communication easy with ${request.ownerName}?',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _kMutedText,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
               ),
             ),
             const SizedBox(height: 12),
@@ -1714,8 +1552,8 @@ class _CompletedCard extends StatelessWidget {
               minLines: 3,
               maxLines: 4,
               decoration: _inputDecoration(
-                label: 'Public review',
-                hint: 'Optional review for future borrowers',
+                label: 'Private until published',
+                hint: 'Optional comment about description and communication',
               ),
             ),
             const SizedBox(height: 14),
@@ -3718,7 +3556,7 @@ String _statusLabel(BorrowRequest request) {
     case AppConstants.borrowStatusCancelled:
       return 'Cancelled';
     case AppConstants.borrowStatusPickupReady:
-      return 'Meetup';
+      return 'Handover';
     case AppConstants.borrowStatusActive:
     case AppConstants.borrowStatusHandedOver:
       return 'Active';

@@ -13,6 +13,10 @@ class ReviewModel {
     required this.comment,
     required this.role,
     required this.createdAt,
+    required this.visible,
+    required this.status,
+    required this.publishAfter,
+    required this.publishedAt,
   });
 
   final String id;
@@ -26,6 +30,10 @@ class ReviewModel {
   final String comment;
   final String role;
   final DateTime createdAt;
+  final bool visible;
+  final String status;
+  final DateTime? publishAfter;
+  final DateTime? publishedAt;
 
   factory ReviewModel.fromMap(String id, Map<String, dynamic> data) {
     return ReviewModel(
@@ -40,6 +48,10 @@ class ReviewModel {
       comment: (data['comment'] as String?) ?? '',
       role: (data['role'] as String?) ?? '',
       createdAt: _parseDate(data['createdAt']),
+      visible: (data['visible'] as bool?) ?? true,
+      status: (data['status'] as String?) ?? 'published',
+      publishAfter: _parseNullableDate(data['publishAfter']),
+      publishedAt: _parseNullableDate(data['publishedAt']),
     );
   }
 
@@ -55,5 +67,14 @@ class ReviewModel {
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
     return DateTime.now();
+  }
+
+  static DateTime? _parseNullableDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 }

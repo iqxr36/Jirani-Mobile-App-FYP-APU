@@ -320,31 +320,30 @@ service cloud.firestore {
           'paymentCompletedAt',
           'paymentProvider',
           'chatId',
-          'handoverCode',
-          'returnCode',
           'updatedAt',
         ]);
     }
 
     function borrowerCanConfirmPickupReady() {
       return borrowRequestBorrower() &&
-        resource.data.status == 'approved' &&
-        request.resource.data.status == 'pickupReady' &&
-        borrowChangedKeysOnly([
-          'status',
-          'pickupConfirmedAt',
-          'updatedAt',
-          'pickupProofImageUrl',
-        ]);
-    }
-
-    function ownerCanConfirmHandover() {
-      return borrowRequestOwner() &&
         resource.data.status == 'pickupReady' &&
         request.resource.data.status == 'active' &&
         borrowChangedKeysOnly([
           'status',
           'handoverConfirmedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanConfirmHandover() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'approved' &&
+        resource.data.paymentStatus == 'completed' &&
+        request.resource.data.status == 'pickupReady' &&
+        borrowChangedKeysOnly([
+          'status',
+          'pickupConfirmedAt',
+          'handoverCode',
           'itemConditionBefore',
           'updatedAt',
           'handoverProofImageUrl',
@@ -359,6 +358,7 @@ service cloud.firestore {
           'status',
           'returnSubmittedAt',
           'returnNotes',
+          'returnCode',
           'updatedAt',
           'returnProofImageUrl',
         ]);
@@ -398,6 +398,54 @@ service cloud.firestore {
         ]);
     }
 
+    function participantCanSubmitBorrowReview() {
+      return signedIn() &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == 'completed' &&
+        (
+          (
+            borrowRequestBorrower() &&
+            request.resource.data.borrowerReviewSubmitted == true &&
+            request.resource.data.borrowerReviewSubmittedAt == request.time &&
+            borrowChangedKeysOnly([
+              'borrowerReviewSubmitted',
+              'borrowerReviewSubmittedAt',
+              'reviewGraceEndsAt',
+              'updatedAt',
+            ])
+          ) ||
+          (
+            borrowRequestOwner() &&
+            request.resource.data.ownerReviewSubmitted == true &&
+            request.resource.data.ownerReviewSubmittedAt == request.time &&
+            borrowChangedKeysOnly([
+              'ownerReviewSubmitted',
+              'ownerReviewSubmittedAt',
+              'reviewGraceEndsAt',
+              'updatedAt',
+            ])
+          )
+        ) &&
+        request.resource.data.reviewGraceEndsAt is timestamp &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+    function participantCanPublishBorrowReviews() {
+      return signedIn() &&
+        (
+          borrowRequestBorrower() ||
+          borrowRequestOwner()
+        ) &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.reviewsPublishedAt == request.time &&
+        borrowChangedKeysOnly([
+          'reviewsPublishedAt',
+          'updatedAt',
+        ]) &&
+        request.resource.data.updatedAt == request.time;
+    }
+
     function validBorrowRequestUpdate() {
       return ownerCanApproveBorrowRequest() ||
         ownerCanRejectBorrowRequest() ||
@@ -407,7 +455,9 @@ service cloud.firestore {
         ownerCanConfirmHandover() ||
         borrowerCanSubmitReturn() ||
         ownerCanConfirmReturn() ||
-        ownerCanSetDepositDecision();
+        ownerCanSetDepositDecision() ||
+        participantCanSubmitBorrowReview() ||
+        participantCanPublishBorrowReviews();
     }
 
     function ownSafeUserUpdate() {
@@ -491,6 +541,10 @@ service cloud.firestore {
           'rating',
           'comment',
           'role',
+          'visible',
+          'status',
+          'publishAfter',
+          'publishedAt',
           'createdAt',
         ]) &&
         data.reviewerId == request.auth.uid &&
@@ -502,32 +556,66 @@ service cloud.firestore {
         data.rating >= 1 &&
         data.rating <= 5 &&
         data.role in ['borrowerToOwner', 'ownerToBorrower'] &&
+        data.visible == false &&
+        data.status == 'hidden' &&
+        data.publishAfter is timestamp &&
+        data.publishedAt == null &&
         data.createdAt == request.time &&
         validCompletedBorrowReview(data);
     }
 
-    function validRevieweeReputationUpdate() {
+    function validReviewPublishUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let borrowData = get(/databases/$(database)/documents/borrowRequests/$(resource.data.borrowRequestId)).data;
       return signedIn() &&
-        request.auth.uid != resource.data.uid &&
+        resource.data.visible == false &&
+        resource.data.status == 'hidden' &&
+        changed.hasOnly([
+          'visible',
+          'status',
+          'publishedAt',
+        ]) &&
+        request.resource.data.visible == true &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.publishedAt == request.time &&
+        (
+          request.auth.uid == borrowData.borrowerId ||
+          request.auth.uid == borrowData.ownerId
+        );
+    }
+
+    function validRevieweeReputationUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let triggerReviewId = request.resource.data.lastTrustReviewId;
+      return signedIn() &&
         changed.hasOnly([
           'reputationScore',
+          'communityTrustScore',
           'totalReviews',
+          'trustedResident',
+          'accountFlagged',
+          'trustFlagReason',
+          'lastTrustReviewId',
+          'trustScoreUpdatedAt',
           'updatedAt',
         ]) &&
-        (
-          (
-            resource.data.totalReviews is int &&
-            request.resource.data.totalReviews == resource.data.totalReviews + 1
-          ) ||
-          (
-            !resource.data.keys().hasAny(['totalReviews']) &&
-            request.resource.data.totalReviews == 1
-          )
-        ) &&
+        triggerReviewId is string &&
+        exists(/databases/$(database)/documents/reviews/$(triggerReviewId)) &&
+        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.revieweeId == userId &&
+        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.visible == true &&
+        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.status == 'published' &&
+        request.resource.data.totalReviews is int &&
+        request.resource.data.totalReviews >= 0 &&
         request.resource.data.reputationScore is number &&
         request.resource.data.reputationScore >= 0 &&
         request.resource.data.reputationScore <= 5 &&
+        request.resource.data.communityTrustScore is number &&
+        request.resource.data.communityTrustScore >= 0 &&
+        request.resource.data.communityTrustScore <= 5 &&
+        request.resource.data.trustedResident is bool &&
+        request.resource.data.accountFlagged is bool &&
+        request.resource.data.trustFlagReason is string &&
+        request.resource.data.trustScoreUpdatedAt == request.time &&
         request.resource.data.updatedAt == request.time;
     }
 
@@ -547,7 +635,7 @@ service cloud.firestore {
 
       allow update: if isAdmin() ||
         (isOwner(uid) && ownSafeUserUpdate()) ||
-        validRevieweeReputationUpdate();
+        validRevieweeReputationUpdate(uid);
       allow delete: if isAdmin();
     }
 
@@ -658,9 +746,21 @@ service cloud.firestore {
     }
 
     match /reviews/{reviewId} {
-      allow read: if signedIn();
+      allow get: if signedIn() &&
+        (
+          reviewId.matches('.*_' + request.auth.uid) ||
+          isAdmin() ||
+          resource.data.visible == true
+        );
+      allow list: if signedIn() &&
+        (
+          isAdmin() ||
+          resource.data.visible == true ||
+          resource.data.reviewerId == request.auth.uid
+        );
       allow create: if validReviewCreate(request.resource.data);
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || validReviewPublishUpdate();
+      allow delete: if isAdmin();
     }
 
     match /reports/{reportId} {

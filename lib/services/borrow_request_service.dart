@@ -326,12 +326,6 @@ class BorrowRequestService {
         'chatId': chatId.trim().isEmpty
             ? _marketplaceChatId(request.borrowerId, request.ownerId)
             : chatId.trim(),
-        'handoverCode': request.handoverCode.trim().isEmpty
-            ? MarketplaceBorrowFlow.generateFourDigitCode()
-            : request.handoverCode,
-        'returnCode': request.returnCode.trim().isEmpty
-            ? MarketplaceBorrowFlow.generateFourDigitCode()
-            : request.returnCode,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -365,15 +359,15 @@ class BorrowRequestService {
     return ref.getDownloadURL();
   }
 
-  /// Borrower: approved → pickupReady
+  /// Borrower: pickupReady → active after entering the lender's handover code.
   Future<void> confirmPickupReady({
     required String requestId,
     required String borrowerId,
-    String? localProofPath,
+    required String handoverCode,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != borrowerId) {
-      throw Exception('Only the borrower can confirm pickup readiness.');
+      throw Exception('Only the borrower can confirm pickup.');
     }
     try {
       final requestRef = _requests.doc(requestId);
@@ -382,31 +376,25 @@ class BorrowRequestService {
       if (data == null) throw Exception('Borrow request not found.');
       final request = BorrowRequest.fromMap(snapshot.id, data);
       if (request.borrowerId != borrowerId) {
-        throw Exception('Only the borrower can confirm pickup readiness.');
+        throw Exception('Only the borrower can confirm pickup.');
       }
-      if (request.status != AppConstants.borrowStatusApproved) {
+      if (request.status != AppConstants.borrowStatusPickupReady) {
         throw Exception(
-          'Pickup readiness can only be confirmed after approval.',
+          'Pickup can only be confirmed after the lender starts handover.',
         );
       }
       if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
         throw Exception('Complete payment before coordinating handover.');
       }
-
-      String? proofUrl;
-      if (localProofPath != null && localProofPath.trim().isNotEmpty) {
-        proofUrl = await _uploadProofImage(
-          requestId: requestId,
-          uid: borrowerId,
-          localPath: localProofPath.trim(),
-        );
+      final expectedCode = request.handoverCode.trim();
+      if (expectedCode.isEmpty || handoverCode.trim() != expectedCode) {
+        throw Exception('Invalid handover code.');
       }
 
       await requestRef.update({
-        'status': AppConstants.borrowStatusPickupReady,
-        'pickupConfirmedAt': FieldValue.serverTimestamp(),
+        'status': AppConstants.borrowStatusActive,
+        'handoverConfirmedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'pickupProofImageUrl': ?proofUrl,
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
@@ -414,16 +402,15 @@ class BorrowRequestService {
           'Permission denied. Check Firestore rules for borrow request access.',
         );
       }
-      throw Exception(e.message ?? 'Failed to confirm pickup readiness.');
+      throw Exception(e.message ?? 'Failed to confirm pickup.');
     }
   }
 
-  /// Owner: pickupReady → active (handover)
+  /// Owner: approved → pickupReady by starting the in-person handover.
   Future<void> confirmHandover({
     required String requestId,
     required String ownerId,
     required String conditionBefore,
-    String handoverCode = '',
     String? localProofPath,
   }) async {
     final uid = _auth.currentUser?.uid;
@@ -453,17 +440,13 @@ class BorrowRequestService {
       if (request.ownerId != ownerId) {
         throw Exception('Only the item owner can confirm handover.');
       }
-      if (request.status != AppConstants.borrowStatusPickupReady) {
+      if (request.status != AppConstants.borrowStatusApproved) {
         throw Exception(
-          'Handover can only be confirmed when the borrower is ready for pickup.',
+          'Handover can only start after this request is approved.',
         );
       }
       if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
         throw Exception('Payment must be completed before handover.');
-      }
-      final expectedCode = request.handoverCode.trim();
-      if (expectedCode.isNotEmpty && handoverCode.trim() != expectedCode) {
-        throw Exception('Invalid handover code.');
       }
 
       String? proofUrl;
@@ -476,19 +459,15 @@ class BorrowRequestService {
       }
 
       final batch = _firestore.batch();
-      final itemRef = _firestore
-          .collection(AppConstants.itemsCollection)
-          .doc(request.itemId);
       batch.update(requestRef, {
-        'status': AppConstants.borrowStatusActive,
-        'handoverConfirmedAt': FieldValue.serverTimestamp(),
+        'status': AppConstants.borrowStatusPickupReady,
+        'pickupConfirmedAt': FieldValue.serverTimestamp(),
+        'handoverCode': request.handoverCode.trim().isEmpty
+            ? MarketplaceBorrowFlow.generateFourDigitCode()
+            : request.handoverCode,
         'itemConditionBefore': cond,
         'updatedAt': FieldValue.serverTimestamp(),
         'handoverProofImageUrl': ?proofUrl,
-      });
-      batch.update(itemRef, {
-        'status': AppConstants.itemStatusUnavailable,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
       await batch.commit();
     } on FirebaseException catch (e) {
@@ -544,6 +523,9 @@ class BorrowRequestService {
         'status': AppConstants.borrowStatusReturnSubmitted,
         'returnSubmittedAt': FieldValue.serverTimestamp(),
         'returnNotes': returnNotes.trim(),
+        'returnCode': request.returnCode.trim().isEmpty
+            ? MarketplaceBorrowFlow.generateFourDigitCode()
+            : request.returnCode,
         'updatedAt': FieldValue.serverTimestamp(),
         'returnProofImageUrl': ?proofUrl,
       });

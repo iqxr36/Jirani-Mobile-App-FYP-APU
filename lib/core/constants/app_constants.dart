@@ -145,6 +145,8 @@ class AppConstants {
   // Reviews (Phase 6)
   static const String reviewRoleBorrowerToOwner = 'borrowerToOwner';
   static const String reviewRoleOwnerToBorrower = 'ownerToBorrower';
+  static const String reviewStatusHidden = 'hidden';
+  static const String reviewStatusPublished = 'published';
 
   // Reports / disputes (Phase 6)
   static const String reportTypeDamagedItem = 'damagedItem';

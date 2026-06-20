@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
@@ -11,6 +13,7 @@ import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/borrow_request_provider.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/item_provider.dart';
+import 'package:jirani/providers/review_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/item_model.dart';
@@ -375,24 +378,27 @@ class ResidentLenderRequestDetailView extends StatefulWidget {
 class _ResidentLenderRequestDetailViewState
     extends State<ResidentLenderRequestDetailView> {
   final ImagePicker _imagePicker = ImagePicker();
-  final TextEditingController _handoverCodeController = TextEditingController();
   final TextEditingController _returnCodeController = TextEditingController();
   final TextEditingController _ownerReturnNotesController =
       TextEditingController();
   final TextEditingController _depositReasonController =
       TextEditingController();
+  final TextEditingController _reviewController = TextEditingController();
 
   String _conditionBefore = AppConstants.borrowConditionBeforeGood;
   String _conditionAfter = AppConstants.borrowConditionAfterSame;
   String _depositDecision = AppConstants.depositDecisionReturnDeposit;
+  int _rating = 5;
+  bool _localReviewSubmitted = false;
+  String? _reviewReleaseCheckedRequestId;
   XFile? _handoverProof;
 
   @override
   void dispose() {
-    _handoverCodeController.dispose();
     _returnCodeController.dispose();
     _ownerReturnNotesController.dispose();
     _depositReasonController.dispose();
+    _reviewController.dispose();
     super.dispose();
   }
 
@@ -417,6 +423,7 @@ class _ResidentLenderRequestDetailViewState
                   !pending &&
                   request.status != AppConstants.borrowStatusRejected &&
                   request.status != AppConstants.borrowStatusCancelled;
+              _publishEligibleReviewsOnce(request);
               return CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
@@ -594,18 +601,22 @@ class _ResidentLenderRequestDetailViewState
                               conditionBefore: _conditionBefore,
                               conditionAfter: _conditionAfter,
                               depositDecision: _depositDecision,
-                              handoverCodeController: _handoverCodeController,
                               returnCodeController: _returnCodeController,
                               ownerReturnNotesController:
                                   _ownerReturnNotesController,
                               depositReasonController: _depositReasonController,
+                              reviewController: _reviewController,
                               handoverProofName: _handoverProof?.name,
+                              rating: _rating,
+                              localReviewSubmitted: _localReviewSubmitted,
                               onConditionBeforeChanged: (value) =>
                                   setState(() => _conditionBefore = value),
                               onConditionAfterChanged: (value) =>
                                   setState(() => _conditionAfter = value),
                               onDepositDecisionChanged: (value) =>
                                   setState(() => _depositDecision = value),
+                              onRatingChanged: (value) =>
+                                  setState(() => _rating = value),
                               onOpenChat: () => _openChat(request, user),
                               onPickHandoverProof: _pickHandoverProof,
                               onConfirmHandover: () =>
@@ -614,6 +625,8 @@ class _ResidentLenderRequestDetailViewState
                                   _confirmReturn(request, user),
                               onSubmitDepositDecision: () =>
                                   _submitDepositDecision(request, user),
+                              onSubmitReview: () =>
+                                  _submitReview(request, user),
                             ),
                           const SizedBox(height: 40),
                         ],
@@ -782,23 +795,18 @@ class _ResidentLenderRequestDetailViewState
 
   Future<void> _confirmHandover(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
-    final code = _handoverCodeController.text.trim();
-    if (!_isFourDigitCode(code)) {
-      _showSnack(context, 'Enter the 4-digit handover code from the borrower.');
-      return;
-    }
     final provider = context.read<BorrowRequestProvider>();
     await provider.confirmHandover(
       requestId: request.id,
       ownerId: user.uid,
       conditionBefore: _conditionBefore,
-      handoverCode: code,
       localProofPath: _handoverProof?.path,
     );
     if (!mounted) return;
     _showSnack(
       context,
-      provider.errorMessage ?? 'Handover confirmed. Borrowing is now active.',
+      provider.errorMessage ??
+          'Arrival code generated. Show it to the borrower.',
     );
   }
 
@@ -853,6 +861,45 @@ class _ResidentLenderRequestDetailViewState
     if (!mounted) return;
     _showSnack(context, provider.errorMessage ?? 'Deposit decision saved.');
   }
+
+  Future<void> _submitReview(BorrowRequest request, AppUser? user) async {
+    if (user == null) return;
+    try {
+      await context.read<ReviewProvider>().createReview(
+        borrowRequest: request,
+        reviewerId: user.uid,
+        reviewerName: user.fullName,
+        role: AppConstants.reviewRoleOwnerToBorrower,
+        rating: _rating,
+        comment: _reviewController.text,
+      );
+      if (!mounted) return;
+      setState(() => _localReviewSubmitted = true);
+      _showSnack(
+        context,
+        'Review submitted. It stays hidden until both reviews are in or the 3-day grace period ends.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(context, e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  void _publishEligibleReviewsOnce(BorrowRequest request) {
+    if (request.status != AppConstants.borrowStatusCompleted ||
+        _reviewReleaseCheckedRequestId == request.id) {
+      return;
+    }
+    _reviewReleaseCheckedRequestId = request.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        context.read<ReviewProvider>().publishEligibleReviewsForBorrowRequest(
+          request,
+        ),
+      );
+    });
+  }
 }
 
 class _LenderTransactionBody extends StatelessWidget {
@@ -862,19 +909,23 @@ class _LenderTransactionBody extends StatelessWidget {
     required this.conditionBefore,
     required this.conditionAfter,
     required this.depositDecision,
-    required this.handoverCodeController,
     required this.returnCodeController,
     required this.ownerReturnNotesController,
     required this.depositReasonController,
+    required this.reviewController,
     required this.handoverProofName,
+    required this.rating,
+    required this.localReviewSubmitted,
     required this.onConditionBeforeChanged,
     required this.onConditionAfterChanged,
     required this.onDepositDecisionChanged,
+    required this.onRatingChanged,
     required this.onOpenChat,
     required this.onPickHandoverProof,
     required this.onConfirmHandover,
     required this.onConfirmReturn,
     required this.onSubmitDepositDecision,
+    required this.onSubmitReview,
   });
 
   final BorrowRequest request;
@@ -882,19 +933,23 @@ class _LenderTransactionBody extends StatelessWidget {
   final String conditionBefore;
   final String conditionAfter;
   final String depositDecision;
-  final TextEditingController handoverCodeController;
   final TextEditingController returnCodeController;
   final TextEditingController ownerReturnNotesController;
   final TextEditingController depositReasonController;
+  final TextEditingController reviewController;
   final String? handoverProofName;
+  final int rating;
+  final bool localReviewSubmitted;
   final ValueChanged<String> onConditionBeforeChanged;
   final ValueChanged<String> onConditionAfterChanged;
   final ValueChanged<String> onDepositDecisionChanged;
+  final ValueChanged<int> onRatingChanged;
   final VoidCallback onOpenChat;
   final VoidCallback onPickHandoverProof;
   final VoidCallback onConfirmHandover;
   final VoidCallback onConfirmReturn;
   final VoidCallback onSubmitDepositDecision;
+  final VoidCallback onSubmitReview;
 
   @override
   Widget build(BuildContext context) {
@@ -903,22 +958,18 @@ class _LenderTransactionBody extends StatelessWidget {
         if (MarketplaceBorrowFlow.isPaymentComplete(request)) {
           return _LenderPaidWaitingCard(
             request: request,
+            conditionBefore: conditionBefore,
+            handoverProofName: handoverProofName,
+            isLoading: provider.isLoading,
+            onConditionBeforeChanged: onConditionBeforeChanged,
+            onPickHandoverProof: onPickHandoverProof,
             onOpenChat: onOpenChat,
+            onConfirmHandover: onConfirmHandover,
           );
         }
         return const _LenderApprovedUnpaidCard();
       case AppConstants.borrowStatusPickupReady:
-        return _LenderHandoverCard(
-          request: request,
-          conditionBefore: conditionBefore,
-          handoverCodeController: handoverCodeController,
-          handoverProofName: handoverProofName,
-          isLoading: provider.isLoading,
-          onConditionBeforeChanged: onConditionBeforeChanged,
-          onPickHandoverProof: onPickHandoverProof,
-          onOpenChat: onOpenChat,
-          onConfirmHandover: onConfirmHandover,
-        );
+        return _LenderHandoverCard(request: request, onOpenChat: onOpenChat);
       case AppConstants.borrowStatusHandedOver:
       case AppConstants.borrowStatusActive:
         return _LenderActiveCard(request: request, onOpenChat: onOpenChat);
@@ -938,9 +989,14 @@ class _LenderTransactionBody extends StatelessWidget {
           request: request,
           depositDecision: depositDecision,
           depositReasonController: depositReasonController,
+          reviewController: reviewController,
           isLoading: provider.isLoading,
+          rating: rating,
+          localReviewSubmitted: localReviewSubmitted,
           onDepositDecisionChanged: onDepositDecisionChanged,
+          onRatingChanged: onRatingChanged,
           onSubmitDepositDecision: onSubmitDepositDecision,
+          onSubmitReview: onSubmitReview,
         );
       default:
         return _StateCard(
@@ -971,11 +1027,23 @@ class _LenderApprovedUnpaidCard extends StatelessWidget {
 class _LenderPaidWaitingCard extends StatelessWidget {
   const _LenderPaidWaitingCard({
     required this.request,
+    required this.conditionBefore,
+    required this.handoverProofName,
+    required this.isLoading,
+    required this.onConditionBeforeChanged,
+    required this.onPickHandoverProof,
     required this.onOpenChat,
+    required this.onConfirmHandover,
   });
 
   final BorrowRequest request;
+  final String conditionBefore;
+  final String? handoverProofName;
+  final bool isLoading;
+  final ValueChanged<String> onConditionBeforeChanged;
+  final VoidCallback onPickHandoverProof;
   final VoidCallback onOpenChat;
+  final VoidCallback onConfirmHandover;
 
   @override
   Widget build(BuildContext context) {
@@ -997,70 +1065,10 @@ class _LenderPaidWaitingCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _TrackingStepCard(
-            icon: Icons.hourglass_top_rounded,
-            title: 'Waiting for Pickup Readiness',
-            message:
-                'Ask the borrower to tap I Am Ready from their tracking screen before you enter the handover code.',
-            child: _MiniInfoTile(
-              label: 'Pickup',
-              value: request.pickupTime.trim().isEmpty
-                  ? _requestDateRange(request)
-                  : request.pickupTime.trim(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LenderHandoverCard extends StatelessWidget {
-  const _LenderHandoverCard({
-    required this.request,
-    required this.conditionBefore,
-    required this.handoverCodeController,
-    required this.handoverProofName,
-    required this.isLoading,
-    required this.onConditionBeforeChanged,
-    required this.onPickHandoverProof,
-    required this.onOpenChat,
-    required this.onConfirmHandover,
-  });
-
-  final BorrowRequest request;
-  final String conditionBefore;
-  final TextEditingController handoverCodeController;
-  final String? handoverProofName;
-  final bool isLoading;
-  final ValueChanged<String> onConditionBeforeChanged;
-  final VoidCallback onPickHandoverProof;
-  final VoidCallback onOpenChat;
-  final VoidCallback onConfirmHandover;
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _SectionLabel('Handover Completion'),
-          const SizedBox(height: 12),
-          _TrackingStepCard(
-            icon: Icons.chat_bubble_outline_rounded,
-            title: 'Chat with Borrower',
-            message: 'Confirm the meetup place and time before handover.',
-            action: _SecondaryButton(
-              label: 'Open Chat',
-              icon: Icons.chat_bubble_outline_rounded,
-              onTap: onOpenChat,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _TrackingStepCard(
             icon: Icons.fact_check_outlined,
-            title: 'Item Condition',
+            title: 'Inspect item condition',
             message:
-                'Select the condition before handing over the item. This is used during return comparison.',
+                'Select the item condition before handing it to the borrower.',
             child: _OptionWrap(
               options: _handoverConditionOptions,
               selectedValue: conditionBefore,
@@ -1091,19 +1099,113 @@ class _LenderHandoverCard extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 12),
+          _PrimaryButton(
+            label: isLoading ? 'Starting...' : 'Arrive / Handover',
+            icon: Icons.qr_code_2_rounded,
+            onTap: isLoading ? null : onConfirmHandover,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LenderHandoverCard extends StatelessWidget {
+  const _LenderHandoverCard({required this.request, required this.onOpenChat});
+
+  final BorrowRequest request;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('Handover Completion'),
+          const SizedBox(height: 12),
           _TrackingStepCard(
             icon: Icons.pin_rounded,
-            title: 'Handover Code Confirmation',
-            message: 'Enter the 4-digit code the borrower shares at pickup.',
-            action: _PrimaryButton(
-              label: isLoading ? 'Confirming...' : 'Confirm Handover',
-              icon: Icons.handshake_rounded,
-              onTap: isLoading ? null : onConfirmHandover,
+            title: 'Arrival Code',
+            message:
+                'Show or read this code to the borrower after handing over the item. The borrow period starts when they enter it.',
+            child: _LenderCodeDisplay(
+              label: 'Arrival Code',
+              code: request.handoverCode,
             ),
-            child: _CodeTextField(
-              controller: handoverCodeController,
-              label: 'Handover Code',
+          ),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.fact_check_outlined,
+            title: 'Condition recorded',
+            message:
+                'Condition at handover: ${_handoverConditionLabel(request.itemConditionBefore)}.',
+          ),
+          const SizedBox(height: 12),
+          _SecondaryButton(
+            label: 'Open Chat',
+            icon: Icons.chat_bubble_outline_rounded,
+            onTap: onOpenChat,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LenderCodeDisplay extends StatelessWidget {
+  const _LenderCodeDisplay({required this.label, required this.code});
+
+  final String label;
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final cleanCode = code.trim().isEmpty ? '----' : code.trim();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kBrandTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMutedText,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final char in cleanCode.characters)
+                Expanded(
+                  child: Container(
+                    height: 52,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Text(
+                      char,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -1242,17 +1344,27 @@ class _LenderCompletedCard extends StatelessWidget {
     required this.request,
     required this.depositDecision,
     required this.depositReasonController,
+    required this.reviewController,
     required this.isLoading,
+    required this.rating,
+    required this.localReviewSubmitted,
     required this.onDepositDecisionChanged,
+    required this.onRatingChanged,
     required this.onSubmitDepositDecision,
+    required this.onSubmitReview,
   });
 
   final BorrowRequest request;
   final String depositDecision;
   final TextEditingController depositReasonController;
+  final TextEditingController reviewController;
   final bool isLoading;
+  final int rating;
+  final bool localReviewSubmitted;
   final ValueChanged<String> onDepositDecisionChanged;
+  final ValueChanged<int> onRatingChanged;
   final VoidCallback onSubmitDepositDecision;
+  final VoidCallback onSubmitReview;
 
   @override
   Widget build(BuildContext context) {
@@ -1276,6 +1388,67 @@ class _LenderCompletedCard extends StatelessWidget {
               _MiniInfoTile(
                 label: 'Deposit',
                 value: _depositDecisionLabel(request.depositDecision),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Text(
+                'Rate the Borrower',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _kInk,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Did ${request.borrowerName} treat the item safely and return it on time?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _kMutedText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: RatingBar.builder(
+                  initialRating: rating.toDouble(),
+                  minRating: 1,
+                  itemSize: 32,
+                  allowHalfRating: false,
+                  itemBuilder: (context, _) =>
+                      const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
+                  onRatingUpdate: (value) => onRatingChanged(value.round()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reviewController,
+                minLines: 3,
+                maxLines: 4,
+                decoration: _inputDecoration(
+                  label: 'Private until published',
+                  hint: 'Optional comment about item care and punctuality',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Consumer<ReviewProvider>(
+                builder: (context, provider, _) {
+                  return _PrimaryButton(
+                    label: localReviewSubmitted
+                        ? 'Review Submitted'
+                        : provider.isSubmitting
+                        ? 'Submitting...'
+                        : 'Submit Review',
+                    icon: Icons.rate_review_rounded,
+                    onTap: localReviewSubmitted || provider.isSubmitting
+                        ? null
+                        : onSubmitReview,
+                  );
+                },
               ),
             ],
           ),
@@ -3644,7 +3817,7 @@ String _requestStatusLabel(BorrowRequest request) {
     case AppConstants.borrowStatusCancelled:
       return 'Cancelled';
     case AppConstants.borrowStatusPickupReady:
-      return 'Pickup Ready';
+      return 'Handover Started';
     case AppConstants.borrowStatusHandedOver:
     case AppConstants.borrowStatusActive:
       return 'Active';
@@ -3675,7 +3848,7 @@ String _requestReadOnlyMessage(BorrowRequest request) {
   switch (request.status) {
     case AppConstants.borrowStatusApproved:
       return MarketplaceBorrowFlow.isPaymentComplete(request)
-          ? 'The borrower has paid. Handover confirmation comes in the next lender pass.'
+          ? 'The borrower has paid. Start handover when you meet them in person.'
           : 'Request approved. The borrower must complete payment before pickup coordination continues.';
     case AppConstants.borrowStatusRejected:
       return request.rejectionReason.isEmpty

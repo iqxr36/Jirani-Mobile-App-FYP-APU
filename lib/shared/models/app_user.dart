@@ -18,6 +18,10 @@ class AppUser {
     required this.unitNumber,
     required this.reputationScore,
     required this.totalReviews,
+    this.communityTrustScore = 0,
+    this.trustedResident = false,
+    this.accountFlagged = false,
+    this.trustFlagReason = '',
     required this.completedBorrowings,
     required this.completedLendings,
     required this.completedServices,
@@ -42,6 +46,10 @@ class AppUser {
   final String unitNumber;
   final double reputationScore;
   final int totalReviews;
+  final double communityTrustScore;
+  final bool trustedResident;
+  final bool accountFlagged;
+  final String trustFlagReason;
   final int completedBorrowings;
   final int completedLendings;
   final int completedServices;
@@ -74,6 +82,10 @@ class AppUser {
     String? unitNumber,
     double? reputationScore,
     int? totalReviews,
+    double? communityTrustScore,
+    bool? trustedResident,
+    bool? accountFlagged,
+    String? trustFlagReason,
     int? completedBorrowings,
     int? completedLendings,
     int? completedServices,
@@ -98,6 +110,10 @@ class AppUser {
       unitNumber: unitNumber ?? this.unitNumber,
       reputationScore: reputationScore ?? this.reputationScore,
       totalReviews: totalReviews ?? this.totalReviews,
+      communityTrustScore: communityTrustScore ?? this.communityTrustScore,
+      trustedResident: trustedResident ?? this.trustedResident,
+      accountFlagged: accountFlagged ?? this.accountFlagged,
+      trustFlagReason: trustFlagReason ?? this.trustFlagReason,
       completedBorrowings: completedBorrowings ?? this.completedBorrowings,
       completedLendings: completedLendings ?? this.completedLendings,
       completedServices: completedServices ?? this.completedServices,
@@ -126,6 +142,10 @@ class AppUser {
       'unitNumber': unitNumber,
       'reputationScore': reputationScore,
       'totalReviews': totalReviews,
+      'communityTrustScore': communityTrustScore,
+      'trustedResident': trustedResident,
+      'accountFlagged': accountFlagged,
+      'trustFlagReason': trustFlagReason,
       'completedBorrowings': completedBorrowings,
       'completedLendings': completedLendings,
       'completedServices': completedServices,
@@ -160,6 +180,12 @@ class AppUser {
       unitNumber: (map['unitNumber'] as String?) ?? '',
       reputationScore: _parseDouble(map['reputationScore']),
       totalReviews: _parseInt(map['totalReviews']),
+      communityTrustScore: _parseDouble(
+        map['communityTrustScore'] ?? map['reputationScore'],
+      ),
+      trustedResident: map['trustedResident'] as bool? ?? false,
+      accountFlagged: map['accountFlagged'] as bool? ?? false,
+      trustFlagReason: (map['trustFlagReason'] as String?) ?? '',
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),

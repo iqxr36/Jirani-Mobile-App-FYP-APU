@@ -187,7 +187,7 @@ class BorrowRequestProvider extends ChangeNotifier {
   Future<void> confirmPickupReady({
     required String requestId,
     required String borrowerId,
-    String? localProofPath,
+    required String handoverCode,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -196,7 +196,7 @@ class BorrowRequestProvider extends ChangeNotifier {
       await _service.confirmPickupReady(
         requestId: requestId,
         borrowerId: borrowerId,
-        localProofPath: localProofPath,
+        handoverCode: handoverCode,
       );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -210,7 +210,6 @@ class BorrowRequestProvider extends ChangeNotifier {
     required String requestId,
     required String ownerId,
     required String conditionBefore,
-    String handoverCode = '',
     String? localProofPath,
   }) async {
     _isLoading = true;
@@ -221,7 +220,6 @@ class BorrowRequestProvider extends ChangeNotifier {
         requestId: requestId,
         ownerId: ownerId,
         conditionBefore: conditionBefore,
-        handoverCode: handoverCode,
         localProofPath: localProofPath,
       );
     } catch (e) {
