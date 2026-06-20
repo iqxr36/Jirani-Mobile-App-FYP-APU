@@ -691,16 +691,12 @@ class _MarketplaceTransactionViewState
   Future<void> _completePayment(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
-    final chatProvider = context.read<ChatProvider>();
     final requestProvider = context.read<BorrowRequestProvider>();
 
     try {
-      final owner = _ownerFromRequest(request: request, currentUser: user);
-      final chat = await chatProvider.openOrCreateChat(owner);
       final ok = await requestProvider.completeManualPayment(
         requestId: request.id,
         borrowerId: user.uid,
-        chatId: chat.id,
       );
       if (!mounted) return;
       messenger.showSnackBar(

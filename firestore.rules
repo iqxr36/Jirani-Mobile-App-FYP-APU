@@ -267,6 +267,149 @@ service cloud.firestore {
         request.auth.uid in request.resource.data.readBy;
     }
 
+    function borrowRequestOwner() {
+      return signedIn() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function borrowRequestBorrower() {
+      return signedIn() && request.auth.uid == resource.data.borrowerId;
+    }
+
+    function borrowChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function ownerCanApproveBorrowRequest() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'approved' &&
+        borrowChangedKeysOnly([
+          'status',
+          'paymentStatus',
+          'approvedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanRejectBorrowRequest() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'rejected' &&
+        borrowChangedKeysOnly([
+          'status',
+          'rejectionReason',
+          'rejectedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanCancelBorrowRequest() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        borrowChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function borrowerCanCompletePayment() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'approved' &&
+        request.resource.data.status == 'approved' &&
+        request.resource.data.paymentStatus == 'completed' &&
+        borrowChangedKeysOnly([
+          'paymentStatus',
+          'paymentCompletedAt',
+          'paymentProvider',
+          'chatId',
+          'handoverCode',
+          'returnCode',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanConfirmPickupReady() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'approved' &&
+        request.resource.data.status == 'pickupReady' &&
+        borrowChangedKeysOnly([
+          'status',
+          'pickupConfirmedAt',
+          'updatedAt',
+          'pickupProofImageUrl',
+        ]);
+    }
+
+    function ownerCanConfirmHandover() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'pickupReady' &&
+        request.resource.data.status == 'active' &&
+        borrowChangedKeysOnly([
+          'status',
+          'handoverConfirmedAt',
+          'itemConditionBefore',
+          'updatedAt',
+          'handoverProofImageUrl',
+        ]);
+    }
+
+    function borrowerCanSubmitReturn() {
+      return borrowRequestBorrower() &&
+        resource.data.status in ['active', 'handedOver'] &&
+        request.resource.data.status == 'returnSubmitted' &&
+        borrowChangedKeysOnly([
+          'status',
+          'returnSubmittedAt',
+          'returnNotes',
+          'updatedAt',
+          'returnProofImageUrl',
+        ]);
+    }
+
+    function ownerCanConfirmReturn() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'returnSubmitted' &&
+        request.resource.data.status == 'completed' &&
+        borrowChangedKeysOnly([
+          'status',
+          'returnConfirmedAt',
+          'completedAt',
+          'itemConditionAfter',
+          'ownerReturnNotes',
+          'updatedAt',
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+        ]);
+    }
+
+    function ownerCanSetDepositDecision() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == 'completed' &&
+        resource.data.depositDecision == 'pending' &&
+        request.resource.data.depositDecision in [
+          'returnDeposit',
+          'withholdDeposit',
+        ] &&
+        borrowChangedKeysOnly([
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function validBorrowRequestUpdate() {
+      return ownerCanApproveBorrowRequest() ||
+        ownerCanRejectBorrowRequest() ||
+        borrowerCanCancelBorrowRequest() ||
+        borrowerCanCompletePayment() ||
+        borrowerCanConfirmPickupReady() ||
+        ownerCanConfirmHandover() ||
+        borrowerCanSubmitReturn() ||
+        ownerCanConfirmReturn() ||
+        ownerCanSetDepositDecision();
+    }
+
     function ownSafeUserUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -308,8 +451,91 @@ service cloud.firestore {
       request.resource.data.profileImageUrl is string;
     }
 
+    function completedBorrowRequestForReview(data) {
+      return data.borrowRequestId is string &&
+        exists(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)) &&
+        get(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)).data.status == 'completed';
+    }
+
+    function validBorrowerToOwnerReview(data, borrowData) {
+      return data.role == 'borrowerToOwner' &&
+        data.reviewerId == borrowData.borrowerId &&
+        data.revieweeId == borrowData.ownerId;
+    }
+
+    function validOwnerToBorrowerReview(data, borrowData) {
+      return data.role == 'ownerToBorrower' &&
+        data.reviewerId == borrowData.ownerId &&
+        data.revieweeId == borrowData.borrowerId;
+    }
+
+    function validCompletedBorrowReview(data) {
+      let borrowData = get(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)).data;
+      return completedBorrowRequestForReview(data) &&
+        data.itemId == borrowData.itemId &&
+        (
+          validBorrowerToOwnerReview(data, borrowData) ||
+          validOwnerToBorrowerReview(data, borrowData)
+        );
+    }
+
+    function validReviewCreate(data) {
+      return signedIn() &&
+        data.keys().hasOnly([
+          'borrowRequestId',
+          'itemId',
+          'reviewerId',
+          'reviewerName',
+          'revieweeId',
+          'revieweeName',
+          'rating',
+          'comment',
+          'role',
+          'createdAt',
+        ]) &&
+        data.reviewerId == request.auth.uid &&
+        data.revieweeId != request.auth.uid &&
+        data.reviewerName is string &&
+        data.revieweeName is string &&
+        data.comment is string &&
+        data.rating is int &&
+        data.rating >= 1 &&
+        data.rating <= 5 &&
+        data.role in ['borrowerToOwner', 'ownerToBorrower'] &&
+        data.createdAt == request.time &&
+        validCompletedBorrowReview(data);
+    }
+
+    function validRevieweeReputationUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return signedIn() &&
+        request.auth.uid != resource.data.uid &&
+        changed.hasOnly([
+          'reputationScore',
+          'totalReviews',
+          'updatedAt',
+        ]) &&
+        (
+          (
+            resource.data.totalReviews is int &&
+            request.resource.data.totalReviews == resource.data.totalReviews + 1
+          ) ||
+          (
+            !resource.data.keys().hasAny(['totalReviews']) &&
+            request.resource.data.totalReviews == 1
+          )
+        ) &&
+        request.resource.data.reputationScore is number &&
+        request.resource.data.reputationScore >= 0 &&
+        request.resource.data.reputationScore <= 5 &&
+        request.resource.data.updatedAt == request.time;
+    }
+
     match /users/{uid} {
-      allow get: if isOwner(uid) || isAdmin() || canReadCommunityResident(resource.data);
+      allow get: if isOwner(uid) ||
+        isAdmin() ||
+        canReadCommunityResident(resource.data) ||
+        signedIn();
       allow list: if isSystemAdmin() ||
         (isAdmin() && resource.data.communityId == adminCommunityId()) ||
         canReadCommunityResident(resource.data);
@@ -319,7 +545,9 @@ service cloud.firestore {
         request.resource.data.role == 'resident' &&
         request.resource.data.verificationStatus == 'pending';
 
-      allow update: if isAdmin() || (isOwner(uid) && ownSafeUserUpdate());
+      allow update: if isAdmin() ||
+        (isOwner(uid) && ownSafeUserUpdate()) ||
+        validRevieweeReputationUpdate();
       allow delete: if isAdmin();
     }
 
@@ -399,12 +627,7 @@ service cloud.firestore {
       allow create: if isVerifiedResident() &&
         request.resource.data.borrowerId == request.auth.uid;
 
-      allow update: if isAdmin() ||
-        (
-          signedIn() &&
-          (resource.data.borrowerId == request.auth.uid ||
-           resource.data.ownerId == request.auth.uid)
-        );
+      allow update: if isAdmin() || validBorrowRequestUpdate();
     }
 
     match /services/{serviceId} {
@@ -436,8 +659,7 @@ service cloud.firestore {
 
     match /reviews/{reviewId} {
       allow read: if signedIn();
-      allow create: if signedIn() &&
-        request.resource.data.reviewerId == request.auth.uid;
+      allow create: if validReviewCreate(request.resource.data);
       allow update, delete: if isAdmin();
     }
 

@@ -179,6 +179,12 @@ class BorrowRequestService {
         throw Exception('Only pending requests can be approved.');
       }
 
+      final others = await _requests
+          .where('ownerId', isEqualTo: ownerId)
+          .where('itemId', isEqualTo: request.itemId)
+          .where('status', isEqualTo: AppConstants.borrowStatusPending)
+          .get();
+
       final batch = _firestore.batch();
       final itemRef = _firestore
           .collection(AppConstants.itemsCollection)
@@ -193,11 +199,6 @@ class BorrowRequestService {
         'status': AppConstants.itemStatusUnavailable,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      final others = await _requests
-          .where('itemId', isEqualTo: request.itemId)
-          .where('status', isEqualTo: AppConstants.borrowStatusPending)
-          .get();
       for (final doc in others.docs) {
         if (doc.id == requestId) continue;
         batch.update(doc.reference, {
