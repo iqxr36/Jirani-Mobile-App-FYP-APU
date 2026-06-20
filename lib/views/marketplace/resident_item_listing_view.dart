@@ -2289,7 +2289,7 @@ class _FinancialStep extends StatelessWidget {
             children: [
               Expanded(
                 child: _MoneyField(
-                  label: 'Borrowing Fee',
+                  label: 'Daily Fee',
                   controller: feeController,
                   enabled: pricingType.requiresFee,
                 ),
@@ -2322,7 +2322,7 @@ class _FinancialStep extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Text(
-              'Deposits are held securely and refunded to the borrower after a safe return.',
+              'Set the daily fee. Hourly borrowing is calculated automatically from this price and capped at the daily rate.',
               style: TextStyle(
                 color: _kMutedText,
                 fontSize: 12,
@@ -2810,7 +2810,9 @@ class _MyItemCard extends StatelessWidget {
                         ],
                         Flexible(
                           child: Text(
-                            item.hasUsageFee ? _money(item.feeAmount) : 'Free',
+                            item.hasUsageFee
+                                ? '${_money(item.feeAmount)} / day'
+                                : 'Free',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -2900,7 +2902,7 @@ class _ListingMoneyRow extends StatelessWidget {
       children: [
         Expanded(
           child: _MiniInfoTile(
-            label: 'Fee',
+            label: 'Daily fee',
             value: item.hasUsageFee ? _money(item.feeAmount) : 'Free',
           ),
         ),

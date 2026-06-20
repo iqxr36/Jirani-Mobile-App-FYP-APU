@@ -57,7 +57,7 @@ class ItemListingFormValidator {
     final fee = parseAmount(feeText);
     final deposit = parseAmount(depositText);
     if (pricingType.requiresFee && (fee == null || fee <= 0)) {
-      return 'Enter a borrowing fee greater than RM 0.';
+      return 'Enter a daily fee greater than RM 0.';
     }
     if (pricingType.requiresDeposit && (deposit == null || deposit <= 0)) {
       return 'Enter a deposit greater than RM 0.';

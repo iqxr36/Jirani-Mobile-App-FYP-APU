@@ -29,6 +29,10 @@ class BorrowRequest {
     required this.returnCode,
     required this.hasUsageFee,
     required this.usageFeeAmount,
+    this.rentalMode = '',
+    this.rentalUnitCount = 1,
+    this.dailyRateSnapshot,
+    this.hourlyRateSnapshot,
     required this.hasDeposit,
     required this.depositAmount,
     required this.createdAt,
@@ -79,6 +83,10 @@ class BorrowRequest {
   final String returnCode;
   final bool hasUsageFee;
   final double? usageFeeAmount;
+  final String rentalMode;
+  final int rentalUnitCount;
+  final double? dailyRateSnapshot;
+  final double? hourlyRateSnapshot;
   final bool hasDeposit;
   final double? depositAmount;
   final DateTime createdAt;
@@ -129,6 +137,10 @@ class BorrowRequest {
     String? returnCode,
     bool? hasUsageFee,
     double? usageFeeAmount,
+    String? rentalMode,
+    int? rentalUnitCount,
+    double? dailyRateSnapshot,
+    double? hourlyRateSnapshot,
     bool? hasDeposit,
     double? depositAmount,
     DateTime? createdAt,
@@ -180,6 +192,10 @@ class BorrowRequest {
       returnCode: returnCode ?? this.returnCode,
       hasUsageFee: hasUsageFee ?? this.hasUsageFee,
       usageFeeAmount: usageFeeAmount ?? this.usageFeeAmount,
+      rentalMode: rentalMode ?? this.rentalMode,
+      rentalUnitCount: rentalUnitCount ?? this.rentalUnitCount,
+      dailyRateSnapshot: dailyRateSnapshot ?? this.dailyRateSnapshot,
+      hourlyRateSnapshot: hourlyRateSnapshot ?? this.hourlyRateSnapshot,
       hasDeposit: hasDeposit ?? this.hasDeposit,
       depositAmount: depositAmount ?? this.depositAmount,
       createdAt: createdAt ?? this.createdAt,
@@ -239,6 +255,10 @@ class BorrowRequest {
           data['hasUsageFee'] as bool? ??
           ((_toDouble(data['usageFeeAmount']) ?? 0) > 0),
       usageFeeAmount: _toDouble(data['usageFeeAmount']),
+      rentalMode: (data['rentalMode'] as String?) ?? '',
+      rentalUnitCount: _toInt(data['rentalUnitCount'], fallback: 1),
+      dailyRateSnapshot: _toDouble(data['dailyRateSnapshot']),
+      hourlyRateSnapshot: _toDouble(data['hourlyRateSnapshot']),
       hasDeposit:
           data['hasDeposit'] as bool? ??
           ((_toDouble(data['depositAmount']) ?? 0) > 0),
@@ -295,6 +315,10 @@ class BorrowRequest {
       'returnCode': returnCode.isEmpty ? null : returnCode,
       'hasUsageFee': hasUsageFee,
       'usageFeeAmount': hasUsageFee ? usageFeeAmount : null,
+      'rentalMode': rentalMode,
+      'rentalUnitCount': rentalUnitCount,
+      'dailyRateSnapshot': hasUsageFee ? dailyRateSnapshot : null,
+      'hourlyRateSnapshot': hasUsageFee ? hourlyRateSnapshot : null,
       'hasDeposit': hasDeposit,
       'depositAmount': hasDeposit ? depositAmount : null,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -366,6 +390,13 @@ class BorrowRequest {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
+  }
+
+  static int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
   }
 
   static String _parseDepositDecision(Map<String, dynamic> data) {

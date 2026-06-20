@@ -148,6 +148,10 @@ class AppConstants {
   static const String reviewStatusHidden = 'hidden';
   static const String reviewStatusPublished = 'published';
 
+  // Marketplace pricing
+  static const String rentalModeDaily = 'daily';
+  static const String rentalModeHourly = 'hourly';
+
   // Reports / disputes (Phase 6)
   static const String reportTypeDamagedItem = 'damagedItem';
   static const String reportTypeLostItem = 'lostItem';

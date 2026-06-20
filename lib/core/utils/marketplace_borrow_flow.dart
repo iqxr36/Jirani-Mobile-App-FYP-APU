@@ -6,6 +6,8 @@ import 'package:jirani/shared/models/borrow_request.dart';
 class MarketplaceBorrowFlow {
   MarketplaceBorrowFlow._();
 
+  static const int hourlyBillingHoursPerDay = 8;
+
   static int dailyDurationDays(DateTime start, DateTime end) {
     final normalizedStart = DateTime(start.year, start.month, start.day);
     final normalizedEnd = DateTime(end.year, end.month, end.day);
@@ -18,7 +20,26 @@ class MarketplaceBorrowFlow {
     required DateTime start,
     required DateTime end,
   }) {
-    return dailyFee * dailyDurationDays(start, end);
+    return max(0.0, dailyFee) * dailyDurationDays(start, end);
+  }
+
+  static double derivedHourlyRate(double dailyFee) {
+    if (dailyFee <= 0) return 0;
+    return dailyFee / hourlyBillingHoursPerDay;
+  }
+
+  static double hourlyUsageFee({required double dailyFee, required int hours}) {
+    final normalizedDailyFee = max(0.0, dailyFee);
+    final normalizedHours = max(1, hours);
+    final rawHourlyTotal =
+        derivedHourlyRate(normalizedDailyFee) * normalizedHours;
+    return min(rawHourlyTotal, normalizedDailyFee);
+  }
+
+  static int hourlyDurationHours(DateTime start, DateTime end) {
+    final minutes = end.difference(start).inMinutes;
+    if (minutes <= 0) return 1;
+    return (minutes / 60).ceil();
   }
 
   static double totalDue({double? usageFee, double? deposit}) {

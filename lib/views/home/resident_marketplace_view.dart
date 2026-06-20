@@ -459,12 +459,12 @@ class MarketplaceItemDetailView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: _AmountTile(
-                                label: 'Borrowing Fee',
+                                label: 'Daily Fee',
                                 value: item.hasUsageFee
                                     ? _money(item.feeAmount)
                                     : 'Free',
                                 helper: item.hasUsageFee
-                                    ? 'Base rate'
+                                    ? 'Hourly is derived and capped'
                                     : 'No fee',
                               ),
                             ),
@@ -1926,7 +1926,9 @@ class _MarketplaceCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        item.hasUsageFee ? _money(item.feeAmount) : 'Free',
+                        item.hasUsageFee
+                            ? '${_money(item.feeAmount)} / day'
+                            : 'Free',
                         style: const TextStyle(
                           color: _kBrandTeal,
                           fontSize: 15,
@@ -2186,20 +2188,35 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
       MarketplaceBorrowFlow.dailyDurationDays(_startDate, _endDate);
 
   int get _hourlyDuration {
-    final startMinutes = (_startTime.hour * 60) + _startTime.minute;
-    final endMinutes = (_endTime.hour * 60) + _endTime.minute;
-    final minutes = endMinutes - startMinutes;
-    if (minutes <= 0) return 1;
-    return (minutes / 60).ceil();
+    return MarketplaceBorrowFlow.hourlyDurationHours(
+      DateTime(0, 1, 1, _startTime.hour, _startTime.minute),
+      DateTime(0, 1, 1, _endTime.hour, _endTime.minute),
+    );
   }
+
+  double get _dailyRate =>
+      widget.item.hasUsageFee ? widget.item.feeAmount ?? 0 : 0;
+
+  double get _hourlyRate => MarketplaceBorrowFlow.derivedHourlyRate(_dailyRate);
 
   double get _usageFee {
     if (!widget.item.hasUsageFee) return 0;
-    final rate = widget.item.feeAmount ?? 0;
     return _mode == _RentalMode.daily
-        ? rate * _dailyDuration
-        : rate * _hourlyDuration;
+        ? MarketplaceBorrowFlow.dailyUsageFee(
+            dailyFee: _dailyRate,
+            start: _startDate,
+            end: _endDate,
+          )
+        : MarketplaceBorrowFlow.hourlyUsageFee(
+            dailyFee: _dailyRate,
+            hours: _hourlyDuration,
+          );
   }
+
+  bool get _hourlyFeeCapped =>
+      _mode == _RentalMode.hourly &&
+      widget.item.hasUsageFee &&
+      _hourlyRate * _hourlyDuration > _dailyRate;
 
   double get _deposit =>
       widget.item.hasDeposit ? widget.item.depositAmount ?? 0 : 0;
@@ -2240,7 +2257,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Select your start and end dates',
+              'Daily fee is set by the lender. Hourly borrowing is calculated from that daily price.',
               style: TextStyle(
                 color: _kMutedText,
                 fontSize: 12,
@@ -2312,6 +2329,19 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               _SummaryRow(label: 'Duration', value: _durationLabel),
             ],
             const SizedBox(height: 12),
+            if (widget.item.hasUsageFee) ...[
+              _SummaryRow(label: 'Daily rate', value: _money(_dailyRate)),
+              const SizedBox(height: 8),
+              _SummaryRow(
+                label: 'Hourly rate',
+                value: '${_money(_hourlyRate)} / hour',
+              ),
+              if (_mode == _RentalMode.hourly) ...[
+                const SizedBox(height: 8),
+                _PricingNote(capped: _hourlyFeeCapped),
+              ],
+              const SizedBox(height: 12),
+            ],
             TextField(
               controller: _messageController,
               minLines: 2,
@@ -2322,7 +2352,14 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            _SummaryRow(label: 'Item fee', value: _money(_usageFee)),
+            _SummaryRow(
+              label: _mode == _RentalMode.daily
+                  ? 'Item fee'
+                  : _hourlyFeeCapped
+                  ? 'Item fee (daily cap)'
+                  : 'Item fee',
+              value: _money(_usageFee),
+            ),
             const SizedBox(height: 8),
             _SummaryRow(label: 'Refundable deposit', value: _money(_deposit)),
             const Divider(height: 26),
@@ -2446,6 +2483,14 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
       pickupTime: pickupTime,
       message: _messageController.text,
       usageFeeAmount: _usageFee,
+      rentalMode: _mode == _RentalMode.daily
+          ? AppConstants.rentalModeDaily
+          : AppConstants.rentalModeHourly,
+      rentalUnitCount: _mode == _RentalMode.daily
+          ? _dailyDuration
+          : _hourlyDuration,
+      dailyRateSnapshot: widget.item.hasUsageFee ? _dailyRate : null,
+      hourlyRateSnapshot: widget.item.hasUsageFee ? _hourlyRate : null,
     );
 
     if (!mounted) return;
@@ -2493,6 +2538,48 @@ class _ModeSelector extends StatelessWidget {
               label: 'Hourly',
               selected: selected == _RentalMode.hourly,
               onTap: () => onChanged(_RentalMode.hourly),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PricingNote extends StatelessWidget {
+  const _PricingNote({required this.capped});
+
+  final bool capped;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            capped ? Icons.savings_outlined : Icons.schedule_rounded,
+            color: _kBrandTeal,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              capped
+                  ? 'Hourly total reached the same-day daily cap, so you will not pay more than the daily rate.'
+                  : 'Hourly borrowing uses the daily fee divided by ${MarketplaceBorrowFlow.hourlyBillingHoursPerDay}.',
+              style: const TextStyle(
+                color: _kInk,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
+              ),
             ),
           ),
         ],

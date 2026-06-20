@@ -36,6 +36,10 @@ class BorrowRequestService {
     required String pickupTime,
     required String message,
     double? usageFeeAmount,
+    String rentalMode = '',
+    int rentalUnitCount = 1,
+    double? dailyRateSnapshot,
+    double? hourlyRateSnapshot,
   }) async {
     if (borrower.uid == item.ownerId) {
       throw Exception('You cannot borrow your own item.');
@@ -68,6 +72,27 @@ class BorrowRequestService {
         throw Exception('You already have a pending request for this item.');
       }
 
+      final resolvedRentalMode = rentalMode == AppConstants.rentalModeHourly
+          ? AppConstants.rentalModeHourly
+          : AppConstants.rentalModeDaily;
+      final resolvedUnitCount = rentalUnitCount < 1 ? 1 : rentalUnitCount;
+      final dailyRate = item.hasUsageFee ? item.feeAmount ?? 0 : null;
+      final hourlyRate = item.hasUsageFee
+          ? MarketplaceBorrowFlow.derivedHourlyRate(dailyRate ?? 0)
+          : null;
+      final resolvedUsageFee = item.hasUsageFee
+          ? resolvedRentalMode == AppConstants.rentalModeHourly
+                ? MarketplaceBorrowFlow.hourlyUsageFee(
+                    dailyFee: dailyRate ?? 0,
+                    hours: resolvedUnitCount,
+                  )
+                : MarketplaceBorrowFlow.dailyUsageFee(
+                    dailyFee: dailyRate ?? 0,
+                    start: requestedStartDate,
+                    end: expectedReturnDate,
+                  )
+          : null;
+
       final now = FieldValue.serverTimestamp();
       final doc = _requests.doc();
       await doc.set({
@@ -95,12 +120,14 @@ class BorrowRequestService {
         'chatId': '',
         'handoverCode': '',
         'returnCode': '',
-        'usageFeeAmount': item.hasUsageFee
-            ? (usageFeeAmount ?? item.feeAmount)
-            : null,
+        'usageFeeAmount': resolvedUsageFee,
         'depositAmount': item.hasDeposit ? item.depositAmount : null,
         'hasUsageFee': item.hasUsageFee,
         'hasDeposit': item.hasDeposit,
+        'rentalMode': resolvedRentalMode,
+        'rentalUnitCount': resolvedUnitCount,
+        'dailyRateSnapshot': dailyRateSnapshot ?? dailyRate,
+        'hourlyRateSnapshot': hourlyRateSnapshot ?? hourlyRate,
         'createdAt': now,
         'updatedAt': now,
         'approvedAt': null,

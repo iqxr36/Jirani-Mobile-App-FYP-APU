@@ -446,6 +446,182 @@ service cloud.firestore {
         request.resource.data.updatedAt == request.time;
     }
 
+    function approxEqual(value, expected) {
+      return value is number &&
+        expected is number &&
+        value >= expected - 0.01 &&
+        value <= expected + 0.01;
+    }
+
+    function validBorrowRequestCreate(requestId, data) {
+      return isVerifiedResident() &&
+        data.itemId is string &&
+        exists(/databases/$(database)/documents/items/$(data.itemId)) &&
+        validBorrowRequestCreateForItem(
+          requestId,
+          data,
+          get(/databases/$(database)/documents/items/$(data.itemId)).data
+        );
+    }
+
+    function validBorrowRequestCreateForItem(requestId, data, itemData) {
+      return data.keys().hasOnly([
+          'id',
+          'itemId',
+          'itemTitle',
+          'itemImageUrl',
+          'ownerId',
+          'ownerName',
+          'ownerEmail',
+          'borrowerId',
+          'borrowerName',
+          'borrowerEmail',
+          'borrowerPhoneNumber',
+          'borrowerVerified',
+          'borrowerReputationScore',
+          'requestedStartDate',
+          'expectedReturnDate',
+          'pickupTime',
+          'message',
+          'status',
+          'paymentStatus',
+          'paymentCompletedAt',
+          'paymentProvider',
+          'chatId',
+          'handoverCode',
+          'returnCode',
+          'usageFeeAmount',
+          'depositAmount',
+          'hasUsageFee',
+          'hasDeposit',
+          'rentalMode',
+          'rentalUnitCount',
+          'dailyRateSnapshot',
+          'hourlyRateSnapshot',
+          'createdAt',
+          'updatedAt',
+          'approvedAt',
+          'rejectedAt',
+          'rejectionReason',
+          'pickupConfirmedAt',
+          'handoverConfirmedAt',
+          'returnSubmittedAt',
+          'returnConfirmedAt',
+          'completedAt',
+          'pickupProofImageUrl',
+          'handoverProofImageUrl',
+          'returnProofImageUrl',
+          'itemConditionBefore',
+          'itemConditionAfter',
+          'returnNotes',
+          'ownerReturnNotes',
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+        ]) &&
+        data.id == requestId &&
+        data.borrowerId == request.auth.uid &&
+        data.ownerId == itemData.ownerId &&
+        data.ownerId != request.auth.uid &&
+        data.itemTitle == itemData.title &&
+        data.ownerName == itemData.ownerName &&
+        data.ownerEmail == itemData.ownerEmail &&
+        itemData.status == 'available' &&
+        itemData.isArchived != true &&
+        data.requestedStartDate is timestamp &&
+        data.expectedReturnDate is timestamp &&
+        data.requestedStartDate <= data.expectedReturnDate &&
+        data.pickupTime is string &&
+        data.message is string &&
+        data.status == 'pending' &&
+        data.paymentStatus == 'pending' &&
+        data.paymentCompletedAt == null &&
+        data.paymentProvider == '' &&
+        data.chatId == '' &&
+        data.handoverCode == '' &&
+        data.returnCode == '' &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time &&
+        data.approvedAt == null &&
+        data.rejectedAt == null &&
+        data.rejectionReason == '' &&
+        data.pickupConfirmedAt == null &&
+        data.handoverConfirmedAt == null &&
+        data.returnSubmittedAt == null &&
+        data.returnConfirmedAt == null &&
+        data.completedAt == null &&
+        data.pickupProofImageUrl == null &&
+        data.handoverProofImageUrl == null &&
+        data.returnProofImageUrl == null &&
+        data.itemConditionBefore == null &&
+        data.itemConditionAfter == null &&
+        data.returnNotes == '' &&
+        data.ownerReturnNotes == '' &&
+        data.depositDecisionReason == '' &&
+        data.depositDecidedAt == null &&
+        validBorrowRequestCreateDeposit(data, itemData) &&
+        validBorrowRequestCreatePricing(data, itemData);
+    }
+
+    function validBorrowRequestCreateDeposit(data, itemData) {
+      return (
+          itemData.hasDeposit != true &&
+          data.hasDeposit == false &&
+          data.depositAmount == null &&
+          data.depositDecision == 'notRequired'
+        ) ||
+        (
+          itemData.hasDeposit == true &&
+          data.hasDeposit == true &&
+          approxEqual(data.depositAmount, itemData.depositAmount) &&
+          data.depositDecision == 'pending'
+        );
+    }
+
+    function validBorrowRequestCreatePricing(data, itemData) {
+      return data.rentalMode in ['daily', 'hourly'] &&
+        data.rentalUnitCount is int &&
+        data.rentalUnitCount >= 1 &&
+        (
+          (
+            itemData.hasUsageFee != true &&
+            data.hasUsageFee == false &&
+            data.usageFeeAmount == null &&
+            data.dailyRateSnapshot == null &&
+            data.hourlyRateSnapshot == null
+          ) ||
+          (
+            itemData.hasUsageFee == true &&
+            data.hasUsageFee == true &&
+            itemData.feeAmount is number &&
+            approxEqual(data.dailyRateSnapshot, itemData.feeAmount) &&
+            approxEqual(data.hourlyRateSnapshot, itemData.feeAmount / 8) &&
+            (
+              (
+                data.rentalMode == 'daily' &&
+                approxEqual(
+                  data.usageFeeAmount,
+                  itemData.feeAmount * data.rentalUnitCount
+                )
+              ) ||
+              (
+                data.rentalMode == 'hourly' &&
+                data.rentalUnitCount >= 8 &&
+                approxEqual(data.usageFeeAmount, itemData.feeAmount)
+              ) ||
+              (
+                data.rentalMode == 'hourly' &&
+                data.rentalUnitCount < 8 &&
+                approxEqual(
+                  data.usageFeeAmount,
+                  (itemData.feeAmount / 8) * data.rentalUnitCount
+                )
+              )
+            )
+          )
+        );
+    }
+
     function validBorrowRequestUpdate() {
       return ownerCanApproveBorrowRequest() ||
         ownerCanRejectBorrowRequest() ||
@@ -712,8 +888,7 @@ service cloud.firestore {
            resource.data.ownerId == request.auth.uid)
         );
 
-      allow create: if isVerifiedResident() &&
-        request.resource.data.borrowerId == request.auth.uid;
+      allow create: if validBorrowRequestCreate(requestId, request.resource.data);
 
       allow update: if isAdmin() || validBorrowRequestUpdate();
     }

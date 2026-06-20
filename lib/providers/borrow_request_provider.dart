@@ -76,6 +76,10 @@ class BorrowRequestProvider extends ChangeNotifier {
     required String pickupTime,
     required String message,
     double? usageFeeAmount,
+    String rentalMode = '',
+    int rentalUnitCount = 1,
+    double? dailyRateSnapshot,
+    double? hourlyRateSnapshot,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -89,6 +93,10 @@ class BorrowRequestProvider extends ChangeNotifier {
         pickupTime: pickupTime,
         message: message,
         usageFeeAmount: usageFeeAmount,
+        rentalMode: rentalMode,
+        rentalUnitCount: rentalUnitCount,
+        dailyRateSnapshot: dailyRateSnapshot,
+        hourlyRateSnapshot: hourlyRateSnapshot,
       );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

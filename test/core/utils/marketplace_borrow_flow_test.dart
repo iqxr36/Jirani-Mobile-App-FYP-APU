@@ -22,6 +22,25 @@ void main() {
       );
     });
 
+    test(
+      'derives hourly rate from daily fee and caps same-day hourly total',
+      () {
+        expect(MarketplaceBorrowFlow.derivedHourlyRate(80), 10);
+        expect(
+          MarketplaceBorrowFlow.hourlyUsageFee(dailyFee: 80, hours: 2),
+          20,
+        );
+        expect(
+          MarketplaceBorrowFlow.hourlyUsageFee(dailyFee: 80, hours: 12),
+          80,
+        );
+        expect(
+          MarketplaceBorrowFlow.hourlyUsageFee(dailyFee: 80, hours: 0),
+          10,
+        );
+      },
+    );
+
     test('total due includes fee and deposit without negative amounts', () {
       expect(MarketplaceBorrowFlow.totalDue(usageFee: 75, deposit: 50), 125);
       expect(MarketplaceBorrowFlow.totalDue(usageFee: -20, deposit: 50), 50);
