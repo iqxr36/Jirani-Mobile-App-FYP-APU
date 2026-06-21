@@ -668,6 +668,43 @@ service cloud.firestore {
       );
     }
 
+    function validBorrowCompletionCounterUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let requestId = request.resource.data.lastCompletedBorrowRequestId;
+      let requestPath = /databases/$(database)/documents/borrowRequests/$(requestId);
+      let borrowData = getAfter(requestPath).data;
+      return signedIn() &&
+        changed.hasOnly([
+          'completedBorrowings',
+          'completedLendings',
+          'lastCompletedBorrowRequestId',
+          'updatedAt',
+        ]) &&
+        requestId is string &&
+        existsAfter(requestPath) &&
+        borrowData.status == 'completed' &&
+        borrowData.completedAt == request.time &&
+        borrowData.returnConfirmedAt == request.time &&
+        borrowData.ownerId == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (
+            borrowData.ownerId == userId &&
+            request.resource.data.completedLendings ==
+              resource.data.completedLendings + 1 &&
+            request.resource.data.completedBorrowings ==
+              resource.data.completedBorrowings
+          ) ||
+          (
+            borrowData.borrowerId == userId &&
+            request.resource.data.completedBorrowings ==
+              resource.data.completedBorrowings + 1 &&
+            request.resource.data.completedLendings ==
+              resource.data.completedLendings
+          )
+        );
+    }
+
     function ownProfileImageUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -743,7 +780,15 @@ service cloud.firestore {
     function validReviewPublishUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let borrowData = get(/databases/$(database)/documents/borrowRequests/$(resource.data.borrowRequestId)).data;
+      let bothReviewsSubmitted =
+        borrowData.borrowerReviewSubmitted == true &&
+        borrowData.ownerReviewSubmitted == true;
+      let graceExpired =
+        resource.data.publishAfter is timestamp &&
+        resource.data.publishAfter <= request.time;
       return signedIn() &&
+        borrowData.status == 'completed' &&
+        resource.data.borrowRequestId is string &&
         resource.data.visible == false &&
         resource.data.status == 'hidden' &&
         changed.hasOnly([
@@ -757,7 +802,12 @@ service cloud.firestore {
         (
           request.auth.uid == borrowData.borrowerId ||
           request.auth.uid == borrowData.ownerId
-        );
+        ) &&
+        (
+          bothReviewsSubmitted ||
+          graceExpired
+        ) &&
+        validCompletedBorrowReview(resource.data);
     }
 
     function validRevieweeReputationUpdate(userId) {
@@ -811,6 +861,7 @@ service cloud.firestore {
 
       allow update: if isAdmin() ||
         (isOwner(uid) && ownSafeUserUpdate()) ||
+        validBorrowCompletionCounterUpdate(uid) ||
         validRevieweeReputationUpdate(uid);
       allow delete: if isAdmin();
     }

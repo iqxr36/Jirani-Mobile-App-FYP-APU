@@ -622,6 +622,8 @@ class BorrowRequestService {
       final itemRef = _firestore
           .collection(AppConstants.itemsCollection)
           .doc(request.itemId);
+      final ownerRef = _users.doc(request.ownerId);
+      final borrowerRef = _users.doc(request.borrowerId);
       batch.update(requestRef, {
         'status': AppConstants.borrowStatusCompleted,
         'returnConfirmedAt': FieldValue.serverTimestamp(),
@@ -637,6 +639,16 @@ class BorrowRequestService {
       });
       batch.update(itemRef, {
         'status': AppConstants.itemStatusAvailable,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      batch.update(ownerRef, {
+        'completedLendings': FieldValue.increment(1),
+        'lastCompletedBorrowRequestId': request.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      batch.update(borrowerRef, {
+        'completedBorrowings': FieldValue.increment(1),
+        'lastCompletedBorrowRequestId': request.id,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       await batch.commit();

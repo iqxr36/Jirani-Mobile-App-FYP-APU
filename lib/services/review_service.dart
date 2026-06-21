@@ -344,29 +344,32 @@ class ReviewService {
     if (uid == null) return;
 
     final reportRef = _reports.doc(reportId);
-    final existing = await reportRef.get();
-    if (existing.exists) return;
-
     final reporterSnap = await _users.doc(uid).get();
     final reporter = reporterSnap.data();
     if (reporter == null) return;
 
-    await reportRef.set({
-      'type': type,
-      'relatedBorrowRequestId': relatedBorrowRequestId,
-      'itemId': itemId,
-      'reporterId': uid,
-      'reporterName': _displayName(reporter),
-      'reportedUserId': reportedUserId,
-      'reportedUserName': reportedUserName,
-      'communityId': (reporter['communityId'] as String?) ?? '',
-      'communityName': (reporter['communityName'] as String?) ?? '',
-      'title': title,
-      'description': description,
-      'status': AppConstants.reportStatusOpen,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await reportRef.set({
+        'type': type,
+        'relatedBorrowRequestId': relatedBorrowRequestId,
+        'itemId': itemId,
+        'reporterId': uid,
+        'reporterName': _displayName(reporter),
+        'reportedUserId': reportedUserId,
+        'reportedUserName': reportedUserName,
+        'communityId': (reporter['communityId'] as String?) ?? '',
+        'communityName': (reporter['communityName'] as String?) ?? '',
+        'title': title,
+        'description': description,
+        'status': AppConstants.reportStatusOpen,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' && e.code != 'already-exists') {
+        rethrow;
+      }
+    }
   }
 
   _Reviewee _resolveReviewee({

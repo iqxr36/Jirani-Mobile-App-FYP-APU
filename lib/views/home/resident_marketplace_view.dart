@@ -18,6 +18,7 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/chat/resident_chat_thread_view.dart';
 import 'package:jirani/views/marketplace/resident_item_listing_view.dart';
+import 'package:jirani/views/profile/public_resident_profile_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -490,7 +491,17 @@ class MarketplaceItemDetailView extends StatelessWidget {
                           children: [
                             const _SectionLabel('Lender'),
                             const SizedBox(height: 10),
-                            _OwnerRow(item: item),
+                            _OwnerRow(
+                              item: item,
+                              onTap: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => PublicResidentProfileView(
+                                    userId: item.ownerId,
+                                    fallbackName: item.ownerName,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -591,7 +602,6 @@ class _MarketplaceTransactionViewState
   _PaymentMethod _paymentMethod = _PaymentMethod.googlePay;
   int _rating = 5;
   bool _localReviewSubmitted = false;
-  String? _reviewReleaseCheckedRequestId;
 
   @override
   void dispose() {
@@ -616,7 +626,6 @@ class _MarketplaceTransactionViewState
     final user = context.watch<AuthViewModel>().currentUser;
     final requestProvider = context.watch<BorrowRequestProvider>();
     final request = _currentRequest(requestProvider);
-    _publishEligibleReviewsOnce(request);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -816,21 +825,6 @@ class _MarketplaceTransactionViewState
     }
   }
 
-  void _publishEligibleReviewsOnce(BorrowRequest request) {
-    if (request.status != AppConstants.borrowStatusCompleted ||
-        _reviewReleaseCheckedRequestId == request.id) {
-      return;
-    }
-    _reviewReleaseCheckedRequestId = request.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(
-        context.read<ReviewProvider>().publishEligibleReviewsForBorrowRequest(
-          request,
-        ),
-      );
-    });
-  }
 }
 
 class _TransactionBody extends StatelessWidget {
@@ -1624,9 +1618,12 @@ class _TransactionHeader extends StatelessWidget {
           const SizedBox(width: 8),
           TextButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Lender profile view is coming soon.'),
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => PublicResidentProfileView(
+                    userId: request.ownerId,
+                    fallbackName: request.ownerName,
+                  ),
                 ),
               );
             },
@@ -2073,55 +2070,70 @@ class _ImagePlaceholder extends StatelessWidget {
 }
 
 class _OwnerRow extends StatelessWidget {
-  const _OwnerRow({required this.item});
+  const _OwnerRow({required this.item, required this.onTap});
 
   final ItemModel item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          _Avatar(
-            photoUrl: item.ownerPhotoUrl,
-            name: item.ownerName,
-            radius: 22,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.ownerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kInk,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
+          child: Row(
+            children: [
+              _Avatar(
+                photoUrl: item.ownerPhotoUrl,
+                name: item.ownerName,
+                radius: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.ownerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      '${item.ownerVerified ? 'Verified resident' : 'Resident'} - ${item.ownerReputationScore.toStringAsFixed(1)} rating',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kMutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  '${item.ownerVerified ? 'Verified resident' : 'Resident'} · ${item.ownerReputationScore.toStringAsFixed(1)} rating',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kMutedText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: _kMutedText,
+                size: 22,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

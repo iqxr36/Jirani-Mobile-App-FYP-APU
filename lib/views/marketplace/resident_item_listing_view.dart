@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -20,6 +19,7 @@ import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/chat/resident_chat_thread_view.dart';
+import 'package:jirani/views/profile/public_resident_profile_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -265,6 +265,8 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
               child: _IncomingRequestCard(
                 request: request,
                 onOpen: () => _openRequestDetail(context, request),
+                onViewBorrowerProfile: () =>
+                    _openBorrowerProfile(context, request),
                 onApprove: user == null || !_requestIsPending(request)
                     ? null
                     : () => _approveRequest(context, request, user),
@@ -322,6 +324,17 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
       MaterialPageRoute<void>(
         builder: (_) =>
             ResidentLenderRequestDetailView(initialRequest: request),
+      ),
+    );
+  }
+
+  void _openBorrowerProfile(BuildContext context, BorrowRequest request) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicResidentProfileView(
+          userId: request.borrowerId,
+          fallbackName: request.borrowerName,
+        ),
       ),
     );
   }
@@ -390,7 +403,6 @@ class _ResidentLenderRequestDetailViewState
   String _depositDecision = AppConstants.depositDecisionReturnDeposit;
   int _rating = 5;
   bool _localReviewSubmitted = false;
-  String? _reviewReleaseCheckedRequestId;
   XFile? _handoverProof;
 
   @override
@@ -400,6 +412,17 @@ class _ResidentLenderRequestDetailViewState
     _depositReasonController.dispose();
     _reviewController.dispose();
     super.dispose();
+  }
+
+  void _openBorrowerProfile(BorrowRequest request) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicResidentProfileView(
+          userId: request.borrowerId,
+          fallbackName: request.borrowerName,
+        ),
+      ),
+    );
   }
 
   @override
@@ -423,7 +446,6 @@ class _ResidentLenderRequestDetailViewState
                   !pending &&
                   request.status != AppConstants.borrowStatusRejected &&
                   request.status != AppConstants.borrowStatusCancelled;
-              _publishEligibleReviewsOnce(request);
               return CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
@@ -511,6 +533,15 @@ class _ResidentLenderRequestDetailViewState
                                       child: _BorrowerSummary(request: request),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 10),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _TinyTextButton(
+                                    label: 'View Profile',
+                                    icon: Icons.person_search_rounded,
+                                    onTap: () => _openBorrowerProfile(request),
+                                  ),
                                 ),
                               ],
                             ),
@@ -885,21 +916,6 @@ class _ResidentLenderRequestDetailViewState
     }
   }
 
-  void _publishEligibleReviewsOnce(BorrowRequest request) {
-    if (request.status != AppConstants.borrowStatusCompleted ||
-        _reviewReleaseCheckedRequestId == request.id) {
-      return;
-    }
-    _reviewReleaseCheckedRequestId = request.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(
-        context.read<ReviewProvider>().publishEligibleReviewsForBorrowRequest(
-          request,
-        ),
-      );
-    });
-  }
 }
 
 class _LenderTransactionBody extends StatelessWidget {
@@ -2922,12 +2938,14 @@ class _IncomingRequestCard extends StatelessWidget {
   const _IncomingRequestCard({
     required this.request,
     required this.onOpen,
+    required this.onViewBorrowerProfile,
     required this.onApprove,
     required this.onReject,
   });
 
   final BorrowRequest request;
   final VoidCallback onOpen;
+  final VoidCallback onViewBorrowerProfile;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
 
@@ -2951,9 +2969,20 @@ class _IncomingRequestCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(child: _BorrowerSummary(request: request)),
                   const SizedBox(width: 8),
-                  _StatusPill(
-                    label: _requestStatusLabel(request),
-                    tone: _requestStatusTone(request),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _StatusPill(
+                        label: _requestStatusLabel(request),
+                        tone: _requestStatusTone(request),
+                      ),
+                      const SizedBox(height: 8),
+                      _TinyTextButton(
+                        label: 'Profile',
+                        icon: Icons.person_search_rounded,
+                        onTap: onViewBorrowerProfile,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -3547,6 +3576,50 @@ class _DangerButton extends StatelessWidget {
 
 class _DangerColors {
   static const Color surface = Color(0xFFFFF1F2);
+}
+
+class _TinyTextButton extends StatelessWidget {
+  const _TinyTextButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _kBrandTeal.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: _kBrandTeal),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _kBrandTeal,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CircleIconButton extends StatelessWidget {

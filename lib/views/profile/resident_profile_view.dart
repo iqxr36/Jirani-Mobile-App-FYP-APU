@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
@@ -165,23 +167,31 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ProfileCard(
+                  _ProfileStatsBuilder(
                     user: user,
-                    onEditProfile: () => _showUnavailable('Edit Profile'),
-                    onChangePhoto: user == null ? null : _changeProfileImage,
-                    isPhotoUpdating: _profileImageSaving,
-                    onVerificationStatus: _openVerificationProcess,
-                    onVerifyEmail: user == null || user.emailVerified
-                        ? null
-                        : () => _openEmailVerification(user),
-                    onVerifyPhone: user == null || user.phoneVerified
-                        ? null
-                        : () => _openPhoneVerification(user),
-                    onMyItems: _openMyItems,
-                    onRatings: _openRatings,
-                    onMyServices: () => _showUnavailable('My Services'),
-                    onSettings: _openSettings,
-                    onLogout: _logout,
+                    builder: (context, counts) {
+                      return _ProfileCard(
+                        user: user,
+                        marketplaceCounts: counts,
+                        onEditProfile: () => _showUnavailable('Edit Profile'),
+                        onChangePhoto: user == null
+                            ? null
+                            : _changeProfileImage,
+                        isPhotoUpdating: _profileImageSaving,
+                        onVerificationStatus: _openVerificationProcess,
+                        onVerifyEmail: user == null || user.emailVerified
+                            ? null
+                            : () => _openEmailVerification(user),
+                        onVerifyPhone: user == null || user.phoneVerified
+                            ? null
+                            : () => _openPhoneVerification(user),
+                        onMyItems: _openMyItems,
+                        onRatings: _openRatings,
+                        onMyServices: () => _showUnavailable('My Services'),
+                        onSettings: _openSettings,
+                        onLogout: _logout,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -193,9 +203,70 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   }
 }
 
+class _ProfileMarketplaceCounts {
+  const _ProfileMarketplaceCounts({
+    required this.borrowed,
+    required this.lent,
+  });
+
+  final int borrowed;
+  final int lent;
+}
+
+class _ProfileStatsBuilder extends StatelessWidget {
+  const _ProfileStatsBuilder({
+    required this.user,
+    required this.builder,
+  });
+
+  final AppUser? user;
+  final Widget Function(BuildContext context, _ProfileMarketplaceCounts? counts)
+  builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = user;
+    if (currentUser == null) return builder(context, null);
+
+    final requests = FirebaseFirestore.instance.collection(
+      AppConstants.borrowRequestsCollection,
+    );
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: requests
+          .where('borrowerId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: AppConstants.borrowStatusCompleted)
+          .snapshots(),
+      builder: (context, borrowedSnapshot) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: requests
+              .where('ownerId', isEqualTo: currentUser.uid)
+              .where('status', isEqualTo: AppConstants.borrowStatusCompleted)
+              .snapshots(),
+          builder: (context, lentSnapshot) {
+            final liveCountsAvailable =
+                borrowedSnapshot.hasData && lentSnapshot.hasData;
+            final counts = liveCountsAvailable
+                ? _ProfileMarketplaceCounts(
+                    borrowed: borrowedSnapshot.data!.docs.length,
+                    lent: lentSnapshot.data!.docs.length,
+                  )
+                : _ProfileMarketplaceCounts(
+                    borrowed: currentUser.completedBorrowings,
+                    lent: currentUser.completedLendings,
+                  );
+            return builder(context, counts);
+          },
+        );
+      },
+    );
+  }
+}
+
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.user,
+    required this.marketplaceCounts,
     required this.onEditProfile,
     required this.onChangePhoto,
     required this.isPhotoUpdating,
@@ -210,6 +281,7 @@ class _ProfileCard extends StatelessWidget {
   });
 
   final AppUser? user;
+  final _ProfileMarketplaceCounts? marketplaceCounts;
   final VoidCallback onEditProfile;
   final VoidCallback? onChangePhoto;
   final bool isPhotoUpdating;
@@ -343,12 +415,12 @@ class _ProfileCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _MetricChip(
-                value: '${user?.completedBorrowings ?? 0}',
+                value: '${marketplaceCounts?.borrowed ?? 0}',
                 label: 'Borrowed',
               ),
               const SizedBox(width: 8),
               _MetricChip(
-                value: '${user?.completedLendings ?? 0}',
+                value: '${marketplaceCounts?.lent ?? 0}',
                 label: 'Lent',
               ),
               const SizedBox(width: 8),
