@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/verification/verification_permission_flow_view.dart';
@@ -23,21 +24,21 @@ class AccountCreatedView extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard() {
+  Widget _buildStatusCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ResidentIcon(),
-            SizedBox(height: 12),
-            Text(
+            const _ResidentIcon(),
+            const SizedBox(height: 12),
+            const Text(
               'Account Created!',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -46,23 +47,23 @@ class AccountCreatedView extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 40),
+            const SizedBox(height: 40),
             Text(
               'Confirm your community location to\nenter restricted access.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.black,
+                color: context.appInk,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Full access unlocks after admin\napproval of your documents.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.black,
+                color: context.appInk,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
@@ -142,7 +143,7 @@ class AccountCreatedView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildStatusCard(),
+                        _buildStatusCard(context),
                         const Spacer(),
                         const SizedBox(height: 32),
                         _buildStartButton(context, viewModel),
@@ -170,8 +171,8 @@ class _ResidentIcon extends StatelessWidget {
       height: 76,
       width: 76,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Color(0xFFCFE5E9),
+        decoration: BoxDecoration(
+          color: context.avatarPlaceholder,
           shape: BoxShape.circle,
         ),
         child: Stack(
@@ -186,7 +187,7 @@ class _ResidentIcon extends StatelessWidget {
               right: 13,
               top: 23,
               child: Container(
-                color: const Color(0xFFCFE5E9),
+                color: context.avatarPlaceholder,
                 width: 19,
                 height: 19,
                 child: const Icon(Icons.add, color: _kBrandTeal, size: 19),

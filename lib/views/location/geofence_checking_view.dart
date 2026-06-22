@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/services/community_service.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -138,20 +139,20 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     );
   }
 
-  Widget _buildCheckingStatusCard() {
+  Widget _buildCheckingStatusCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Text(
           'Comparing your current location with\n$_selectedCommunityName...',
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: context.appInk,
             fontSize: 14,
             fontWeight: FontWeight.w500,
             height: 1.25,
@@ -161,16 +162,16 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     );
   }
 
-  Widget _buildErrorCard() {
+  Widget _buildErrorCard(BuildContext context) {
     final message =
         _error?.replaceFirst('Exception: ', '') ??
         'Could not check your location.';
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -180,7 +181,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, height: 1.3),
+              style: TextStyle(fontSize: 13, height: 1.3, color: context.appInk),
             ),
             const SizedBox(height: 14),
             SizedBox(
@@ -232,12 +233,12 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text(
+                  Text(
                     'Please wait while we check if you are within\n'
                     'your selected community area.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.black,
+                      color: context.appInk,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       height: 1.25,
@@ -245,9 +246,9 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
                   ),
                   const SizedBox(height: 14),
                   if (_error == null)
-                    _buildCheckingStatusCard()
+                    _buildCheckingStatusCard(context)
                   else
-                    _buildErrorCard(),
+                    _buildErrorCard(context),
                 ],
               ),
             ),

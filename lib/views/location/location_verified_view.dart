@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
@@ -42,12 +43,12 @@ class LocationVerifiedView extends StatelessWidget {
     );
   }
 
-  Widget _buildResultCard() {
+  Widget _buildResultCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
@@ -55,10 +56,10 @@ class LocationVerifiedView extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'COMMUNITY',
                   style: TextStyle(
-                    color: Color(0xFF737378),
+                    color: context.appMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -68,8 +69,8 @@ class LocationVerifiedView extends StatelessWidget {
                   child: Text(
                     communityName,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: context.appInk,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -78,14 +79,14 @@ class LocationVerifiedView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            Divider(height: 1, color: Colors.black.withValues(alpha: 0.20)),
+            Divider(height: 1, color: context.residentOutline()),
             const SizedBox(height: 14),
             Row(
               children: [
-                const Text(
+                Text(
                   'STATUS',
                   style: TextStyle(
-                    color: Color(0xFF737378),
+                    color: context.appMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -97,10 +98,10 @@ class LocationVerifiedView extends StatelessWidget {
                     color: const Color(0xFF34C759).withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
+                      const CircleAvatar(
                         radius: 10,
                         backgroundColor: Color(0xFFBCEAC9),
                         child: Icon(
@@ -109,11 +110,11 @@ class LocationVerifiedView extends StatelessWidget {
                           color: Color(0xFF15652C),
                         ),
                       ),
-                      SizedBox(width: 5),
+                      const SizedBox(width: 5),
                       Text(
                         'Verified',
                         style: TextStyle(
-                          color: Colors.black,
+                          color: context.appInk,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -190,30 +191,30 @@ class LocationVerifiedView extends StatelessWidget {
                         const SizedBox(height: 10),
                         _buildIllustration(context),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'You are within your selected\ncommunity area.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.black,
+                            color: context.appInk,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             height: 1.25,
                           ),
                         ),
                         const SizedBox(height: 22),
-                        const Text(
+                        Text(
                           'You can now browse the app in restricted mode.\n'
                           'Submit verification documents from Profile.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0xFF737378),
+                            color: context.appMuted,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             height: 1.3,
                           ),
                         ),
                         const SizedBox(height: 15),
-                        _buildResultCard(),
+                        _buildResultCard(context),
                         const Spacer(),
                         const SizedBox(height: 24),
                         _buildContinueButton(context),

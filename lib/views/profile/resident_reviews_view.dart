@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/providers/review_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/review_model.dart';
@@ -9,8 +10,6 @@ import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kInk = Color(0xFF1F2937);
-const Color _kMutedText = Color(0xFF6B7280);
 const Color _kWarmAccent = Color(0xFFF59E0B);
 const double _kMaxContentWidth = 440;
 
@@ -145,11 +144,11 @@ class _Header extends StatelessWidget {
           onTap: onBack,
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
             'Ratings & Reviews',
             style: TextStyle(
-              color: _kInk,
+              color: context.appInk,
               fontSize: 26,
               fontWeight: FontWeight.w900,
             ),
@@ -205,8 +204,8 @@ class _ScorePanel extends StatelessWidget {
                   children: [
                     Text(
                       score <= 0 ? '-' : score.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: context.appInk,
                         fontSize: 30,
                         fontWeight: FontWeight.w900,
                         height: 1,
@@ -215,8 +214,8 @@ class _ScorePanel extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${reviews.length} published ${reviews.length == 1 ? 'review' : 'reviews'}',
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: context.appMuted,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -258,9 +257,15 @@ class _BlindReviewNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: context.isDarkUi
+            ? context.residentScheme.primaryContainer.withValues(alpha: 0.45)
+            : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(
+          color: context.isDarkUi
+              ? context.residentScheme.primary.withValues(alpha: 0.42)
+              : const Color(0xFFBFDBFE),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,11 +278,11 @@ class _BlindReviewNotice extends StatelessWidget {
             size: 22,
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Published feedback is anonymous. Waiting reviews stay hidden during the blind review period.',
               style: TextStyle(
-                color: _kInk,
+                color: context.appInk,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 height: 1.35,
@@ -301,9 +306,9 @@ class _ReviewTabBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: context.glassFill(lightAlpha: 0.78),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
       ),
       child: Row(
         children: [
@@ -341,6 +346,8 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
     return Expanded(
       child: Material(
         color: selected ? _kBrandTeal : Colors.transparent,
@@ -354,7 +361,7 @@ class _TabButton extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : _kMutedText,
+                  color: selected ? onPrimary : context.appMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),
@@ -412,8 +419,8 @@ class _AnonymousReviewCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          color: _kInk,
+                        style: TextStyle(
+                          color: context.appInk,
                           fontSize: 15,
                           fontWeight: FontWeight.w900,
                         ),
@@ -421,8 +428,8 @@ class _AnonymousReviewCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         '$focus · ${_reviewDateFormat.format(review.publishedAt ?? review.createdAt)}',
-                        style: const TextStyle(
-                          color: _kMutedText,
+                        style: TextStyle(
+                          color: context.appMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -437,8 +444,8 @@ class _AnonymousReviewCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 review.comment.trim(),
-                style: const TextStyle(
-                  color: _kInk,
+                style: TextStyle(
+                  color: context.appInk,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   height: 1.45,
@@ -472,8 +479,8 @@ class _RatingPill extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             '$rating',
-            style: const TextStyle(
-              color: _kInk,
+            style: TextStyle(
+              color: context.appInk,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -521,9 +528,9 @@ class _MetricTile extends StatelessWidget {
         height: 58,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: context.softSurface(),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: context.residentOutline()),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -532,8 +539,8 @@ class _MetricTile extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _kInk,
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 15,
                 fontWeight: FontWeight.w900,
               ),
@@ -543,8 +550,8 @@ class _MetricTile extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _kMutedText,
+              style: TextStyle(
+                color: context.appMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
@@ -638,8 +645,8 @@ class _StatePanel extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kInk,
+            style: TextStyle(
+              color: context.appInk,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -648,8 +655,8 @@ class _StatePanel extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: context.appMuted,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -677,7 +684,7 @@ class _CircleIconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withValues(alpha: 0.88),
+        color: context.glassFill(lightAlpha: 0.88),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -685,7 +692,7 @@ class _CircleIconButton extends StatelessWidget {
           child: SizedBox(
             width: 46,
             height: 46,
-            child: Icon(icon, color: _kInk),
+            child: Icon(icon, color: context.appInk),
           ),
         ),
       ),
@@ -707,16 +714,10 @@ class _GlassPanel extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
+        color: context.glassFill(lightAlpha: 0.88),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        border: Border.all(color: context.glassBorder()),
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.08, blurRadius: 18, dy: 10),
       ),
       child: child,
     );

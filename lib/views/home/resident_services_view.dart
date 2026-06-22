@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF8E8E93);
 const double _kMaxContentWidth = 380;
 
 class ResidentServicesView extends StatelessWidget {
@@ -128,6 +128,9 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -146,8 +149,8 @@ class _PageHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Color(0xFF1F2937),
+                style: TextStyle(
+                  color: ink,
                   fontSize: 30,
                   fontWeight: FontWeight.w900,
                   height: 1.05,
@@ -157,8 +160,8 @@ class _PageHeader extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF59666B),
+                style: TextStyle(
+                  color: muted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -179,17 +182,19 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+
     return Container(
       height: JiraniResponsive.scaled(context, 56),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: context.glassFill( lightAlpha: 0.78),
         borderRadius: BorderRadius.circular(
           JiraniResponsive.scaledRadius(context, 20),
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        border: Border.all(color: context.glassBorder( lightAlpha: 0.86)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.08),
             blurRadius: JiraniResponsive.scaled(context, 22),
             offset: Offset(0, JiraniResponsive.scaled(context, 10)),
           ),
@@ -211,8 +216,8 @@ class _SearchField extends StatelessWidget {
               hint,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF59666B),
+              style: TextStyle(
+                color: context.appMuted,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -262,10 +267,10 @@ class _CategoryChip extends StatelessWidget {
       ),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: selected ? _kBrandTeal : Colors.white,
+        color: selected ? _kBrandTeal : context.softSurface(),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: selected ? _kBrandTeal : Colors.white.withValues(alpha: 0.88),
+          color: selected ? _kBrandTeal : context.glassBorder(),
         ),
         boxShadow: [
           BoxShadow(
@@ -278,7 +283,9 @@ class _CategoryChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: selected ? Colors.white : const Color(0xFF1F2937),
+          color: selected
+              ? Theme.of(context).colorScheme.onPrimary
+              : context.appInk,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
@@ -294,19 +301,23 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Container(
       constraints: BoxConstraints(
         minHeight: JiraniResponsive.scaled(context, 268),
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(
           JiraniResponsive.scaledRadius(context, 22),
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        border: Border.all(color: context.glassBorder()),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.09),
+            color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.09),
             blurRadius: JiraniResponsive.scaled(context, 24),
             offset: Offset(0, JiraniResponsive.scaled(context, 12)),
           ),
@@ -335,8 +346,8 @@ class _ServiceCard extends StatelessWidget {
                       data.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF1F2937),
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         height: 1.15,
@@ -345,8 +356,8 @@ class _ServiceCard extends StatelessWidget {
                     SizedBox(height: JiraniResponsive.scaled(context, 3)),
                     Text(
                       data.category,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -375,8 +386,8 @@ class _ServiceCard extends StatelessWidget {
                               data.rating,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF1F2937),
+                              style: TextStyle(
+                                color: ink,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -403,18 +414,18 @@ class _ServiceCard extends StatelessWidget {
                       data.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF1F2937),
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                         height: 1.15,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'STARTING FROM',
                       style: TextStyle(
-                        color: _kMutedText,
+                        color: muted,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
@@ -522,7 +533,7 @@ class _ActionButton extends StatelessWidget {
             horizontal: JiraniResponsive.scaled(context, 10),
           ),
           backgroundColor: _kBrandTeal,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -553,7 +564,7 @@ class _AddButton extends StatelessWidget {
           height: size,
           child: Icon(
             Icons.add,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
             size: JiraniResponsive.scaled(context, 30),
           ),
         ),

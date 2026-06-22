@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/community_change.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/community_model.dart';
@@ -226,12 +227,12 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     );
   }
 
-  Widget _buildCommunityCard(CommunityModel community) {
+  Widget _buildCommunityCard(BuildContext context, CommunityModel community) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
@@ -256,7 +257,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                       Text(
                         'SELECTED COMMUNITY',
                         style: TextStyle(
-                          color: Colors.black.withValues(alpha: 0.50),
+                          color: context.appMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -266,9 +267,10 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                         community.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: context.appInk,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -303,7 +305,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
             Divider(
               height: 1,
               thickness: 1.5,
-              color: Colors.black.withValues(alpha: 0.16),
+              color: context.residentOutline(),
             ),
             const SizedBox(height: 16),
             Container(
@@ -313,11 +315,11 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                 color: _kBrandTeal.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 17, color: Colors.black),
-                  SizedBox(width: 10),
+                  Icon(Icons.info_outline, size: 17, color: context.appInk),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'We will check whether you are currently near\nthis community to continue verification.',
@@ -325,6 +327,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         height: 1.45,
+                        color: context.appInk,
                       ),
                     ),
                   ),
@@ -337,7 +340,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     );
   }
 
-  Widget _buildCommunityContent(CommunityModel? community) {
+  Widget _buildCommunityContent(BuildContext context, CommunityModel? community) {
     if (_isLoadingCommunities) {
       return const SizedBox(
         height: 150,
@@ -345,14 +348,14 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
       );
     }
 
-    if (community != null) return _buildCommunityCard(community);
+    if (community != null) return _buildCommunityCard(context, community);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Column(
         children: [
@@ -361,7 +364,11 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
           Text(
             _loadError ?? 'No active communities have been saved yet.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: context.appInk,
+            ),
           ),
           if (_loadError != null) ...[
             const SizedBox(height: 10),
@@ -440,7 +447,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        _buildCommunityContent(community),
+                        _buildCommunityContent(context, community),
                       ],
                     ),
                   ),

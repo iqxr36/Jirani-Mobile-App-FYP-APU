@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
@@ -123,7 +124,7 @@ class _PhotosDocumentsPermissionViewState
     }
   }
 
-  Widget _buildIllustration() {
+  Widget _buildIllustration(BuildContext context) {
     final softTeal = _kBrandTeal.withValues(alpha: 0.14);
     return SizedBox(
       height: 210,
@@ -135,7 +136,7 @@ class _PhotosDocumentsPermissionViewState
             width: 136,
             height: 158,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.glassFill(),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: softTeal, width: 2),
               boxShadow: [
@@ -177,22 +178,22 @@ class _PhotosDocumentsPermissionViewState
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
         child: Text(
           'Photos and documents are used when you upload proof of residence and supporting verification files.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: context.appInk,
             height: 1.25,
           ),
         ),
@@ -287,11 +288,11 @@ class _PhotosDocumentsPermissionViewState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 28),
-                        _buildIllustration(),
+                        _buildIllustration(context),
                         const SizedBox(height: 22),
                         _buildTitle(),
                         const SizedBox(height: 22),
-                        _buildInfoCard(),
+                        _buildInfoCard(context),
                       ],
                     ),
                   ),

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
+import 'package:jirani/providers/theme_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/views/auth/email_verification_view.dart';
@@ -14,7 +16,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF8E8E93);
 const double _kMaxContentWidth = 420;
 const int _kMaxProfileImageBytes = 5 * 1024 * 1024;
 
@@ -27,7 +28,6 @@ class ResidentProfileView extends StatefulWidget {
 
 class _ResidentProfileViewState extends State<ResidentProfileView> {
   final _imagePicker = ImagePicker();
-  bool _darkTheme = false;
   bool _pushNotifications = true;
   bool _locationAlerts = true;
   bool _profileImageSaving = false;
@@ -69,19 +69,23 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   void _openSettings() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => ResidentSettingsView(
-          darkTheme: _darkTheme,
-          pushNotifications: _pushNotifications,
-          locationAlerts: _locationAlerts,
-          onDarkThemeChanged: (value) => setState(() => _darkTheme = value),
-          onPushNotificationsChanged: (value) =>
-              setState(() => _pushNotifications = value),
-          onLocationAlertsChanged: (value) =>
-              setState(() => _locationAlerts = value),
-          onPrivacy: () => _showUnavailable('Privacy'),
-          onLanguage: () => _showUnavailable('Language'),
-          onPaymentMethods: () => _showUnavailable('Payment Methods'),
-          onHelp: () => _showUnavailable('Help & Support'),
+        builder: (_) => Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return ResidentSettingsView(
+              darkTheme: themeProvider.isDarkMode,
+              pushNotifications: _pushNotifications,
+              locationAlerts: _locationAlerts,
+              onDarkThemeChanged: themeProvider.setDarkMode,
+              onPushNotificationsChanged: (value) =>
+                  setState(() => _pushNotifications = value),
+              onLocationAlertsChanged: (value) =>
+                  setState(() => _locationAlerts = value),
+              onPrivacy: () => _showUnavailable('Privacy'),
+              onLanguage: () => _showUnavailable('Language'),
+              onPaymentMethods: () => _showUnavailable('Payment Methods'),
+              onHelp: () => _showUnavailable('Help & Support'),
+            );
+          },
         ),
       ),
     );
@@ -296,6 +300,8 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final fullName = user?.fullName.trim().isNotEmpty == true
         ? user!.fullName.trim()
         : 'Neighbor';
@@ -309,12 +315,18 @@ class _ProfileCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.90)
+            : scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.16)),
+        border: Border.all(
+          color: isDark
+              ? scheme.outlineVariant.withValues(alpha: 0.72)
+              : Colors.black.withValues(alpha: 0.16),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
+            color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.12),
             blurRadius: 7,
             offset: const Offset(0, 4),
           ),
@@ -346,8 +358,8 @@ class _ProfileCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.black,
+            style: TextStyle(
+              color: scheme.onSurface,
               fontSize: 22,
               fontWeight: FontWeight.w800,
               height: 1.2,
@@ -371,8 +383,8 @@ class _ProfileCard extends StatelessWidget {
                     community,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: scheme.onSurface,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -390,8 +402,8 @@ class _ProfileCard extends StatelessWidget {
                     unit,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: scheme.onSurface,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -440,7 +452,9 @@ class _ProfileCard extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 2,
-            color: Colors.black.withValues(alpha: 0.14),
+            color: isDark
+                ? scheme.outlineVariant
+                : Colors.black.withValues(alpha: 0.14),
           ),
           const SizedBox(height: 17),
           _ProfileMenuRow(
@@ -577,14 +591,22 @@ class _IdentityVerificationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final email = user?.email.trim() ?? '';
     final phone = user?.phoneNumber.trim() ?? '';
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFA),
+        color: isDark
+            ? scheme.surface.withValues(alpha: 0.68)
+            : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: isDark
+              ? scheme.outlineVariant.withValues(alpha: 0.72)
+              : Colors.black.withValues(alpha: 0.08),
+        ),
       ),
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -597,7 +619,12 @@ class _IdentityVerificationPanel extends StatelessWidget {
             actionLabel: 'Verify now',
             onTap: onVerifyEmail,
           ),
-          Divider(height: 14, color: Colors.black.withValues(alpha: 0.08)),
+          Divider(
+            height: 14,
+            color: isDark
+                ? scheme.outlineVariant
+                : Colors.black.withValues(alpha: 0.08),
+          ),
           _IdentityVerificationRow(
             icon: Icons.sms_outlined,
             title: 'Phone Number',
@@ -631,6 +658,7 @@ class _IdentityVerificationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final statusColor = verified ? const Color(0xFF34C759) : _kBrandTeal;
 
     return Material(
@@ -658,7 +686,8 @@ class _IdentityVerificationRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -668,8 +697,8 @@ class _IdentityVerificationRow extends StatelessWidget {
                       value,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -722,11 +751,16 @@ class _MetricChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Expanded(
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F7F8),
+          color: isDark
+              ? scheme.surface.withValues(alpha: 0.72)
+              : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -734,8 +768,8 @@ class _MetricChip extends StatelessWidget {
           children: [
             Text(
               value,
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: scheme.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
@@ -743,8 +777,8 @@ class _MetricChip extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(
-                color: _kMutedText,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -761,26 +795,35 @@ class _TrustedResidentBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E6),
+        color: context.isDarkUi
+            ? scheme.tertiaryContainer.withValues(alpha: 0.72)
+            : const Color(0xFFFFF7E6),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFFFC857)),
+        border: Border.all(
+          color: context.isDarkUi ? scheme.tertiary : const Color(0xFFFFC857),
+        ),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.workspace_premium_rounded,
             size: 16,
-            color: Color(0xFF9A6700),
+            color: context.isDarkUi
+                ? scheme.onTertiaryContainer
+                : const Color(0xFF9A6700),
           ),
-          SizedBox(width: 6),
+          const SizedBox(width: 6),
           Text(
             'Trusted Resident',
             style: TextStyle(
-              color: Color(0xFF7A5200),
+              color: context.isDarkUi
+                  ? scheme.onTertiaryContainer
+                  : const Color(0xFF7A5200),
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -804,6 +847,7 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final imageUrl = user?.profileImageUrl.trim() ?? '';
 
     return Semantics(
@@ -820,9 +864,9 @@ class _ProfileAvatar extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFCDE8EC),
+                    color: context.avatarPlaceholder,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: scheme.surface.withValues(alpha: 0.9),
                       width: 4,
                     ),
                     boxShadow: [
@@ -921,6 +965,9 @@ class _ProfileMenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final effectiveColor = color == Colors.black ? scheme.onSurface : color;
+
     return Column(
       children: [
         Material(
@@ -932,19 +979,23 @@ class _ProfileMenuRow extends StatelessWidget {
               height: 48,
               child: Row(
                 children: [
-                  Icon(icon, size: 20, color: color),
+                  Icon(icon, size: 20, color: effectiveColor),
                   const SizedBox(width: 18),
                   Expanded(
                     child: Text(
                       label,
                       style: TextStyle(
-                        color: color,
+                        color: effectiveColor,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, size: 32, color: color),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 32,
+                    color: effectiveColor,
+                  ),
                 ],
               ),
             ),
@@ -954,7 +1005,7 @@ class _ProfileMenuRow extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1.5,
-            color: Colors.black.withValues(alpha: 0.16),
+            color: scheme.outlineVariant,
           ),
       ],
     );

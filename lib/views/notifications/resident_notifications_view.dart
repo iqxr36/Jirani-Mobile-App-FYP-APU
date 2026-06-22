@@ -1,24 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 420;
-
-List<BoxShadow> _softShadow({
-  double opacity = 0.10,
-  double blur = 22,
-  double dy = 10,
-}) {
-  return [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: opacity),
-      blurRadius: blur,
-      spreadRadius: -4,
-      offset: Offset(0, dy),
-    ),
-  ];
-}
 
 class ResidentNotificationsView extends StatefulWidget {
   const ResidentNotificationsView({super.key});
@@ -195,10 +180,14 @@ class _HeroNoticeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: context.glassFill(lightAlpha: 0.92),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
-        boxShadow: _softShadow(opacity: 0.12, blur: 26, dy: 14),
+        border: Border.all(color: context.glassBorder()),
+        boxShadow: context.softSurfaceShadow(
+          lightOpacity: 0.12,
+          blurRadius: 26,
+          dy: 14,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,24 +206,24 @@ class _HeroNoticeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Stay in the loop',
                   style: TextStyle(
-                    color: Color(0xFF111827),
+                    color: context.appInk,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                     height: 1.15,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
                   'Important residence updates, community actions, and admin announcements are collected here.',
                   style: TextStyle(
-                    color: _kMutedText,
+                    color: context.appMuted,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -266,10 +255,14 @@ class _FilterBar extends StatelessWidget {
       height: 48,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color: context.glassFill(lightAlpha: 0.72),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
-        boxShadow: _softShadow(opacity: 0.07, blur: 16, dy: 8),
+        border: Border.all(color: context.glassBorder()),
+        boxShadow: context.softSurfaceShadow(
+          lightOpacity: 0.07,
+          blurRadius: 16,
+          dy: 8,
+        ),
       ),
       child: Row(
         children: [
@@ -305,6 +298,8 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
     return Semantics(
       selected: selected,
       button: true,
@@ -322,7 +317,11 @@ class _FilterPill extends StatelessWidget {
               color: selected ? _kBrandTeal : Colors.transparent,
               borderRadius: BorderRadius.circular(13),
               boxShadow: selected
-                  ? _softShadow(opacity: 0.15, blur: 12, dy: 5)
+                  ? context.softSurfaceShadow(
+                      lightOpacity: 0.15,
+                      blurRadius: 12,
+                      dy: 5,
+                    )
                   : null,
             ),
             child: Text(
@@ -330,7 +329,7 @@ class _FilterPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: selected ? Colors.white : _kMutedText,
+                color: selected ? onPrimary : context.appMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
@@ -352,10 +351,14 @@ class _NotificationCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        boxShadow: _softShadow(opacity: 0.10, blur: 22, dy: 10),
+        boxShadow: context.softSurfaceShadow(
+          lightOpacity: 0.10,
+          blurRadius: 22,
+          dy: 10,
+        ),
       ),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: context.glassFill(lightAlpha: 0.94),
         borderRadius: BorderRadius.circular(22),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -390,8 +393,8 @@ class _NotificationCard extends StatelessWidget {
                               notification.title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF111827),
+                              style: TextStyle(
+                                color: context.appInk,
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w900,
                                 height: 1.2,
@@ -416,8 +419,8 @@ class _NotificationCard extends StatelessWidget {
                         notification.body,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _kMutedText,
+                        style: TextStyle(
+                          color: context.appMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           height: 1.38,
@@ -433,8 +436,8 @@ class _NotificationCard extends StatelessWidget {
                           const Spacer(),
                           Text(
                             notification.time,
-                            style: const TextStyle(
-                              color: _kMutedText,
+                            style: TextStyle(
+                              color: context.appMuted,
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                             ),

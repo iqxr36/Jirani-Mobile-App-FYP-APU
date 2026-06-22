@@ -9,6 +9,7 @@ import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/agent_debug_log.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
@@ -21,7 +22,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const int _kMaxImageBytes = 10 * 1024 * 1024;
 const int _kMaxFileBytes = 25 * 1024 * 1024;
 const int _kMaxVideoBytes = 50 * 1024 * 1024;
@@ -770,7 +770,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                       theme: chat_core.ChatTheme.fromThemeData(
                         Theme.of(context),
                       ),
-                      backgroundColor: Colors.white.withValues(alpha: 0.92),
+                      backgroundColor: context.glassFill(lightAlpha: 0.92),
                     ),
                   ),
                 ),
@@ -813,7 +813,7 @@ class _ThreadHeader extends StatelessWidget {
           ),
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFCFE4E9),
+            backgroundColor: context.avatarPlaceholder,
             backgroundImage: imageUrl.isEmpty ? null : NetworkImage(imageUrl),
             child: imageUrl.isEmpty
                 ? const Icon(Icons.person_outline, color: _kBrandTeal)
@@ -828,16 +828,16 @@ class _ThreadHeader extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF111827),
+                  style: TextStyle(
+                    color: context.appInk,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const Text(
+                Text(
                   'Connected resident',
                   style: TextStyle(
-                    color: _kMutedText,
+                    color: context.appMuted,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -870,7 +870,9 @@ class _SafeImageMessageCard extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(maxWidth: 260),
       decoration: BoxDecoration(
-        color: isSentByMe ? _kBrandTeal.withValues(alpha: 0.12) : Colors.white,
+        color: isSentByMe
+            ? _kBrandTeal.withValues(alpha: 0.12)
+            : context.glassFill(),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.16)),
       ),
@@ -909,8 +911,8 @@ class _SafeImageMessageCard extends StatelessWidget {
                         : 'Photo',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF1F2937),
+                    style: TextStyle(
+                      color: context.appInk,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -919,8 +921,8 @@ class _SafeImageMessageCard extends StatelessWidget {
                 if (message.size != null)
                   Text(
                     _formatBytes(message.size!),
-                    style: const TextStyle(
-                      color: _kMutedText,
+                    style: TextStyle(
+                      color: context.appMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -953,7 +955,9 @@ class _SafeFileMessageCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 280),
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: isSentByMe ? _kBrandTeal.withValues(alpha: 0.12) : Colors.white,
+        color: isSentByMe
+            ? _kBrandTeal.withValues(alpha: 0.12)
+            : context.glassFill(),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.16)),
       ),
@@ -979,8 +983,8 @@ class _SafeFileMessageCard extends StatelessWidget {
                   name.trim().isEmpty ? 'Attachment' : name.trim(),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF1F2937),
+                  style: TextStyle(
+                    color: context.appInk,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -993,8 +997,8 @@ class _SafeFileMessageCard extends StatelessWidget {
                   ].join(' - '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kMutedText,
+                  style: TextStyle(
+                    color: context.appMuted,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1187,9 +1191,13 @@ class _AttachmentPickerSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _SheetHandle(),
-          const Text(
+          Text(
             'Send Attachment',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              color: context.appInk,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 14),
           _SheetAction(
@@ -1260,8 +1268,8 @@ class _MediaPreviewSheet extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     _formatBytes(attachment.fileSize),
-                    style: const TextStyle(
-                      color: _kMutedText,
+                    style: TextStyle(
+                      color: context.appMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1312,7 +1320,7 @@ class _ChatDetailsSheet extends StatelessWidget {
           const _SheetHandle(),
           CircleAvatar(
             radius: 34,
-            backgroundColor: const Color(0xFFCFE4E9),
+            backgroundColor: context.avatarPlaceholder,
             backgroundImage: imageUrl.isEmpty ? null : NetworkImage(imageUrl),
             child: imageUrl.isEmpty
                 ? const Icon(Icons.person_outline, color: _kBrandTeal, size: 34)
@@ -1322,14 +1330,18 @@ class _ChatDetailsSheet extends StatelessWidget {
           Text(
             name,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              color: context.appInk,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Private chat with a connected resident',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _kMutedText,
+              color: context.appMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1367,15 +1379,9 @@ class _SheetSurface extends StatelessWidget {
         margin: const EdgeInsets.all(14),
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.residentScheme.surface,
           borderRadius: BorderRadius.circular(26),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 32,
-              offset: const Offset(0, 18),
-            ),
-          ],
+          boxShadow: context.softSurfaceShadow(lightOpacity: 0.18, blurRadius: 32, dy: 18),
         ),
         child: child,
       ),
@@ -1394,7 +1400,7 @@ class _SheetHandle extends StatelessWidget {
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.15),
+          color: context.residentOutline(lightAlpha: 0.15),
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -1446,8 +1452,8 @@ class _SheetAction extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: context.appMuted,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1468,14 +1474,14 @@ class _EmptyThread extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Text(
           'No messages yet. Start the conversation below.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: _kMutedText,
+            color: context.appMuted,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),

@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
@@ -9,25 +10,9 @@ import 'package:jirani/views/connections/resident_connection_requests_view.dart'
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 420;
 const double _kPageGutter = 16;
 const double _kCardMaxWidth = _kMaxContentWidth - (_kPageGutter * 2);
-
-List<BoxShadow> _softSurfaceShadow({
-  double opacity = 0.10,
-  double blurRadius = 22,
-  double dy = 10,
-}) {
-  return [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: opacity),
-      blurRadius: blurRadius,
-      spreadRadius: -4,
-      offset: Offset(0, dy),
-    ),
-  ];
-}
 
 class ResidentConnectionsView extends StatefulWidget {
   const ResidentConnectionsView({super.key, this.communityName});
@@ -211,17 +196,17 @@ class _CommunityPill extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 50, maxWidth: 286),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
+          color: context.glassFill(lightAlpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
-          boxShadow: _softSurfaceShadow(opacity: 0.13, blurRadius: 18, dy: 8),
+          boxShadow: context.softSurfaceShadow(lightOpacity: 0.13, blurRadius: 18, dy: 8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.location_on_outlined,
-              color: Color(0xFF1F2937),
+              color: context.appInk,
               size: 20,
             ),
             const SizedBox(width: 14),
@@ -230,8 +215,8 @@ class _CommunityPill extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF111827),
+                style: TextStyle(
+                  color: context.appInk,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
@@ -332,10 +317,14 @@ class _NeighborCard extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 156),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.96),
+          color: context.glassFill(lightAlpha: 0.96),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-          boxShadow: _softSurfaceShadow(opacity: 0.11, blurRadius: 24, dy: 12),
+          border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
+          boxShadow: context.softSurfaceShadow(
+            lightOpacity: 0.11,
+            blurRadius: 24,
+            dy: 12,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -356,8 +345,8 @@ class _NeighborCard extends StatelessWidget {
                               displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF111827),
+                              style: TextStyle(
+                                color: context.appInk,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w900,
                                 height: 1.2,
@@ -373,8 +362,8 @@ class _NeighborCard extends StatelessWidget {
                         _neighborBio(neighbor),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _kMutedText,
+                        style: TextStyle(
+                          color: context.appMuted,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
@@ -419,8 +408,8 @@ class _NeighborAvatar extends StatelessWidget {
     return Container(
       width: 52,
       height: 52,
-      decoration: const BoxDecoration(
-        color: Color(0xFFCFE4E9),
+      decoration: BoxDecoration(
+        color: context.avatarPlaceholder,
         shape: BoxShape.circle,
       ),
       child: const Icon(
@@ -547,8 +536,8 @@ class _BottomActionBar extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              boxShadow: _softSurfaceShadow(
-                opacity: 0.18,
+              boxShadow: context.softSurfaceShadow(
+                lightOpacity: 0.18,
                 blurRadius: 26,
                 dy: 12,
               ),
@@ -561,10 +550,10 @@ class _BottomActionBar extends StatelessWidget {
                   height: 72,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
+                    color: context.glassFill(lightAlpha: 0.88),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.72),
+                      color: context.glassBorder(),
                     ),
                   ),
                   child: Row(
@@ -666,8 +655,8 @@ class _CountBadge extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         count > 9 ? '9+' : count.toString(),
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onPrimary,
           fontSize: 9,
           fontWeight: FontWeight.w900,
         ),
@@ -685,30 +674,34 @@ class _EmptyConnectionsState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.93),
+        color: context.glassFill(lightAlpha: 0.93),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-        boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 20, dy: 10),
+        border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
+        boxShadow: context.softSurfaceShadow(
+          lightOpacity: 0.08,
+          blurRadius: 20,
+          dy: 10,
+        ),
       ),
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.group_outlined, color: _kBrandTeal, size: 40),
-          SizedBox(height: 12),
+          const Icon(Icons.group_outlined, color: _kBrandTeal, size: 40),
+          const SizedBox(height: 12),
           Text(
             'No connections yet',
             style: TextStyle(
-              color: Color(0xFF111827),
+              color: context.appInk,
               fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
             'Tap Connect + on a neighbor to add them here.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _kMutedText,
+              color: context.appMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.35,

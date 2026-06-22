@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/verification_request.dart';
@@ -10,8 +11,15 @@ import 'package:jirani/views/verification/verification_status_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kBodyMuted = Color(0xFF8E8E93);
 const double _kMaxContentWidth = 390;
+
+Color _surface(BuildContext context) => context.isDarkUi
+    ? context.residentScheme.surfaceContainerHighest.withValues(alpha: 0.88)
+    : Colors.white;
+
+Color _outline(BuildContext context) => context.isDarkUi
+    ? context.residentScheme.outlineVariant
+    : Colors.black.withValues(alpha: 0.20);
 
 class VerificationProcessView extends StatelessWidget {
   const VerificationProcessView({super.key});
@@ -66,11 +74,11 @@ class _VerificationProcessContent extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text(
+                              Text(
                                 'Complete a few quick steps to unlock full access to your community.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: Colors.black,
+                                  color: context.appInk,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                   height: 1.25,
@@ -410,6 +418,8 @@ class _ProgressSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
     final completed = steps
         .where((step) => step.state == _StepState.complete)
         .length;
@@ -450,8 +460,8 @@ class _ProgressSummaryCard extends StatelessWidget {
                   rejected
                       ? 'Verification Needs Attention'
                       : '$completed of ${steps.length} Steps Complete',
-                  style: const TextStyle(
-                    color: Colors.black,
+                  style: TextStyle(
+                    color: ink,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     height: 1.15,
@@ -462,8 +472,8 @@ class _ProgressSummaryCard extends StatelessWidget {
                   rejected
                       ? 'Review the highlighted step and submit updated proof.'
                       : 'Completed tasks stay highlighted as you move forward.',
-                  style: const TextStyle(
-                    color: _kBodyMuted,
+                  style: TextStyle(
+                    color: muted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.3,
@@ -486,7 +496,9 @@ class _TimelineStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _StepColors.forState(step.state);
+    final colors = _StepColors.forState(context, step.state);
+    final ink = context.appInk;
+    final muted = context.appMuted;
 
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: isLast ? 84 : 116),
@@ -541,8 +553,8 @@ class _TimelineStep extends StatelessWidget {
                           Expanded(
                             child: Text(
                               step.title,
-                              style: const TextStyle(
-                                color: Colors.black,
+                              style: TextStyle(
+                                color: ink,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 height: 1.25,
@@ -555,8 +567,8 @@ class _TimelineStep extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         step.description,
-                        style: const TextStyle(
-                          color: _kBodyMuted,
+                        style: TextStyle(
+                          color: muted,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           height: 1.38,
@@ -592,8 +604,8 @@ class _LatestUpdateButton extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _kBrandTeal,
-          side: const BorderSide(color: _kBrandTeal),
+          foregroundColor: context.residentScheme.primary,
+          side: BorderSide(color: context.residentScheme.primary),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
         ),
@@ -644,9 +656,9 @@ class _StatusMessageCard extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 78),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: _outline(context)),
       ),
       padding: const EdgeInsets.fromLTRB(13, 10, 16, 10),
       child: Row(
@@ -666,8 +678,8 @@ class _StatusMessageCard extends StatelessWidget {
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _kBodyMuted,
+              style: TextStyle(
+                color: context.appMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 height: 1.35,
@@ -770,7 +782,57 @@ class _StepColors {
   final Color connector;
   final String label;
 
-  static _StepColors forState(_StepState state) {
+  static _StepColors forState(BuildContext context, _StepState state) {
+    if (context.isDarkUi) {
+      final scheme = context.residentScheme;
+      switch (state) {
+        case _StepState.complete:
+          return _StepColors(
+            background: scheme.primaryContainer.withValues(alpha: 0.72),
+            icon: scheme.primary,
+            cardBackground: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.92,
+            ),
+            border: scheme.outlineVariant,
+            connector: scheme.primary,
+            label: 'DONE',
+          );
+        case _StepState.current:
+          return _StepColors(
+            background: scheme.primary.withValues(alpha: 0.28),
+            icon: scheme.primary,
+            cardBackground: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.92,
+            ),
+            border: scheme.primary.withValues(alpha: 0.42),
+            connector: scheme.primary.withValues(alpha: 0.42),
+            label: 'NOW',
+          );
+        case _StepState.rejected:
+          return _StepColors(
+            background: scheme.errorContainer.withValues(alpha: 0.72),
+            icon: scheme.error,
+            cardBackground: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.92,
+            ),
+            border: scheme.error.withValues(alpha: 0.42),
+            connector: scheme.error,
+            label: 'FIX',
+          );
+        case _StepState.waiting:
+          return _StepColors(
+            background: scheme.surfaceContainerHighest,
+            icon: scheme.onSurfaceVariant,
+            cardBackground: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.92,
+            ),
+            border: scheme.outlineVariant,
+            connector: scheme.outlineVariant.withValues(alpha: 0.55),
+            label: 'WAIT',
+          );
+      }
+    }
+
     switch (state) {
       case _StepState.complete:
         return const _StepColors(

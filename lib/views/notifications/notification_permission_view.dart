@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/views/camera/camera_permission_view.dart';
@@ -127,12 +128,12 @@ class _NotificationPermissionViewState
       child: Image.asset(
         'assets/perm2.png',
         fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => _buildPlaceholderIllustration(),
+        errorBuilder: (_, _, _) => _buildPlaceholderIllustration(context),
       ),
     );
   }
 
-  Widget _buildPlaceholderIllustration() {
+  Widget _buildPlaceholderIllustration(BuildContext context) {
     final softTeal = _kBrandTeal.withValues(alpha: 0.14);
     return Stack(
       alignment: Alignment.center,
@@ -165,7 +166,7 @@ class _NotificationPermissionViewState
           width: 118,
           height: 168,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.glassFill(),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: softTeal, width: 2),
             boxShadow: [
@@ -213,12 +214,12 @@ class _NotificationPermissionViewState
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -242,13 +243,13 @@ class _NotificationPermissionViewState
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Enable notifications to receive updates about nearby requests, lending activity, service bookings, and messages from trusted neighbors.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black,
+                color: context.appInk,
                 height: 1.2,
               ),
             ),
@@ -349,7 +350,7 @@ class _NotificationPermissionViewState
                         const SizedBox(height: 22),
                         _buildTitle(),
                         const SizedBox(height: 22),
-                        _buildInfoCard(),
+                        _buildInfoCard(context),
                       ],
                     ),
                   ),

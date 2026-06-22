@@ -65,17 +65,25 @@ class _ResidentBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottom),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark
+              ? scheme.surface.withValues(alpha: 0.94)
+              : scheme.surface,
           borderRadius: BorderRadius.circular(80),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          border: Border.all(
+            color: isDark
+                ? scheme.outlineVariant.withValues(alpha: 0.72)
+                : Colors.black.withValues(alpha: 0.08),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
+              color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.14),
               blurRadius: 24,
               spreadRadius: -8,
               offset: const Offset(0, 12),
@@ -140,6 +148,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -169,7 +179,7 @@ class _NavItem extends StatelessWidget {
               child: Icon(
                 icon,
                 size: selected ? 26 : 24,
-                color: selected ? Colors.white : const Color(0xFF7F8C8D),
+                color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 4),
@@ -180,7 +190,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Colors.black : Colors.black54,
+                color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
               ),
             ),
           ],

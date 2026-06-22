@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
@@ -7,7 +8,6 @@ import 'package:jirani/views/chat/resident_chat_thread_view.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 420;
 
 class ResidentNewChatView extends StatelessWidget {
@@ -142,7 +142,7 @@ class _NewChatIntro extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: context.glassFill(lightAlpha: 0.92),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.10)),
       ),
@@ -155,8 +155,8 @@ class _NewChatIntro extends StatelessWidget {
               count == 0
                   ? 'Connect with residents first, then chat safely.'
                   : 'Choose from $count connected resident${count == 1 ? '' : 's'}.',
-              style: const TextStyle(
-                color: Color(0xFF1F2937),
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -192,7 +192,7 @@ class _NeighborChatTile extends StatelessWidget {
         : 'Resident';
 
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: context.glassFill(lightAlpha: 0.96),
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -203,7 +203,7 @@ class _NeighborChatTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: const Color(0xFFCFE4E9),
+                backgroundColor: context.avatarPlaceholder,
                 backgroundImage: neighbor.profileImageUrl.isEmpty
                     ? null
                     : NetworkImage(neighbor.profileImageUrl),
@@ -220,8 +220,8 @@ class _NeighborChatTile extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
+                      style: TextStyle(
+                        color: context.appInk,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
@@ -231,8 +231,8 @@ class _NeighborChatTile extends StatelessWidget {
                       _neighborDetail(neighbor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: context.appMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -265,28 +265,28 @@ class _NoConnectedResidents extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24),
+    return Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 54, color: _kBrandTeal),
-          SizedBox(height: 14),
+          const Icon(Icons.people_outline, size: 54, color: _kBrandTeal),
+          const SizedBox(height: 14),
           Text(
             'No connected residents yet',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFF111827),
+              color: context.appInk,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Open My Community, connect with a verified neighbor, then start chatting here.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _kMutedText,
+              color: context.appMuted,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               height: 1.35,

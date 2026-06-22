@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF8E8E93);
 const double _kMaxContentWidth = 420;
 
 class ResidentSettingsView extends StatelessWidget {
@@ -81,6 +80,8 @@ class _SettingsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Row(
       children: [
         IconButton(
@@ -90,14 +91,14 @@ class _SettingsHeader extends StatelessWidget {
           tooltip: 'Back',
         ),
         const SizedBox(width: 4),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Settings',
                 style: TextStyle(
-                  color: Colors.black,
+                  color: scheme.onSurface,
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
                   height: 1.1,
@@ -107,7 +108,7 @@ class _SettingsHeader extends StatelessWidget {
               Text(
                 'Notifications, theme, privacy and support',
                 style: TextStyle(
-                  color: _kMutedText,
+                  color: scheme.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -147,14 +148,23 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.90)
+            : Colors.white,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.14)),
+        border: Border.all(
+          color: isDark
+              ? scheme.outlineVariant.withValues(alpha: 0.72)
+              : Colors.black.withValues(alpha: 0.14),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
+            color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -255,6 +265,8 @@ class _SettingsActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return _SettingsBaseRow(
       icon: icon,
       label: label,
@@ -266,14 +278,18 @@ class _SettingsActionRow extends StatelessWidget {
           if (trailing != null)
             Text(
               trailing!,
-              style: const TextStyle(
-                color: _kMutedText,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
           const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, size: 24),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 24,
+            color: scheme.onSurfaceVariant,
+          ),
         ],
       ),
     );
@@ -297,17 +313,19 @@ class _SettingsBaseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 54),
       child: Row(
         children: [
-          Icon(icon, size: 21),
+          Icon(icon, size: 21, color: scheme.onSurface),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: scheme.onSurface,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -332,7 +350,7 @@ class _SettingsBaseRow extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1,
-            color: Colors.black.withValues(alpha: 0.10),
+            color: scheme.outlineVariant,
           ),
       ],
     );

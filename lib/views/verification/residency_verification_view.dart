@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/viewmodels/verification_viewmodel.dart';
 import 'package:jirani/views/verification/verification_status_view.dart';
@@ -21,6 +22,14 @@ const _kImageAndPdfDocumentExtensions = [
   'heic',
   'pdf',
 ];
+
+Color _surface(BuildContext context) => context.isDarkUi
+    ? context.residentScheme.surfaceContainerHighest.withValues(alpha: 0.88)
+    : Colors.white;
+
+Color _outline(BuildContext context, {double alpha = 0.16}) => context.isDarkUi
+    ? context.residentScheme.outlineVariant
+    : Colors.black.withValues(alpha: alpha);
 
 class ResidencyVerificationView extends StatelessWidget {
   const ResidencyVerificationView({super.key});
@@ -400,11 +409,11 @@ class _ResidencyVerificationFormState
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             'Please provide your residency details and upload a supporting document to complete verification.',
                             textAlign: TextAlign.left,
                             style: TextStyle(
-                              color: Colors.black,
+                              color: context.appInk,
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                               height: 1.35,
@@ -542,8 +551,8 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Colors.black,
+      style: TextStyle(
+        color: context.appInk,
         fontSize: 12,
         fontWeight: FontWeight.w700,
         height: 1.2,
@@ -565,7 +574,7 @@ class _ReadOnlyLineField extends StatelessWidget {
       alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+          top: BorderSide(color: _outline(context, alpha: 0.12)),
         ),
       ),
       padding: const EdgeInsets.only(left: 9, right: 9),
@@ -574,7 +583,7 @@ class _ReadOnlyLineField extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: isMuted ? Colors.black.withValues(alpha: 0.38) : Colors.black,
+          color: isMuted ? context.appMuted : context.appInk,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -658,7 +667,7 @@ class _UnitNumberSeparator extends StatelessWidget {
       child: Text(
         '-',
         style: TextStyle(
-          color: Colors.black.withValues(alpha: 0.45),
+          color: context.appMuted,
           fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
@@ -703,8 +712,8 @@ class _UnitNumberSegmentField extends StatelessWidget {
         inputFormatters: inputFormatters,
         onSubmitted: onSubmitted,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.black,
+        style: TextStyle(
+          color: context.appInk,
           fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
@@ -714,26 +723,26 @@ class _UnitNumberSegmentField extends StatelessWidget {
           counterText: '',
           floatingLabelBehavior: FloatingLabelBehavior.always,
           labelStyle: TextStyle(
-            color: Colors.black.withValues(alpha: 0.60),
+            color: context.appMuted,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
           hintStyle: TextStyle(
-            color: Colors.black.withValues(alpha: 0.28),
+            color: context.appMuted.withValues(alpha: 0.72),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
           isDense: true,
           contentPadding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: _surface(context),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+            borderSide: BorderSide(color: _outline(context)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+            borderSide: BorderSide(color: _outline(context)),
           ),
           focusedBorder: const OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -769,14 +778,14 @@ class _LineSelectField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: _surface(context),
       child: InkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 48),
           decoration: BoxDecoration(
             border: Border(
-              top: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+              top: BorderSide(color: _outline(context, alpha: 0.12)),
             ),
           ),
           padding: const EdgeInsets.only(left: 9, right: 3),
@@ -789,8 +798,8 @@ class _LineSelectField extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isPlaceholder
-                        ? Colors.black.withValues(alpha: 0.85)
-                        : Colors.black,
+                        ? context.appMuted
+                        : context.appInk,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -825,9 +834,9 @@ class _UploadPanel extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 124),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: _outline(context, alpha: 0.20)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Column(
@@ -835,7 +844,7 @@ class _UploadPanel extends StatelessWidget {
         children: [
           Icon(
             selected ? Icons.check_circle_outline_rounded : Icons.upload_file,
-            color: selected ? _kBrandTeal : Colors.black,
+            color: selected ? _kBrandTeal : context.appInk,
             size: 24,
           ),
           const SizedBox(height: 7),
@@ -848,8 +857,8 @@ class _UploadPanel extends StatelessWidget {
               maxLines: selected ? 2 : 3,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 height: 1.25,
@@ -905,7 +914,7 @@ class _UploadActionButton extends StatelessWidget {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           backgroundColor: _kBrandTeal,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.55),
           minimumSize: const Size(0, 48),
           tapTargetSize: MaterialTapTargetSize.padded,
@@ -933,28 +942,28 @@ class _NotesField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: 3,
-        style: const TextStyle(
-          color: Colors.black,
+        style: TextStyle(
+          color: context.appInk,
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: 'Any additional details...',
           hintStyle: TextStyle(
-            color: Colors.black.withValues(alpha: 0.30),
+            color: context.appMuted.withValues(alpha: 0.72),
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
           contentPadding: const EdgeInsets.fromLTRB(15, 12, 15, 10),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: _surface(context),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+            borderSide: BorderSide(color: _outline(context)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
+            borderSide: BorderSide(color: _outline(context)),
           ),
           focusedBorder: const OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(18)),
@@ -981,7 +990,7 @@ class _SubmitButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: _kBrandTeal,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           disabledBackgroundColor: _kBrandTeal.withValues(alpha: 0.58),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),

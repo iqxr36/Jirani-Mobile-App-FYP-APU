@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -27,13 +28,14 @@ class _LoginViewState extends State<LoginView> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  static Color _fieldBorderColor() => Colors.grey.shade300;
+  static Color _fieldBorderColor(BuildContext context) =>
+      context.residentOutline();
 
-  OutlineInputBorder _outlineBorder({bool focused = false}) {
+  OutlineInputBorder _outlineBorder(BuildContext context, {bool focused = false}) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(_kFieldRadius),
       borderSide: BorderSide(
-        color: focused ? _kBrandTeal : _fieldBorderColor(),
+        color: focused ? _kBrandTeal : _fieldBorderColor(context),
         width: focused ? 1.5 : 1,
       ),
     );
@@ -75,31 +77,36 @@ class _LoginViewState extends State<LoginView> {
   static TextStyle _labelStyle(BuildContext context) {
     return Theme.of(context).textTheme.titleSmall!.copyWith(
       fontWeight: FontWeight.w600,
-      color: Colors.black,
+      color: context.appInk,
       fontSize: 13,
     );
   }
 
-  static TextStyle _hintStyle() {
-    return TextStyle(color: Colors.black.withValues(alpha: 0.35), fontSize: 15);
+  static TextStyle _hintStyle(BuildContext context) {
+    return TextStyle(
+      color: context.appMuted.withValues(alpha: 0.72),
+      fontSize: 15,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AuthViewModel>();
-    final dividerGrey = Colors.black.withValues(alpha: _kBorderOpacity);
+    final dividerGrey = context.residentOutline();
     final bottomInset = JiraniResponsive.bottomInset(context);
 
     final baseDecoration = InputDecoration(
       filled: true,
-      fillColor: Colors.white,
-      hintStyle: _hintStyle(),
+      fillColor: context.isDarkUi
+          ? context.residentScheme.surfaceContainerHighest
+          : Colors.white,
+      hintStyle: _hintStyle(context),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: _outlineBorder(),
-      enabledBorder: _outlineBorder(),
-      focusedBorder: _outlineBorder(focused: true),
-      errorBorder: _outlineBorder(),
+      border: _outlineBorder(context),
+      enabledBorder: _outlineBorder(context),
+      focusedBorder: _outlineBorder(context, focused: true),
+      errorBorder: _outlineBorder(context),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
         borderSide: const BorderSide(color: Colors.red, width: 1),
@@ -139,7 +146,7 @@ class _LoginViewState extends State<LoginView> {
                         const SizedBox(height: 20),
                         DecoratedBox(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: context.glassFill(),
                             borderRadius: BorderRadius.circular(26),
                             border: Border.all(color: dividerGrey),
                           ),
@@ -192,9 +199,7 @@ class _LoginViewState extends State<LoginView> {
                                         _obscurePassword
                                             ? Icons.visibility_outlined
                                             : Icons.visibility_off_outlined,
-                                        color: Colors.black.withValues(
-                                          alpha: 0.45,
-                                        ),
+                                        color: context.appMuted,
                                         size: 22,
                                       ),
                                     ),
@@ -327,7 +332,7 @@ class _LoginViewState extends State<LoginView> {
                           'Don\'t have an account?',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.black87),
+                              ?.copyWith(color: context.appInk),
                         ),
                         const SizedBox(height: 6),
                         TextButton(
@@ -401,7 +406,11 @@ class _AppleSignInIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(Icons.apple, color: Colors.black, size: 36);
+    return Icon(
+      Icons.apple,
+      color: context.isDarkUi ? context.appInk : Colors.black,
+      size: 36,
+    );
   }
 }
 

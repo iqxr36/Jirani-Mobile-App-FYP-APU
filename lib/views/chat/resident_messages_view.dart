@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
@@ -8,7 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 420;
 
 class ResidentMessagesView extends StatelessWidget {
@@ -173,17 +173,10 @@ class _InboxSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: context.glassFill(lightAlpha: 0.92),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            spreadRadius: -6,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.08, blurRadius: 24, dy: 14),
       ),
       child: Row(
         children: [
@@ -200,8 +193,8 @@ class _InboxSummary extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Color(0xFF1F2937),
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
                 height: 1.25,
@@ -247,7 +240,7 @@ class _ChatTile extends StatelessWidget {
         : timeago.format(chat.lastMessageAt!, allowFromNow: true);
 
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: context.glassFill(lightAlpha: 0.96),
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -269,8 +262,8 @@ class _ChatTile extends StatelessWidget {
                             name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF111827),
+                            style: TextStyle(
+                              color: context.appInk,
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
                             ),
@@ -280,7 +273,7 @@ class _ChatTile extends StatelessWidget {
                           Text(
                             time,
                             style: TextStyle(
-                              color: unread > 0 ? _kBrandTeal : _kMutedText,
+                              color: unread > 0 ? _kBrandTeal : context.appMuted,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -297,8 +290,8 @@ class _ChatTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: unread > 0
-                                  ? const Color(0xFF1F2937)
-                                  : _kMutedText,
+                                  ? context.appInk
+                                  : context.appMuted,
                               fontSize: 12,
                               fontWeight: unread > 0
                                   ? FontWeight.w800
@@ -342,7 +335,7 @@ class _ResidentAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: 26,
-      backgroundColor: const Color(0xFFCFE4E9),
+      backgroundColor: context.avatarPlaceholder,
       backgroundImage: imageUrl.isEmpty ? null : NetworkImage(imageUrl),
       child: imageUrl.isEmpty
           ? Text(
@@ -406,20 +399,20 @@ class _EmptyInbox extends StatelessWidget {
             child: const Icon(Icons.chat_bubble_outline, color: _kBrandTeal),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No messages yet',
             style: TextStyle(
-              color: Color(0xFF111827),
+              color: context.appInk,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Start a simple private chat with one of your connected residents.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _kMutedText,
+              color: context.appMuted,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               height: 1.35,

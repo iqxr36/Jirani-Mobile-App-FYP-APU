@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
@@ -10,8 +11,6 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 const Color _brandTeal = Color(0xFF006D77);
-const Color _fieldBorder = Color(0xFFE0E0E0);
-const Color _mutedText = Color(0xFF8A8A8A);
 const double _maxContentWidth = 390;
 
 /// SMS OTP entry after registration - Figma Group 18.
@@ -351,11 +350,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     );
   }
 
-  Widget _buildIntroRichText() {
+  Widget _buildIntroRichText(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(
-          color: Colors.black,
+        style: TextStyle(
+          color: context.appInk,
           fontSize: 17,
           fontWeight: FontWeight.w600,
           height: 1.25,
@@ -377,12 +376,12 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     );
   }
 
-  Widget _buildSecondLine() {
-    return const Text(
+  Widget _buildSecondLine(BuildContext context) {
+    return Text(
       'Please enter it below to secure your\naccount.',
       textAlign: TextAlign.center,
       style: TextStyle(
-        color: Colors.black,
+        color: context.appInk,
         fontSize: 17,
         fontWeight: FontWeight.w600,
         height: 1.25,
@@ -390,7 +389,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     );
   }
 
-  Widget _buildOtpRow(double maxWidth) {
+  Widget _buildOtpRow(BuildContext context, double maxWidth) {
     const gap = 8.0;
     final raw = (maxWidth - 5 * gap) / 6;
     final boxW = raw.clamp(36.0, 42.0).toDouble();
@@ -410,21 +409,25 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
             textInputAction: index < 5
                 ? TextInputAction.next
                 : TextInputAction.done,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: context.appInk,
+            ),
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.white,
+              fillColor: context.isDarkUi
+                  ? context.residentScheme.surfaceContainerHighest
+                  : Colors.white,
               contentPadding: EdgeInsets.zero,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                  color: Colors.black.withValues(alpha: 0.20),
-                ),
+                borderSide: BorderSide(color: context.residentOutline()),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: _fieldBorder),
+                borderSide: BorderSide(color: context.residentOutline()),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
@@ -444,12 +447,12 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     );
   }
 
-  Widget _buildOtpCard() {
+  Widget _buildOtpCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 270),
@@ -464,8 +467,8 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                     child: Container(
                       width: 54,
                       height: 54,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE0E0E0),
+                      decoration: BoxDecoration(
+                        color: context.skeletonBar,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -476,7 +479,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _buildOtpRow(constraints.maxWidth),
+                  _buildOtpRow(context, constraints.maxWidth),
                   const SizedBox(height: 18),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -484,13 +487,13 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                       Icon(
                         Icons.access_time_rounded,
                         size: 16,
-                        color: _mutedText.withValues(alpha: 0.9),
+                        color: context.appMuted.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 6),
                       Text.rich(
                         TextSpan(
-                          style: const TextStyle(
-                            color: _mutedText,
+                          style: TextStyle(
+                            color: context.appMuted,
                             fontSize: 14,
                           ),
                           children: [
@@ -556,7 +559,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                     "Didn't receive a code? Check your SMS\nsettings or try again later.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: context.appMuted,
                       fontSize: 14,
                       height: 1.3,
                     ),
@@ -645,11 +648,11 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
                         const SizedBox(height: 28),
                         _buildHeader(),
                         const SizedBox(height: 45),
-                        _buildIntroRichText(),
+                        _buildIntroRichText(context),
                         const SizedBox(height: 32),
-                        _buildSecondLine(),
+                        _buildSecondLine(context),
                         const SizedBox(height: 32),
-                        _buildOtpCard(),
+                        _buildOtpCard(context),
                       ],
                     ),
                   ),

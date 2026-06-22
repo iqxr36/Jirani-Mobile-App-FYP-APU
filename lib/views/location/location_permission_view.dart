@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/services/location_onboarding_prefs.dart';
 import 'package:jirani/services/verification_permission_prefs.dart';
@@ -324,12 +325,12 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     );
   }
 
-  Widget _buildSubtitle() {
-    return const Text(
+  Widget _buildSubtitle(BuildContext context) {
+    return Text(
       'This helps keep Jirani safe\nfor real residents only.',
       textAlign: TextAlign.center,
       style: TextStyle(
-        color: Colors.black,
+        color: context.appInk,
         fontSize: 17,
         fontWeight: FontWeight.w500,
         height: 1.25,
@@ -337,12 +338,12 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     );
   }
 
-  Widget _buildPrivacyCard() {
+  Widget _buildPrivacyCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
@@ -355,7 +356,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: context.skeletonBar,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -366,13 +367,13 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Your location is only used for\ncommunity verification.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
-                color: Colors.black,
+                color: context.appInk,
                 height: 1.25,
               ),
             ),
@@ -485,9 +486,9 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
                         const SizedBox(height: 16),
                         _buildTitle(),
                         const SizedBox(height: 32),
-                        _buildSubtitle(),
+                        _buildSubtitle(context),
                         const SizedBox(height: 32),
-                        _buildPrivacyCard(),
+                        _buildPrivacyCard(context),
                       ],
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/providers/connection_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
@@ -6,25 +7,9 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 420;
 const double _kPageGutter = 16;
 const double _kCardMaxWidth = _kMaxContentWidth - (_kPageGutter * 2);
-
-List<BoxShadow> _softSurfaceShadow({
-  double opacity = 0.10,
-  double blurRadius = 22,
-  double dy = 10,
-}) {
-  return [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: opacity),
-      blurRadius: blurRadius,
-      spreadRadius: -4,
-      offset: Offset(0, dy),
-    ),
-  ];
-}
 
 class ResidentConnectionRequestsView extends StatefulWidget {
   const ResidentConnectionRequestsView({super.key, this.communityName});
@@ -281,17 +266,17 @@ class _CommunityBadge extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 50, maxWidth: 286),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
+          color: context.glassFill(lightAlpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
-          boxShadow: _softSurfaceShadow(opacity: 0.13, blurRadius: 18, dy: 8),
+          boxShadow: context.softSurfaceShadow(lightOpacity: 0.13, blurRadius: 18, dy: 8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.location_on_outlined,
-              color: Color(0xFF1F2937),
+              color: context.appInk,
               size: 20,
             ),
             const SizedBox(width: 14),
@@ -300,8 +285,8 @@ class _CommunityBadge extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF111827),
+                style: TextStyle(
+                  color: context.appInk,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
@@ -329,10 +314,10 @@ class _SegmentedTabBar extends StatelessWidget {
       height: 50,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.76),
+        color: context.glassFill(lightAlpha: 0.76),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
-        boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 16, dy: 8),
+        border: Border.all(color: context.glassBorder()),
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.08, blurRadius: 16, dy: 8),
       ),
       child: Row(
         children: [
@@ -366,6 +351,8 @@ class _TabPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
     return Expanded(
       child: Semantics(
         selected: selected,
@@ -383,7 +370,11 @@ class _TabPill extends StatelessWidget {
                 color: selected ? _kBrandTeal : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: selected
-                    ? _softSurfaceShadow(opacity: 0.16, blurRadius: 12, dy: 5)
+                    ? context.softSurfaceShadow(
+                        lightOpacity: 0.16,
+                        blurRadius: 12,
+                        dy: 5,
+                      )
                     : null,
               ),
               alignment: Alignment.center,
@@ -392,7 +383,7 @@ class _TabPill extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: selected ? Colors.white : _kMutedText,
+                  color: selected ? onPrimary : context.appMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
@@ -445,7 +436,7 @@ class _ConnectionStatusCard extends StatelessWidget {
               ? const Color(0xFFE29578).withValues(alpha: 0.34)
               : _kBrandTeal.withValues(alpha: 0.16),
         ),
-        boxShadow: _softSurfaceShadow(opacity: 0.05, blurRadius: 14, dy: 6),
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.05, blurRadius: 14, dy: 6),
       ),
       child: Row(
         children: [
@@ -500,10 +491,10 @@ class _RequestCard extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.glassFill(lightAlpha: 0.96),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-        boxShadow: _softSurfaceShadow(opacity: 0.12, blurRadius: 24, dy: 12),
+        border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.12, blurRadius: 24, dy: 12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -524,8 +515,8 @@ class _RequestCard extends StatelessWidget {
                             name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF111827),
+                            style: TextStyle(
+                              color: context.appInk,
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
                             ),
@@ -539,7 +530,7 @@ class _RequestCard extends StatelessWidget {
                       role,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _kBrandTeal,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -548,8 +539,8 @@ class _RequestCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       _timeLabel(connection.updatedAt),
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: context.appMuted,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -562,8 +553,8 @@ class _RequestCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             '$name wants to connect with you as a verified neighbor in your community.',
-            style: const TextStyle(
-              color: Color(0xFF374151),
+            style: TextStyle(
+              color: context.appInk,
               fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -576,11 +567,11 @@ class _RequestCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: submitting ? null : onDecline,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF374151),
-                    backgroundColor: Colors.white.withValues(alpha: 0.78),
+                    foregroundColor: context.appInk,
+                    backgroundColor: context.glassFill(lightAlpha: 0.78),
                     minimumSize: const Size.fromHeight(44),
                     side: BorderSide(
-                      color: Colors.black.withValues(alpha: 0.16),
+                      color: context.residentOutline(),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -655,18 +646,18 @@ class _ConnectedNeighborRow extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 88),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.glassFill(lightAlpha: 0.96),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-        boxShadow: _softSurfaceShadow(opacity: 0.09, blurRadius: 18, dy: 8),
+        border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
+        boxShadow: context.softSurfaceShadow(lightOpacity: 0.09, blurRadius: 18, dy: 8),
       ),
       child: Row(
         children: [
           Container(
             width: 44,
             height: 44,
-            decoration: const BoxDecoration(
-              color: Color(0xFFCFE4E9),
+            decoration: BoxDecoration(
+              color: context.avatarPlaceholder,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -688,8 +679,8 @@ class _ConnectedNeighborRow extends StatelessWidget {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF111827),
+                        style: TextStyle(
+                          color: context.appInk,
                           fontSize: 14,
                           fontWeight: FontWeight.w900,
                         ),
@@ -704,8 +695,8 @@ class _ConnectedNeighborRow extends StatelessWidget {
                   role,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kMutedText,
+                  style: TextStyle(
+                    color: context.appMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -739,8 +730,8 @@ class _ConnectedNeighborRow extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 _timeLabel(connection.updatedAt),
-                style: const TextStyle(
-                  color: _kMutedText,
+                style: TextStyle(
+                  color: context.appMuted,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -761,8 +752,8 @@ class _RequestAvatar extends StatelessWidget {
     return Container(
       width: 52,
       height: 52,
-      decoration: const BoxDecoration(
-        color: Color(0xFFCFE4E9),
+      decoration: BoxDecoration(
+        color: context.avatarPlaceholder,
         shape: BoxShape.circle,
       ),
       child: const Icon(
@@ -837,10 +828,10 @@ class _EmptyStateCard extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: _kCardMaxWidth),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.93),
+          color: context.glassFill(lightAlpha: 0.93),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-          boxShadow: _softSurfaceShadow(opacity: 0.08, blurRadius: 20, dy: 10),
+          border: Border.all(color: context.residentOutline(lightAlpha: 0.08)),
+          boxShadow: context.softSurfaceShadow(lightOpacity: 0.08, blurRadius: 20, dy: 10),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -849,8 +840,8 @@ class _EmptyStateCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF111827),
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -859,8 +850,8 @@ class _EmptyStateCard extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _kMutedText,
+              style: TextStyle(
+                color: context.appMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 height: 1.35,

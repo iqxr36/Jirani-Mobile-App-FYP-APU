@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/services/geofence_gate_service.dart';
@@ -216,8 +217,8 @@ class _GeofenceBlockScreen extends StatelessWidget {
                               : message ??
                                     'Move back inside your selected community to use Jirani features.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.black,
+                          style: TextStyle(
+                            color: context.appInk,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             height: 1.35,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/verification_access.dart';
 import 'package:jirani/providers/chat_provider.dart';
 import 'package:jirani/providers/connection_provider.dart';
@@ -211,6 +212,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     int incomingConnectionCount,
     int unreadMessageCount,
   ) {
+    final isDark = context.isDarkUi;
     final communityName = user?.communityName.trim().isNotEmpty == true
         ? user!.communityName.trim()
         : 'Jirani Residence';
@@ -232,8 +234,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                       children: [
                         Text(
                           _greetingForTime(),
-                          style: const TextStyle(
-                            color: Color(0xFF59666B),
+                          style: TextStyle(
+                            color: context.appMuted,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -260,14 +262,16 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
               const SizedBox(height: 14),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.66),
+                  color: context.glassFill( lightAlpha: 0.66),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: context.glassBorder( lightAlpha: 0.82),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.24 : 0.08,
+                      ),
                       blurRadius: 26,
                       offset: const Offset(0, 12),
                     ),
@@ -386,7 +390,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
             width: active ? 44 : 9,
             height: 9,
             decoration: BoxDecoration(
-              color: active ? _kBrandTeal : const Color(0xFFD9D9D9),
+              color: active ? _kBrandTeal : context.residentOutline(),
               borderRadius: BorderRadius.circular(12),
             ),
           );
@@ -427,7 +431,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
               ],
             ),
             child: Material(
-              color: Colors.white.withValues(alpha: 0.92),
+              color: context.glassFill( lightAlpha: 0.92),
               borderRadius: BorderRadius.circular(24),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -437,7 +441,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.90),
+                      color: context.glassBorder( lightAlpha: 0.90),
                     ),
                   ),
                   child: Padding(
@@ -475,8 +479,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF1F2937),
+                          style: TextStyle(
+                            color: context.appInk,
                             fontSize: 14,
                             fontWeight: FontWeight.w900,
                             height: 1.15,
@@ -487,8 +491,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                           subtitle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF59666B),
+                          style: TextStyle(
+                            color: context.appMuted,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             height: 1.25,
@@ -545,13 +549,13 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Explore Jirani',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF1F2937),
+                        color: context.appInk,
                         height: 1.1,
                       ),
                     ),
@@ -559,12 +563,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                 ],
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Fast access to community services and sharing.',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF59666B),
+                  color: context.appMuted,
                   height: 1.35,
                 ),
               ),
@@ -575,7 +579,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                   card(
                     semanticLabel: 'Home Services',
                     title: 'Home Services',
-                    subtitle: 'Book trusted help nearby',
+                    subtitle: 'Trusted help nearby',
                     assetPath: _kHomeServicesAsset,
                     fallbackIcon: Icons.home_repair_service_outlined,
                     onTap: locked,
@@ -628,6 +632,8 @@ class _HeaderAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -635,9 +641,13 @@ class _HeaderAction extends StatelessWidget {
         constraints: const BoxConstraints(minWidth: 78, minHeight: 82),
         child: Ink(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.62),
+            color: context.glassFill( lightAlpha: 0.62),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kBrandTeal.withValues(alpha: 0.08)),
+            border: Border.all(
+              color: isDark
+                  ? Theme.of(context).colorScheme.outlineVariant
+                  : _kBrandTeal.withValues(alpha: 0.08),
+            ),
           ),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           child: Column(
@@ -666,15 +676,15 @@ class _HeaderAction extends StatelessWidget {
                           minHeight: 18,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF90170B),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
                           shape: BoxShape.circle,
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           badgeCount > 9 ? '9+' : badgeCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onError,
                             fontSize: 9,
                             fontWeight: FontWeight.w900,
                           ),
@@ -688,8 +698,8 @@ class _HeaderAction extends StatelessWidget {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF90170B),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -700,10 +710,10 @@ class _HeaderAction extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1F2937),
+                  color: context.appInk,
                   height: 1.15,
                 ),
               ),
@@ -722,16 +732,18 @@ class _CommunityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+
     return Container(
       constraints: const BoxConstraints(maxWidth: 190, minHeight: 44),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color: context.glassFill( lightAlpha: 0.72),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _kBrandTeal.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),

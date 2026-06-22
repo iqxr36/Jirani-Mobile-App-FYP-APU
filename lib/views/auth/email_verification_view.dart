@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 const Color _brandTeal = Color(0xFF006D77);
-const Color _mutedGrey = Color(0xFF8A8A8A);
 const double _maxContentWidth = 390;
 
 /// Email verification — Figma Group 19: illustration, card with timer + resend + copy, Continue.
@@ -212,11 +212,11 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     );
   }
 
-  Widget _buildInstructionRichText() {
+  Widget _buildInstructionRichText(BuildContext context) {
     final email = _displayEmail;
     return Text.rich(
       TextSpan(
-        style: const TextStyle(color: _mutedGrey, fontSize: 14, height: 1.35),
+        style: TextStyle(color: context.appMuted, fontSize: 14, height: 1.35),
         children: [
           const TextSpan(text: "We've sent a secure verification link to\n"),
           TextSpan(
@@ -235,13 +235,13 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     );
   }
 
-  Widget _buildCard() {
+  Widget _buildCard(BuildContext context) {
     final canResend = _secondsRemaining <= 0 && !_resendLoading;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 170),
@@ -257,12 +257,12 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                   Icon(
                     Icons.access_time_rounded,
                     size: 18,
-                    color: _mutedGrey.withValues(alpha: 0.9),
+                    color: context.appMuted.withValues(alpha: 0.9),
                   ),
                   const SizedBox(width: 8),
                   Text.rich(
                     TextSpan(
-                      style: const TextStyle(color: _mutedGrey, fontSize: 14),
+                      style: TextStyle(color: context.appMuted, fontSize: 14),
                       children: [
                         const TextSpan(text: 'Resend Link in '),
                         TextSpan(
@@ -320,7 +320,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                 ),
               ),
               const SizedBox(height: 18),
-              _buildInstructionRichText(),
+              _buildInstructionRichText(context),
             ],
           ),
         ),
@@ -399,7 +399,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                         const SizedBox(height: 12),
                         _buildHeroImage(),
                         const SizedBox(height: 12),
-                        _buildCard(),
+                        _buildCard(context),
                       ],
                     ),
                   ),

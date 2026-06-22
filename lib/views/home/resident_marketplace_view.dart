@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/marketplace_borrow_flow.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/providers/borrow_request_provider.dart';
@@ -23,8 +24,6 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kWarmAccent = Color(0xFFE29578);
-const Color _kInk = Color(0xFF1F2937);
-const Color _kMutedText = Color(0xFF6B7280);
 const double _kMaxContentWidth = 440;
 
 final DateFormat _shortDateFormat = DateFormat('d MMM yyyy');
@@ -416,8 +415,8 @@ class MarketplaceItemDetailView extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     item.title,
-                                    style: const TextStyle(
-                                      color: _kInk,
+                                    style: TextStyle(
+                                      color: context.appInk,
                                       fontSize: 25,
                                       fontWeight: FontWeight.w900,
                                       height: 1.05,
@@ -431,17 +430,17 @@ class MarketplaceItemDetailView extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               '${_categoryLabel(item.category)} · ${_conditionLabel(item.condition)}',
-                              style: const TextStyle(
-                                color: _kMutedText,
+                              style: TextStyle(
+                                color: context.appMuted,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 14),
-                            const Text(
+                            Text(
                               'Deposit is held securely and refunded in full when the item is returned in good condition.',
                               style: TextStyle(
-                                color: _kMutedText,
+                                color: context.appMuted,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 height: 1.35,
@@ -512,8 +511,8 @@ class MarketplaceItemDetailView extends StatelessWidget {
                               item.description.trim().isEmpty
                                   ? 'No description has been added yet.'
                                   : item.description.trim(),
-                              style: const TextStyle(
-                                color: Color(0xFF374151),
+                              style: TextStyle(
+                                color: context.appInk,
                                 fontSize: 14,
                                 height: 1.45,
                                 fontWeight: FontWeight.w600,
@@ -525,8 +524,8 @@ class MarketplaceItemDetailView extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 item.pickupInstructions.trim(),
-                                style: const TextStyle(
-                                  color: Color(0xFF374151),
+                                style: TextStyle(
+                                  color: context.appInk,
                                   fontSize: 14,
                                   height: 1.45,
                                   fontWeight: FontWeight.w600,
@@ -927,10 +926,13 @@ class _CheckoutTitleBar extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: 14),
-            child: Divider(thickness: 1.4, color: Color(0xFFCFE5E9)),
+            padding: const EdgeInsets.only(left: 14),
+            child: Divider(
+              thickness: 1.4,
+              color: context.residentOutline(),
+            ),
           ),
         ),
       ],
@@ -955,10 +957,13 @@ class _PaymentMethodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Material(
       color: selected
           ? _kBrandTeal.withValues(alpha: 0.10)
-          : const Color(0xFFF8FAFC),
+          : context.softSurface(),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -969,7 +974,7 @@ class _PaymentMethodTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? _kBrandTeal : const Color(0xFFE5E7EB),
+              color: selected ? _kBrandTeal : context.residentOutline(),
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -980,7 +985,9 @@ class _PaymentMethodTile extends StatelessWidget {
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.isDarkUi
+                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: _kBrandTeal, size: 22),
@@ -995,8 +1002,8 @@ class _PaymentMethodTile extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1006,8 +1013,8 @@ class _PaymentMethodTile extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1020,7 +1027,7 @@ class _PaymentMethodTile extends StatelessWidget {
                 selected
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_unchecked_rounded,
-                color: selected ? _kBrandTeal : _kMutedText,
+                color: selected ? _kBrandTeal : muted,
               ),
             ],
           ),
@@ -1047,12 +1054,15 @@ class _TrackingStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.softSurface(),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1077,8 +1087,8 @@ class _TrackingStepCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1086,8 +1096,8 @@ class _TrackingStepCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       message,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         height: 1.35,
@@ -1162,10 +1172,10 @@ class _CheckoutCard extends StatelessWidget {
             children: [
               const _SectionLabel('Payment Method'),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Choose a payment method',
                 style: TextStyle(
-                  color: _kMutedText,
+                  color: context.appMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1193,10 +1203,10 @@ class _CheckoutCard extends StatelessWidget {
                   color: _kWarmAccent.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Text(
+                child: Text(
                   'Temporary in-app payment. Stripe will replace this action later.',
                   style: TextStyle(
-                    color: _kInk,
+                    color: context.appInk,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     height: 1.3,
@@ -1299,13 +1309,13 @@ class _ConfirmPickupCodeCard extends StatelessWidget {
               keyboardType: TextInputType.number,
               maxLength: 4,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _kInk,
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0,
               ),
-              decoration: _inputDecoration(
+              decoration: context.residentInputDecoration(
                 label: 'Arrival Code',
                 hint: '0000',
               ).copyWith(counterText: ''),
@@ -1364,7 +1374,7 @@ class _ActiveBorrowCard extends StatelessWidget {
             controller: returnNotesController,
             minLines: 2,
             maxLines: 3,
-            decoration: _inputDecoration(
+            decoration: context.residentInputDecoration(
               label: 'Return notes',
               hint: 'Optional notes before returning the item',
             ),
@@ -1451,6 +1461,8 @@ class _CompletedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
     final depositReleased = MarketplaceBorrowFlow.hasDepositReleased(request);
 
     return _GlassPanel(
@@ -1468,8 +1480,8 @@ class _CompletedCard extends StatelessWidget {
           Text(
             depositReleased ? 'Transaction Complete' : 'Deposit Review Pending',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kInk,
+            style: TextStyle(
+              color: ink,
               fontSize: 22,
               fontWeight: FontWeight.w900,
             ),
@@ -1480,8 +1492,8 @@ class _CompletedCard extends StatelessWidget {
                 ? 'Your ${_money(request.depositAmount ?? 0)} deposit has been released back to you.'
                 : 'The lender reported an issue. Deposit release will wait for the owner decision.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: muted,
               fontWeight: FontWeight.w700,
               height: 1.35,
             ),
@@ -1491,8 +1503,8 @@ class _CompletedCard extends StatelessWidget {
             Text(
               'Rate the Lender',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _kInk,
+              style: TextStyle(
+                color: ink,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -1501,8 +1513,8 @@ class _CompletedCard extends StatelessWidget {
             Text(
               'Did the item match the description, and was communication easy with ${request.ownerName}?',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _kMutedText,
+              style: TextStyle(
+                color: muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
@@ -1525,7 +1537,7 @@ class _CompletedCard extends StatelessWidget {
               controller: reviewController,
               minLines: 3,
               maxLines: 4,
-              decoration: _inputDecoration(
+              decoration: context.residentInputDecoration(
                 label: 'Private until published',
                 hint: 'Optional comment about description and communication',
               ),
@@ -1560,6 +1572,9 @@ class _TransactionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return _GlassPanel(
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -1574,8 +1589,8 @@ class _TransactionHeader extends StatelessWidget {
                   request.itemTitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kInk,
+                  style: TextStyle(
+                    color: ink,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                     height: 1.15,
@@ -1584,8 +1599,8 @@ class _TransactionHeader extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   '${_compactDateFormat.format(request.requestedStartDate)} - ${_compactDateFormat.format(request.expectedReturnDate)}',
-                  style: const TextStyle(
-                    color: _kMutedText,
+                  style: TextStyle(
+                    color: muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1625,6 +1640,7 @@ class _ProgressPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
     final steps = [
       _ProgressStep(
         label: 'Approval',
@@ -1669,7 +1685,7 @@ class _ProgressPanel extends StatelessWidget {
                 height: 2,
                 color: steps[i].done
                     ? _kBrandTeal
-                    : _kMutedText.withValues(alpha: 0.20),
+                    : muted.withValues(alpha: 0.20),
               ),
           ],
         ],
@@ -1697,6 +1713,8 @@ class _StepChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1704,15 +1722,17 @@ class _StepChip extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: step.done ? _kBrandTeal : Colors.white,
+            color: step.done ? _kBrandTeal : context.softSurface(),
             shape: BoxShape.circle,
             border: Border.all(
-              color: step.done ? _kBrandTeal : const Color(0xFFE5E7EB),
+              color: step.done ? _kBrandTeal : context.residentOutline(),
             ),
           ),
           child: Icon(
             step.icon,
-            color: step.done ? Colors.white : _kMutedText,
+            color: step.done
+                ? Theme.of(context).colorScheme.onPrimary
+                : muted,
             size: 20,
           ),
         ),
@@ -1722,7 +1742,7 @@ class _StepChip extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: step.done ? _kBrandTeal : _kMutedText,
+            color: step.done ? _kBrandTeal : muted,
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -1740,6 +1760,8 @@ class _BorrowRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
     final total = MarketplaceBorrowFlow.totalDue(
       usageFee: request.usageFeeAmount,
       deposit: request.depositAmount,
@@ -1763,8 +1785,8 @@ class _BorrowRequestCard extends StatelessWidget {
                       request.itemTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1772,8 +1794,8 @@ class _BorrowRequestCard extends StatelessWidget {
                     const SizedBox(height: 5),
                     Text(
                       '${_compactDateFormat.format(request.requestedStartDate)} - ${_compactDateFormat.format(request.expectedReturnDate)}',
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1800,7 +1822,7 @@ class _BorrowRequestCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: _kMutedText),
+              Icon(Icons.chevron_right_rounded, color: muted),
             ],
           ),
         ),
@@ -1817,6 +1839,9 @@ class _MarketplaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1845,10 +1870,10 @@ class _MarketplaceCard extends StatelessWidget {
                       item.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: _kInk,
+                        color: ink,
                         height: 1.15,
                       ),
                     ),
@@ -1860,8 +1885,8 @@ class _MarketplaceCard extends StatelessWidget {
               SizedBox(height: JiraniResponsive.scaled(context, 4)),
               Text(
                 _categoryLabel(item.category),
-                style: const TextStyle(
-                  color: _kMutedText,
+                style: TextStyle(
+                  color: muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1879,8 +1904,8 @@ class _MarketplaceCard extends StatelessWidget {
                           item.ownerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _kInk,
+                          style: TextStyle(
+                            color: ink,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1889,8 +1914,8 @@ class _MarketplaceCard extends StatelessWidget {
                           item.ownerVerified ? 'Verified resident' : 'Resident',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _kMutedText,
+                          style: TextStyle(
+                            color: muted,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1916,8 +1941,8 @@ class _MarketplaceCard extends StatelessWidget {
                         item.hasDeposit
                             ? '${_money(item.depositAmount)} Deposit'
                             : 'No deposit',
-                        style: const TextStyle(
-                          color: _kMutedText,
+                        style: TextStyle(
+                          color: muted,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2057,6 +2082,9 @@ class _OwnerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
@@ -2066,9 +2094,9 @@ class _OwnerRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: context.softSurface(),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: context.residentOutline()),
           ),
           child: Row(
             children: [
@@ -2086,8 +2114,8 @@ class _OwnerRow extends StatelessWidget {
                       item.ownerName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
                       ),
@@ -2096,8 +2124,8 @@ class _OwnerRow extends StatelessWidget {
                       '${item.ownerVerified ? 'Verified resident' : 'Resident'} - ${item.ownerReputationScore.toStringAsFixed(1)} rating',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kMutedText,
+                      style: TextStyle(
+                        color: muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2106,9 +2134,9 @@ class _OwnerRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: _kMutedText,
+                color: muted,
                 size: 22,
               ),
             ],
@@ -2144,7 +2172,7 @@ class _Avatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFCFE5E9),
+      backgroundColor: context.avatarPlaceholder,
       child: Text(
         initials,
         style: const TextStyle(color: _kBrandTeal, fontWeight: FontWeight.w900),
@@ -2233,25 +2261,25 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
                 width: 44,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD1D5DB),
+                  color: context.residentOutline(),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Choose Borrowing Dates',
               style: TextStyle(
-                color: _kInk,
+                color: context.appInk,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Daily fee is set by the lender. Hourly borrowing is calculated from that daily price.',
               style: TextStyle(
-                color: _kMutedText,
+                color: context.appMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -2338,7 +2366,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               controller: _messageController,
               minLines: 2,
               maxLines: 3,
-              decoration: _inputDecoration(
+              decoration: context.residentInputDecoration(
                 label: 'Message to owner',
                 hint: 'Optional meetup note or reason for borrowing',
               ),
@@ -2513,7 +2541,7 @@ class _ModeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: context.softSurface(),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -2545,12 +2573,14 @@ class _PricingNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: context.infoContainerBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(color: context.infoContainerBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2566,8 +2596,8 @@ class _PricingNote extends StatelessWidget {
               capped
                   ? 'Hourly total reached the same-day daily cap, so you will not pay more than the daily rate.'
                   : 'Hourly borrowing uses the daily fee divided by ${MarketplaceBorrowFlow.hourlyBillingHoursPerDay}.',
-              style: const TextStyle(
-                color: _kInk,
+              style: TextStyle(
+                color: ink,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 height: 1.35,
@@ -2593,6 +2623,8 @@ class _ModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -2601,12 +2633,14 @@ class _ModeButton extends StatelessWidget {
         height: 42,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? context.glassFill( lightAlpha: 1) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: Colors.black.withValues(
+                      alpha: context.isDarkUi ? 0.22 : 0.08,
+                    ),
                     blurRadius: 12,
                     offset: const Offset(0, 5),
                   ),
@@ -2616,7 +2650,7 @@ class _ModeButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? _kBrandTeal : _kMutedText,
+            color: selected ? _kBrandTeal : muted,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -2640,15 +2674,18 @@ class _PickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: context.softSurface(),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: context.residentOutline()),
         ),
         child: Row(
           children: [
@@ -2662,8 +2699,8 @@ class _PickerTile extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _kMutedText,
+                    style: TextStyle(
+                      color: muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2673,8 +2710,8 @@ class _PickerTile extends StatelessWidget {
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _kInk,
+                    style: TextStyle(
+                      color: ink,
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
                     ),
@@ -2715,8 +2752,8 @@ class _PageHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: _kInk,
+                style: TextStyle(
+                  color: context.appInk,
                   fontSize: 30,
                   fontWeight: FontWeight.w900,
                   height: 1.05,
@@ -2725,8 +2762,8 @@ class _PageHeader extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF59666B),
+                style: TextStyle(
+                  color: context.appMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -2795,9 +2832,9 @@ class _SectionSwitch extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: context.glassFill(lightAlpha: 0.78),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.90)),
+        border: Border.all(color: context.glassBorder(lightAlpha: 0.90)),
       ),
       child: Row(
         children: [
@@ -2838,6 +2875,9 @@ class _SectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -2851,7 +2891,7 @@ class _SectionButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: selected ? Colors.white : _kMutedText),
+            Icon(icon, size: 18, color: selected ? onPrimary : muted),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -2859,7 +2899,7 @@ class _SectionButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: selected ? Colors.white : _kInk,
+                  color: selected ? onPrimary : context.appInk,
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),
@@ -2888,11 +2928,11 @@ class _SearchField extends StatelessWidget {
     return Container(
       height: JiraniResponsive.scaled(context, 56),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: context.glassFill(lightAlpha: 0.78),
         borderRadius: BorderRadius.circular(
           JiraniResponsive.scaledRadius(context, 20),
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        border: Border.all(color: context.glassBorder(lightAlpha: 0.86)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -2920,14 +2960,14 @@ class _SearchField extends StatelessWidget {
                 hintText: hint,
                 border: InputBorder.none,
                 isCollapsed: true,
-                hintStyle: const TextStyle(
-                  color: Color(0xFF59666B),
+                hintStyle: TextStyle(
+                  color: context.appMuted,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              style: const TextStyle(
-                color: _kInk,
+              style: TextStyle(
+                color: context.appInk,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -2979,6 +3019,8 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -2990,12 +3032,12 @@ class _CategoryChip extends StatelessWidget {
         ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? _kBrandTeal : Colors.white,
+          color: selected ? _kBrandTeal : context.softSurface(),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? _kBrandTeal
-                : Colors.white.withValues(alpha: 0.88),
+                : context.glassBorder(lightAlpha: 0.88),
           ),
           boxShadow: [
             BoxShadow(
@@ -3008,7 +3050,7 @@ class _CategoryChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : _kInk,
+            color: selected ? onPrimary : context.appInk,
             fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
@@ -3049,16 +3091,19 @@ class _GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final panelColor = context.glassFill();
+    final borderColor = context.glassBorder();
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.84),
+        color: panelColor,
         borderRadius: BorderRadius.circular(
           JiraniResponsive.scaledRadius(context, 22),
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.92)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.09),
+            color: Colors.black.withValues(alpha: context.isDarkUi ? 0.24 : 0.09),
             blurRadius: JiraniResponsive.scaled(context, 24),
             offset: Offset(0, JiraniResponsive.scaled(context, 12)),
           ),
@@ -3091,7 +3136,7 @@ class _MarketplaceSkeletonCard extends StatelessWidget {
             height: 18,
             width: 180,
             decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
+              color: context.skeletonBar,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -3100,7 +3145,7 @@ class _MarketplaceSkeletonCard extends StatelessWidget {
             height: 14,
             width: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
+              color: context.skeletonBar,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -3123,6 +3168,9 @@ class _StateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return _GlassPanel(
       child: Column(
         children: [
@@ -3131,8 +3179,8 @@ class _StateCard extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kInk,
+            style: TextStyle(
+              color: ink,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -3141,8 +3189,8 @@ class _StateCard extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: muted,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -3167,6 +3215,8 @@ class _AmountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3180,8 +3230,8 @@ class _AmountTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: muted,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -3202,8 +3252,8 @@ class _AmountTile extends StatelessWidget {
             helper,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: muted,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -3227,13 +3277,16 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+    final muted = context.appMuted;
+
     return Row(
       children: [
         Expanded(
           child: Text(
             label,
             style: TextStyle(
-              color: emphasized ? _kInk : _kMutedText,
+              color: emphasized ? ink : muted,
               fontSize: emphasized ? 15 : 13,
               fontWeight: FontWeight.w800,
             ),
@@ -3246,7 +3299,7 @@ class _SummaryRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
             style: TextStyle(
-              color: emphasized ? _kBrandTeal : _kInk,
+              color: emphasized ? _kBrandTeal : ink,
               fontSize: emphasized ? 17 : 14,
               fontWeight: FontWeight.w900,
             ),
@@ -3265,6 +3318,7 @@ class _CodeDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = context.appMuted;
     final cleanCode = code.trim().isEmpty ? '----' : code.trim();
     return Container(
       padding: const EdgeInsets.all(14),
@@ -3278,8 +3332,8 @@ class _CodeDisplay extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: _kMutedText,
+            style: TextStyle(
+              color: muted,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -3295,14 +3349,14 @@ class _CodeDisplay extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.softSurface(),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                      border: Border.all(color: context.residentOutline()),
                     ),
                     child: Text(
                       char,
-                      style: const TextStyle(
-                        color: _kInk,
+                      style: TextStyle(
+                        color: context.appInk,
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
                       ),
@@ -3355,8 +3409,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
-        color: _kInk,
+      style: TextStyle(
+        color: context.appInk,
         fontSize: 15,
         fontWeight: FontWeight.w900,
       ),
@@ -3378,8 +3432,11 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: disabled ? const Color(0xFF9CA3AF) : _kBrandTeal,
+      color: disabled
+          ? scheme.onSurface.withValues(alpha: 0.38)
+          : _kBrandTeal,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -3389,15 +3446,15 @@ class _PrimaryButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 20),
+              Icon(icon, color: scheme.onPrimary, size: 20),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: scheme.onPrimary,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -3423,8 +3480,10 @@ class _SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = context.appInk;
+
     return Material(
-      color: Colors.white,
+      color: context.softSurface(),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -3433,7 +3492,7 @@ class _SecondaryButton extends StatelessWidget {
           height: 52,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: context.residentOutline()),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -3445,8 +3504,8 @@ class _SecondaryButton extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kInk,
+                  style: TextStyle(
+                    color: ink,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -3475,7 +3534,7 @@ class _CircleIconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withValues(alpha: 0.90),
+        color: context.glassFill(lightAlpha: 0.90),
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onTap,
@@ -3512,7 +3571,7 @@ class _AddButton extends StatelessWidget {
           height: size,
           child: Icon(
             Icons.add,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
             size: JiraniResponsive.scaled(context, 30),
           ),
         ),
@@ -3537,30 +3596,6 @@ class _RequestThumb extends StatelessWidget {
   }
 }
 
-InputDecoration _inputDecoration({
-  required String label,
-  required String hint,
-}) {
-  return InputDecoration(
-    labelText: label,
-    hintText: hint,
-    filled: true,
-    fillColor: const Color(0xFFF8FAFC),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: _kBrandTeal, width: 1.4),
-    ),
-  );
-}
-
 void _showBorrowRequestSheet({
   required BuildContext context,
   required ItemModel item,
@@ -3569,7 +3604,7 @@ void _showBorrowRequestSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: Colors.white,
+    backgroundColor: context.residentScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),

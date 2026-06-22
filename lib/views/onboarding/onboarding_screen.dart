@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 
 /// Four-step onboarding before login (resident mobile). Calls [onFinished] for Skip / Get Started.
 class OnboardingScreen extends StatefulWidget {
@@ -251,7 +252,7 @@ class _OnboardingSlide extends StatelessWidget {
                   page.title,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.black,
+                    color: context.appInk,
                     fontWeight: FontWeight.w600,
                     height: 1.25,
                   ),

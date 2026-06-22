@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/community_model.dart';
@@ -44,26 +45,32 @@ class _RegisterViewState extends State<RegisterView> {
   static const double _kCardRadius = 26;
   static const double _kFieldRadius = 10;
 
-  static const TextStyle _kLabelStyle = TextStyle(
+  TextStyle _labelStyle(BuildContext context) => TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w600,
-    color: Colors.black,
+    color: context.appInk,
   );
 
-  InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration(
+    BuildContext context, {
+    required String hint,
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       hintText: hint,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: context.isDarkUi
+          ? context.residentScheme.surfaceContainerHighest
+          : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       hintStyle: TextStyle(
-        color: Colors.black.withValues(alpha: 0.28),
+        color: context.appMuted.withValues(alpha: 0.72),
         fontSize: 14,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+        borderSide: BorderSide(color: context.residentOutline(lightAlpha: 0.12)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
@@ -81,6 +88,7 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Widget _buildFieldGroup({
+    required BuildContext context,
     required String label,
     required TextEditingController controller,
     required String hint,
@@ -95,7 +103,7 @@ class _RegisterViewState extends State<RegisterView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: _kLabelStyle),
+        Text(label, style: _labelStyle(context)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -103,11 +111,15 @@ class _RegisterViewState extends State<RegisterView> {
           keyboardType: keyboardType,
           obscureText: obscureText,
           textInputAction: textInputAction,
-          style: const TextStyle(fontSize: 15),
+          style: TextStyle(fontSize: 15, color: context.appInk),
           onFieldSubmitted: onFieldSubmitted != null
               ? (_) => onFieldSubmitted()
               : null,
-          decoration: _inputDecoration(hint: hint, suffixIcon: suffixIcon),
+          decoration: _inputDecoration(
+            context,
+            hint: hint,
+            suffixIcon: suffixIcon,
+          ),
           validator: validator,
         ),
       ],
@@ -206,7 +218,10 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  Widget _buildCommunityPicker({required bool enabled}) {
+  Widget _buildCommunityPicker({
+    required BuildContext context,
+    required bool enabled,
+  }) {
     final hasOptions = _activeCommunities.isNotEmpty;
     final canSelect = enabled;
     final selectedName = _selectedCommunity?.name;
@@ -214,7 +229,7 @@ class _RegisterViewState extends State<RegisterView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Community / Residence', style: _kLabelStyle),
+        Text('Community / Residence', style: _labelStyle(context)),
         const SizedBox(height: 6),
         if (_communitiesLoading)
           const SizedBox(
@@ -229,6 +244,7 @@ class _RegisterViewState extends State<RegisterView> {
               borderRadius: BorderRadius.circular(_kFieldRadius),
               child: InputDecorator(
                 decoration: _inputDecoration(
+                  context,
                   hint: hasOptions
                       ? 'Select your community'
                       : 'No active communities available',
@@ -242,8 +258,8 @@ class _RegisterViewState extends State<RegisterView> {
                   style: TextStyle(
                     fontSize: 15,
                     color: canSelect
-                        ? Colors.black
-                        : Colors.black.withValues(alpha: 0.38),
+                        ? context.appInk
+                        : context.appMuted,
                   ),
                 ),
               ),
@@ -255,7 +271,7 @@ class _RegisterViewState extends State<RegisterView> {
             child: Text(
               _communitiesError ??
                   'You can select a community during location verification.',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF777777)),
+              style: TextStyle(fontSize: 11, color: context.appMuted),
             ),
           ),
       ],
@@ -396,12 +412,12 @@ class _RegisterViewState extends State<RegisterView> {
                             constraints: const BoxConstraints(maxWidth: 350),
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: context.glassFill(),
                                 borderRadius: BorderRadius.circular(
                                   _kCardRadius,
                                 ),
                                 border: Border.all(
-                                  color: Colors.black.withValues(alpha: 0.12),
+                                  color: context.residentOutline(lightAlpha: 0.12),
                                 ),
                               ),
                               child: Padding(
@@ -415,7 +431,7 @@ class _RegisterViewState extends State<RegisterView> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'First Name',
                                         controller: _firstNameController,
                                         hint: 'John',
@@ -423,7 +439,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         validator: Validators.validateFirstName,
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'Last Name',
                                         controller: _lastNameController,
                                         hint: 'Doe',
@@ -431,7 +447,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         validator: Validators.validateLastName,
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'Email Address',
                                         controller: _emailController,
                                         hint: 'John@example.com',
@@ -441,7 +457,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         validator: Validators.validateEmail,
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'Password',
                                         controller: _passwordController,
                                         hint: '••••••••',
@@ -455,9 +471,7 @@ class _RegisterViewState extends State<RegisterView> {
                                             _obscurePassword
                                                 ? Icons.visibility_outlined
                                                 : Icons.visibility_off_outlined,
-                                            color: Colors.black.withValues(
-                                              alpha: 0.45,
-                                            ),
+                                            color: context.appMuted,
                                             size: 22,
                                           ),
                                           onPressed: loading
@@ -470,7 +484,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         validator: Validators.validatePassword,
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'Confirm Password',
                                         controller: _confirmPasswordController,
                                         hint: '••••••••',
@@ -484,9 +498,7 @@ class _RegisterViewState extends State<RegisterView> {
                                             _obscureConfirmPassword
                                                 ? Icons.visibility_outlined
                                                 : Icons.visibility_off_outlined,
-                                            color: Colors.black.withValues(
-                                              alpha: 0.45,
-                                            ),
+                                            color: context.appMuted,
                                             size: 22,
                                           ),
                                           onPressed: loading
@@ -503,9 +515,9 @@ class _RegisterViewState extends State<RegisterView> {
                                             ),
                                       ),
                                       const SizedBox(height: 12),
-                                      _buildCommunityPicker(enabled: !loading),
+                                      _buildCommunityPicker(context: context, enabled: !loading),
                                       const SizedBox(height: 12),
-                                      _buildFieldGroup(
+                                      _buildFieldGroup(context: context,
                                         label: 'Phone Number',
                                         controller: _phoneController,
                                         hint: '+60 12-345 6789',
@@ -561,12 +573,12 @@ class _RegisterViewState extends State<RegisterView> {
                                             text: TextSpan(
                                               style:
                                                   textTheme.bodySmall?.copyWith(
-                                                    color: Colors.black87,
+                                                    color: context.appInk,
                                                     fontSize: 13,
                                                     height: 1.35,
                                                   ) ??
-                                                  const TextStyle(
-                                                    color: Colors.black87,
+                                                  TextStyle(
+                                                    color: context.appInk,
                                                     fontSize: 13,
                                                     height: 1.35,
                                                   ),
@@ -666,7 +678,7 @@ class _RegisterViewState extends State<RegisterView> {
                                   'Already have an account?',
                                   textAlign: TextAlign.center,
                                   style: textTheme.bodyMedium?.copyWith(
-                                    color: Colors.black87,
+                                    color: context.appInk,
                                   ),
                                 ),
                                 const SizedBox(height: 6),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -54,19 +55,21 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     }
   }
 
-  InputDecoration _emailDecoration() {
+  InputDecoration _emailDecoration(BuildContext context) {
     return InputDecoration(
       hintText: 'example@gmail.com',
       filled: true,
-      fillColor: Colors.white,
+      fillColor: context.isDarkUi
+          ? context.residentScheme.surfaceContainerHighest
+          : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       hintStyle: TextStyle(
-        color: Colors.black.withValues(alpha: 0.28),
+        color: context.appMuted.withValues(alpha: 0.72),
         fontSize: 14,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+        borderSide: BorderSide(color: context.residentOutline(lightAlpha: 0.12)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kFieldRadius),
@@ -126,16 +129,16 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     );
   }
 
-  Widget _buildEmailField(AuthViewModel vm) {
+  Widget _buildEmailField(BuildContext context, AuthViewModel vm) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Email Address',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: context.appInk,
           ),
         ),
         const SizedBox(height: 6),
@@ -144,20 +147,20 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
           enabled: !vm.isLoading,
-          style: const TextStyle(fontSize: 15),
-          decoration: _emailDecoration(),
+          style: TextStyle(fontSize: 15, color: context.appInk),
+          decoration: _emailDecoration(context),
           validator: Validators.validateEmail,
         ),
       ],
     );
   }
 
-  Widget _buildResetCard(AuthViewModel vm) {
+  Widget _buildResetCard(BuildContext context, AuthViewModel vm) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.glassFill(),
         borderRadius: BorderRadius.circular(_kCardRadius),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20)),
+        border: Border.all(color: context.residentOutline()),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
@@ -177,18 +180,18 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
+              Text(
                 'Enter your email address and we will send a password reset link to you.',
                 textAlign: TextAlign.left,
                 style: TextStyle(
-                  color: Colors.black,
+                  color: context.appInk,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   height: 1.25,
                 ),
               ),
               const SizedBox(height: 62),
-              _buildEmailField(vm),
+              _buildEmailField(context, vm),
             ],
           ),
         ),
@@ -270,7 +273,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       children: [
                         _buildHeader(context, vm),
                         const SizedBox(height: 12),
-                        _buildResetCard(vm),
+                        _buildResetCard(context, vm),
                         const SizedBox(height: 28),
                         if (_emailSent)
                           AuthFeedbackBanner.success(

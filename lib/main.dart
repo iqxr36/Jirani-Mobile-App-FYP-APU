@@ -23,6 +23,7 @@ void main() async {
   ErrorWidget.builder = (details) {
     return MaterialApp(
       title: '${AppConstants.appName} render error',
+      
       theme: AppTheme.lightTheme,
       home: StartupErrorScaffold(error: details.exceptionAsString()),
     );

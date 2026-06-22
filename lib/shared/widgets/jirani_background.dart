@@ -8,10 +8,12 @@ class JiraniBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        const CustomPaint(painter: _JiraniBackgroundPainter()),
+        CustomPaint(painter: _JiraniBackgroundPainter(isDark: isDark)),
         child,
       ],
     );
@@ -19,14 +21,19 @@ class JiraniBackground extends StatelessWidget {
 }
 
 class _JiraniBackgroundPainter extends CustomPainter {
-  const _JiraniBackgroundPainter();
+  const _JiraniBackgroundPainter({required this.isDark});
+
+  final bool isDark;
 
   static const _teal = Color(0xFF006D77);
   static const _yellow = Color(0xFFFFCC00);
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = isDark ? const Color(0xFF071113) : Colors.white,
+    );
 
     final stroke = size.shortestSide * 0.42;
     final blur = size.shortestSide * 0.16;
@@ -44,7 +51,7 @@ class _JiraniBackgroundPainter extends CustomPainter {
     canvas.drawPath(
       tealPath,
       Paint()
-        ..color = _teal.withValues(alpha: 0.74)
+        ..color = _teal.withValues(alpha: isDark ? 0.34 : 0.74)
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
         ..strokeCap = StrokeCap.round
@@ -64,7 +71,7 @@ class _JiraniBackgroundPainter extends CustomPainter {
     canvas.drawPath(
       yellowPath,
       Paint()
-        ..color = _yellow.withValues(alpha: 0.58)
+        ..color = _yellow.withValues(alpha: isDark ? 0.16 : 0.58)
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke * 0.9
         ..strokeCap = StrokeCap.round
@@ -73,10 +80,14 @@ class _JiraniBackgroundPainter extends CustomPainter {
 
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = Colors.white.withValues(alpha: 0.26),
+      Paint()
+        ..color = (isDark ? const Color(0xFF071113) : Colors.white)
+            .withValues(alpha: isDark ? 0.34 : 0.26),
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _JiraniBackgroundPainter oldDelegate) {
+    return oldDelegate.isDark != isDark;
+  }
 }

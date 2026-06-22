@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/theme/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/viewmodels/auth_viewmodel.dart';
@@ -9,6 +10,14 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
+
+Color _surface(BuildContext context) => context.isDarkUi
+    ? context.residentScheme.surfaceContainerHighest.withValues(alpha: 0.88)
+    : Colors.white;
+
+Color _outline(BuildContext context, {double alpha = 0.18}) => context.isDarkUi
+    ? context.residentScheme.outlineVariant
+    : Colors.black.withValues(alpha: alpha);
 
 class VerificationStatusView extends StatelessWidget {
   const VerificationStatusView({
@@ -61,6 +70,7 @@ class _VerificationStatusContent extends StatelessWidget {
       request: request,
     );
     final bottomInset = JiraniResponsive.bottomInset(context);
+    final scheme = context.residentScheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -112,8 +122,8 @@ class _VerificationStatusContent extends StatelessWidget {
                                 Text(
                                   status.title,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: _kBrandTeal,
+                                  style: TextStyle(
+                                    color: scheme.primary,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                     height: 1.2,
@@ -124,8 +134,8 @@ class _VerificationStatusContent extends StatelessWidget {
                                   Text(
                                     status.subtitle!,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.black,
+                                    style: TextStyle(
+                                      color: context.appInk,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                       height: 1.35,
@@ -147,8 +157,8 @@ class _VerificationStatusContent extends StatelessWidget {
                       onPressed: () => _backToProcess(context),
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
-                        backgroundColor: _kBrandTeal,
-                        foregroundColor: Colors.white,
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(7),
                         ),
@@ -179,6 +189,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chipInk = context.onAccent(status.accent);
     return Container(
       height: 21,
       padding: const EdgeInsets.only(left: 3, right: 8),
@@ -192,13 +203,13 @@ class _StatusChip extends StatelessWidget {
           CircleAvatar(
             radius: 9,
             backgroundColor: status.accent.withValues(alpha: 0.36),
-            child: Icon(status.chipIcon, size: 10, color: Colors.black),
+            child: Icon(status.chipIcon, size: 10, color: chipInk),
           ),
           const SizedBox(width: 5),
           Text(
             status.chipLabel,
-            style: const TextStyle(
-              color: Colors.black,
+            style: TextStyle(
+              color: chipInk,
               fontSize: 8,
               fontWeight: FontWeight.w800,
               height: 1,
@@ -223,15 +234,15 @@ class _MessageCard extends StatelessWidget {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surface(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+        border: Border.all(color: _outline(context)),
       ),
       child: Text(
         text,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.black,
+          color: context.appInk,
           fontSize: 11,
           fontWeight: FontWeight.w500,
           height: 1.35,
@@ -253,17 +264,17 @@ class _RejectedReasonCard extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 95),
       padding: const EdgeInsets.fromLTRB(28, 16, 28, 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surface(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.18)),
+        border: Border.all(color: _outline(context)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 10,
                 backgroundColor: Color(0xFFFF8F98),
                 child: Icon(
@@ -272,11 +283,11 @@ class _RejectedReasonCard extends StatelessWidget {
                   size: 13,
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'Reason for Rejection',
                 style: TextStyle(
-                  color: Colors.black,
+                  color: context.appInk,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -287,14 +298,14 @@ class _RejectedReasonCard extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1,
-            color: Colors.black.withValues(alpha: 0.22),
+            color: _outline(context, alpha: 0.22),
           ),
           const SizedBox(height: 12),
           Text(
             reason,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF8E8E93),
+            style: TextStyle(
+              color: context.appMuted,
               fontSize: 10,
               fontWeight: FontWeight.w500,
               height: 1.35,
