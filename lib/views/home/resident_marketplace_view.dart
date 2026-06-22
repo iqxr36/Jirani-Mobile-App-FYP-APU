@@ -399,13 +399,9 @@ class MarketplaceItemDetailView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: _CircleIconButton(
-                          icon: Icons.arrow_back_rounded,
-                          tooltip: 'Back',
-                          onTap: () => Navigator.of(context).pop(),
-                        ),
+                      _ScreenTitleBar(
+                        title: 'Item Details',
+                        onBack: () => Navigator.of(context).pop(),
                       ),
                       const SizedBox(height: 14),
                       _ItemImageGallery(item: item),
@@ -642,25 +638,9 @@ class _MarketplaceTransactionViewState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _CircleIconButton(
-                            icon: Icons.arrow_back_rounded,
-                            tooltip: 'Back',
-                            onTap: () => Navigator.of(context).pop(),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Borrowing',
-                              style: TextStyle(
-                                color: _kInk,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
+                      _ScreenTitleBar(
+                        title: 'Borrowing',
+                        onBack: () => Navigator.of(context).pop(),
                       ),
                       const SizedBox(height: 16),
                       _TransactionHeader(request: request),
@@ -2760,6 +2740,49 @@ class _PageHeader extends StatelessWidget {
   }
 }
 
+class _ScreenTitleBar extends StatelessWidget {
+  const _ScreenTitleBar({
+    required this.title,
+    required this.onBack,
+  });
+
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 56,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _CircleIconButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: 'Back',
+              onTap: onBack,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _kBrandTeal,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(width: 56),
+      ],
+    );
+  }
+}
+
 class _SectionSwitch extends StatelessWidget {
   const _SectionSwitch({required this.selected, required this.onChanged});
 
@@ -3460,7 +3483,7 @@ class _CircleIconButton extends StatelessWidget {
           child: SizedBox(
             width: 44,
             height: 44,
-            child: Icon(icon, color: _kInk),
+            child: Icon(icon, color: _kBrandTeal),
           ),
         ),
       ),

@@ -78,25 +78,10 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _CircleIconButton(
-                            icon: Icons.arrow_back_rounded,
-                            tooltip: 'Back',
-                            onTap: () => Navigator.of(context).pop(),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'My Items',
-                              style: TextStyle(
-                                color: _kInk,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          _CircleIconButton(
+                      _ScreenTitleBar(
+                        title: 'My Items',
+                        onBack: () => Navigator.of(context).pop(),
+                        trailing: _CircleIconButton(
                             icon: Icons.add_rounded,
                             tooltip: 'Add item',
                             onTap: user == null
@@ -105,8 +90,7 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
                                     'Sign in before listing an item.',
                                   )
                                 : () => _openListingForm(context),
-                          ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _ProfileListingSummary(user: user),
@@ -458,27 +442,11 @@ class _ResidentLenderRequestDetailViewState
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _CircleIconButton(
-                                icon: Icons.arrow_back_rounded,
-                                tooltip: 'Back',
-                                onTap: () => Navigator.of(context).pop(),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  tracking
-                                      ? 'Transaction Tracking'
-                                      : 'Request Details',
-                                  style: const TextStyle(
-                                    color: _kInk,
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          _ScreenTitleBar(
+                            title: tracking
+                                ? 'Transaction Tracking'
+                                : 'Request Details',
+                            onBack: () => Navigator.of(context).pop(),
                           ),
                           const SizedBox(height: 18),
                           _GlassPanel(
@@ -3578,6 +3546,57 @@ class _DangerColors {
   static const Color surface = Color(0xFFFFF1F2);
 }
 
+class _ScreenTitleBar extends StatelessWidget {
+  const _ScreenTitleBar({
+    required this.title,
+    required this.onBack,
+    this.trailing,
+  });
+
+  final String title;
+  final VoidCallback onBack;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 56,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _CircleIconButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: 'Back',
+              onTap: onBack,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _kBrandTeal,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 56,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: trailing ?? const SizedBox.shrink(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _TinyTextButton extends StatelessWidget {
   const _TinyTextButton({
     required this.label,
@@ -3646,7 +3665,7 @@ class _CircleIconButton extends StatelessWidget {
           child: SizedBox(
             width: 44,
             height: 44,
-            child: Icon(icon, color: onTap == null ? _kMutedText : _kInk),
+            child: Icon(icon, color: onTap == null ? _kMutedText : _kBrandTeal),
           ),
         ),
       ),

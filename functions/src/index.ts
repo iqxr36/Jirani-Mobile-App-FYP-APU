@@ -32,6 +32,8 @@ const DOCUMENT_TYPE_TENANCY_AGREEMENT = "tenancyAgreement";
 const DOCUMENT_TYPE_UTILITY_BILL = "utilityBill";
 const DOCUMENT_TYPE_ACCESS_CARD = "accessCard";
 const DOCUMENT_TYPE_OTHER_PROOF = "otherProof";
+const OCR_SETTINGS_COLLECTION = "appSettings";
+const OCR_SETTINGS_DOCUMENT = "ocr";
 const TENANCY_AGREEMENT_FIELD_KEYS = [
   "tenant_name",
   "landlord_name",
@@ -112,6 +114,12 @@ type ExtractionResult = {
   fallbackUsed: boolean;
   processorVersion?: string;
   processorDocumentType?: string;
+};
+
+type OcrRuntimeSettings = {
+  autoProcessingEnabled: boolean;
+  documentAiEnabled: boolean;
+  visionFallbackEnabled: boolean;
 };
 
 type DocumentAiDocument = {
@@ -257,6 +265,44 @@ async function processRequestExtraction(args: {
   storagePath: string;
   requestData: VerificationRequest;
 }) {
+  const settings = await loadOcrRuntimeSettings();
+  if (!settings.autoProcessingEnabled) {
+    await markAutomaticExtractionSkipped({
+      requestRef: args.requestRef,
+      reason:
+        "Automatic OCR is disabled. Review this document manually, or enable " +
+        "appSettings/ocr.autoProcessingEnabled when you want extraction to run.",
+      settings,
+    });
+    return;
+  }
+
+  const processorConfig = processorConfigForDocumentType(
+    args.requestData.documentType,
+  );
+  if (!processorConfig && !settings.visionFallbackEnabled) {
+    await markAutomaticExtractionSkipped({
+      requestRef: args.requestRef,
+      reason:
+        "No Document AI processor is configured for this document type, and " +
+        "Vision OCR fallback is disabled. Review this document manually.",
+      settings,
+    });
+    return;
+  }
+
+  if (processorConfig && !settings.documentAiEnabled &&
+      !settings.visionFallbackEnabled) {
+    await markAutomaticExtractionSkipped({
+      requestRef: args.requestRef,
+      reason:
+        "Document AI is disabled in appSettings/ocr.documentAiEnabled and " +
+        "Vision OCR fallback is disabled. Review this document manually.",
+      settings,
+    });
+    return;
+  }
+
   const mimeType = mimeTypeForPath(args.storagePath);
   const extraction = await extractDocumentFields({
     bucketName: args.bucketName,
@@ -264,6 +310,7 @@ async function processRequestExtraction(args: {
     mimeType,
     requestId: args.requestId,
     requestData: args.requestData,
+    settings,
   });
 
   const trimmedText = extraction.text.trim();
@@ -271,9 +318,6 @@ async function processRequestExtraction(args: {
     throw new Error("No readable text or fields were detected in this document.");
   }
 
-  const processorConfig = processorConfigForDocumentType(
-    args.requestData.documentType,
-  );
   let finalFields = extraction.fields;
   let needsManualCheck = requiresManualCheck(
     finalFields,
@@ -354,18 +398,106 @@ async function markFailed(
   });
 }
 
+async function loadOcrRuntimeSettings(): Promise<OcrRuntimeSettings> {
+  const snapshot = await db
+    .collection(OCR_SETTINGS_COLLECTION)
+    .doc(OCR_SETTINGS_DOCUMENT)
+    .get();
+  const data = snapshot.data();
+
+  return {
+    autoProcessingEnabled: readBooleanSetting(
+      data?.autoProcessingEnabled,
+      readBooleanEnv("OCR_AUTO_PROCESSING_ENABLED", false),
+    ),
+    documentAiEnabled: readBooleanSetting(
+      data?.documentAiEnabled,
+      readBooleanEnv("DOCUMENT_AI_ENABLED", false),
+    ),
+    visionFallbackEnabled: readBooleanSetting(
+      data?.visionFallbackEnabled,
+      readBooleanEnv("VISION_OCR_FALLBACK_ENABLED", false),
+    ),
+  };
+}
+
+function readBooleanEnv(name: string, fallback: boolean): boolean {
+  return readBooleanSetting(process.env[name], fallback);
+}
+
+function readBooleanSetting(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on", "enabled"].includes(normalized)) return true;
+  if (["0", "false", "no", "off", "disabled"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
+async function markAutomaticExtractionSkipped(args: {
+  requestRef: admin.firestore.DocumentReference;
+  reason: string;
+  settings: OcrRuntimeSettings;
+}) {
+  await args.requestRef.update({
+    ocrStatus: "pending",
+    adminStatus: "manual_check_required",
+    ocrError: args.reason,
+    errorMessage: args.reason,
+    documentAi: {
+      used: false,
+      fallbackUsed: false,
+      fieldFallbackUsed: false,
+      disabledBySettings: true,
+      settings: args.settings,
+    },
+    ocrProcessedAt: FieldValue.serverTimestamp(),
+    processedAt: FieldValue.serverTimestamp(),
+  });
+}
+
 async function extractDocumentFields(args: {
   bucketName: string;
   storagePath: string;
   mimeType: string;
   requestId: string;
   requestData: VerificationRequestData;
+  settings: OcrRuntimeSettings;
 }): Promise<ExtractionResult> {
   const processorConfig = processorConfigForDocumentType(
     args.requestData.documentType,
   );
   if (!processorConfig) {
+    if (!args.settings.visionFallbackEnabled) {
+      throw new Error(
+        "No Document AI processor is configured for this document type, " +
+        "and Vision OCR fallback is disabled.",
+      );
+    }
     logger.info("No Document AI processor configured; using OCR fallback", {
+      requestId: args.requestId,
+      documentType: args.requestData.documentType,
+    });
+    const fallback = await extractWithVisionOcr(args);
+    return {
+      ...fallback,
+      provider: "ocr_fallback",
+      documentAiUsed: false,
+      fallbackUsed: true,
+    };
+  }
+
+  if (!args.settings.documentAiEnabled) {
+    if (!args.settings.visionFallbackEnabled) {
+      throw new Error(
+        "Document AI is disabled in appSettings/ocr.documentAiEnabled and " +
+        "Vision OCR fallback is disabled.",
+      );
+    }
+    logger.info("Document AI disabled; using OCR fallback", {
       requestId: args.requestId,
       documentType: args.requestData.documentType,
     });
@@ -393,6 +525,15 @@ async function extractDocumentFields(args: {
     };
   } catch (error) {
     if (!shouldUseOcrFallback(args.requestData.documentType)) {
+      logger.error("Document AI extraction failed; OCR fallback disabled", {
+        requestId: args.requestId,
+        documentType: args.requestData.documentType,
+        error,
+      });
+      throw error;
+    }
+
+    if (!args.settings.visionFallbackEnabled) {
       logger.error("Document AI extraction failed; OCR fallback disabled", {
         requestId: args.requestId,
         documentType: args.requestData.documentType,
