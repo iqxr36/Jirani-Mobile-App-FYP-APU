@@ -55,6 +55,20 @@ class BorrowRequest {
     required this.depositDecision,
     required this.depositDecisionReason,
     required this.depositDecidedAt,
+    this.minorDeductionAmount,
+    this.minorIssueReason = '',
+    this.minorIssuePhotoUrl = '',
+    this.minorIssueReportedAt,
+    this.minorIssueBorrowerDecision = AppConstants.minorIssueDecisionPending,
+    this.minorIssueBorrowerRespondedAt,
+    this.disputeReportId = '',
+    this.disputeReason = '',
+    this.disputeEvidenceImageUrl = '',
+    this.disputeReportedAt,
+    this.adminResolution = AppConstants.adminResolutionPending,
+    this.adminResolutionReason = '',
+    this.adminResolvedAt,
+    this.adminResolvedBy = '',
   });
 
   final String id;
@@ -109,6 +123,20 @@ class BorrowRequest {
   final String depositDecision;
   final String depositDecisionReason;
   final DateTime? depositDecidedAt;
+  final double? minorDeductionAmount;
+  final String minorIssueReason;
+  final String minorIssuePhotoUrl;
+  final DateTime? minorIssueReportedAt;
+  final String minorIssueBorrowerDecision;
+  final DateTime? minorIssueBorrowerRespondedAt;
+  final String disputeReportId;
+  final String disputeReason;
+  final String disputeEvidenceImageUrl;
+  final DateTime? disputeReportedAt;
+  final String adminResolution;
+  final String adminResolutionReason;
+  final DateTime? adminResolvedAt;
+  final String adminResolvedBy;
 
   BorrowRequest copyWith({
     String? id,
@@ -163,6 +191,20 @@ class BorrowRequest {
     String? depositDecision,
     String? depositDecisionReason,
     DateTime? depositDecidedAt,
+    double? minorDeductionAmount,
+    String? minorIssueReason,
+    String? minorIssuePhotoUrl,
+    DateTime? minorIssueReportedAt,
+    String? minorIssueBorrowerDecision,
+    DateTime? minorIssueBorrowerRespondedAt,
+    String? disputeReportId,
+    String? disputeReason,
+    String? disputeEvidenceImageUrl,
+    DateTime? disputeReportedAt,
+    String? adminResolution,
+    String? adminResolutionReason,
+    DateTime? adminResolvedAt,
+    String? adminResolvedBy,
   }) {
     return BorrowRequest(
       id: id ?? this.id,
@@ -220,6 +262,27 @@ class BorrowRequest {
       depositDecisionReason:
           depositDecisionReason ?? this.depositDecisionReason,
       depositDecidedAt: depositDecidedAt ?? this.depositDecidedAt,
+      minorDeductionAmount:
+          minorDeductionAmount ?? this.minorDeductionAmount,
+      minorIssueReason: minorIssueReason ?? this.minorIssueReason,
+      minorIssuePhotoUrl: minorIssuePhotoUrl ?? this.minorIssuePhotoUrl,
+      minorIssueReportedAt:
+          minorIssueReportedAt ?? this.minorIssueReportedAt,
+      minorIssueBorrowerDecision:
+          minorIssueBorrowerDecision ?? this.minorIssueBorrowerDecision,
+      minorIssueBorrowerRespondedAt:
+          minorIssueBorrowerRespondedAt ??
+          this.minorIssueBorrowerRespondedAt,
+      disputeReportId: disputeReportId ?? this.disputeReportId,
+      disputeReason: disputeReason ?? this.disputeReason,
+      disputeEvidenceImageUrl:
+          disputeEvidenceImageUrl ?? this.disputeEvidenceImageUrl,
+      disputeReportedAt: disputeReportedAt ?? this.disputeReportedAt,
+      adminResolution: adminResolution ?? this.adminResolution,
+      adminResolutionReason:
+          adminResolutionReason ?? this.adminResolutionReason,
+      adminResolvedAt: adminResolvedAt ?? this.adminResolvedAt,
+      adminResolvedBy: adminResolvedBy ?? this.adminResolvedBy,
     );
   }
 
@@ -283,6 +346,27 @@ class BorrowRequest {
       depositDecision: _parseDepositDecision(data),
       depositDecisionReason: (data['depositDecisionReason'] as String?) ?? '',
       depositDecidedAt: _toNullableDate(data['depositDecidedAt']),
+      minorDeductionAmount: _toDouble(data['minorDeductionAmount']),
+      minorIssueReason: (data['minorIssueReason'] as String?) ?? '',
+      minorIssuePhotoUrl: (data['minorIssuePhotoUrl'] as String?) ?? '',
+      minorIssueReportedAt: _toNullableDate(data['minorIssueReportedAt']),
+      minorIssueBorrowerDecision:
+          (data['minorIssueBorrowerDecision'] as String?) ??
+          AppConstants.minorIssueDecisionPending,
+      minorIssueBorrowerRespondedAt: _toNullableDate(
+        data['minorIssueBorrowerRespondedAt'],
+      ),
+      disputeReportId: (data['disputeReportId'] as String?) ?? '',
+      disputeReason: (data['disputeReason'] as String?) ?? '',
+      disputeEvidenceImageUrl:
+          (data['disputeEvidenceImageUrl'] as String?) ?? '',
+      disputeReportedAt: _toNullableDate(data['disputeReportedAt']),
+      adminResolution:
+          (data['adminResolution'] as String?) ??
+          AppConstants.adminResolutionPending,
+      adminResolutionReason: (data['adminResolutionReason'] as String?) ?? '',
+      adminResolvedAt: _toNullableDate(data['adminResolvedAt']),
+      adminResolvedBy: (data['adminResolvedBy'] as String?) ?? '',
     );
   }
 
@@ -365,6 +449,37 @@ class BorrowRequest {
       'depositDecidedAt': depositDecidedAt == null
           ? null
           : Timestamp.fromDate(depositDecidedAt!),
+      'minorDeductionAmount': minorDeductionAmount,
+      'minorIssueReason': minorIssueReason.isEmpty
+          ? null
+          : minorIssueReason,
+      'minorIssuePhotoUrl': minorIssuePhotoUrl.isEmpty
+          ? null
+          : minorIssuePhotoUrl,
+      'minorIssueReportedAt': minorIssueReportedAt == null
+          ? null
+          : Timestamp.fromDate(minorIssueReportedAt!),
+      'minorIssueBorrowerDecision': minorIssueBorrowerDecision,
+      'minorIssueBorrowerRespondedAt':
+          minorIssueBorrowerRespondedAt == null
+          ? null
+          : Timestamp.fromDate(minorIssueBorrowerRespondedAt!),
+      'disputeReportId': disputeReportId.isEmpty ? null : disputeReportId,
+      'disputeReason': disputeReason.isEmpty ? null : disputeReason,
+      'disputeEvidenceImageUrl': disputeEvidenceImageUrl.isEmpty
+          ? null
+          : disputeEvidenceImageUrl,
+      'disputeReportedAt': disputeReportedAt == null
+          ? null
+          : Timestamp.fromDate(disputeReportedAt!),
+      'adminResolution': adminResolution,
+      'adminResolutionReason': adminResolutionReason.isEmpty
+          ? null
+          : adminResolutionReason,
+      'adminResolvedAt': adminResolvedAt == null
+          ? null
+          : Timestamp.fromDate(adminResolvedAt!),
+      'adminResolvedBy': adminResolvedBy.isEmpty ? null : adminResolvedBy,
     };
   }
 

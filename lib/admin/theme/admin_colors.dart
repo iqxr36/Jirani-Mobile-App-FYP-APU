@@ -13,4 +13,5 @@ class AdminColors {
   static const border = Color(0xFFE5E7EB);
   static const success = Color(0xFF2F855A);
   static const warning = Color(0xFFB7791F);
+  static const danger = Color(0xFFB42318);
 }

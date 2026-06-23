@@ -116,6 +116,8 @@ class AppConstants {
   static const String borrowStatusHandedOver = 'handedOver';
   static const String borrowStatusActive = 'active';
   static const String borrowStatusReturnSubmitted = 'returnSubmitted';
+  static const String borrowStatusMinorIssuePending = 'minorIssuePending';
+  static const String borrowStatusDisputed = 'disputed';
   static const String borrowStatusCompleted = 'completed';
 
   // Marketplace payment placeholders (Stripe will replace manual_v1 later)
@@ -140,7 +142,16 @@ class AppConstants {
   static const String depositDecisionNotRequired = 'notRequired';
   static const String depositDecisionPending = 'pending';
   static const String depositDecisionReturnDeposit = 'returnDeposit';
+  static const String depositDecisionPartialDeduction = 'partialDeduction';
   static const String depositDecisionWithholdDeposit = 'withholdDeposit';
+
+  // Return inspection / dispute handling
+  static const String minorIssueDecisionPending = 'pending';
+  static const String minorIssueDecisionAccepted = 'accepted';
+  static const String minorIssueDecisionDeclined = 'declined';
+  static const String adminResolutionPending = 'pending';
+  static const String adminResolutionForBorrower = 'resolveForBorrower';
+  static const String adminResolutionForLender = 'resolveForLender';
 
   // Reviews (Phase 6)
   static const String reviewRoleBorrowerToOwner = 'borrowerToOwner';

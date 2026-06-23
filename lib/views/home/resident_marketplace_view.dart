@@ -662,6 +662,10 @@ class _MarketplaceTransactionViewState
                         onOpenChat: () => _openChat(request, user),
                         onPickupReady: () => _confirmPickupReady(request, user),
                         onSubmitReturn: () => _submitReturn(request, user),
+                        onAcceptMinorIssue: () =>
+                            _respondToMinorIssue(request, user, true),
+                        onDeclineMinorIssue: () =>
+                            _respondToMinorIssue(request, user, false),
                         onSubmitReview: () => _submitReview(request, user),
                       ),
                       const SizedBox(height: 34),
@@ -775,6 +779,31 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  Future<void> _respondToMinorIssue(
+    BorrowRequest request,
+    AppUser? user,
+    bool accepted,
+  ) async {
+    if (user == null) return;
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.respondToMinorIssue(
+      requestId: request.id,
+      borrowerId: user.uid,
+      accepted: accepted,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          provider.errorMessage ??
+              (accepted
+                  ? 'Deduction accepted. Transaction completed.'
+                  : 'Deduction declined. Admin dispute review started.'),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submitReview(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -821,6 +850,8 @@ class _TransactionBody extends StatelessWidget {
     required this.onOpenChat,
     required this.onPickupReady,
     required this.onSubmitReturn,
+    required this.onAcceptMinorIssue,
+    required this.onDeclineMinorIssue,
     required this.onSubmitReview,
   });
 
@@ -837,6 +868,8 @@ class _TransactionBody extends StatelessWidget {
   final VoidCallback onOpenChat;
   final VoidCallback onPickupReady;
   final VoidCallback onSubmitReturn;
+  final VoidCallback onAcceptMinorIssue;
+  final VoidCallback onDeclineMinorIssue;
   final VoidCallback onSubmitReview;
 
   @override
@@ -890,6 +923,15 @@ class _TransactionBody extends StatelessWidget {
         );
       case AppConstants.borrowStatusReturnSubmitted:
         return _ReturnSubmittedCard(request: request, onOpenChat: onOpenChat);
+      case AppConstants.borrowStatusMinorIssuePending:
+        return _MinorIssuePromptCard(
+          request: request,
+          onOpenChat: onOpenChat,
+          onAccept: onAcceptMinorIssue,
+          onDecline: onDeclineMinorIssue,
+        );
+      case AppConstants.borrowStatusDisputed:
+        return _DisputedCard(request: request, onOpenChat: onOpenChat);
       case AppConstants.borrowStatusCompleted:
         return _CompletedCard(
           request: request,
@@ -1442,6 +1484,123 @@ class _ReturnSubmittedCard extends StatelessWidget {
   }
 }
 
+class _MinorIssuePromptCard extends StatelessWidget {
+  const _MinorIssuePromptCard({
+    required this.request,
+    required this.onOpenChat,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final BorrowRequest request;
+  final VoidCallback onOpenChat;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final deduction = request.minorDeductionAmount ?? 0;
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('Minor Issue Review'),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.build_circle_outlined,
+            title: 'Deduction Requested',
+            message:
+                'The lender requested ${_money(deduction)} from your refundable deposit for: ${request.minorIssueReason}.',
+            child: Column(
+              children: [
+                _SummaryRow(
+                  label: 'Refundable deposit',
+                  value: _money(request.depositAmount ?? 0),
+                ),
+                const SizedBox(height: 8),
+                _SummaryRow(label: 'Requested deduction', value: _money(deduction)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _SecondaryButton(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'Open Chat',
+                  onTap: onOpenChat,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Consumer<BorrowRequestProvider>(
+                  builder: (context, provider, _) {
+                    return _PrimaryButton(
+                      icon: Icons.check_rounded,
+                      label: provider.isLoading ? 'Saving...' : 'Accept',
+                      onTap: provider.isLoading ? null : onAccept,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Consumer<BorrowRequestProvider>(
+            builder: (context, provider, _) {
+              return _DangerButton(
+                icon: Icons.gavel_rounded,
+                label: provider.isLoading ? 'Escalating...' : 'Decline and Escalate',
+                onTap: provider.isLoading ? null : onDecline,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DisputedCard extends StatelessWidget {
+  const _DisputedCard({required this.request, required this.onOpenChat});
+
+  final BorrowRequest request;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = request.disputeReason.trim().isNotEmpty
+        ? request.disputeReason.trim()
+        : request.ownerReturnNotes.trim();
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('Admin Review'),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.gavel_rounded,
+            title: 'Deposit Frozen',
+            message:
+                'This transaction is paused while admin reviews the dispute evidence. Your deposit will not be released or deducted until admin resolves it.',
+            child: _SummaryRow(
+              label: 'Reason',
+              value: reason.isEmpty ? 'Waiting for admin review' : reason,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SecondaryButton(
+            icon: Icons.chat_bubble_outline_rounded,
+            label: 'Open Chat',
+            onTap: onOpenChat,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CompletedCard extends StatelessWidget {
   const _CompletedCard({
     required this.request,
@@ -1464,6 +1623,9 @@ class _CompletedCard extends StatelessWidget {
     final ink = context.appInk;
     final muted = context.appMuted;
     final depositReleased = MarketplaceBorrowFlow.hasDepositReleased(request);
+    final depositSettled =
+        request.status == AppConstants.borrowStatusCompleted &&
+        request.depositDecision != AppConstants.depositDecisionPending;
 
     return _GlassPanel(
       child: Column(
@@ -1478,7 +1640,7 @@ class _CompletedCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            depositReleased ? 'Transaction Complete' : 'Deposit Review Pending',
+            depositSettled ? 'Transaction Complete' : 'Deposit Review Pending',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: ink,
@@ -1488,9 +1650,7 @@ class _CompletedCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            depositReleased
-                ? 'Your ${_money(request.depositAmount ?? 0)} deposit has been released back to you.'
-                : 'The lender reported an issue. Deposit release will wait for the owner decision.',
+            _borrowerDepositMessage(request),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: muted,
@@ -1498,7 +1658,7 @@ class _CompletedCard extends StatelessWidget {
               height: 1.35,
             ),
           ),
-          if (depositReleased) ...[
+          if (depositSettled) ...[
             const SizedBox(height: 18),
             Text(
               'Rate the Lender',
@@ -1662,6 +1822,8 @@ class _ProgressPanel extends StatelessWidget {
             request.handoverConfirmedAt != null ||
             request.status == AppConstants.borrowStatusActive ||
             request.status == AppConstants.borrowStatusReturnSubmitted ||
+            request.status == AppConstants.borrowStatusMinorIssuePending ||
+            request.status == AppConstants.borrowStatusDisputed ||
             request.status == AppConstants.borrowStatusCompleted,
       ),
       _ProgressStep(
@@ -3518,6 +3680,59 @@ class _SecondaryButton extends StatelessWidget {
   }
 }
 
+class _DangerButton extends StatelessWidget {
+  const _DangerButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    final color = disabled
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
+        : const Color(0xFFB42318);
+    return Material(
+      color: color.withValues(alpha: context.isDarkUi ? 0.22 : 0.10),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({
     required this.icon,
@@ -3670,6 +3885,25 @@ String _requestDateRange(BorrowRequest request) {
   return start == end ? start : '$start - $end';
 }
 
+String _borrowerDepositMessage(BorrowRequest request) {
+  if (!request.hasDeposit ||
+      request.depositDecision == AppConstants.depositDecisionNotRequired) {
+    return 'The transaction is complete. No deposit was required for this item.';
+  }
+  if (request.depositDecision == AppConstants.depositDecisionReturnDeposit) {
+    return 'Your ${_money(request.depositAmount ?? 0)} deposit has been released back to you.';
+  }
+  if (request.depositDecision == AppConstants.depositDecisionPartialDeduction) {
+    final deduction = request.minorDeductionAmount ?? 0;
+    final returned = (request.depositAmount ?? 0) - deduction;
+    return '${_money(deduction)} was deducted for the accepted minor issue. ${_money(returned < 0 ? 0 : returned)} returns to you.';
+  }
+  if (request.depositDecision == AppConstants.depositDecisionWithholdDeposit) {
+    return 'Admin resolved the dispute for the lender, so the refundable deposit was withheld.';
+  }
+  return 'The lender reported an issue. Deposit release will wait for admin review.';
+}
+
 String _categoryLabel(String category) {
   switch (category) {
     case AppConstants.itemCategoryTools:
@@ -3719,6 +3953,10 @@ String _statusLabel(BorrowRequest request) {
       return 'Active';
     case AppConstants.borrowStatusReturnSubmitted:
       return 'Returning';
+    case AppConstants.borrowStatusMinorIssuePending:
+      return 'Minor Issue';
+    case AppConstants.borrowStatusDisputed:
+      return 'Disputed';
     case AppConstants.borrowStatusCompleted:
       return 'Complete';
     default:
@@ -3731,5 +3969,7 @@ bool _isAfterApproval(String status) {
       status == AppConstants.borrowStatusActive ||
       status == AppConstants.borrowStatusHandedOver ||
       status == AppConstants.borrowStatusReturnSubmitted ||
+      status == AppConstants.borrowStatusMinorIssuePending ||
+      status == AppConstants.borrowStatusDisputed ||
       status == AppConstants.borrowStatusCompleted;
 }

@@ -387,6 +387,110 @@ class AdminService {
     }
   }
 
+  Future<void> resolveMarketplaceDispute({
+    required String reportId,
+    required String borrowRequestId,
+    required String adminUid,
+    required bool resolveForBorrower,
+    required String reason,
+  }) async {
+    if (reportId.trim().isEmpty || borrowRequestId.trim().isEmpty) {
+      throw Exception('Missing dispute report or transaction ID.');
+    }
+    if (adminUid.trim().isEmpty) {
+      throw Exception('Admin user ID is missing.');
+    }
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      throw Exception('Resolution reason is required.');
+    }
+
+    final requestRef = _firestore
+        .collection(AppConstants.borrowRequestsCollection)
+        .doc(borrowRequestId.trim());
+    final reportRef = _firestore
+        .collection(AppConstants.reportsCollection)
+        .doc(reportId.trim());
+    final requestSnap = await requestRef.get();
+    final requestData = requestSnap.data();
+    if (requestData == null) {
+      throw Exception('Borrow request not found.');
+    }
+    final request = BorrowRequest.fromMap(requestSnap.id, requestData);
+    if (request.status != AppConstants.borrowStatusDisputed) {
+      throw Exception('Only disputed transactions can be resolved by admin.');
+    }
+
+    final resolution = resolveForBorrower
+        ? AppConstants.adminResolutionForBorrower
+        : AppConstants.adminResolutionForLender;
+    final depositDecision = resolveForBorrower
+        ? AppConstants.depositDecisionReturnDeposit
+        : AppConstants.depositDecisionWithholdDeposit;
+
+    final batch = _firestore.batch();
+    batch.update(requestRef, {
+      'status': AppConstants.borrowStatusCompleted,
+      'returnConfirmedAt': FieldValue.serverTimestamp(),
+      'completedAt': FieldValue.serverTimestamp(),
+      'depositDecision': request.hasDeposit
+          ? depositDecision
+          : AppConstants.depositDecisionNotRequired,
+      'depositDecisionReason': trimmedReason,
+      'depositDecidedAt': FieldValue.serverTimestamp(),
+      'adminResolution': resolution,
+      'adminResolutionReason': trimmedReason,
+      'adminResolvedAt': FieldValue.serverTimestamp(),
+      'adminResolvedBy': adminUid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(
+      _firestore.collection(AppConstants.itemsCollection).doc(request.itemId),
+      {
+        'status': AppConstants.itemStatusAvailable,
+        'lastCompletedBorrowRequestId': request.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.update(
+      _firestore.collection(AppConstants.usersCollection).doc(request.ownerId),
+      {
+        'completedLendings': FieldValue.increment(1),
+        'lastCompletedBorrowRequestId': request.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.update(
+      _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(request.borrowerId),
+      {
+        'completedBorrowings': FieldValue.increment(1),
+        'lastCompletedBorrowRequestId': request.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.update(reportRef, {
+      'status': AppConstants.reportStatusResolved,
+      'adminResolution': resolution,
+      'adminResolutionReason': trimmedReason,
+      'adminResolvedAt': FieldValue.serverTimestamp(),
+      'adminResolvedBy': adminUid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    try {
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore security rules for admin dispute resolution.',
+        );
+      }
+      throw Exception(e.message ?? e.code);
+    }
+  }
+
   Map<String, dynamic> _reviewedExtractedFields(ExtractedDocumentData data) {
     final fields = <String, dynamic>{};
     void add(String key, String? value) {

@@ -59,6 +59,7 @@ class AdminProvider extends ChangeNotifier {
   String get communityName => _communityName;
   bool get includeAllCommunities => _includeAllCommunities;
   bool get isConfigured => _isConfigured;
+  String? get currentAdminUid => _service.currentAdminUid;
 
   void configureForAdmin(AdminUser admin) {
     final nextIncludeAll = admin.role == AppConstants.roleSystemAdmin;
@@ -242,6 +243,41 @@ class AdminProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
       debugPrint('[AdminProvider][rejectRequest] FAILED: $_errorMessage');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resolveMarketplaceDispute({
+    required ReportModel report,
+    required BorrowRequest borrowRequest,
+    required String adminUid,
+    required bool resolveForBorrower,
+    required String reason,
+  }) async {
+    if (!_belongsToVisibleResident(
+      borrowRequest.ownerId,
+      borrowRequest.borrowerId,
+    )) {
+      _errorMessage = 'This dispute is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.resolveMarketplaceDispute(
+        reportId: report.id,
+        borrowRequestId: borrowRequest.id,
+        adminUid: adminUid,
+        resolveForBorrower: resolveForBorrower,
+        reason: reason,
+      );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
       _isLoading = false;
       notifyListeners();

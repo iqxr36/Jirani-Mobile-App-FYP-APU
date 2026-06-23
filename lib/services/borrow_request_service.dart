@@ -28,6 +28,12 @@ class BorrowRequestService {
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection(AppConstants.usersCollection);
 
+  CollectionReference<Map<String, dynamic>> get _items =>
+      _firestore.collection(AppConstants.itemsCollection);
+
+  CollectionReference<Map<String, dynamic>> get _reports =>
+      _firestore.collection(AppConstants.reportsCollection);
+
   Future<void> createBorrowRequest({
     required ItemModel item,
     required AppUser borrower,
@@ -150,6 +156,20 @@ class BorrowRequestService {
             : AppConstants.depositDecisionNotRequired,
         'depositDecisionReason': '',
         'depositDecidedAt': null,
+        'minorDeductionAmount': null,
+        'minorIssueReason': '',
+        'minorIssuePhotoUrl': null,
+        'minorIssueReportedAt': null,
+        'minorIssueBorrowerDecision': AppConstants.minorIssueDecisionPending,
+        'minorIssueBorrowerRespondedAt': null,
+        'disputeReportId': '',
+        'disputeReason': '',
+        'disputeEvidenceImageUrl': null,
+        'disputeReportedAt': null,
+        'adminResolution': AppConstants.adminResolutionPending,
+        'adminResolutionReason': '',
+        'adminResolvedAt': null,
+        'adminResolvedBy': '',
       });
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
@@ -566,7 +586,7 @@ class BorrowRequestService {
     }
   }
 
-  /// Owner: returnSubmitted → completed; item → available
+  /// Owner happy path: returnSubmitted -> completed; item -> available.
   Future<void> confirmReturn({
     required String requestId,
     required String ownerId,
@@ -584,12 +604,11 @@ class BorrowRequestService {
     }
     final allowedAfter = {
       AppConstants.borrowConditionAfterSame,
-      AppConstants.borrowConditionAfterMinor,
-      AppConstants.borrowConditionAfterMajor,
-      AppConstants.borrowConditionAfterLost,
     };
     if (!allowedAfter.contains(cond)) {
-      throw Exception('Invalid condition after return.');
+      throw Exception(
+        'Use the minor issue or major damage flow when the item is not returned in the same condition.',
+      );
     }
 
     try {
@@ -611,46 +630,23 @@ class BorrowRequestService {
         throw Exception('Invalid return code.');
       }
 
-      final depositDecision = MarketplaceBorrowFlow.depositDecisionForReturn(
-        hasDeposit: request.hasDeposit,
-        conditionAfter: cond,
-      );
-      final shouldReleaseDeposit =
-          depositDecision == AppConstants.depositDecisionReturnDeposit;
-
       final batch = _firestore.batch();
-      final itemRef = _firestore
-          .collection(AppConstants.itemsCollection)
-          .doc(request.itemId);
-      final ownerRef = _users.doc(request.ownerId);
-      final borrowerRef = _users.doc(request.borrowerId);
-      batch.update(requestRef, {
-        'status': AppConstants.borrowStatusCompleted,
-        'returnConfirmedAt': FieldValue.serverTimestamp(),
-        'completedAt': FieldValue.serverTimestamp(),
-        'itemConditionAfter': cond,
-        'ownerReturnNotes': ownerReturnNotes.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'depositDecision': depositDecision,
-        'depositDecisionReason': '',
-        'depositDecidedAt': shouldReleaseDeposit
-            ? FieldValue.serverTimestamp()
-            : null,
-      });
-      batch.update(itemRef, {
-        'status': AppConstants.itemStatusAvailable,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      batch.update(ownerRef, {
-        'completedLendings': FieldValue.increment(1),
-        'lastCompletedBorrowRequestId': request.id,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      batch.update(borrowerRef, {
-        'completedBorrowings': FieldValue.increment(1),
-        'lastCompletedBorrowRequestId': request.id,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      _addCompletionUpdates(
+        batch: batch,
+        requestRef: requestRef,
+        request: request,
+        updates: {
+          'itemConditionAfter': cond,
+          'ownerReturnNotes': ownerReturnNotes.trim(),
+          'depositDecision': request.hasDeposit
+              ? AppConstants.depositDecisionReturnDeposit
+              : AppConstants.depositDecisionNotRequired,
+          'depositDecisionReason': '',
+          'depositDecidedAt': request.hasDeposit
+              ? FieldValue.serverTimestamp()
+              : null,
+        },
+      );
       await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
@@ -660,6 +656,316 @@ class BorrowRequestService {
       }
       throw Exception(e.message ?? 'Failed to confirm return.');
     }
+  }
+
+  /// Owner reports minor damage and waits for the borrower to accept/decline.
+  Future<void> reportMinorIssue({
+    required String requestId,
+    required String ownerId,
+    required double deductionAmount,
+    required String reason,
+    String? localProofPath,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != ownerId) {
+      throw Exception('Only the item owner can report a minor issue.');
+    }
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      throw Exception('A reason is required for a minor issue.');
+    }
+
+    try {
+      final requestRef = _requests.doc(requestId);
+      final snapshot = await requestRef.get();
+      final data = snapshot.data();
+      if (data == null) throw Exception('Borrow request not found.');
+      final request = BorrowRequest.fromMap(snapshot.id, data);
+      if (request.ownerId != ownerId) {
+        throw Exception('Only the item owner can report a minor issue.');
+      }
+      if (request.status != AppConstants.borrowStatusReturnSubmitted) {
+        throw Exception('Minor issues can only be reported during return.');
+      }
+      if (!request.hasDeposit || (request.depositAmount ?? 0) <= 0) {
+        throw Exception('This request has no refundable deposit.');
+      }
+      final deposit = request.depositAmount ?? 0;
+      if (deductionAmount <= 0 || deductionAmount >= deposit) {
+        throw Exception(
+          'Deduction must be more than RM 0 and less than the deposit.',
+        );
+      }
+
+      String? proofUrl;
+      if (localProofPath != null && localProofPath.trim().isNotEmpty) {
+        proofUrl = await _uploadProofImage(
+          requestId: requestId,
+          uid: ownerId,
+          localPath: localProofPath.trim(),
+        );
+      }
+
+      await requestRef.update({
+        'status': AppConstants.borrowStatusMinorIssuePending,
+        'itemConditionAfter': AppConstants.borrowConditionAfterMinor,
+        'ownerReturnNotes': trimmedReason,
+        'minorDeductionAmount': deductionAmount,
+        'minorIssueReason': trimmedReason,
+        'minorIssuePhotoUrl': ?proofUrl,
+        'minorIssueReportedAt': FieldValue.serverTimestamp(),
+        'minorIssueBorrowerDecision': AppConstants.minorIssueDecisionPending,
+        'minorIssueBorrowerRespondedAt': null,
+        'depositDecision': AppConstants.depositDecisionPending,
+        'depositDecisionReason': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
+      }
+      throw Exception(e.message ?? 'Failed to report minor issue.');
+    }
+  }
+
+  /// Borrower accepts or declines the lender's minor deduction request.
+  Future<void> respondToMinorIssue({
+    required String requestId,
+    required String borrowerId,
+    required bool accepted,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != borrowerId) {
+      throw Exception('Only the borrower can respond to the minor issue.');
+    }
+
+    try {
+      final requestRef = _requests.doc(requestId);
+      final snapshot = await requestRef.get();
+      final data = snapshot.data();
+      if (data == null) throw Exception('Borrow request not found.');
+      final request = BorrowRequest.fromMap(snapshot.id, data);
+      if (request.borrowerId != borrowerId) {
+        throw Exception('Only the borrower can respond to the minor issue.');
+      }
+      if (request.status != AppConstants.borrowStatusMinorIssuePending) {
+        throw Exception('There is no minor issue awaiting your response.');
+      }
+
+      final batch = _firestore.batch();
+      if (accepted) {
+        _addCompletionUpdates(
+          batch: batch,
+          requestRef: requestRef,
+          request: request,
+          updates: {
+            'minorIssueBorrowerDecision':
+                AppConstants.minorIssueDecisionAccepted,
+            'minorIssueBorrowerRespondedAt': FieldValue.serverTimestamp(),
+            'depositDecision': AppConstants.depositDecisionPartialDeduction,
+            'depositDecisionReason': request.minorIssueReason,
+            'depositDecidedAt': FieldValue.serverTimestamp(),
+          },
+        );
+      } else {
+        final borrowerDoc = await _users.doc(request.borrowerId).get();
+        final borrowerData = borrowerDoc.data();
+        final reportRef = _reports.doc();
+        _setDisputeReport(
+          batch: batch,
+          reportRef: reportRef,
+          request: request,
+          communityId: (borrowerData?['communityId'] as String?) ?? '',
+          communityName: (borrowerData?['communityName'] as String?) ?? '',
+          reporterId: request.borrowerId,
+          reporterName: request.borrowerName,
+          reportedUserId: request.ownerId,
+          reportedUserName: request.ownerName,
+          title: 'Minor damage declined by borrower',
+          description:
+              '${request.minorIssueReason}\nRequested deduction: RM ${(request.minorDeductionAmount ?? 0).toStringAsFixed(2)}.',
+          evidenceImageUrl: request.minorIssuePhotoUrl,
+        );
+        batch.update(requestRef, {
+          'status': AppConstants.borrowStatusDisputed,
+          'minorIssueBorrowerDecision':
+              AppConstants.minorIssueDecisionDeclined,
+          'minorIssueBorrowerRespondedAt': FieldValue.serverTimestamp(),
+          'disputeReportId': reportRef.id,
+          'disputeReason': request.minorIssueReason,
+          'disputeEvidenceImageUrl': request.minorIssuePhotoUrl.trim().isEmpty
+              ? null
+              : request.minorIssuePhotoUrl,
+          'disputeReportedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
+      }
+      throw Exception(e.message ?? 'Failed to respond to minor issue.');
+    }
+  }
+
+  /// Owner reports major damage/loss and creates an admin dispute ticket.
+  Future<void> reportMajorDamage({
+    required String requestId,
+    required String ownerId,
+    required String conditionAfter,
+    required String description,
+    required String localProofPath,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != ownerId) {
+      throw Exception('Only the item owner can report major damage.');
+    }
+    final cond = conditionAfter.trim();
+    if (cond != AppConstants.borrowConditionAfterMajor &&
+        cond != AppConstants.borrowConditionAfterLost) {
+      throw Exception('Choose major damage or lost item for escalation.');
+    }
+    final trimmedDescription = description.trim();
+    if (trimmedDescription.isEmpty) {
+      throw Exception('A description is required for admin review.');
+    }
+    if (localProofPath.trim().isEmpty) {
+      throw Exception('Photo evidence is required for major damage.');
+    }
+
+    try {
+      final requestRef = _requests.doc(requestId);
+      final snapshot = await requestRef.get();
+      final data = snapshot.data();
+      if (data == null) throw Exception('Borrow request not found.');
+      final request = BorrowRequest.fromMap(snapshot.id, data);
+      if (request.ownerId != ownerId) {
+        throw Exception('Only the item owner can report major damage.');
+      }
+      if (request.status != AppConstants.borrowStatusReturnSubmitted) {
+        throw Exception('Major damage can only be reported during return.');
+      }
+
+      final proofUrl =
+          await _uploadProofImage(
+            requestId: requestId,
+            uid: ownerId,
+            localPath: localProofPath.trim(),
+          ) ??
+          '';
+      final ownerDoc = await _users.doc(ownerId).get();
+      final ownerData = ownerDoc.data();
+      final reportRef = _reports.doc();
+      final batch = _firestore.batch();
+      _setDisputeReport(
+        batch: batch,
+        reportRef: reportRef,
+        request: request,
+        communityId: (ownerData?['communityId'] as String?) ?? '',
+        communityName: (ownerData?['communityName'] as String?) ?? '',
+        reporterId: ownerId,
+        reporterName: request.ownerName,
+        reportedUserId: request.borrowerId,
+        reportedUserName: request.borrowerName,
+        title: cond == AppConstants.borrowConditionAfterLost
+            ? 'Lost item dispute'
+            : 'Major damage dispute',
+        description: trimmedDescription,
+        evidenceImageUrl: proofUrl,
+      );
+      batch.update(requestRef, {
+        'status': AppConstants.borrowStatusDisputed,
+        'itemConditionAfter': cond,
+        'ownerReturnNotes': trimmedDescription,
+        'disputeReportId': reportRef.id,
+        'disputeReason': trimmedDescription,
+        'disputeEvidenceImageUrl': proofUrl,
+        'disputeReportedAt': FieldValue.serverTimestamp(),
+        'depositDecision': AppConstants.depositDecisionPending,
+        'depositDecisionReason': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore rules for borrow request access.',
+        );
+      }
+      throw Exception(e.message ?? 'Failed to report major damage.');
+    }
+  }
+
+  void _addCompletionUpdates({
+    required WriteBatch batch,
+    required DocumentReference<Map<String, dynamic>> requestRef,
+    required BorrowRequest request,
+    required Map<String, dynamic> updates,
+  }) {
+    batch.update(requestRef, {
+      'status': AppConstants.borrowStatusCompleted,
+      'returnConfirmedAt': FieldValue.serverTimestamp(),
+      'completedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      ...updates,
+    });
+    batch.update(_items.doc(request.itemId), {
+      'status': AppConstants.itemStatusAvailable,
+      'lastCompletedBorrowRequestId': request.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_users.doc(request.ownerId), {
+      'completedLendings': FieldValue.increment(1),
+      'lastCompletedBorrowRequestId': request.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_users.doc(request.borrowerId), {
+      'completedBorrowings': FieldValue.increment(1),
+      'lastCompletedBorrowRequestId': request.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  void _setDisputeReport({
+    required WriteBatch batch,
+    required DocumentReference<Map<String, dynamic>> reportRef,
+    required BorrowRequest request,
+    required String communityId,
+    required String communityName,
+    required String reporterId,
+    required String reporterName,
+    required String reportedUserId,
+    required String reportedUserName,
+    required String title,
+    required String description,
+    required String evidenceImageUrl,
+  }) {
+    batch.set(reportRef, {
+      'type': AppConstants.reportTypeDepositDispute,
+      'relatedBorrowRequestId': request.id,
+      'itemId': request.itemId,
+      'communityId': communityId,
+      'communityName': communityName,
+      'reporterId': reporterId,
+      'reporterName': reporterName,
+      'reportedUserId': reportedUserId,
+      'reportedUserName': reportedUserName,
+      'title': title,
+      'description': description,
+      'evidenceImageUrl': evidenceImageUrl.trim().isEmpty
+          ? null
+          : evidenceImageUrl.trim(),
+      'depositAmount': request.depositAmount,
+      'minorDeductionAmount': request.minorDeductionAmount,
+      'status': AppConstants.reportStatusOpen,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// Owner sets deposit outcome after borrow completed (Phase 6).

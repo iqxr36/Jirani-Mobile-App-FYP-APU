@@ -12,6 +12,9 @@ class ReportModel {
     required this.reportedUserName,
     required this.title,
     required this.description,
+    required this.evidenceImageUrl,
+    required this.depositAmount,
+    required this.minorDeductionAmount,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -27,6 +30,9 @@ class ReportModel {
   final String reportedUserName;
   final String title;
   final String description;
+  final String evidenceImageUrl;
+  final double? depositAmount;
+  final double? minorDeductionAmount;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -43,10 +49,20 @@ class ReportModel {
       reportedUserName: (data['reportedUserName'] as String?) ?? '',
       title: (data['title'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
+      evidenceImageUrl: (data['evidenceImageUrl'] as String?) ?? '',
+      depositAmount: _toDouble(data['depositAmount']),
+      minorDeductionAmount: _toDouble(data['minorDeductionAmount']),
       status: (data['status'] as String?) ?? '',
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
     );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   static DateTime _parseDate(dynamic value) {

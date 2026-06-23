@@ -288,6 +288,80 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> reportMinorIssue({
+    required String requestId,
+    required String ownerId,
+    required double deductionAmount,
+    required String reason,
+    String? localProofPath,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.reportMinorIssue(
+        requestId: requestId,
+        ownerId: ownerId,
+        deductionAmount: deductionAmount,
+        reason: reason,
+        localProofPath: localProofPath,
+      );
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToMinorIssue({
+    required String requestId,
+    required String borrowerId,
+    required bool accepted,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.respondToMinorIssue(
+        requestId: requestId,
+        borrowerId: borrowerId,
+        accepted: accepted,
+      );
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> reportMajorDamage({
+    required String requestId,
+    required String ownerId,
+    required String conditionAfter,
+    required String description,
+    required String localProofPath,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.reportMajorDamage(
+        requestId: requestId,
+        ownerId: ownerId,
+        conditionAfter: conditionAfter,
+        description: description,
+        localProofPath: localProofPath,
+      );
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> setDepositDecision({
     required String requestId,
     required String ownerId,

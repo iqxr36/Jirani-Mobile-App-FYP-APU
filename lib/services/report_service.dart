@@ -60,9 +60,14 @@ class ReportService {
         throw Exception('Borrow request not found.');
       }
       final br = BorrowRequest.fromMap(brSnap.id, brData);
-      if (br.status != AppConstants.borrowStatusCompleted) {
+      final reportableStatuses = {
+        AppConstants.borrowStatusCompleted,
+        AppConstants.borrowStatusMinorIssuePending,
+        AppConstants.borrowStatusDisputed,
+      };
+      if (!reportableStatuses.contains(br.status)) {
         throw Exception(
-          'Reports can only be filed for completed borrow requests.',
+          'Reports can only be filed for completed or disputed borrow requests.',
         );
       }
       if (reporterId != br.borrowerId && reporterId != br.ownerId) {

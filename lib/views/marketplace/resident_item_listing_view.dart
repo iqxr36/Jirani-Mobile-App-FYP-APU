@@ -377,6 +377,12 @@ class _ResidentLenderRequestDetailViewState
   final TextEditingController _returnCodeController = TextEditingController();
   final TextEditingController _ownerReturnNotesController =
       TextEditingController();
+  final TextEditingController _minorDeductionController =
+      TextEditingController();
+  final TextEditingController _minorIssueReasonController =
+      TextEditingController();
+  final TextEditingController _majorDamageReasonController =
+      TextEditingController();
   final TextEditingController _depositReasonController =
       TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
@@ -387,11 +393,15 @@ class _ResidentLenderRequestDetailViewState
   int _rating = 5;
   bool _localReviewSubmitted = false;
   XFile? _handoverProof;
+  XFile? _returnIssueProof;
 
   @override
   void dispose() {
     _returnCodeController.dispose();
     _ownerReturnNotesController.dispose();
+    _minorDeductionController.dispose();
+    _minorIssueReasonController.dispose();
+    _majorDamageReasonController.dispose();
     _depositReasonController.dispose();
     _reviewController.dispose();
     super.dispose();
@@ -602,9 +612,16 @@ class _ResidentLenderRequestDetailViewState
                               returnCodeController: _returnCodeController,
                               ownerReturnNotesController:
                                   _ownerReturnNotesController,
+                              minorDeductionController:
+                                  _minorDeductionController,
+                              minorIssueReasonController:
+                                  _minorIssueReasonController,
+                              majorDamageReasonController:
+                                  _majorDamageReasonController,
                               depositReasonController: _depositReasonController,
                               reviewController: _reviewController,
                               handoverProofName: _handoverProof?.name,
+                              returnIssueProofName: _returnIssueProof?.name,
                               rating: _rating,
                               localReviewSubmitted: _localReviewSubmitted,
                               onConditionBeforeChanged: (value) =>
@@ -617,10 +634,15 @@ class _ResidentLenderRequestDetailViewState
                                   setState(() => _rating = value),
                               onOpenChat: () => _openChat(request, user),
                               onPickHandoverProof: _pickHandoverProof,
+                              onPickReturnIssueProof: _pickReturnIssueProof,
                               onConfirmHandover: () =>
                                   _confirmHandover(request, user),
                               onConfirmReturn: () =>
                                   _confirmReturn(request, user),
+                              onReportMinorIssue: () =>
+                                  _reportMinorIssue(request, user),
+                              onReportMajorDamage: () =>
+                                  _reportMajorDamage(request, user),
                               onSubmitDepositDecision: () =>
                                   _submitDepositDecision(request, user),
                               onSubmitReview: () =>
@@ -791,6 +813,94 @@ class _ResidentLenderRequestDetailViewState
     }
   }
 
+  Future<void> _pickReturnIssueProof() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: context.residentOutline(),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Add Return Evidence',
+                  style: TextStyle(
+                    color: context.appInk,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add a clear photo of the issue before submitting the dispute.',
+                  style: TextStyle(
+                    color: context.appMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _ProofSourceTile(
+                  icon: Icons.camera_alt_outlined,
+                  title: 'Take Photo',
+                  subtitle: 'Use your Android camera',
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                const SizedBox(height: 10),
+                _ProofSourceTile(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Choose from Gallery',
+                  subtitle: 'Select an existing photo',
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || source == null) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 82,
+      );
+      if (!mounted || picked == null) return;
+      setState(() => _returnIssueProof = picked);
+    } catch (_) {
+      if (!mounted) return;
+      final sourceName = source == ImageSource.camera ? 'camera' : 'gallery';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not open the $sourceName. You can submit minor issues without a photo, but major damage needs evidence.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _confirmHandover(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final provider = context.read<BorrowRequestProvider>();
@@ -815,16 +925,11 @@ class _ResidentLenderRequestDetailViewState
       _showSnack(context, 'Enter the 4-digit return code from the borrower.');
       return;
     }
-    final issue = _conditionAfter != AppConstants.borrowConditionAfterSame;
-    if (issue && _ownerReturnNotesController.text.trim().isEmpty) {
-      _showSnack(context, 'Add owner notes for damaged or lost items.');
-      return;
-    }
     final provider = context.read<BorrowRequestProvider>();
     await provider.confirmReturn(
       requestId: request.id,
       ownerId: user.uid,
-      conditionAfter: _conditionAfter,
+      conditionAfter: AppConstants.borrowConditionAfterSame,
       ownerReturnNotes: _ownerReturnNotesController.text.trim(),
       returnCode: code,
     );
@@ -832,9 +937,64 @@ class _ResidentLenderRequestDetailViewState
     _showSnack(
       context,
       provider.errorMessage ??
-          (issue
-              ? 'Return confirmed. Deposit decision is now required.'
-              : 'Return confirmed. Deposit was released automatically.'),
+          'Return confirmed. Deposit was released automatically.',
+    );
+  }
+
+  Future<void> _reportMinorIssue(BorrowRequest request, AppUser? user) async {
+    if (user == null) return;
+    final amount = double.tryParse(_minorDeductionController.text.trim());
+    if (amount == null) {
+      _showSnack(context, 'Enter the deduction amount requested from deposit.');
+      return;
+    }
+    final reason = _minorIssueReasonController.text.trim();
+    if (reason.isEmpty) {
+      _showSnack(context, 'Add a reason for the minor issue.');
+      return;
+    }
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.reportMinorIssue(
+      requestId: request.id,
+      ownerId: user.uid,
+      deductionAmount: amount,
+      reason: reason,
+      localProofPath: _returnIssueProof?.path,
+    );
+    if (!mounted) return;
+    _showSnack(
+      context,
+      provider.errorMessage ??
+          'Minor issue sent to borrower for deduction approval.',
+    );
+  }
+
+  Future<void> _reportMajorDamage(BorrowRequest request, AppUser? user) async {
+    if (user == null) return;
+    final reason = _majorDamageReasonController.text.trim();
+    if (reason.isEmpty) {
+      _showSnack(context, 'Add a damage description for admin review.');
+      return;
+    }
+    if (_returnIssueProof == null) {
+      _showSnack(context, 'Add photo evidence before reporting major damage.');
+      return;
+    }
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.reportMajorDamage(
+      requestId: request.id,
+      ownerId: user.uid,
+      conditionAfter: _conditionAfter == AppConstants.borrowConditionAfterLost
+          ? AppConstants.borrowConditionAfterLost
+          : AppConstants.borrowConditionAfterMajor,
+      description: reason,
+      localProofPath: _returnIssueProof!.path,
+    );
+    if (!mounted) return;
+    _showSnack(
+      context,
+      provider.errorMessage ??
+          'Major damage reported. Admin will review the dispute.',
     );
   }
 
@@ -894,9 +1054,13 @@ class _LenderTransactionBody extends StatelessWidget {
     required this.depositDecision,
     required this.returnCodeController,
     required this.ownerReturnNotesController,
+    required this.minorDeductionController,
+    required this.minorIssueReasonController,
+    required this.majorDamageReasonController,
     required this.depositReasonController,
     required this.reviewController,
     required this.handoverProofName,
+    required this.returnIssueProofName,
     required this.rating,
     required this.localReviewSubmitted,
     required this.onConditionBeforeChanged,
@@ -905,8 +1069,11 @@ class _LenderTransactionBody extends StatelessWidget {
     required this.onRatingChanged,
     required this.onOpenChat,
     required this.onPickHandoverProof,
+    required this.onPickReturnIssueProof,
     required this.onConfirmHandover,
     required this.onConfirmReturn,
+    required this.onReportMinorIssue,
+    required this.onReportMajorDamage,
     required this.onSubmitDepositDecision,
     required this.onSubmitReview,
   });
@@ -918,9 +1085,13 @@ class _LenderTransactionBody extends StatelessWidget {
   final String depositDecision;
   final TextEditingController returnCodeController;
   final TextEditingController ownerReturnNotesController;
+  final TextEditingController minorDeductionController;
+  final TextEditingController minorIssueReasonController;
+  final TextEditingController majorDamageReasonController;
   final TextEditingController depositReasonController;
   final TextEditingController reviewController;
   final String? handoverProofName;
+  final String? returnIssueProofName;
   final int rating;
   final bool localReviewSubmitted;
   final ValueChanged<String> onConditionBeforeChanged;
@@ -929,8 +1100,11 @@ class _LenderTransactionBody extends StatelessWidget {
   final ValueChanged<int> onRatingChanged;
   final VoidCallback onOpenChat;
   final VoidCallback onPickHandoverProof;
+  final VoidCallback onPickReturnIssueProof;
   final VoidCallback onConfirmHandover;
   final VoidCallback onConfirmReturn;
+  final VoidCallback onReportMinorIssue;
+  final VoidCallback onReportMajorDamage;
   final VoidCallback onSubmitDepositDecision;
   final VoidCallback onSubmitReview;
 
@@ -962,11 +1136,22 @@ class _LenderTransactionBody extends StatelessWidget {
           conditionAfter: conditionAfter,
           returnCodeController: returnCodeController,
           ownerReturnNotesController: ownerReturnNotesController,
+          minorDeductionController: minorDeductionController,
+          minorIssueReasonController: minorIssueReasonController,
+          majorDamageReasonController: majorDamageReasonController,
+          returnIssueProofName: returnIssueProofName,
           isLoading: provider.isLoading,
           onConditionAfterChanged: onConditionAfterChanged,
           onOpenChat: onOpenChat,
+          onPickReturnIssueProof: onPickReturnIssueProof,
           onConfirmReturn: onConfirmReturn,
+          onReportMinorIssue: onReportMinorIssue,
+          onReportMajorDamage: onReportMajorDamage,
         );
+      case AppConstants.borrowStatusMinorIssuePending:
+        return _LenderMinorIssueWaitingCard(request: request, onOpenChat: onOpenChat);
+      case AppConstants.borrowStatusDisputed:
+        return _LenderDisputedCard(request: request, onOpenChat: onOpenChat);
       case AppConstants.borrowStatusCompleted:
         return _LenderCompletedCard(
           request: request,
@@ -1238,33 +1423,53 @@ class _LenderReturnCard extends StatelessWidget {
     required this.conditionAfter,
     required this.returnCodeController,
     required this.ownerReturnNotesController,
+    required this.minorDeductionController,
+    required this.minorIssueReasonController,
+    required this.majorDamageReasonController,
+    required this.returnIssueProofName,
     required this.isLoading,
     required this.onConditionAfterChanged,
     required this.onOpenChat,
+    required this.onPickReturnIssueProof,
     required this.onConfirmReturn,
+    required this.onReportMinorIssue,
+    required this.onReportMajorDamage,
   });
 
   final BorrowRequest request;
   final String conditionAfter;
   final TextEditingController returnCodeController;
   final TextEditingController ownerReturnNotesController;
+  final TextEditingController minorDeductionController;
+  final TextEditingController minorIssueReasonController;
+  final TextEditingController majorDamageReasonController;
+  final String? returnIssueProofName;
   final bool isLoading;
   final ValueChanged<String> onConditionAfterChanged;
   final VoidCallback onOpenChat;
+  final VoidCallback onPickReturnIssueProof;
   final VoidCallback onConfirmReturn;
+  final VoidCallback onReportMinorIssue;
+  final VoidCallback onReportMajorDamage;
 
   @override
   Widget build(BuildContext context) {
+    final isGood = conditionAfter == AppConstants.borrowConditionAfterSame;
+    final isMinor = conditionAfter == AppConstants.borrowConditionAfterMinor;
+    final isMajor = conditionAfter == AppConstants.borrowConditionAfterMajor ||
+        conditionAfter == AppConstants.borrowConditionAfterLost;
+
     return _GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SectionLabel('Return Completion'),
+          const _SectionLabel('Return Inspection'),
           const SizedBox(height: 12),
           _TrackingStepCard(
             icon: Icons.chat_bubble_outline_rounded,
             title: 'Meet Borrower',
-            message: 'Inspect the returned item and confirm the return code.',
+            message:
+                'Inspect the item before closing the transaction or opening a dispute.',
             action: _SecondaryButton(
               label: 'Open Chat',
               icon: Icons.chat_bubble_outline_rounded,
@@ -1282,39 +1487,219 @@ class _LenderReturnCard extends StatelessWidget {
           const SizedBox(height: 12),
           _TrackingStepCard(
             icon: Icons.fact_check_outlined,
-            title: 'Returned Condition',
+            title: 'Inspection Result',
             message:
-                'Choose same condition for automatic deposit release, or report an issue for owner decision.',
+                'Choose the path that matches the returned item condition.',
             child: _OptionWrap(
-              options: _returnConditionOptions,
+              options: _returnInspectionOptions,
               selectedValue: conditionAfter,
               onChanged: onConditionAfterChanged,
             ),
           ),
+          if (isGood) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: ownerReturnNotesController,
+              minLines: 2,
+              maxLines: 3,
+              decoration: context.residentInputDecoration(
+                label: 'Owner notes',
+                hint: 'Optional notes for a clean return',
+              ),
+            ),
+            const SizedBox(height: 12),
+            _TrackingStepCard(
+              icon: Icons.pin_rounded,
+              title: 'Completion Code',
+              message:
+                  'Enter the 4-digit code from the borrower after you are satisfied with the item condition.',
+              action: _PrimaryButton(
+                label: isLoading ? 'Confirming...' : 'Item is Good',
+                icon: Icons.assignment_return_rounded,
+                onTap: isLoading ? null : onConfirmReturn,
+              ),
+              child: _CodeTextField(
+                controller: returnCodeController,
+                label: 'Completion Code',
+              ),
+            ),
+          ],
+          if (isMinor) ...[
+            const SizedBox(height: 12),
+            _TrackingStepCard(
+              icon: Icons.build_circle_outlined,
+              title: 'Minor Issue',
+              message:
+                  'Request a deduction from the borrower. The transaction waits for their accept or decline response.',
+              footer: returnIssueProofName == null
+                  ? null
+                  : Text(
+                      returnIssueProofName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kBrandTeal,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+              action: _SecondaryButton(
+                label: returnIssueProofName == null
+                    ? 'Add Photo'
+                    : 'Replace Photo',
+                icon: Icons.camera_alt_outlined,
+                onTap: onPickReturnIssueProof,
+              ),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: minorDeductionController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: context.residentInputDecoration(
+                      label: 'Deduction amount',
+                      hint: 'Example: 10',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: minorIssueReasonController,
+                    minLines: 3,
+                    maxLines: 4,
+                    decoration: context.residentInputDecoration(
+                      label: 'Reason',
+                      hint: 'Explain the scratch, missing piece, or issue',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PrimaryButton(
+              label: isLoading ? 'Sending...' : 'Report Minor Issue',
+              icon: Icons.price_change_outlined,
+              onTap: isLoading ? null : onReportMinorIssue,
+            ),
+          ],
+          if (isMajor) ...[
+            const SizedBox(height: 12),
+            _TrackingStepCard(
+              icon: Icons.report_problem_outlined,
+              title: conditionAfter == AppConstants.borrowConditionAfterLost
+                  ? 'Lost Item'
+                  : 'Major Damage',
+              message:
+                  'This freezes the deposit and creates an admin dispute ticket. Photo evidence is required.',
+              footer: returnIssueProofName == null
+                  ? null
+                  : Text(
+                      returnIssueProofName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kBrandTeal,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+              action: _SecondaryButton(
+                label: returnIssueProofName == null
+                    ? 'Add Evidence'
+                    : 'Replace Evidence',
+                icon: Icons.camera_alt_outlined,
+                onTap: onPickReturnIssueProof,
+              ),
+              child: TextField(
+                controller: majorDamageReasonController,
+                minLines: 3,
+                maxLines: 4,
+                decoration: context.residentInputDecoration(
+                  label: 'Damage description',
+                  hint: 'Explain what happened and what admin should review',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _DangerButton(
+              label: isLoading ? 'Submitting...' : 'Report Major Damage',
+              icon: Icons.gavel_rounded,
+              onTap: isLoading ? null : onReportMajorDamage,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LenderMinorIssueWaitingCard extends StatelessWidget {
+  const _LenderMinorIssueWaitingCard({
+    required this.request,
+    required this.onOpenChat,
+  });
+
+  final BorrowRequest request;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('Minor Issue Pending'),
           const SizedBox(height: 12),
-          TextField(
-            controller: ownerReturnNotesController,
-            minLines: 3,
-            maxLines: 4,
-            decoration: context.residentInputDecoration(
-              label: 'Owner notes',
-              hint: 'Add notes about returned condition',
+          _TrackingStepCard(
+            icon: Icons.hourglass_top_rounded,
+            title: 'Waiting for borrower response',
+            message:
+                'You requested ${_money(request.minorDeductionAmount)} for: ${request.minorIssueReason}. If the borrower declines, admin review starts automatically.',
+          ),
+          const SizedBox(height: 12),
+          _SecondaryButton(
+            label: 'Open Chat',
+            icon: Icons.chat_bubble_outline_rounded,
+            onTap: onOpenChat,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LenderDisputedCard extends StatelessWidget {
+  const _LenderDisputedCard({required this.request, required this.onOpenChat});
+
+  final BorrowRequest request;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = request.disputeReason.trim().isNotEmpty
+        ? request.disputeReason.trim()
+        : request.ownerReturnNotes.trim();
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('Admin Dispute'),
+          const SizedBox(height: 12),
+          _TrackingStepCard(
+            icon: Icons.gavel_rounded,
+            title: 'Deposit Frozen',
+            message:
+                'Admin will review the evidence and decide whether the deposit is released to the borrower or withheld for you.',
+            child: _MiniInfoTile(
+              label: 'Reason',
+              value: reason.isEmpty ? 'No reason recorded' : reason,
             ),
           ),
           const SizedBox(height: 12),
-          _TrackingStepCard(
-            icon: Icons.pin_rounded,
-            title: 'Return Code Confirmation',
-            message: 'Enter the 4-digit code the borrower shares at return.',
-            action: _PrimaryButton(
-              label: isLoading ? 'Confirming...' : 'Confirm Return',
-              icon: Icons.assignment_return_rounded,
-              onTap: isLoading ? null : onConfirmReturn,
-            ),
-            child: _CodeTextField(
-              controller: returnCodeController,
-              label: 'Return Code',
-            ),
+          _SecondaryButton(
+            label: 'Open Chat',
+            icon: Icons.chat_bubble_outline_rounded,
+            onTap: onOpenChat,
           ),
         ],
       ),
@@ -3803,8 +4188,16 @@ const List<_Option> _returnConditionOptions = [
   _Option('Lost', AppConstants.borrowConditionAfterLost),
 ];
 
+const List<_Option> _returnInspectionOptions = [
+  _Option('Item is Good', AppConstants.borrowConditionAfterSame),
+  _Option('Report Minor Issue', AppConstants.borrowConditionAfterMinor),
+  _Option('Report Major Damage', AppConstants.borrowConditionAfterMajor),
+  _Option('Lost Item', AppConstants.borrowConditionAfterLost),
+];
+
 const List<_Option> _depositDecisionOptions = [
   _Option('Release deposit', AppConstants.depositDecisionReturnDeposit),
+  _Option('Partial deduction', AppConstants.depositDecisionPartialDeduction),
   _Option('Withhold deposit', AppConstants.depositDecisionWithholdDeposit),
 ];
 
@@ -3865,6 +4258,9 @@ String _depositDecisionLabel(String decision) {
   }
   if (decision == AppConstants.depositDecisionPending) {
     return 'Pending decision';
+  }
+  if (decision == AppConstants.depositDecisionPartialDeduction) {
+    return 'Partial deduction';
   }
   return decision.trim().isEmpty ? 'Not recorded' : decision;
 }
@@ -3933,6 +4329,10 @@ String _requestStatusLabel(BorrowRequest request) {
       return 'Active';
     case AppConstants.borrowStatusReturnSubmitted:
       return 'Returning';
+    case AppConstants.borrowStatusMinorIssuePending:
+      return 'Minor Issue';
+    case AppConstants.borrowStatusDisputed:
+      return 'Disputed';
     case AppConstants.borrowStatusCompleted:
       return 'Completed';
     default:
@@ -3946,7 +4346,10 @@ _StatusTone _requestStatusTone(BorrowRequest request) {
       return _StatusTone.warning;
     case AppConstants.borrowStatusRejected:
     case AppConstants.borrowStatusCancelled:
+    case AppConstants.borrowStatusDisputed:
       return _StatusTone.danger;
+    case AppConstants.borrowStatusMinorIssuePending:
+      return _StatusTone.warning;
     case AppConstants.borrowStatusCompleted:
       return _StatusTone.success;
     default:
@@ -3968,6 +4371,10 @@ String _requestReadOnlyMessage(BorrowRequest request) {
       return 'The borrower cancelled this request.';
     case AppConstants.borrowStatusCompleted:
       return 'This borrowing transaction is complete.';
+    case AppConstants.borrowStatusMinorIssuePending:
+      return 'The borrower is reviewing your requested deduction.';
+    case AppConstants.borrowStatusDisputed:
+      return 'This transaction is frozen for admin dispute review.';
     default:
       return 'This request is no longer pending, so approval actions are locked.';
   }
@@ -3985,6 +4392,10 @@ String _depositSummaryMessage(BorrowRequest request) {
     return reason.isEmpty
         ? 'The return is confirmed and the deposit was withheld.'
         : 'The return is confirmed and the deposit was withheld. Reason: $reason';
+  }
+  if (request.depositDecision == AppConstants.depositDecisionPartialDeduction) {
+    final amount = request.minorDeductionAmount ?? 0;
+    return 'The return is complete. ${_money(amount)} was deducted from the deposit for the accepted minor issue.';
   }
   return 'The return is confirmed. Deposit decision is pending.';
 }
