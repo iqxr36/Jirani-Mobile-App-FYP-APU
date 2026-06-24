@@ -1,16 +1,18 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:jirani/admin/models/admin_display_rows.dart';
-import 'package:jirani/admin/theme/admin_colors.dart';
-import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
-import 'package:jirani/admin/widgets/admin_status_widgets.dart';
+import 'package:jirani/admin/logic/models/admin_display_rows.dart';
+import 'package:jirani/admin/logic/theme/admin_colors.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/responsive.dart';
-import 'package:jirani/providers/admin_provider.dart';
+import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/report_model.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+enum _ReportInboxFilter { open, completed }
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -21,8 +23,39 @@ class AdminReportsScreen extends StatefulWidget {
 
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
   String? _selectedReportId;
+  _ReportInboxFilter _inboxFilter = _ReportInboxFilter.open;
   final ScrollController _detailScrollController = ScrollController();
   final ScrollController _inboxScrollController = ScrollController();
+
+  void _setInboxFilter(_ReportInboxFilter filter) {
+    if (_inboxFilter == filter) return;
+    setState(() {
+      _inboxFilter = filter;
+      _selectedReportId = null;
+    });
+  }
+
+  bool _isOpenReport(ReportModel report) {
+    final status = report.status.trim();
+    return status.isEmpty ||
+        status == AppConstants.reportStatusOpen ||
+        status == AppConstants.reportStatusUnderReview;
+  }
+
+  bool _isCompletedReport(ReportModel report) {
+    final status = report.status.trim();
+    return status == AppConstants.reportStatusResolved ||
+        status == AppConstants.reportStatusDismissed;
+  }
+
+  List<ReportModel> _filteredReports(List<ReportModel> reports) {
+    return reports.where((report) {
+      return switch (_inboxFilter) {
+        _ReportInboxFilter.open => _isOpenReport(report),
+        _ReportInboxFilter.completed => _isCompletedReport(report),
+      };
+    }).toList();
+  }
 
   @override
   void dispose() {
@@ -35,8 +68,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   Widget build(BuildContext context) {
     final adminProvider = context.watch<AdminProvider>();
     final reports = adminProvider.reports;
-    final reportRows = reports.map(adminReportRowFromReport).toList();
-    final selectedReport = _selectedReport(reports);
+    final filteredReports = _filteredReports(reports);
+    final selectedReport = _selectedReport(filteredReports);
     final selected = selectedReport == null
         ? null
         : adminReportRowFromReport(selectedReport);
@@ -49,19 +82,43 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           title: 'Reports and Complaints',
           subtitle:
               'Inbox-style triage for disputes, misuse, damaged items, and evidence.',
-          controls: const [
-            AdminFilterChipButton(label: 'Priority'),
-            AdminFilterChipButton(label: 'Open'),
+          controls: [
+            const AdminFilterChipButton(label: 'Priority'),
+            AdminFilterChipButton(
+              label: 'Open',
+              selected: _inboxFilter == _ReportInboxFilter.open,
+              onPressed: () => _setInboxFilter(_ReportInboxFilter.open),
+            ),
+            AdminFilterChipButton(
+              label: 'Completed',
+              selected: _inboxFilter == _ReportInboxFilter.completed,
+              onPressed: () => _setInboxFilter(_ReportInboxFilter.completed),
+            ),
           ],
         ),
         const SizedBox(height: 20),
-        if (selected == null)
+        if (reports.isEmpty)
           const AdminPanel(
             title: 'Report Inbox',
             child: AdminEmptyPanelMessage(
               icon: Icons.report_problem_rounded,
               title: 'No reports found',
               body: 'Resident complaints and report tickets will appear here.',
+            ),
+          )
+        else if (filteredReports.isEmpty)
+          AdminPanel(
+            title: 'Report Inbox',
+            child: AdminEmptyPanelMessage(
+              icon: _inboxFilter == _ReportInboxFilter.open
+                  ? Icons.inbox_rounded
+                  : Icons.task_alt_rounded,
+              title: _inboxFilter == _ReportInboxFilter.open
+                  ? 'No open reports'
+                  : 'No completed reports',
+              body: _inboxFilter == _ReportInboxFilter.open
+                  ? 'The triage queue is clear. Resolved and dismissed reports are under Completed.'
+                  : 'Resolved and dismissed reports will appear here after admin action.',
             ),
           )
         else
@@ -72,12 +129,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   .clamp(480.0, 740.0);
               final inboxContent = Column(
                 children: [
-                  for (var i = 0; i < reports.length; i++)
+                  for (final report in filteredReports)
                     AdminReportInboxTile(
-                      report: reportRows[i],
-                      selected: reports[i].id == selectedReport?.id,
+                      report: adminReportRowFromReport(report),
+                      selected: report.id == selectedReport?.id,
                       onTap: () =>
-                          setState(() => _selectedReportId = reports[i].id),
+                          setState(() => _selectedReportId = report.id),
                     ),
                 ],
               );
@@ -94,13 +151,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                     : inboxContent,
               );
               final activeReport = selectedReport!;
+              final activeRow = selected!;
               final evidenceUrls = _evidenceImageUrls(
                 activeReport,
                 selectedRequest,
               );
               final detailContent = _AdminReportCaseFile(
                 report: activeReport,
-                row: selected,
+                row: activeRow,
                 request: selectedRequest,
                 evidenceUrls: evidenceUrls,
                 errorMessage: adminProvider.errorMessage,
@@ -123,10 +181,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                           request: selectedRequest,
                           resolveForBorrower: false,
                         ),
+                onDismissReport: () => _dismissReport(
+                  context,
+                  report: activeReport,
+                ),
+                onIssueWarning: () => _issueWarning(
+                  context,
+                  report: activeReport,
+                  row: activeRow,
+                ),
               );
               final detail = AdminPanel(
-                title: selected.title,
-                action: selected.priority,
+                title: activeRow.title,
+                action: activeRow.priority,
                 fillChild: wide,
                 child: wide
                     ? Scrollbar(
@@ -191,12 +258,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   List<String> _evidenceImageUrls(ReportModel report, BorrowRequest? request) {
-    return [
+    final seen = <String>{};
+    final urls = <String>[];
+    for (final url in [
       report.evidenceImageUrl,
       request?.disputeEvidenceImageUrl ?? '',
       request?.minorIssuePhotoUrl ?? '',
       request?.returnProofImageUrl ?? '',
-    ].map((url) => url.trim()).where((url) => url.isNotEmpty).toList();
+    ]) {
+      final trimmed = url.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) continue;
+      urls.add(trimmed);
+    }
+    return urls;
   }
 
   String _formatFullDate(DateTime value) {
@@ -229,6 +303,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       reason: reason,
     );
     if (!context.mounted) return;
+    if (provider.errorMessage == null) {
+      setState(() => _selectedReportId = null);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -276,6 +353,112 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 Navigator.of(context).pop(value);
               },
               child: const Text('Resolve'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _dismissReport(
+    BuildContext context, {
+    required ReportModel report,
+  }) async {
+    final reason = await _showTextDecisionDialog(
+      context,
+      title: 'Dismiss Report',
+      label: 'Dismissal reason',
+      hint: 'Explain why this report does not need further action',
+      actionLabel: 'Dismiss',
+    );
+    if (reason == null || !context.mounted) return;
+    final provider = context.read<AdminProvider>();
+    final adminUid = provider.currentAdminUid;
+    if (adminUid == null || adminUid.isEmpty) return;
+    await provider.dismissReport(
+      report: report,
+      adminUid: adminUid,
+      reason: reason,
+    );
+    if (!context.mounted) return;
+    if (provider.errorMessage == null) {
+      setState(() => _selectedReportId = null);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(provider.errorMessage ?? 'Report dismissed.')),
+    );
+  }
+
+  Future<void> _issueWarning(
+    BuildContext context, {
+    required ReportModel report,
+    required AdminReportRow row,
+  }) async {
+    final defaultMessage =
+        'Your Community Trust Score or recent marketplace reviews have raised concern. Please communicate clearly, return borrowed items carefully, and resolve issues respectfully. Continued low ratings may cause residents to avoid transactions with you and may trigger further admin review.';
+    final message = await _showTextDecisionDialog(
+      context,
+      title: 'Issue Warning',
+      label: 'Warning message to resident',
+      hint: 'Explain what the resident must improve',
+      actionLabel: 'Send Warning',
+      initialValue: row.title == 'Low Community Trust Score'
+          ? defaultMessage
+          : '${row.description}\n\n$defaultMessage',
+    );
+    if (message == null || !context.mounted) return;
+    final provider = context.read<AdminProvider>();
+    final adminUid = provider.currentAdminUid;
+    if (adminUid == null || adminUid.isEmpty) return;
+    await provider.issueUserWarningForReport(
+      report: report,
+      adminUid: adminUid,
+      message: message,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          provider.errorMessage ?? 'Warning sent to ${row.target}.',
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showTextDecisionDialog(
+    BuildContext context, {
+    required String title,
+    required String label,
+    required String hint,
+    required String actionLabel,
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            minLines: 4,
+            maxLines: 6,
+            decoration: InputDecoration(labelText: label, hintText: hint),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isEmpty) return;
+                Navigator.of(context).pop(value);
+              },
+              child: Text(actionLabel),
             ),
           ],
         );
@@ -333,6 +516,8 @@ class _AdminReportCaseFile extends StatelessWidget {
     required this.formatDate,
     required this.onResolveBorrower,
     required this.onResolveLender,
+    required this.onDismissReport,
+    required this.onIssueWarning,
   });
 
   final ReportModel report;
@@ -345,6 +530,8 @@ class _AdminReportCaseFile extends StatelessWidget {
   final String Function(DateTime value) formatDate;
   final VoidCallback? onResolveBorrower;
   final VoidCallback? onResolveLender;
+  final VoidCallback onDismissReport;
+  final VoidCallback onIssueWarning;
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +591,11 @@ class _AdminReportCaseFile extends StatelessWidget {
             onResolveLender: onResolveLender,
           )
         else
-          const _GeneralReportActions(),
+          _GeneralReportActions(
+            isLoading: isLoading,
+            onDismissReport: onDismissReport,
+            onIssueWarning: onIssueWarning,
+          ),
         if (errorMessage != null) ...[
           const SizedBox(height: 12),
           AdminInlineAlert(message: errorMessage!),
@@ -864,7 +1055,15 @@ class _ResolutionActions extends StatelessWidget {
 }
 
 class _GeneralReportActions extends StatelessWidget {
-  const _GeneralReportActions();
+  const _GeneralReportActions({
+    required this.isLoading,
+    required this.onDismissReport,
+    required this.onIssueWarning,
+  });
+
+  final bool isLoading;
+  final VoidCallback onDismissReport;
+  final VoidCallback onIssueWarning;
 
   @override
   Widget build(BuildContext context) {
@@ -873,12 +1072,12 @@ class _GeneralReportActions extends StatelessWidget {
       runSpacing: 12,
       children: [
         OutlinedButton.icon(
-          onPressed: () {},
+          onPressed: isLoading ? null : onDismissReport,
           icon: const Icon(Icons.close_rounded),
           label: const Text('Dismiss Report'),
         ),
         FilledButton.tonalIcon(
-          onPressed: () {},
+          onPressed: isLoading ? null : onIssueWarning,
           icon: const Icon(Icons.campaign_rounded),
           label: const Text('Issue Warning'),
         ),
@@ -1200,6 +1399,8 @@ class _ProofEvidenceTile extends StatelessWidget {
                       : Image.network(
                           resolvedUrl,
                           fit: BoxFit.contain,
+                          webHtmlElementStrategy:
+                              WebHtmlElementStrategy.prefer,
                           loadingBuilder: (context, child, progress) {
                             if (progress == null) return child;
                             return const SizedBox(

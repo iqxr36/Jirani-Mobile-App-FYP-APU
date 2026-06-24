@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/shared/models/extracted_document_data.dart';
-import 'package:jirani/services/ocr_parser_service.dart';
+import 'package:jirani/shared/services/ocr_parser_service.dart';
 
 void main() {
   group('OcrParserService', () {

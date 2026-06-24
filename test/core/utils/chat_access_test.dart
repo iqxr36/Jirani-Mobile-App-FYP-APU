@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/core/utils/chat_access.dart';
+import 'package:jirani/resident/logic/chat_access.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 

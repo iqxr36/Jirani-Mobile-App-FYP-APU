@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/admin/theme/admin_colors.dart';
-import 'package:jirani/admin/utils/admin_formatters.dart';
-import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
-import 'package:jirani/admin/widgets/admin_status_widgets.dart';
-import 'package:jirani/providers/admin_provider.dart';
+import 'package:jirani/admin/logic/theme/admin_colors.dart';
+import 'package:jirani/admin/logic/utils/admin_formatters.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
+import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
 class AdminResidentsScreen extends StatelessWidget {

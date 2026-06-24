@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/admin/models/admin_display_rows.dart';
-import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
-import 'package:jirani/admin/widgets/admin_listing_widgets.dart';
-import 'package:jirani/admin/widgets/admin_status_widgets.dart';
-import 'package:jirani/providers/admin_provider.dart';
+import 'package:jirani/admin/logic/models/admin_display_rows.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_listing_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
+import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
 class AdminListingsScreen extends StatefulWidget {

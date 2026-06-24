@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/admin/theme/admin_colors.dart';
-import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
+import 'package:jirani/admin/logic/theme/admin_colors.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/core/utils/responsive.dart';
-import 'package:jirani/providers/admin_provider.dart';
+import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
 class AdminNewsScreen extends StatelessWidget {

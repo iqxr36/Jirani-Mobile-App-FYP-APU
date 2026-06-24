@@ -66,6 +66,9 @@ class Validators {
     if (name.length < 2) {
       return '$fieldName is too short.';
     }
+    if (name.length > 60) {
+      return '$fieldName is too long.';
+    }
     if (!_personNameRegex.hasMatch(name)) {
       return '$fieldName can only contain letters, spaces, apostrophes, and hyphens.';
     }
@@ -160,6 +163,28 @@ class Validators {
     }
     if (description.length < 10) {
       return 'Description should be at least 10 characters.';
+    }
+    return null;
+  }
+
+  static String? validateFourDigitCode(String? value) {
+    final code = value?.trim() ?? '';
+    if (code.isEmpty) {
+      return 'Code is required.';
+    }
+    if (!RegExp(r'^\d{4}$').hasMatch(code)) {
+      return 'Enter a 4-digit code.';
+    }
+    return null;
+  }
+
+  static String? validateSixDigitCode(String? value) {
+    final code = value?.trim() ?? '';
+    if (code.isEmpty) {
+      return 'Verification code is required.';
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      return 'Enter the 6-digit verification code.';
     }
     return null;
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
-import 'package:jirani/providers/auth_provider.dart';
+import 'package:jirani/shared/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class AdminLoginScreen extends StatefulWidget {

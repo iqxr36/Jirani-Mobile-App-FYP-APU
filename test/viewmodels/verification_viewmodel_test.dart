@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/repositories/verification_repository.dart';
+import 'package:jirani/shared/data/repositories/verification_repository.dart';
 import 'package:jirani/shared/models/verification_request.dart';
-import 'package:jirani/viewmodels/verification_viewmodel.dart';
+import 'package:jirani/resident/logic/verification_viewmodel.dart';
 
 void main() {
   group('VerificationViewModel', () {

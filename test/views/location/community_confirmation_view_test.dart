@@ -5,16 +5,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/data/repositories/auth_repository.dart';
-import 'package:jirani/data/repositories/chat_repository.dart';
-import 'package:jirani/data/repositories/connection_repository.dart';
-import 'package:jirani/data/repositories/user_repository.dart';
-import 'package:jirani/data/repositories/verification_repository.dart';
-import 'package:jirani/services/community_service.dart';
+import 'package:jirani/shared/data/repositories/auth_repository.dart';
+import 'package:jirani/shared/data/repositories/chat_repository.dart';
+import 'package:jirani/shared/data/repositories/connection_repository.dart';
+import 'package:jirani/shared/data/repositories/user_repository.dart';
+import 'package:jirani/shared/data/repositories/verification_repository.dart';
+import 'package:jirani/shared/services/community_service.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/community_model.dart';
-import 'package:jirani/viewmodels/auth_viewmodel.dart';
-import 'package:jirani/views/location/community_confirmation_view.dart';
+import 'package:jirani/shared/logic/auth_viewmodel.dart';
+import 'package:jirani/resident/screens/location/community_confirmation_view.dart';
 import 'package:provider/provider.dart';
 
 void main() {

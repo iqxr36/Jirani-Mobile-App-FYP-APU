@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/core/utils/verification_access.dart';
+import 'package:jirani/resident/logic/verification_access.dart';
 import 'package:jirani/shared/models/app_user.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);

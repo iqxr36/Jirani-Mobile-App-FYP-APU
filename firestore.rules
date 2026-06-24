@@ -784,6 +784,7 @@ service cloud.firestore {
         'firstName',
         'lastName',
         'fullName',
+        'email',
         'phoneNumber',
         'phoneVerified',
         'emailVerified',
@@ -1226,7 +1227,21 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read, update, delete: if signedIn() &&
         resource.data.userId == request.auth.uid;
-      allow create: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.userId is string &&
+        request.resource.data.type is string &&
+        request.resource.data.title is string &&
+        request.resource.data.body is string &&
+        request.resource.data.read == false &&
+        request.resource.data.createdAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            request.resource.data.type == 'chatMessage' &&
+            request.resource.data.senderId == request.auth.uid &&
+            request.resource.data.userId != request.auth.uid
+          )
+        );
     }
 
     match /activityLogs/{logId} {

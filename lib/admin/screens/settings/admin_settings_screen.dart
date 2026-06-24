@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/admin/theme/admin_colors.dart';
-import 'package:jirani/admin/widgets/admin_layout_widgets.dart';
-import 'package:jirani/admin/widgets/admin_status_widgets.dart';
-import 'package:jirani/viewmodels/auth_viewmodel.dart';
+import 'package:jirani/admin/logic/theme/admin_colors.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
+import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 

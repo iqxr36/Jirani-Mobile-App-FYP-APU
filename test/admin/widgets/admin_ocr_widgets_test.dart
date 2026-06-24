@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jirani/admin/widgets/admin_ocr_widgets.dart';
+import 'package:jirani/admin/logic/widgets/admin_ocr_widgets.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 

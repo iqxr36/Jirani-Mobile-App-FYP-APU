@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:jirani/providers/network_status_provider.dart';
+import 'package:jirani/resident/providers/network_status_provider.dart';
 
 void main() {
   group('NetworkStatusProvider', () {
