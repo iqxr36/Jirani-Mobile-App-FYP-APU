@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -115,8 +116,9 @@ class FirebaseAuthService {
     } on FirebaseAuthException {
       rethrow;
     } on PlatformException catch (e) {
-      debugPrint(
-        '[FirebaseAuthService.signInWithGoogle] ${e.code}: ${e.message}',
+      authDebugLogError(
+        '[FirebaseAuthService.signInWithGoogle]',
+        '${e.code}: ${e.message}',
       );
       if (e.code == 'sign_in_canceled') {
         return null;

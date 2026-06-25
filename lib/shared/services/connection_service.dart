@@ -1,24 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/data/repositories/public_profile_repository.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
-import 'package:jirani/shared/services/notification_service.dart';
 
 class ConnectionService {
   ConnectionService({
     FirebaseFirestore? firestore,
-    NotificationService? notificationService,
+    PublicProfileRepository? publicProfileRepository,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _notificationService = notificationService ?? NotificationService();
+       _publicProfiles = publicProfileRepository ?? PublicProfileRepository();
 
   final FirebaseFirestore _firestore;
-  final NotificationService _notificationService;
+  final PublicProfileRepository _publicProfiles;
 
   CollectionReference<Map<String, dynamic>> get _connections =>
       _firestore.collection(AppConstants.connectionsCollection);
-
-  CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection(AppConstants.usersCollection);
 
   Future<void> sendRequest({
     required AppUser fromUser,
@@ -40,16 +37,7 @@ class ConnectionService {
         'createdAt': now,
         'updatedAt': now,
       });
-      await _notificationService.create(
-        userId: toUser.uid,
-        type: AppConstants.notificationTypeConnectionRequest,
-        title: fromUser.fullName.trim().isEmpty
-            ? 'New connection request'
-            : fromUser.fullName.trim(),
-        body: 'Sent you a neighbor connection request.',
-        connectionId: id,
-        category: 'Community',
-      );
+      // Connection notifications are created server-side by Cloud Functions.
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -144,27 +132,7 @@ class ConnectionService {
   }
 
   Stream<List<AppUser>> watchCommunityResidents(AppUser currentUser) {
-    return _users
-        .where('communityId', isEqualTo: currentUser.communityId)
-        .where('role', isEqualTo: AppConstants.roleResident)
-        .where(
-          'verificationStatus',
-          isEqualTo: AppConstants.verificationVerified,
-        )
-        .snapshots()
-        .map((snapshot) {
-          final users = snapshot.docs
-              .map((doc) => _userFromDoc(doc))
-              .where(
-                (user) =>
-                    user.uid != currentUser.uid &&
-                    user.isResident &&
-                    user.isVerifiedResident,
-              )
-              .toList(growable: false);
-          users.sort((a, b) => a.fullName.compareTo(b.fullName));
-          return users;
-        });
+    return _publicProfiles.watchVerifiedCommunityResidents(currentUser);
   }
 
   Stream<List<ConnectionModel>> watchMyConnections(AppUser currentUser) {
@@ -234,28 +202,7 @@ class ConnectionService {
       'status': targetStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-
-    if (targetStatus == AppConstants.connectionAccepted) {
-      final accepterName = await _userDisplayName(currentUserId);
-      await _notificationService.create(
-        userId: connection.fromUserId,
-        type: AppConstants.notificationTypeConnectionAccepted,
-        title: accepterName,
-        body: 'Accepted your connection request.',
-        connectionId: connectionId,
-        category: 'Community',
-      );
-    }
-  }
-
-  Future<String> _userDisplayName(String uid) async {
-    final snap = await _users.doc(uid).get();
-    final data = snap.data();
-    if (data == null) return 'A neighbor';
-    final first = (data['firstName'] as String?)?.trim() ?? '';
-    final last = (data['lastName'] as String?)?.trim() ?? '';
-    final full = '$first $last'.trim();
-    return full.isEmpty ? 'A neighbor' : full;
+    // Acceptance notifications are created server-side by Cloud Functions.
   }
 
   void _validateParticipants({
@@ -272,10 +219,5 @@ class ConnectionService {
         fromUser.communityId != toUser.communityId) {
       throw Exception('Connections are only available within your community.');
     }
-  }
-
-  AppUser _userFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    return AppUser.fromMap({...data, 'uid': data['uid'] ?? doc.id});
   }
 }

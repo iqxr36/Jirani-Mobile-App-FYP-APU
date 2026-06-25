@@ -74,4 +74,54 @@ class ItemListingFormValidator {
     }
     return amount;
   }
+
+  static const int maxPhotos = 5;
+  static const int maxImageBytes = 10 * 1024 * 1024;
+
+  static ItemListingPricingType pricingTypeFromFlags({
+    required bool hasUsageFee,
+    required bool hasDeposit,
+  }) {
+    if (hasUsageFee && hasDeposit) {
+      return ItemListingPricingType.feeAndDeposit;
+    }
+    if (hasUsageFee) return ItemListingPricingType.feeOnly;
+    if (hasDeposit) return ItemListingPricingType.depositOnly;
+    return ItemListingPricingType.free;
+  }
+
+  static String? validateListing({
+    required String title,
+    required String description,
+    required String category,
+    required String condition,
+    required int imageCount,
+    required bool hasUsageFee,
+    required bool hasDeposit,
+    double? feeAmount,
+    double? depositAmount,
+  }) {
+    final detailsError = validateDetails(
+      title: title,
+      category: category,
+      condition: condition,
+      description: description,
+      imageCount: imageCount,
+    );
+    if (detailsError != null) return detailsError;
+
+    if (imageCount > maxPhotos) {
+      return 'You can upload up to $maxPhotos photos.';
+    }
+
+    final pricingType = pricingTypeFromFlags(
+      hasUsageFee: hasUsageFee,
+      hasDeposit: hasDeposit,
+    );
+    return validateFinancial(
+      pricingType: pricingType,
+      feeText: hasUsageFee ? (feeAmount?.toString() ?? '') : '',
+      depositText: hasDeposit ? (depositAmount?.toString() ?? '') : '',
+    );
+  }
 }

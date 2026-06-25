@@ -24,7 +24,10 @@
   },
   "firestore": {
     "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "indexes": "firestore.indexes.json",
+    "predeploy": [
+      "npm run build:firestore-rules"
+    ]
   },
   "functions": {
     "source": "functions",

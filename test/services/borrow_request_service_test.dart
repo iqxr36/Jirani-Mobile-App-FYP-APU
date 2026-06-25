@@ -206,4 +206,119 @@ void main() {
       );
     });
   });
+
+  group('BorrowRequestService.cancelBorrowRequest', () {
+    const ownerId = 'owner-1';
+    const borrowerId = 'borrower-a';
+    const itemId = 'item-1';
+    const requestId = 'req-cancel';
+
+    late FakeFirebaseFirestore firestore;
+    late BorrowRequestService borrowerService;
+
+    Future<void> seedPendingRequest() async {
+      final now = Timestamp.now();
+      await firestore
+          .collection(AppConstants.borrowRequestsCollection)
+          .doc(requestId)
+          .set({
+        'id': requestId,
+        'itemId': itemId,
+        'itemTitle': 'Drill',
+        'itemImageUrl': '',
+        'ownerId': ownerId,
+        'ownerName': 'Owner One',
+        'ownerEmail': 'owner@example.com',
+        'borrowerId': borrowerId,
+        'borrowerName': 'Borrower',
+        'borrowerEmail': 'borrower@example.com',
+        'borrowerPhoneNumber': '',
+        'borrowerVerified': true,
+        'borrowerReputationScore': 0,
+        'requestedStartDate': now,
+        'expectedReturnDate': now,
+        'pickupTime': '10:00',
+        'message': 'Need this item',
+        'status': AppConstants.borrowStatusPending,
+        'paymentStatus': AppConstants.paymentStatusPending,
+        'paymentCompletedAt': null,
+        'paymentProvider': '',
+        'chatId': '',
+        'handoverCode': '',
+        'returnCode': '',
+        'usageFeeAmount': null,
+        'depositAmount': null,
+        'hasUsageFee': false,
+        'hasDeposit': false,
+        'createdAt': now,
+        'updatedAt': now,
+        'approvedAt': null,
+        'rejectedAt': null,
+        'rejectionReason': '',
+        'pickupConfirmedAt': null,
+        'handoverConfirmedAt': null,
+        'returnSubmittedAt': null,
+        'returnConfirmedAt': null,
+        'completedAt': null,
+        'pickupProofImageUrl': null,
+        'handoverProofImageUrl': null,
+        'returnProofImageUrl': null,
+        'itemConditionBefore': null,
+        'itemConditionAfter': null,
+        'returnNotes': '',
+        'ownerReturnNotes': '',
+        'depositDecision': AppConstants.depositDecisionNotRequired,
+        'depositDecisionReason': '',
+        'depositDecidedAt': null,
+      });
+    }
+
+    setUp(() {
+      firestore = FakeFirebaseFirestore();
+      borrowerService = BorrowRequestService(
+        auth: MockFirebaseAuth(
+          signedIn: true,
+          mockUser: MockUser(uid: borrowerId),
+        ),
+        firestore: firestore,
+      );
+    });
+
+    test('borrower can cancel a pending request', () async {
+      await seedPendingRequest();
+
+      await borrowerService.cancelBorrowRequest(
+        requestId: requestId,
+        borrowerId: borrowerId,
+      );
+
+      final snap = await firestore
+          .collection(AppConstants.borrowRequestsCollection)
+          .doc(requestId)
+          .get();
+      expect(snap.data()?['status'], AppConstants.borrowStatusCancelled);
+    });
+
+    test('owner cannot cancel on behalf of borrower', () async {
+      await seedPendingRequest();
+      final ownerService = BorrowRequestService(
+        auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: ownerId)),
+        firestore: firestore,
+      );
+
+      expect(
+        () => ownerService.cancelBorrowRequest(
+          requestId: requestId,
+          borrowerId: borrowerId,
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Only the borrower can cancel this request.'),
+          ),
+        ),
+      );
+    });
+  });
 }

@@ -1,0 +1,58 @@
+    // --- Borrow completion counter helpers ---
+    function validBorrowCompletionCounterUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let requestId = request.resource.data.lastCompletedBorrowRequestId;
+      let requestPath = /databases/$(database)/documents/borrowRequests/$(requestId);
+      let borrowData = getAfter(requestPath).data;
+      return signedIn() &&
+        changed.hasOnly([
+          'completedBorrowings',
+          'completedLendings',
+          'lastCompletedBorrowRequestId',
+          'updatedAt',
+        ]) &&
+        requestId is string &&
+        existsAfter(requestPath) &&
+        borrowData.status == 'completed' &&
+        borrowData.completedAt == request.time &&
+        borrowData.returnConfirmedAt == request.time &&
+        request.auth.uid in [borrowData.ownerId, borrowData.borrowerId] &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (
+            borrowData.ownerId == userId &&
+            request.resource.data.completedLendings ==
+              resource.data.completedLendings + 1 &&
+            request.resource.data.completedBorrowings ==
+              resource.data.completedBorrowings
+          ) ||
+          (
+            borrowData.borrowerId == userId &&
+            request.resource.data.completedBorrowings ==
+              resource.data.completedBorrowings + 1 &&
+            request.resource.data.completedLendings ==
+              resource.data.completedLendings
+          )
+        );
+    }
+
+    function validBorrowItemCompletionUpdate(itemId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let requestId = request.resource.data.lastCompletedBorrowRequestId;
+      let requestPath = /databases/$(database)/documents/borrowRequests/$(requestId);
+      let borrowData = getAfter(requestPath).data;
+      return signedIn() &&
+        changed.hasOnly([
+          'status',
+          'lastCompletedBorrowRequestId',
+          'updatedAt',
+        ]) &&
+        requestId is string &&
+        existsAfter(requestPath) &&
+        borrowData.itemId == itemId &&
+        borrowData.status == 'completed' &&
+        borrowData.completedAt == request.time &&
+        request.auth.uid in [borrowData.ownerId, borrowData.borrowerId] &&
+        request.resource.data.status == 'available' &&
+        request.resource.data.updatedAt == request.time;
+    }

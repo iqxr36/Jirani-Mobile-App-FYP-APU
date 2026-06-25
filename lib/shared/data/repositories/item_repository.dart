@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/item_listing_form.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 
@@ -19,6 +20,15 @@ class ItemRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+
+  static const Set<String> _allowedImageExtensions = {
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+    '.heic',
+    '.heif',
+  };
 
   Stream<List<ItemModel>> watchAvailableItems({
     String? searchQuery,
@@ -95,6 +105,8 @@ class ItemRepository {
     }
   }
 
+  /// Creates a marketplace listing. Validates auth, residency, and form fields
+  /// before allocating a document id or uploading images to Storage.
   Future<void> addItem({
     required String title,
     required String description,
@@ -118,17 +130,32 @@ class ItemRepository {
     if (!currentUser.isVerifiedResident) {
       throw Exception('Only verified residents can list marketplace items.');
     }
-    if (imagePaths.isEmpty) {
-      throw Exception('Add at least one item photo.');
-    }
 
+    final validationError = ItemListingFormValidator.validateListing(
+      title: title,
+      description: description,
+      category: category,
+      condition: condition,
+      imageCount: imagePaths.length,
+      hasUsageFee: hasUsageFee,
+      hasDeposit: hasDeposit,
+      feeAmount: feeAmount,
+      depositAmount: depositAmount,
+    );
+    if (validationError != null) {
+      throw Exception(validationError);
+    }
+    _validateImagePaths(imagePaths);
+
+    final docRef = _firestore.collection(AppConstants.itemsCollection).doc();
+    List<Reference> uploadedRefs = const [];
     try {
-      final docRef = _firestore.collection(AppConstants.itemsCollection).doc();
-      final imageUrls = await uploadItemImages(
+      final upload = await _uploadItemImages(
         uid: uid,
         itemId: docRef.id,
         filePaths: imagePaths,
       );
+      uploadedRefs = upload.refs;
 
       final resolvedLendingType = _deriveLendingType(
         hasUsageFee: hasUsageFee,
@@ -145,7 +172,7 @@ class ItemRepository {
         'description': description.trim(),
         'category': category,
         'condition': condition,
-        'imageUrls': imageUrls,
+        'imageUrls': upload.urls,
         'lendingType': resolvedLendingType,
         'hasUsageFee': hasUsageFee,
         'feeAmount': hasUsageFee ? feeAmount : null,
@@ -160,6 +187,8 @@ class ItemRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
+      await _deleteUploadedImages(uploadedRefs);
+      if (e is Exception) rethrow;
       throw Exception('Failed to publish item. Please try again.');
     }
   }
@@ -194,16 +223,37 @@ class ItemRepository {
       throw Exception('You can only edit your own item.');
     }
 
+    final existing = ItemModel.fromMap(snap.id, data);
+    final newPaths = newImagePaths ?? const <String>[];
+    final validationError = ItemListingFormValidator.validateListing(
+      title: title,
+      description: description,
+      category: category,
+      condition: condition,
+      imageCount: existing.imageUrls.length + newPaths.length,
+      hasUsageFee: hasUsageFee,
+      hasDeposit: hasDeposit,
+      feeAmount: feeAmount,
+      depositAmount: depositAmount,
+    );
+    if (validationError != null) {
+      throw Exception(validationError);
+    }
+    if (newPaths.isNotEmpty) {
+      _validateImagePaths(newPaths);
+    }
+
+    List<Reference> uploadedRefs = const [];
     try {
-      final existing = ItemModel.fromMap(snap.id, data);
       var imageUrls = existing.imageUrls;
-      if (newImagePaths != null && newImagePaths.isNotEmpty) {
-        final uploaded = await uploadItemImages(
+      if (newPaths.isNotEmpty) {
+        final upload = await _uploadItemImages(
           uid: uid,
           itemId: itemId,
-          filePaths: newImagePaths,
+          filePaths: newPaths,
         );
-        imageUrls = <String>[...existing.imageUrls, ...uploaded];
+        uploadedRefs = upload.refs;
+        imageUrls = <String>[...existing.imageUrls, ...upload.urls];
       }
 
       final resolvedLendingType = _deriveLendingType(
@@ -225,6 +275,8 @@ class ItemRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
+      await _deleteUploadedImages(uploadedRefs);
+      if (e is Exception) rethrow;
       throw Exception('Failed to update item.');
     }
   }
@@ -263,9 +315,25 @@ class ItemRepository {
     required String itemId,
     required List<String> filePaths,
   }) async {
-    if (filePaths.isEmpty) return const <String>[];
+    final upload = await _uploadItemImages(
+      uid: uid,
+      itemId: itemId,
+      filePaths: filePaths,
+    );
+    return upload.urls;
+  }
+
+  Future<_ItemImageUploadResult> _uploadItemImages({
+    required String uid,
+    required String itemId,
+    required List<String> filePaths,
+  }) async {
+    if (filePaths.isEmpty) {
+      return const _ItemImageUploadResult(urls: <String>[], refs: <Reference>[]);
+    }
 
     final urls = <String>[];
+    final refs = <Reference>[];
     for (final filePath in filePaths) {
       final fileName = filePath.split(RegExp(r'[/\\]')).last;
       final objectName = '${DateTime.now().millisecondsSinceEpoch}_$fileName';
@@ -277,13 +345,56 @@ class ItemRepository {
           .child(objectName);
 
       try {
-        await ref.putFile(File(filePath));
+        await ref.putFile(
+          File(filePath),
+          SettableMetadata(contentType: _itemImageContentType(fileName)),
+        );
+        refs.add(ref);
         urls.add(await ref.getDownloadURL());
       } catch (e) {
+        await _deleteUploadedImages(refs);
         throw Exception('Failed to upload item images.');
       }
     }
-    return urls;
+    return _ItemImageUploadResult(urls: urls, refs: refs);
+  }
+
+  void _validateImagePaths(List<String> filePaths) {
+    for (final filePath in filePaths) {
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        throw Exception('Selected photo is no longer available.');
+      }
+
+      final lower = filePath.toLowerCase();
+      if (!_allowedImageExtensions.any(lower.endsWith)) {
+        throw Exception('Only JPG, PNG, WEBP, HEIC, or HEIF photos are supported.');
+      }
+
+      final size = file.lengthSync();
+      if (size > ItemListingFormValidator.maxImageBytes) {
+        throw Exception('Each photo must be 10 MB or smaller.');
+      }
+    }
+  }
+
+  Future<void> _deleteUploadedImages(List<Reference> refs) async {
+    for (final ref in refs) {
+      try {
+        await ref.delete();
+      } catch (_) {
+        // Best-effort cleanup for orphaned uploads.
+      }
+    }
+  }
+
+  static String _itemImageContentType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    if (lower.endsWith('.heif')) return 'image/heif';
+    return 'image/jpeg';
   }
 
   static String _deriveLendingType({
@@ -295,4 +406,11 @@ class ItemRepository {
     if (hasDeposit) return AppConstants.lendingTypeDepositRequired;
     return AppConstants.lendingTypeFree;
   }
+}
+
+class _ItemImageUploadResult {
+  const _ItemImageUploadResult({required this.urls, required this.refs});
+
+  final List<String> urls;
+  final List<Reference> refs;
 }

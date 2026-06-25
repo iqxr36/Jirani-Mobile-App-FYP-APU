@@ -1,0 +1,65 @@
+    // --- Community post validation helpers ---
+    function validCommunityPostType(type) {
+      return type in ['news', 'announcement', 'warning', 'event', 'maintenance'];
+    }
+
+    function validCommunityPostImageUrl(data) {
+      return !('imageUrl' in data) ||
+        (data.imageUrl is string && data.imageUrl.size() <= 2048);
+    }
+
+    function validCommunityPostCreate(postId) {
+      return isAdmin() &&
+        adminCanAccessCommunity(request.resource.data.communityId) &&
+        request.resource.data.communityId is string &&
+        request.resource.data.communityId != '' &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.authorName is string &&
+        request.resource.data.audience is string &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.body is string &&
+        request.resource.data.body.size() > 0 &&
+        validCommunityPostType(request.resource.data.type) &&
+        request.resource.data.status == 'draft' &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        validCommunityPostImageUrl(request.resource.data) &&
+        (
+          !('id' in request.resource.data) ||
+          request.resource.data.id == postId
+        );
+    }
+
+    function communityPostDraftUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'draft' &&
+        changed.hasOnly([
+          'title',
+          'body',
+          'type',
+          'audience',
+          'imageUrl',
+          'updatedAt',
+        ]) &&
+        request.resource.data.status == 'draft' &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.authorId == resource.data.authorId &&
+        request.resource.data.authorName == resource.data.authorName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        validCommunityPostType(request.resource.data.type) &&
+        validCommunityPostImageUrl(request.resource.data);
+    }
+
+    function communityPostPublishUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'draft' &&
+        request.resource.data.status == 'published' &&
+        changed.hasOnly(['status', 'publishedAt', 'updatedAt']) &&
+        request.resource.data.publishedAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+    function validCommunityPostUpdate() {
+      return communityPostDraftUpdate() || communityPostPublishUpdate();
+    }

@@ -102,11 +102,7 @@ class VerificationRepository {
           'cancelledAt': FieldValue.serverTimestamp(),
           'cancelledBy': uid,
         });
-
-    await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
-      'verificationStatus': AppConstants.verificationPending,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    // User verification status is reset server-side by Cloud Functions.
   }
 
   /// Cancels the latest submitted/pending verification request when the user
@@ -296,18 +292,6 @@ class VerificationRepository {
           })
           .timeout(_networkTimeout);
     }
-
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .update({
-          'verificationStatus': AppConstants.verificationSubmitted,
-          'communityId': appUser.communityId,
-          'communityName': communityName.trim(),
-          'unitNumber': unitNumber.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        })
-        .timeout(_networkTimeout);
 
     final saved = await docRef.get().timeout(_networkTimeout);
     final data = saved.data();

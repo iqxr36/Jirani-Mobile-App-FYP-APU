@@ -1,0 +1,51 @@
+    // --- items collection (marketplace) ---
+    match /items/{itemId} {
+      allow read: if signedIn();
+      allow create: if validItemCreate();
+      allow update: if isAdmin() ||
+        ownerCanMarkItemUnavailable() ||
+        ownerSafeItemUpdate() ||
+        ownerCanArchiveItem();
+      allow delete: if isAdmin();
+    }
+
+    match /borrowRequests/{requestId} {
+      allow read: if isAdmin() ||
+        (
+          signedIn() &&
+          (resource.data.borrowerId == request.auth.uid ||
+           resource.data.ownerId == request.auth.uid)
+        );
+
+      allow create: if validBorrowRequestCreate(requestId, request.resource.data);
+
+      allow update: if isAdmin() || validBorrowRequestUpdate();
+    }
+
+    match /services/{serviceId} {
+      allow read: if signedIn();
+      allow create: if validServiceCreate(serviceId);
+      allow update: if isAdmin() ||
+        providerSafeServiceUpdate() ||
+        providerCanSetServiceStatus();
+      allow delete: if isAdmin();
+    }
+
+    match /serviceRequests/{requestId} {
+      allow read: if isAdmin() ||
+        (
+          signedIn() &&
+          (resource.data.requesterId == request.auth.uid ||
+           resource.data.providerId == request.auth.uid)
+        );
+
+      allow create: if isVerifiedResident() &&
+        request.resource.data.requesterId == request.auth.uid;
+
+      allow update: if isAdmin() ||
+        (
+          signedIn() &&
+          (resource.data.requesterId == request.auth.uid ||
+           resource.data.providerId == request.auth.uid)
+        );
+    }

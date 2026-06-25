@@ -49,10 +49,4 @@ class ReviewProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  Future<void> publishEligibleReviewsForBorrowRequest(
-    BorrowRequest borrowRequest,
-  ) {
-    return _service.publishEligibleReviewsForBorrowRequest(borrowRequest);
-  }
 }

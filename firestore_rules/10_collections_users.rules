@@ -1,0 +1,43 @@
+    // --- users collection ---
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isSystemAdmin() ||
+        (isAdmin() && resource.data.communityId == adminCommunityId());
+
+      allow create: if isOwner(uid) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.role == 'resident' &&
+        request.resource.data.verificationStatus == 'pending';
+
+      // Trust/reputation fields are updated only by Cloud Functions (Admin SDK)
+      // or manually by admins — never by resident clients.
+      allow update: if isAdmin() ||
+        (isOwner(uid) && ownSafeUserUpdate()) ||
+        (isOwner(uid) && ownerCanChangeCommunityWithVerificationReset());
+      allow delete: if isAdmin();
+    }
+
+    // Community-visible resident fields only. Synced from /users by Cloud Functions.
+    match /publicProfiles/{uid} {
+      allow get: if isOwner(uid) ||
+        isAdmin() ||
+        canReadPublicProfile(resource.data);
+      allow list: if isVerifiedResident() &&
+        resource.data.communityId == myUserDoc().data.communityId;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if isOwner(uid) || isSystemAdmin();
+      allow list: if isSystemAdmin();
+      allow create, delete: if isSystemAdmin();
+      allow update: if isSystemAdmin() ||
+        (isOwner(uid) && ownProfileImageUpdate());
+    }
+
+    match /communities/{communityId} {
+      // Community names and boundaries are needed before a resident profile exists
+      // during registration and location verification. Keep writes admin-only.
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }

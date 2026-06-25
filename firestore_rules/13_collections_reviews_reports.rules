@@ -1,0 +1,40 @@
+    // --- reviews and reports collections ---
+    match /reviews/{reviewId} {
+      allow get: if signedIn() &&
+        (
+          reviewId.matches('.*_' + request.auth.uid) ||
+          isAdmin() ||
+          resource.data.visible == true
+        );
+      allow list: if signedIn() &&
+        (
+          isAdmin() ||
+          resource.data.visible == true ||
+          resource.data.reviewerId == request.auth.uid
+        );
+      allow create: if validReviewCreate(request.resource.data);
+      // Publishing is handled server-side by Cloud Functions.
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (isAdmin() && !resource.data.keys().hasAny(['communityId']));
+
+      allow create: if hasProfile() &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.communityId == myUserDoc().data.communityId &&
+        request.resource.data.communityName == myUserDoc().data.communityName;
+
+      allow update, delete: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (isAdmin() && !resource.data.keys().hasAny(['communityId']));
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isSystemAdmin() ||
+        adminCanAccessCommunity(resource.data.communityId);
+      allow create, update, delete: if isSystemAdmin();
+    }

@@ -1,0 +1,32 @@
+    // --- connections collection ---
+    match /connections/{connectionId} {
+      allow get: if connectionParticipant(resource.data) ||
+        adminCanAccessCommunity(resource.data.communityId);
+
+      allow list: if connectionParticipantQuery(resource.data) ||
+        connectionOwnedByCurrentUser(resource.data) ||
+        adminCanAccessCommunity(resource.data.communityId);
+
+      allow create: if isVerifiedResident() &&
+        request.resource.data.keys().hasOnly([
+          'fromUserId',
+          'toUserId',
+          'participants',
+          'communityId',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ]) &&
+        request.resource.data.fromUserId == request.auth.uid &&
+        request.resource.data.toUserId != request.auth.uid &&
+        request.resource.data.communityId == myUserDoc().data.communityId &&
+        request.resource.data.status == 'pending' &&
+        isValidConnectionParticipants(request.resource.data) &&
+        targetUserCanConnect(request.resource.data);
+
+      allow update: if recipientCanResolvePendingRequest() ||
+        senderCanRefreshPendingRequest();
+
+      allow delete: if participantCanDeleteConnection() ||
+        adminCanAccessCommunity(resource.data.communityId);
+    }

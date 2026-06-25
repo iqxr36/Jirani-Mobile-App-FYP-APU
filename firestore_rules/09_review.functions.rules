@@ -1,0 +1,79 @@
+    // --- Review and profile image helpers ---
+    function ownProfileImageUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+        'profileImageUrl',
+        'updatedAt',
+      ]) &&
+      request.resource.data.profileImageUrl is string;
+    }
+
+    function completedBorrowRequestForReview(data) {
+      return data.borrowRequestId is string &&
+        exists(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)) &&
+        get(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)).data.status == 'completed';
+    }
+
+    function validBorrowerToOwnerReview(data, borrowData) {
+      return data.role == 'borrowerToOwner' &&
+        data.reviewerId == borrowData.borrowerId &&
+        data.revieweeId == borrowData.ownerId;
+    }
+
+    function validOwnerToBorrowerReview(data, borrowData) {
+      return data.role == 'ownerToBorrower' &&
+        data.reviewerId == borrowData.ownerId &&
+        data.revieweeId == borrowData.borrowerId;
+    }
+
+    function validCompletedBorrowReview(data) {
+      let borrowData = get(/databases/$(database)/documents/borrowRequests/$(data.borrowRequestId)).data;
+      return completedBorrowRequestForReview(data) &&
+        data.itemId == borrowData.itemId &&
+        (
+          validBorrowerToOwnerReview(data, borrowData) ||
+          validOwnerToBorrowerReview(data, borrowData)
+        );
+    }
+
+    function validReviewCreate(data) {
+      return signedIn() &&
+        data.keys().hasOnly([
+          'borrowRequestId',
+          'itemId',
+          'reviewerId',
+          'reviewerName',
+          'revieweeId',
+          'revieweeName',
+          'rating',
+          'comment',
+          'role',
+          'visible',
+          'status',
+          'publishAfter',
+          'publishedAt',
+          'createdAt',
+        ]) &&
+        data.reviewerId == request.auth.uid &&
+        data.revieweeId != request.auth.uid &&
+        data.reviewerName is string &&
+        data.revieweeName is string &&
+        data.comment is string &&
+        data.rating is int &&
+        data.rating >= 1 &&
+        data.rating <= 5 &&
+        data.role in ['borrowerToOwner', 'ownerToBorrower'] &&
+        data.visible == false &&
+        data.status == 'hidden' &&
+        data.publishAfter is timestamp &&
+        data.publishedAt == null &&
+        data.createdAt == request.time &&
+        validCompletedBorrowReview(data);
+    }
+
+    function canReadPublicProfile(data) {
+      return isVerifiedResident() &&
+        data.role == 'resident' &&
+        hasVerifiedResidentStatus(data.verificationStatus) &&
+        data.communityId == myUserDoc().data.communityId;
+    }

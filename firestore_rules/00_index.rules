@@ -1,0 +1,24 @@
+    // --- Firestore rules modules (table of contents) ---
+    // Edit source fragments under firestore_rules/*.rules, then rebuild:
+    //   node scripts/build_firestore_rules.mjs
+    //
+    // Modules (assembled in lexicographic order):
+    //   00_index.rules                      — this table of contents
+    //   01_core.functions.rules             — core auth/admin/resident helpers
+    //   02_connection.functions.rules       — connection participant helpers
+    //   03_chat.functions.rules             — chat participant helpers
+    //   04_borrow.functions.rules           — borrow request helpers
+    //   05_user.functions.rules             — user profile update helpers
+    //   06_completion.functions.rules       — borrow completion counter helpers
+    //   07_item.functions.rules              — item listing helpers
+    //   08_service.functions.rules          — service listing helpers
+    //   09_review.functions.rules           — review and profile image helpers
+    //   10_collections_users.rules          — users collection
+    //   11_collections_verification.rules   — verificationRequests collection
+    //   12_collections_marketplace.rules    — items collection (marketplace)
+    //   13_collections_reviews_reports.rules — reviews and reports collections
+    //   14_collections_connections.rules    — connections collection
+    //   15_collections_chat.rules           — chats collection
+    //   16_collections_notifications.rules  — notifications collection
+    //   17_community_post.functions.rules   — community post validation helpers
+    //   18_collections_community.rules      — communityPosts and default deny

@@ -250,9 +250,6 @@ class _NeighborChatTile extends StatelessWidget {
   }
 
   String _neighborDetail(AppUser neighbor) {
-    if (neighbor.unitNumber.trim().isNotEmpty) {
-      return 'Unit ${neighbor.unitNumber.trim()}';
-    }
     if (neighbor.communityName.trim().isNotEmpty) {
       return neighbor.communityName.trim();
     }

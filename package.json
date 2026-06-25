@@ -1,0 +1,7 @@
+﻿{
+  "name": "fyp-flutter-application",
+  "private": true,
+  "scripts": {
+    "build:firestore-rules": "node scripts/build_firestore_rules.mjs"
+  }
+}

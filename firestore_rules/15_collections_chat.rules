@@ -1,0 +1,18 @@
+    // --- chats collection ---
+    match /chats/{chatId} {
+      allow get: if chatParticipant(resource.data) ||
+        (isVerifiedResident() &&
+          !exists(/databases/$(database)/documents/chats/$(chatId)));
+      allow list: if isVerifiedResident();
+      allow create: if validChatCreate(request.resource.data);
+      allow update: if validChatUpdate();
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow get, list: if chatParticipantById(chatId);
+        allow create: if validChatMessageCreate(chatId, request.resource.data);
+        allow update: if validChatMessageReadUpdate(chatId) ||
+          validChatMessageDeleteForUser(chatId);
+        allow delete: if false;
+      }
+    }

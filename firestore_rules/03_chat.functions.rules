@@ -1,0 +1,124 @@
+    // --- Chat participant helpers ---
+    function isValidChatParticipants(data) {
+      return data.participantIds is list &&
+        data.participantIds.size() == 2 &&
+        request.auth.uid in data.participantIds;
+    }
+
+    function chatParticipant(data) {
+      return signedIn() &&
+        (
+          (
+            data.participantIds is list &&
+            request.auth.uid in data.participantIds
+          ) ||
+          (
+            data.participantLookup is map &&
+            data.participantLookup[request.auth.uid] == true
+          )
+        );
+    }
+
+    function chatParticipantLookup(data) {
+      return signedIn() &&
+        data.participantLookup is map &&
+        data.participantLookup[request.auth.uid] == true;
+    }
+
+    function chatParticipantById(chatId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/chats/$(chatId)) &&
+        chatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data);
+    }
+
+    function chatParticipantByIdAfter(chatId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/chats/$(chatId)) &&
+        chatParticipant(getAfter(/databases/$(database)/documents/chats/$(chatId)).data);
+    }
+
+    function chatParticipantsAreVerifiedResidents(data) {
+      return isValidChatParticipants(data) &&
+        exists(/databases/$(database)/documents/users/$(data.participantIds[0])) &&
+        exists(/databases/$(database)/documents/users/$(data.participantIds[1])) &&
+        isVerifiedResidentData(userDoc(data.participantIds[0]).data) &&
+        isVerifiedResidentData(userDoc(data.participantIds[1]).data) &&
+        userDoc(data.participantIds[0]).data.communityId == myUserDoc().data.communityId &&
+        userDoc(data.participantIds[1]).data.communityId == myUserDoc().data.communityId &&
+        data.communityId == myUserDoc().data.communityId;
+    }
+
+    function validChatParticipantLookup(data) {
+      return data.participantLookup is map &&
+        data.participantLookup[data.participantIds[0]] == true &&
+        data.participantLookup[data.participantIds[1]] == true;
+    }
+
+    function validChatCreate(data) {
+      return isVerifiedResident() &&
+        data.keys().hasOnly([
+          'participantIds',
+          'communityId',
+          'connectionId',
+          'participantNames',
+          'participantImageUrls',
+          'participantLookup',
+          'lastMessageText',
+          'lastMessageType',
+          'lastMessageAt',
+          'lastSenderId',
+          'unreadCounts',
+          'deletedFor',
+          'createdAt',
+          'updatedAt',
+        ]) &&
+        chatParticipantsAreVerifiedResidents(data) &&
+        validChatParticipantLookup(data) &&
+        data.deletedFor is list &&
+        data.deletedFor.size() == 0;
+    }
+
+    function validChatUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return chatParticipant(resource.data) &&
+        !changed.hasAny([
+          'participantIds',
+          'communityId',
+          'connectionId',
+          'createdAt',
+        ]);
+    }
+
+    function chatBelongsToMyCommunity(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data.communityId ==
+        myUserDoc().data.communityId;
+    }
+
+    function validChatMessageCreate(chatId, data) {
+      return isVerifiedResident() &&
+        chatParticipantById(chatId) &&
+        chatBelongsToMyCommunity(chatId) &&
+        data.chatId == chatId &&
+        data.senderId == request.auth.uid;
+    }
+
+    function validChatMessageReadUpdate(chatId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return chatParticipantByIdAfter(chatId) &&
+        changed.hasOnly(['readBy']) &&
+        request.resource.data.readBy is list &&
+        request.auth.uid in request.resource.data.readBy;
+    }
+
+    function validChatMessageDeleteForUser(chatId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let before = resource.data.get('deletedFor', []);
+      let after = request.resource.data.deletedFor;
+      return chatParticipantById(chatId) &&
+        changed.hasOnly(['deletedFor']) &&
+        after is list &&
+        before is list &&
+        request.auth.uid in after &&
+        after.hasAll(before) &&
+        (request.auth.uid in before || after.size() == before.size() + 1);
+    }

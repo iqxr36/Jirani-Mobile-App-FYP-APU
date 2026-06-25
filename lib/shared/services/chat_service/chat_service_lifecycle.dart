@@ -1,0 +1,150 @@
+part of '../chat_service.dart';
+
+mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
+  Future<ChatModel> openOrCreateChat({
+    required AppUser currentUser,
+    required AppUser neighbor,
+  }) async {
+    _validateParticipants(currentUser: currentUser, neighbor: neighbor);
+    final chatId = ChatModel.chatId(currentUser.uid, neighbor.uid);
+    final doc = _chats.doc(chatId);
+    final now = FieldValue.serverTimestamp();
+    // #region agent log
+    unawaited(
+      agentDebugLog(
+        runId: 'pre-fix',
+        hypothesisId: 'H2,H4',
+        location: 'lib/services/chat_service.dart:79',
+        message: 'Opening or creating chat',
+        data: <String, Object?>{
+          'chatId': agentDebugId(chatId),
+          'currentUserId': agentDebugId(currentUser.uid),
+          'neighborId': agentDebugId(neighbor.uid),
+          'currentStatus': currentUser.verificationStatus,
+          'neighborStatus': neighbor.verificationStatus,
+          'currentRole': currentUser.role,
+          'neighborRole': neighbor.role,
+          'sameCommunity': currentUser.communityId == neighbor.communityId,
+          'currentCommunityId': agentDebugId(currentUser.communityId),
+          'neighborCommunityId': agentDebugId(neighbor.communityId),
+        },
+      ),
+    );
+    // #endregion
+
+    final baseData = <String, dynamic>{
+      'participantIds': <String>[currentUser.uid, neighbor.uid]..sort(),
+      'communityId': currentUser.communityId,
+      'connectionId': chatId,
+      'participantNames': <String, String>{
+        currentUser.uid: _displayName(currentUser),
+        neighbor.uid: _displayName(neighbor),
+      },
+      'participantImageUrls': <String, String>{
+        currentUser.uid: currentUser.profileImageUrl,
+        neighbor.uid: neighbor.profileImageUrl,
+      },
+      'participantLookup': <String, bool>{
+        currentUser.uid: true,
+        neighbor.uid: true,
+      },
+      'updatedAt': now,
+    };
+
+    try {
+      final snapshot = await doc.get();
+      if (snapshot.exists) {
+        await doc.update({
+          ...baseData,
+          'deletedFor': FieldValue.arrayRemove([currentUser.uid]),
+        });
+      } else {
+        // #region agent log
+        unawaited(
+          agentDebugLog(
+            runId: 'post-fix',
+            hypothesisId: 'H4',
+            location: 'lib/services/chat_service.dart:130',
+            message:
+                'Chat did not exist; creating chat after allowed missing-doc read',
+            data: <String, Object?>{
+              'chatId': agentDebugId(chatId),
+              'snapshotExists': snapshot.exists,
+            },
+          ),
+        );
+        // #endregion
+        await doc.set({
+          ...baseData,
+          'lastMessageText': '',
+          'lastMessageType': AppConstants.chatMessageText,
+          'lastMessageAt': null,
+          'lastSenderId': '',
+          'unreadCounts': <String, int>{currentUser.uid: 0, neighbor.uid: 0},
+          'deletedFor': <String>[],
+          'createdAt': now,
+        });
+      }
+    } catch (error) {
+      // #region agent log
+      unawaited(
+        agentDebugLog(
+          runId: 'post-fix',
+          hypothesisId: 'H4',
+          location: 'lib/services/chat_service.dart:132',
+          message: 'openOrCreateChat Firestore open/create failed',
+          data: <String, Object?>{
+            'errorType': error.runtimeType.toString(),
+            'error': error.toString(),
+          },
+        ),
+      );
+      // #endregion
+      rethrow;
+    }
+
+    final created = await doc.get();
+    return ChatModel.fromMap(created.id, created.data() ?? const {});
+  }
+
+  Future<void> deleteChatForUser({
+    required ChatModel chat,
+    required String currentUserId,
+  }) {
+    return _chats.doc(chat.id).update({
+      'deletedFor': FieldValue.arrayUnion([currentUserId]),
+      'unreadCounts.$currentUserId': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> archiveChatsOutsideCommunity({
+    required String uid,
+    required String communityId,
+  }) async {
+    final targetCommunityId = communityId.trim();
+    final snapshot = await _chats
+        .where('participantLookup.$uid', isEqualTo: true)
+        .get();
+
+    final batch = _firestore.batch();
+    var hasUpdates = false;
+    for (final doc in snapshot.docs) {
+      final chat = ChatModel.fromMap(doc.id, doc.data());
+      if (chat.communityId.trim() == targetCommunityId ||
+          chat.isDeletedFor(uid)) {
+        continue;
+      }
+      batch.update(doc.reference, {
+        'deletedFor': FieldValue.arrayUnion([uid]),
+        'unreadCounts.$uid': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      hasUpdates = true;
+    }
+
+    if (hasUpdates) {
+      await batch.commit();
+    }
+  }
+}

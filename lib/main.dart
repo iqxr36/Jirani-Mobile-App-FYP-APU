@@ -1,4 +1,6 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,6 +17,8 @@ import 'package:jirani/resident/providers/network_status_provider.dart';
 import 'package:jirani/resident/providers/review_provider.dart';
 import 'package:jirani/resident/providers/theme_provider.dart';
 import 'package:jirani/shared/logic/auth_wrapper.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:jirani/shared/services/internet_connectivity_checker.dart';
 import 'package:jirani/shared/services/push_notification_service.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/shared/widgets/network_status_overlay.dart';
@@ -24,43 +28,191 @@ import 'firebase_options.dart';
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 final PushNotificationService pushNotificationService = PushNotificationService();
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorWidget.builder = (details) {
     return MaterialApp(
       title: '${AppConstants.appName} render error',
-      
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: StartupErrorScaffold(error: details.exceptionAsString()),
     );
   };
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    if (!kIsWeb) {
-      // DEVELOPMENT / TESTING ONLY
-      await FirebaseAppCheck.instance.activate(
-        providerAndroid: const AndroidDebugProvider(),
-        providerApple: const AppleDebugProvider(),
-      );
+  runApp(const AppBootstrap());
+}
 
-      // PRODUCTION ONLY - enable this before release
-      // await FirebaseAppCheck.instance.activate(
-      //   providerAndroid: const AndroidPlayIntegrityProvider(),
-      //   providerApple: const AppleDeviceCheckProvider(),
-      // );
-    }
-    if (!kIsWeb) {
-      await pushNotificationService.initialize(navigatorKey: appNavigatorKey);
-    }
-    runApp(const TrustCommunityApp());
-  } catch (e, stackTrace) {
-    debugPrint('Firebase startup failed: $e');
-    debugPrintStack(stackTrace: stackTrace);
-    runApp(StartupErrorApp(error: e.toString()));
+class AppBootstrap extends StatefulWidget {
+  const AppBootstrap({super.key});
+
+  @override
+  State<AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<AppBootstrap> {
+  _BootstrapPhase _phase = _BootstrapPhase.initializing;
+  String? _error;
+  bool _isRetrying = false;
+  bool? _hasInternet;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_start());
   }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _start() async {
+    if (kIsWeb) {
+      await _initialize();
+      return;
+    }
+
+    final online = await hasInternetAccess();
+    if (!mounted) return;
+
+    if (online) {
+      setState(() => _hasInternet = true);
+      await _initialize();
+      return;
+    }
+
+    setState(() => _hasInternet = false);
+    _listenForReconnect();
+  }
+
+  void _listenForReconnect() {
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
+      if (!InternetConnectivityChecker.hasNetworkInterface(results)) return;
+      unawaited(_retryFromGate());
+    });
+  }
+
+  Future<void> _retryFromGate() async {
+    if (_isRetrying || _phase == _BootstrapPhase.ready) return;
+
+    setState(() => _isRetrying = true);
+    final online = await hasInternetAccess();
+    if (!mounted) return;
+
+    if (!online) {
+      setState(() => _isRetrying = false);
+      return;
+    }
+
+    _connectivitySubscription?.cancel();
+    setState(() => _hasInternet = true);
+    await _initialize();
+  }
+
+  Future<void> _initialize() async {
+    if (mounted) {
+      setState(() => _isRetrying = true);
+    }
+
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      if (!kIsWeb) {
+        await _activateFirebaseAppCheck();
+      }
+      if (!kIsWeb) {
+        await pushNotificationService.initialize(navigatorKey: appNavigatorKey);
+      }
+      if (!mounted) return;
+      setState(() {
+        _phase = _BootstrapPhase.ready;
+        _isRetrying = false;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Firebase startup failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _phase = _BootstrapPhase.error;
+        _error = e.toString();
+        _isRetrying = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (_phase) {
+      case _BootstrapPhase.error:
+        return StartupErrorApp(error: _error ?? 'Unknown startup error');
+      case _BootstrapPhase.ready:
+        return const TrustCommunityApp();
+      case _BootstrapPhase.initializing:
+        if (kIsWeb) {
+          return _bootstrapMaterialApp(
+            home: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        if (_hasInternet == false) {
+          return _bootstrapMaterialApp(
+            home: ConnectivityGateScreen(
+              isRefreshing: _isRetrying,
+              onRefresh: _retryFromGate,
+            ),
+          );
+        }
+        return _bootstrapMaterialApp(home: const _BootstrapLoadingScreen());
+    }
+  }
+
+  Widget _bootstrapMaterialApp({required Widget home}) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: home,
+    );
+  }
+}
+
+class _BootstrapLoadingScreen extends StatelessWidget {
+  const _BootstrapLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const JiraniBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+}
+
+enum _BootstrapPhase { initializing, ready, error }
+
+Future<void> _activateFirebaseAppCheck() async {
+  if (kDebugMode) {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: const AndroidDebugProvider(),
+      providerApple: const AppleDebugProvider(),
+    );
+    return;
+  }
+
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: const AndroidPlayIntegrityProvider(),
+    providerApple: const AppleDeviceCheckProvider(),
+  );
 }
 
 class TrustCommunityApp extends StatelessWidget {
@@ -144,6 +296,7 @@ class StartupErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '${AppConstants.appName} startup error',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: StartupErrorScaffold(error: error),
     );

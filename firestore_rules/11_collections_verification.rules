@@ -1,0 +1,42 @@
+    // --- verificationRequests collection ---
+    match /verificationRequests/{requestId} {
+      allow read: if signedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          isSystemAdmin() ||
+          adminCanAccessCommunity(resource.data.communityId)
+        );
+
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'submitted';
+
+      allow update: if isAdmin() ||
+        (
+          signedIn() &&
+          resource.data.userId == request.auth.uid &&
+          (
+            (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'status',
+                'cancelledAt',
+                'cancelledBy',
+              ]) &&
+              request.resource.data.status == 'cancelled' &&
+              request.resource.data.cancelledBy == request.auth.uid
+            ) ||
+            (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'documentUrl',
+                'fileUrl',
+                'updatedAt',
+              ]) &&
+              request.resource.data.userId == resource.data.userId &&
+              request.resource.data.status == resource.data.status &&
+              request.resource.data.storagePath == resource.data.storagePath
+            )
+          )
+        );
+
+      allow delete: if isAdmin();
+    }

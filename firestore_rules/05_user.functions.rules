@@ -1,0 +1,48 @@
+    // --- User profile update helpers ---
+    function ownSafeUserUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+        'firstName',
+        'lastName',
+        'fullName',
+        'email',
+        'phoneNumber',
+        'phoneVerified',
+        'emailVerified',
+        'profileImageUrl',
+        'communityId',
+        'communityName',
+        'unitNumber',
+        'cameraEnabled',
+        'cameraPermissionStatus',
+        'photosDocumentsEnabled',
+        'photosDocumentsPermissionStatus',
+        'notificationEnabled',
+        'notificationPermissionStatus',
+        'fcmToken',
+        'locationVerified',
+        'locationVerificationStatus',
+        'locationVerifiedCommunityName',
+        'updatedAt',
+      ]);
+    }
+
+    function ownerCanChangeCommunityWithVerificationReset() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasAll(['communityId', 'communityName']) &&
+        changed.hasOnly([
+          'communityId',
+          'communityName',
+          'verificationStatus',
+          'locationVerified',
+          'locationVerificationStatus',
+          'locationVerifiedCommunityName',
+          'updatedAt',
+        ]) &&
+        resource.data.communityId != request.resource.data.communityId &&
+        request.resource.data.verificationStatus == 'pending' &&
+        request.resource.data.locationVerified == false &&
+        request.resource.data.locationVerificationStatus == 'pending' &&
+        request.resource.data.locationVerifiedCommunityName == '' &&
+        request.resource.data.updatedAt == request.time;
+    }

@@ -1,0 +1,102 @@
+    // --- Item listing helpers ---
+    function itemOwner() {
+      return signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    function itemChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function itemOwnerSnapshotUnchanged() {
+      return request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.ownerName == resource.data.ownerName &&
+        request.resource.data.ownerEmail == resource.data.ownerEmail &&
+        request.resource.data.ownerPhotoUrl == resource.data.ownerPhotoUrl &&
+        request.resource.data.ownerVerified == resource.data.ownerVerified &&
+        request.resource.data.ownerReputationScore == resource.data.ownerReputationScore &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.communityName == resource.data.communityName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.lastCompletedBorrowRequestId == resource.data.lastCompletedBorrowRequestId;
+    }
+
+    function itemIsEditableListing() {
+      return resource.data.status == 'available' &&
+        resource.data.isArchived != true;
+    }
+
+    function ownerSafeItemUpdate() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.status == 'available' &&
+        request.resource.data.isArchived == false &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'title',
+          'description',
+          'category',
+          'condition',
+          'lendingType',
+          'hasUsageFee',
+          'feeAmount',
+          'hasDeposit',
+          'depositAmount',
+          'pickupInstructions',
+          'imageUrls',
+          'updatedAt',
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        request.resource.data.condition is string &&
+        request.resource.data.pickupInstructions is string &&
+        request.resource.data.imageUrls is list;
+    }
+
+    function ownerCanArchiveItem() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.isArchived == true &&
+        request.resource.data.status == 'archived' &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'isArchived',
+          'status',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanMarkItemUnavailable() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.status == 'unavailable' &&
+        request.resource.data.isArchived == resource.data.isArchived &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'status',
+          'updatedAt',
+        ]);
+    }
+
+    function validItemCreate() {
+      let data = request.resource.data;
+      return isVerifiedResident() &&
+        data.ownerId == request.auth.uid &&
+        data.status == 'available' &&
+        data.isArchived == false &&
+        data.communityId == myUserDoc().data.communityId &&
+        data.communityName == myUserDoc().data.communityName &&
+        data.title is string &&
+        data.description is string &&
+        data.category is string &&
+        data.condition is string &&
+        data.pickupInstructions is string &&
+        data.imageUrls is list &&
+        data.imageUrls.size() > 0 &&
+        data.lendingType is string &&
+        data.hasUsageFee is bool &&
+        data.hasDeposit is bool &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+

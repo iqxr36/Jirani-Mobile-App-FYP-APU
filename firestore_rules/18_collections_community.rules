@@ -1,0 +1,26 @@
+    // --- communityPosts and default deny ---
+    match /communityPosts/{postId} {
+      allow read: if signedIn() && (
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (
+          isVerifiedResident() &&
+          resource.data.communityId == myUserDoc().data.communityId &&
+          resource.data.status == 'published'
+        )
+      );
+      allow create: if validCommunityPostCreate(postId);
+      allow update: if isAdmin() &&
+        resource.data.authorId == request.auth.uid &&
+        adminCanAccessCommunity(resource.data.communityId) &&
+        validCommunityPostUpdate();
+      allow delete: if isAdmin() &&
+        adminCanAccessCommunity(resource.data.communityId);
+    }
+
+    match /activityLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }

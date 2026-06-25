@@ -4,20 +4,16 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
-import 'package:jirani/shared/services/notification_service.dart';
 
 class ServiceService {
   ServiceService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    NotificationService? notificationService,
   }) : _auth = auth ?? FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance,
-       _notificationService = notificationService ?? NotificationService();
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final NotificationService _notificationService;
 
   CollectionReference<Map<String, dynamic>> get _services =>
       _firestore.collection(AppConstants.servicesCollection);
@@ -256,16 +252,7 @@ class ServiceService {
         'createdAt': now,
         'updatedAt': now,
       });
-      await _notificationService.create(
-        userId: service.providerId,
-        type: AppConstants.notificationTypeServiceRequest,
-        title: requester.fullName.trim().isEmpty
-            ? 'New service request'
-            : requester.fullName.trim(),
-        body: 'Requested your service "${service.title}".',
-        serviceRequestId: doc.id,
-        category: 'Services',
-      );
+      // Service request notifications are created server-side by Cloud Functions.
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -358,25 +345,7 @@ class ServiceService {
         'status': toStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (toStatus == AppConstants.serviceRequestStatusAccepted) {
-        await _notificationService.create(
-          userId: r.requesterId,
-          type: AppConstants.notificationTypeServiceAccepted,
-          title: 'Service request accepted',
-          body: 'Your request for "${r.serviceTitle}" was accepted.',
-          serviceRequestId: r.id,
-          category: 'Services',
-        );
-      } else if (toStatus == AppConstants.serviceRequestStatusRejected) {
-        await _notificationService.create(
-          userId: r.requesterId,
-          type: AppConstants.notificationTypeServiceRejected,
-          title: 'Service request declined',
-          body: 'Your request for "${r.serviceTitle}" was declined.',
-          serviceRequestId: r.id,
-          category: 'Services',
-        );
-      }
+      // Service status notifications are created server-side by Cloud Functions.
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(

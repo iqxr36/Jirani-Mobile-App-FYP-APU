@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
+import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
@@ -49,19 +50,17 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    debugPrint('[ResidentLoginView] Login button pressed');
-    debugPrint('[ResidentLoginView] Email: ${_emailController.text.trim()}');
-
-    debugPrint('[ResidentLoginView] login call started');
+    authDebugLog('[ResidentLoginView] Login button pressed');
+    authDebugLog('[ResidentLoginView] login call started');
     await context.read<AuthViewModel>().login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-    debugPrint('[ResidentLoginView] login call finished');
+    authDebugLog('[ResidentLoginView] login call finished');
     if (!mounted) return;
     final vm = context.read<AuthViewModel>();
     if (vm.errorMessage != null) {
-      debugPrint('[ResidentLoginView] login error: ${vm.errorMessage}');
+      authDebugLog('[ResidentLoginView] login failed');
     }
   }
 

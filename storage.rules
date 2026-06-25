@@ -2,30 +2,150 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Verification documents: only the owning user may write; any signed-in
-    // user (e.g. admin) may read.
-    match /verification_documents/{userId}/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    function borrowRequestData(requestId) {
+      return firestore.get(/databases/(default)/documents/borrowRequests/$(requestId)).data;
     }
 
-    // Document AI verification uploads. The owning resident writes; signed-in
-    // admins can read from the review dashboard.
-    match /resident_documents/{userId}/{documentId}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        request.auth.uid == userId &&
+    function borrowRequestExists(requestId) {
+      return firestore.exists(/databases/(default)/documents/borrowRequests/$(requestId));
+    }
+
+    function isStorageAdmin() {
+      return request.auth != null &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isActive != false &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role in ['communityAdmin', 'systemAdmin'];
+    }
+
+    function isBorrowProofParticipant(requestId) {
+      return request.auth != null &&
+        borrowRequestExists(requestId) &&
+        (
+          request.auth.uid == borrowRequestData(requestId).borrowerId ||
+          request.auth.uid == borrowRequestData(requestId).ownerId
+        );
+    }
+
+    function canReadBorrowProof(requestId) {
+      return isBorrowProofParticipant(requestId) || isStorageAdmin();
+    }
+
+    function isAllowedProofImageUpload() {
+      return request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType in [
-          'application/pdf',
           'image/jpeg',
-          'image/png'
+          'image/png',
+          'image/webp',
+          'image/heic',
+          'image/heif'
         ];
     }
 
-    // Item images: any signed-in user may read; only the owner may write.
-    match /item_images/{userId}/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    function userExists(userId) {
+      return firestore.exists(/databases/(default)/documents/users/$(userId));
+    }
+
+    function residentUserData(userId) {
+      return firestore.get(/databases/(default)/documents/users/$(userId)).data;
+    }
+
+    function storageAdminData() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isStorageSystemAdmin() {
+      return isStorageAdmin() && storageAdminData().role == 'systemAdmin';
+    }
+
+    function storageAdminCommunityId() {
+      return storageAdminData().communityId;
+    }
+
+    function storageAdminCanAccessCommunity(communityId) {
+      return isStorageSystemAdmin() ||
+        (
+          isStorageAdmin() &&
+          communityId is string &&
+          communityId != '' &&
+          communityId == storageAdminCommunityId()
+        );
+    }
+
+    function verificationRequestData(requestId) {
+      return firestore.get(/databases/(default)/documents/verificationRequests/$(requestId)).data;
+    }
+
+    function canReadVerificationDocumentsForUser(userId) {
+      return request.auth != null && (
+        request.auth.uid == userId ||
+        (
+          isStorageAdmin() &&
+          userExists(userId) &&
+          storageAdminCanAccessCommunity(residentUserData(userId).communityId)
+        )
+      );
+    }
+
+    function canReadResidentDocument(userId, documentId) {
+      return request.auth != null && (
+        request.auth.uid == userId ||
+        (
+          isStorageAdmin() &&
+          firestore.exists(/databases/(default)/documents/verificationRequests/$(documentId)) &&
+          verificationRequestData(documentId).userId == userId &&
+          storageAdminCanAccessCommunity(verificationRequestData(documentId).communityId)
+        )
+      );
+    }
+
+    function isAllowedVerificationUpload() {
+      return request.resource.size < 25 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+          'image/heif'
+        ];
+    }
+
+    function isAllowedItemImageUpload() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+          'image/heif'
+        ];
+    }
+
+    // Verification documents: owner read/write; admins read within their community.
+    match /verification_documents/{userId}/{allPaths=**} {
+      allow read: if canReadVerificationDocumentsForUser(userId);
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isAllowedVerificationUpload();
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Document AI verification uploads. Owner writes; admins read for review.
+    match /resident_documents/{userId}/{documentId}/{fileName} {
+      allow read: if canReadResidentDocument(userId, documentId);
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isAllowedVerificationUpload();
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Item images: signed-in read; owner uploads with image MIME/size limits.
+    match /item_images/{userId}/{itemId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isAllowedItemImageUpload();
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Profile photos: users/admins may upload only their own small image files.
@@ -43,11 +163,17 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Borrow-request proof images: any signed-in user may read; only the
-    // uploader (identified by their uid subfolder) may write.
+    // Borrow-request proof images: readable only by borrower, lender, or admin;
+    // writable only by the uploader into their own folder with image limits.
     match /borrow_request_proofs/{requestId}/{userId}/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if canReadBorrowProof(requestId);
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isBorrowProofParticipant(requestId) &&
+        isAllowedProofImageUpload();
+      allow delete: if request.auth != null &&
+        request.auth.uid == userId &&
+        isBorrowProofParticipant(requestId);
     }
 
     // Chat attachments: senders upload their own files; signed-in residents

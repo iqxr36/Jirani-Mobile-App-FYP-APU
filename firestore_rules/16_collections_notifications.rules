@@ -1,0 +1,7 @@
+    // --- notifications collection ---
+    match /notifications/{notificationId} {
+      allow read, update, delete: if signedIn() &&
+        resource.data.userId == request.auth.uid;
+      // In-app notifications are created by Cloud Functions or admins.
+      allow create: if isAdmin();
+    }

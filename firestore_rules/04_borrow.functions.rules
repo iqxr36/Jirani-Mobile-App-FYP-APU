@@ -1,0 +1,505 @@
+    // --- Borrow request helpers ---
+    //
+    // Borrow status state machine (primary path):
+    //   pending ──owner approve──► approved ──borrower pay──► approved+paid
+    //        │                         │
+    //        ├──owner reject──► rejected
+    //        └──borrower cancel──► cancelled
+    //   approved+paid ──owner handover──► pickupReady ──borrower confirm──► active
+    //   active ──borrower return──► returnSubmitted ──owner inspect──► completed
+    //        │                                              ├── minorIssuePending
+    //        │                                              └── disputed
+    //   Trust/reputation fields on users are server-written only (Cloud Functions).
+    function borrowRequestOwner() {
+      return signedIn() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function borrowRequestBorrower() {
+      return signedIn() && request.auth.uid == resource.data.borrowerId;
+    }
+
+    function borrowChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function ownerCanApproveBorrowRequest() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'approved' &&
+        borrowChangedKeysOnly([
+          'status',
+          'paymentStatus',
+          'approvedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanRejectBorrowRequest() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'rejected' &&
+        borrowChangedKeysOnly([
+          'status',
+          'rejectionReason',
+          'rejectedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanCancelBorrowRequest() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        borrowChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function borrowerCanCompletePayment() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'approved' &&
+        request.resource.data.status == 'approved' &&
+        request.resource.data.paymentStatus == 'completed' &&
+        borrowChangedKeysOnly([
+          'paymentStatus',
+          'paymentCompletedAt',
+          'paymentProvider',
+          'chatId',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanConfirmPickupReady() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'pickupReady' &&
+        request.resource.data.status == 'active' &&
+        borrowChangedKeysOnly([
+          'status',
+          'handoverConfirmedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanConfirmHandover() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'approved' &&
+        resource.data.paymentStatus == 'completed' &&
+        request.resource.data.status == 'pickupReady' &&
+        borrowChangedKeysOnly([
+          'status',
+          'pickupConfirmedAt',
+          'handoverCode',
+          'itemConditionBefore',
+          'updatedAt',
+          'handoverProofImageUrl',
+        ]);
+    }
+
+    function borrowerCanSubmitReturn() {
+      return borrowRequestBorrower() &&
+        resource.data.status in ['active', 'handedOver'] &&
+        request.resource.data.status == 'returnSubmitted' &&
+        borrowChangedKeysOnly([
+          'status',
+          'returnSubmittedAt',
+          'returnNotes',
+          'returnCode',
+          'updatedAt',
+          'returnProofImageUrl',
+        ]);
+    }
+
+    function ownerCanConfirmReturn() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'returnSubmitted' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.itemConditionAfter == 'sameCondition' &&
+        borrowChangedKeysOnly([
+          'status',
+          'returnConfirmedAt',
+          'completedAt',
+          'itemConditionAfter',
+          'ownerReturnNotes',
+          'updatedAt',
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+        ]);
+    }
+
+    function ownerCanReportMinorIssue() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'returnSubmitted' &&
+        resource.data.hasDeposit == true &&
+        request.resource.data.status == 'minorIssuePending' &&
+        request.resource.data.itemConditionAfter == 'minorDamage' &&
+        request.resource.data.minorDeductionAmount is number &&
+        request.resource.data.minorDeductionAmount > 0 &&
+        request.resource.data.minorDeductionAmount < resource.data.depositAmount &&
+        request.resource.data.minorIssueReason is string &&
+        request.resource.data.minorIssueReason.size() > 0 &&
+        request.resource.data.minorIssueBorrowerDecision == 'pending' &&
+        request.resource.data.minorIssueReportedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        borrowChangedKeysOnly([
+          'status',
+          'itemConditionAfter',
+          'ownerReturnNotes',
+          'minorDeductionAmount',
+          'minorIssueReason',
+          'minorIssuePhotoUrl',
+          'minorIssueReportedAt',
+          'minorIssueBorrowerDecision',
+          'minorIssueBorrowerRespondedAt',
+          'depositDecision',
+          'depositDecisionReason',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanAcceptMinorIssue() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'minorIssuePending' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.minorIssueBorrowerDecision == 'accepted' &&
+        request.resource.data.minorIssueBorrowerRespondedAt == request.time &&
+        request.resource.data.depositDecision == 'partialDeduction' &&
+        request.resource.data.depositDecidedAt == request.time &&
+        request.resource.data.returnConfirmedAt == request.time &&
+        request.resource.data.completedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        borrowChangedKeysOnly([
+          'status',
+          'minorIssueBorrowerDecision',
+          'minorIssueBorrowerRespondedAt',
+          'returnConfirmedAt',
+          'completedAt',
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function borrowerCanDeclineMinorIssue() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'minorIssuePending' &&
+        request.resource.data.status == 'disputed' &&
+        request.resource.data.minorIssueBorrowerDecision == 'declined' &&
+        request.resource.data.minorIssueBorrowerRespondedAt == request.time &&
+        request.resource.data.disputeReportId is string &&
+        request.resource.data.disputeReportId.size() > 0 &&
+        request.resource.data.disputeReason is string &&
+        request.resource.data.disputeReportedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        borrowChangedKeysOnly([
+          'status',
+          'minorIssueBorrowerDecision',
+          'minorIssueBorrowerRespondedAt',
+          'disputeReportId',
+          'disputeReason',
+          'disputeEvidenceImageUrl',
+          'disputeReportedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanReportMajorDamage() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'returnSubmitted' &&
+        request.resource.data.status == 'disputed' &&
+        request.resource.data.itemConditionAfter in ['majorDamage', 'lost'] &&
+        request.resource.data.disputeReportId is string &&
+        request.resource.data.disputeReportId.size() > 0 &&
+        request.resource.data.disputeReason is string &&
+        request.resource.data.disputeReason.size() > 0 &&
+        request.resource.data.disputeEvidenceImageUrl is string &&
+        request.resource.data.disputeEvidenceImageUrl.size() > 0 &&
+        request.resource.data.disputeReportedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        borrowChangedKeysOnly([
+          'status',
+          'itemConditionAfter',
+          'ownerReturnNotes',
+          'disputeReportId',
+          'disputeReason',
+          'disputeEvidenceImageUrl',
+          'disputeReportedAt',
+          'depositDecision',
+          'depositDecisionReason',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanSetDepositDecision() {
+      return borrowRequestOwner() &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == 'completed' &&
+        resource.data.depositDecision == 'pending' &&
+        request.resource.data.depositDecision in [
+          'returnDeposit',
+          'withholdDeposit',
+        ] &&
+        borrowChangedKeysOnly([
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+          'updatedAt',
+        ]);
+    }
+
+    function participantCanSubmitBorrowReview() {
+      return signedIn() &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == 'completed' &&
+        (
+          (
+            borrowRequestBorrower() &&
+            request.resource.data.borrowerReviewSubmitted == true &&
+            request.resource.data.borrowerReviewSubmittedAt == request.time &&
+            borrowChangedKeysOnly([
+              'borrowerReviewSubmitted',
+              'borrowerReviewSubmittedAt',
+              'reviewGraceEndsAt',
+              'updatedAt',
+            ])
+          ) ||
+          (
+            borrowRequestOwner() &&
+            request.resource.data.ownerReviewSubmitted == true &&
+            request.resource.data.ownerReviewSubmittedAt == request.time &&
+            borrowChangedKeysOnly([
+              'ownerReviewSubmitted',
+              'ownerReviewSubmittedAt',
+              'reviewGraceEndsAt',
+              'updatedAt',
+            ])
+          )
+        ) &&
+        request.resource.data.reviewGraceEndsAt is timestamp &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+    function approxEqual(value, expected) {
+      return value is number &&
+        expected is number &&
+        value >= expected - 0.01 &&
+        value <= expected + 0.01;
+    }
+
+    function validBorrowRequestCreate(requestId, data) {
+      return isVerifiedResident() &&
+        data.itemId is string &&
+        exists(/databases/$(database)/documents/items/$(data.itemId)) &&
+        validBorrowRequestCreateForItem(
+          requestId,
+          data,
+          get(/databases/$(database)/documents/items/$(data.itemId)).data
+        );
+    }
+
+    function validBorrowRequestCreateForItem(requestId, data, itemData) {
+      return data.keys().hasOnly([
+          'id',
+          'itemId',
+          'itemTitle',
+          'itemImageUrl',
+          'ownerId',
+          'ownerName',
+          'ownerEmail',
+          'borrowerId',
+          'borrowerName',
+          'borrowerEmail',
+          'borrowerPhoneNumber',
+          'borrowerVerified',
+          'borrowerReputationScore',
+          'requestedStartDate',
+          'expectedReturnDate',
+          'pickupTime',
+          'message',
+          'status',
+          'paymentStatus',
+          'paymentCompletedAt',
+          'paymentProvider',
+          'chatId',
+          'handoverCode',
+          'returnCode',
+          'usageFeeAmount',
+          'depositAmount',
+          'hasUsageFee',
+          'hasDeposit',
+          'rentalMode',
+          'rentalUnitCount',
+          'dailyRateSnapshot',
+          'hourlyRateSnapshot',
+          'createdAt',
+          'updatedAt',
+          'approvedAt',
+          'rejectedAt',
+          'rejectionReason',
+          'pickupConfirmedAt',
+          'handoverConfirmedAt',
+          'returnSubmittedAt',
+          'returnConfirmedAt',
+          'completedAt',
+          'pickupProofImageUrl',
+          'handoverProofImageUrl',
+          'returnProofImageUrl',
+          'itemConditionBefore',
+          'itemConditionAfter',
+          'returnNotes',
+          'ownerReturnNotes',
+          'depositDecision',
+          'depositDecisionReason',
+          'depositDecidedAt',
+          'minorDeductionAmount',
+          'minorIssueReason',
+          'minorIssuePhotoUrl',
+          'minorIssueReportedAt',
+          'minorIssueBorrowerDecision',
+          'minorIssueBorrowerRespondedAt',
+          'disputeReportId',
+          'disputeReason',
+          'disputeEvidenceImageUrl',
+          'disputeReportedAt',
+          'adminResolution',
+          'adminResolutionReason',
+          'adminResolvedAt',
+          'adminResolvedBy',
+        ]) &&
+        data.id == requestId &&
+        data.borrowerId == request.auth.uid &&
+        data.ownerId == itemData.ownerId &&
+        data.ownerId != request.auth.uid &&
+        data.itemTitle == itemData.title &&
+        data.ownerName == itemData.ownerName &&
+        data.ownerEmail == itemData.ownerEmail &&
+        itemData.status == 'available' &&
+        itemData.isArchived != true &&
+        data.requestedStartDate is timestamp &&
+        data.expectedReturnDate is timestamp &&
+        data.requestedStartDate <= data.expectedReturnDate &&
+        data.pickupTime is string &&
+        data.message is string &&
+        data.status == 'pending' &&
+        data.paymentStatus == 'pending' &&
+        data.paymentCompletedAt == null &&
+        data.paymentProvider == '' &&
+        data.chatId == '' &&
+        data.handoverCode == '' &&
+        data.returnCode == '' &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time &&
+        data.approvedAt == null &&
+        data.rejectedAt == null &&
+        data.rejectionReason == '' &&
+        data.pickupConfirmedAt == null &&
+        data.handoverConfirmedAt == null &&
+        data.returnSubmittedAt == null &&
+        data.returnConfirmedAt == null &&
+        data.completedAt == null &&
+        data.pickupProofImageUrl == null &&
+        data.handoverProofImageUrl == null &&
+        data.returnProofImageUrl == null &&
+        data.itemConditionBefore == null &&
+        data.itemConditionAfter == null &&
+        data.returnNotes == '' &&
+        data.ownerReturnNotes == '' &&
+        data.depositDecisionReason == '' &&
+        data.depositDecidedAt == null &&
+        validBorrowRequestCreateDisputeDefaults(data) &&
+        validBorrowRequestCreateDeposit(data, itemData) &&
+        validBorrowRequestCreatePricing(data, itemData);
+    }
+
+    function validBorrowRequestCreateDisputeDefaults(data) {
+      let keys = data.keys();
+      return (!keys.hasAny(['minorDeductionAmount']) || data.minorDeductionAmount == null) &&
+        (!keys.hasAny(['minorIssueReason']) || data.minorIssueReason == '') &&
+        (!keys.hasAny(['minorIssuePhotoUrl']) || data.minorIssuePhotoUrl == null) &&
+        (!keys.hasAny(['minorIssueReportedAt']) || data.minorIssueReportedAt == null) &&
+        (!keys.hasAny(['minorIssueBorrowerDecision']) || data.minorIssueBorrowerDecision == 'pending') &&
+        (!keys.hasAny(['minorIssueBorrowerRespondedAt']) || data.minorIssueBorrowerRespondedAt == null) &&
+        (!keys.hasAny(['disputeReportId']) || data.disputeReportId == '') &&
+        (!keys.hasAny(['disputeReason']) || data.disputeReason == '') &&
+        (!keys.hasAny(['disputeEvidenceImageUrl']) || data.disputeEvidenceImageUrl == null) &&
+        (!keys.hasAny(['disputeReportedAt']) || data.disputeReportedAt == null) &&
+        (!keys.hasAny(['adminResolution']) || data.adminResolution == 'pending') &&
+        (!keys.hasAny(['adminResolutionReason']) || data.adminResolutionReason == '') &&
+        (!keys.hasAny(['adminResolvedAt']) || data.adminResolvedAt == null) &&
+        (!keys.hasAny(['adminResolvedBy']) || data.adminResolvedBy == '');
+    }
+
+    function validBorrowRequestCreateDeposit(data, itemData) {
+      return (
+          itemData.hasDeposit != true &&
+          data.hasDeposit == false &&
+          data.depositAmount == null &&
+          data.depositDecision == 'notRequired'
+        ) ||
+        (
+          itemData.hasDeposit == true &&
+          data.hasDeposit == true &&
+          approxEqual(data.depositAmount, itemData.depositAmount) &&
+          data.depositDecision == 'pending'
+        );
+    }
+
+    function validBorrowRequestCreatePricing(data, itemData) {
+      return data.rentalMode in ['daily', 'hourly'] &&
+        data.rentalUnitCount is int &&
+        data.rentalUnitCount >= 1 &&
+        (
+          (
+            itemData.hasUsageFee != true &&
+            data.hasUsageFee == false &&
+            data.usageFeeAmount == null &&
+            data.dailyRateSnapshot == null &&
+            data.hourlyRateSnapshot == null
+          ) ||
+          (
+            itemData.hasUsageFee == true &&
+            data.hasUsageFee == true &&
+            itemData.feeAmount is number &&
+            approxEqual(data.dailyRateSnapshot, itemData.feeAmount) &&
+            approxEqual(data.hourlyRateSnapshot, itemData.feeAmount / 8) &&
+            (
+              (
+                data.rentalMode == 'daily' &&
+                approxEqual(
+                  data.usageFeeAmount,
+                  itemData.feeAmount * data.rentalUnitCount
+                )
+              ) ||
+              (
+                data.rentalMode == 'hourly' &&
+                data.rentalUnitCount >= 8 &&
+                approxEqual(data.usageFeeAmount, itemData.feeAmount)
+              ) ||
+              (
+                data.rentalMode == 'hourly' &&
+                data.rentalUnitCount < 8 &&
+                approxEqual(
+                  data.usageFeeAmount,
+                  (itemData.feeAmount / 8) * data.rentalUnitCount
+                )
+              )
+            )
+          )
+        );
+    }
+
+    function validBorrowRequestUpdate() {
+      return ownerCanApproveBorrowRequest() ||
+        ownerCanRejectBorrowRequest() ||
+        borrowerCanCancelBorrowRequest() ||
+        borrowerCanCompletePayment() ||
+        borrowerCanConfirmPickupReady() ||
+        ownerCanConfirmHandover() ||
+        borrowerCanSubmitReturn() ||
+        ownerCanConfirmReturn() ||
+        ownerCanReportMinorIssue() ||
+        borrowerCanAcceptMinorIssue() ||
+        borrowerCanDeclineMinorIssue() ||
+        ownerCanReportMajorDamage() ||
+        ownerCanSetDepositDecision() ||
+        participantCanSubmitBorrowReview();
+    }

@@ -1,7 +1,34 @@
+// GENERATED FILE — edit firestore_rules/*.rules and run: node scripts/build_firestore_rules.mjs
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+// --- Firestore rules modules (table of contents) ---
+    // Edit source fragments under firestore_rules/*.rules, then rebuild:
+    //   node scripts/build_firestore_rules.mjs
+    //
+    // Modules (assembled in lexicographic order):
+    //   00_index.rules                      — this table of contents
+    //   01_core.functions.rules             — core auth/admin/resident helpers
+    //   02_connection.functions.rules       — connection participant helpers
+    //   03_chat.functions.rules             — chat participant helpers
+    //   04_borrow.functions.rules           — borrow request helpers
+    //   05_user.functions.rules             — user profile update helpers
+    //   06_completion.functions.rules       — borrow completion counter helpers
+    //   07_item.functions.rules              — item listing helpers
+    //   08_service.functions.rules          — service listing helpers
+    //   09_review.functions.rules           — review and profile image helpers
+    //   10_collections_users.rules          — users collection
+    //   11_collections_verification.rules   — verificationRequests collection
+    //   12_collections_marketplace.rules    — items collection (marketplace)
+    //   13_collections_reviews_reports.rules — reviews and reports collections
+    //   14_collections_connections.rules    — connections collection
+    //   15_collections_chat.rules           — chats collection
+    //   16_collections_notifications.rules  — notifications collection
+    //   17_community_post.functions.rules   — community post validation helpers
+    //   18_collections_community.rules      — communityPosts and default deny
+
+// --- Core auth/admin/resident helpers ---
     function signedIn() {
       return request.auth != null;
     }
@@ -81,6 +108,7 @@ service cloud.firestore {
         data.communityId == myUserDoc().data.communityId;
     }
 
+// --- Connection participant helpers ---
     function isValidConnectionParticipants(data) {
       return data.participants is list &&
         data.participants.size() == 2 &&
@@ -158,6 +186,7 @@ service cloud.firestore {
         );
     }
 
+// --- Chat participant helpers ---
     function isValidChatParticipants(data) {
       return data.participantIds is list &&
         data.participantIds.size() == 2 &&
@@ -282,6 +311,7 @@ service cloud.firestore {
         (request.auth.uid in before || after.size() == before.size() + 1);
     }
 
+// --- Borrow request helpers ---
     function borrowRequestOwner() {
       return signedIn() && request.auth.uid == resource.data.ownerId;
     }
@@ -550,22 +580,6 @@ service cloud.firestore {
         request.resource.data.updatedAt == request.time;
     }
 
-    function participantCanPublishBorrowReviews() {
-      return signedIn() &&
-        (
-          borrowRequestBorrower() ||
-          borrowRequestOwner()
-        ) &&
-        resource.data.status == 'completed' &&
-        request.resource.data.status == 'completed' &&
-        request.resource.data.reviewsPublishedAt == request.time &&
-        borrowChangedKeysOnly([
-          'reviewsPublishedAt',
-          'updatedAt',
-        ]) &&
-        request.resource.data.updatedAt == request.time;
-    }
-
     function approxEqual(value, expected) {
       return value is number &&
         expected is number &&
@@ -789,10 +803,10 @@ service cloud.firestore {
         borrowerCanDeclineMinorIssue() ||
         ownerCanReportMajorDamage() ||
         ownerCanSetDepositDecision() ||
-        participantCanSubmitBorrowReview() ||
-        participantCanPublishBorrowReviews();
+        participantCanSubmitBorrowReview();
     }
 
+// --- User profile update helpers ---
     function ownSafeUserUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -817,15 +831,31 @@ service cloud.firestore {
         'locationVerified',
         'locationVerificationStatus',
         'locationVerifiedCommunityName',
-        'verificationStatus',
         'updatedAt',
-      ]) &&
-      (
-        !changed.hasAny(['verificationStatus']) ||
-        request.resource.data.verificationStatus in ['pending', 'submitted']
-      );
+      ]);
     }
 
+    function ownerCanChangeCommunityWithVerificationReset() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasAll(['communityId', 'communityName']) &&
+        changed.hasOnly([
+          'communityId',
+          'communityName',
+          'verificationStatus',
+          'locationVerified',
+          'locationVerificationStatus',
+          'locationVerifiedCommunityName',
+          'updatedAt',
+        ]) &&
+        resource.data.communityId != request.resource.data.communityId &&
+        request.resource.data.verificationStatus == 'pending' &&
+        request.resource.data.locationVerified == false &&
+        request.resource.data.locationVerificationStatus == 'pending' &&
+        request.resource.data.locationVerifiedCommunityName == '' &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+// --- Borrow completion counter helpers ---
     function validBorrowCompletionCounterUpdate(userId) {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let requestId = request.resource.data.lastCompletedBorrowRequestId;
@@ -884,6 +914,185 @@ service cloud.firestore {
         request.resource.data.updatedAt == request.time;
     }
 
+// --- Item listing helpers ---
+    function itemOwner() {
+      return signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    function itemChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function itemOwnerSnapshotUnchanged() {
+      return request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.ownerName == resource.data.ownerName &&
+        request.resource.data.ownerEmail == resource.data.ownerEmail &&
+        request.resource.data.ownerPhotoUrl == resource.data.ownerPhotoUrl &&
+        request.resource.data.ownerVerified == resource.data.ownerVerified &&
+        request.resource.data.ownerReputationScore == resource.data.ownerReputationScore &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.communityName == resource.data.communityName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.lastCompletedBorrowRequestId == resource.data.lastCompletedBorrowRequestId;
+    }
+
+    function itemIsEditableListing() {
+      return resource.data.status == 'available' &&
+        resource.data.isArchived != true;
+    }
+
+    function ownerSafeItemUpdate() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.status == 'available' &&
+        request.resource.data.isArchived == false &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'title',
+          'description',
+          'category',
+          'condition',
+          'lendingType',
+          'hasUsageFee',
+          'feeAmount',
+          'hasDeposit',
+          'depositAmount',
+          'pickupInstructions',
+          'imageUrls',
+          'updatedAt',
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        request.resource.data.condition is string &&
+        request.resource.data.pickupInstructions is string &&
+        request.resource.data.imageUrls is list;
+    }
+
+    function ownerCanArchiveItem() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.isArchived == true &&
+        request.resource.data.status == 'archived' &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'isArchived',
+          'status',
+          'updatedAt',
+        ]);
+    }
+
+    function ownerCanMarkItemUnavailable() {
+      return itemOwner() &&
+        itemIsEditableListing() &&
+        request.resource.data.status == 'unavailable' &&
+        request.resource.data.isArchived == resource.data.isArchived &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'status',
+          'updatedAt',
+        ]);
+    }
+
+    function validItemCreate() {
+      let data = request.resource.data;
+      return isVerifiedResident() &&
+        data.ownerId == request.auth.uid &&
+        data.status == 'available' &&
+        data.isArchived == false &&
+        data.communityId == myUserDoc().data.communityId &&
+        data.communityName == myUserDoc().data.communityName &&
+        data.title is string &&
+        data.description is string &&
+        data.category is string &&
+        data.condition is string &&
+        data.pickupInstructions is string &&
+        data.imageUrls is list &&
+        data.imageUrls.size() > 0 &&
+        data.lendingType is string &&
+        data.hasUsageFee is bool &&
+        data.hasDeposit is bool &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+
+// --- Service listing helpers ---
+    function serviceProvider() {
+      return signedIn() && resource.data.providerId == request.auth.uid;
+    }
+
+    function serviceChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function serviceProviderSnapshotUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.providerId == resource.data.providerId &&
+        request.resource.data.providerName == resource.data.providerName &&
+        request.resource.data.providerEmail == resource.data.providerEmail &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function serviceListingFieldsUnchanged() {
+      return request.resource.data.title == resource.data.title &&
+        request.resource.data.description == resource.data.description &&
+        request.resource.data.category == resource.data.category &&
+        request.resource.data.priceType == resource.data.priceType &&
+        request.resource.data.priceAmount == resource.data.priceAmount &&
+        request.resource.data.availability == resource.data.availability;
+    }
+
+    function serviceIsEditableListing() {
+      return resource.data.status == 'active';
+    }
+
+    function providerSafeServiceUpdate() {
+      return serviceProvider() &&
+        serviceIsEditableListing() &&
+        request.resource.data.status == 'active' &&
+        serviceProviderSnapshotUnchanged() &&
+        serviceChangedKeysOnly([
+          'title',
+          'description',
+          'category',
+          'priceType',
+          'priceAmount',
+          'availability',
+          'updatedAt',
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        request.resource.data.priceType is string &&
+        request.resource.data.availability is string;
+    }
+
+    function providerCanSetServiceStatus() {
+      return serviceProvider() &&
+        serviceProviderSnapshotUnchanged() &&
+        serviceListingFieldsUnchanged() &&
+        serviceChangedKeysOnly(['status', 'updatedAt']) &&
+        request.resource.data.status in ['active', 'inactive', 'archived'];
+    }
+
+    function validServiceCreate(serviceId) {
+      let data = request.resource.data;
+      return isVerifiedResident() &&
+        data.providerId == request.auth.uid &&
+        data.status == 'active' &&
+        data.id == serviceId &&
+        data.title is string &&
+        data.description is string &&
+        data.category is string &&
+        data.priceType is string &&
+        data.availability is string &&
+        data.providerName is string &&
+        data.providerEmail is string &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+
+// --- Review and profile image helpers ---
     function ownProfileImageUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -956,93 +1165,40 @@ service cloud.firestore {
         validCompletedBorrowReview(data);
     }
 
-    function validReviewPublishUpdate() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let borrowData = get(/databases/$(database)/documents/borrowRequests/$(resource.data.borrowRequestId)).data;
-      let bothReviewsSubmitted =
-        borrowData.borrowerReviewSubmitted == true &&
-        borrowData.ownerReviewSubmitted == true;
-      let graceExpired =
-        resource.data.publishAfter is timestamp &&
-        resource.data.publishAfter <= request.time;
-      return signedIn() &&
-        borrowData.status == 'completed' &&
-        resource.data.borrowRequestId is string &&
-        resource.data.visible == false &&
-        resource.data.status == 'hidden' &&
-        changed.hasOnly([
-          'visible',
-          'status',
-          'publishedAt',
-        ]) &&
-        request.resource.data.visible == true &&
-        request.resource.data.status == 'published' &&
-        request.resource.data.publishedAt == request.time &&
-        (
-          request.auth.uid == borrowData.borrowerId ||
-          request.auth.uid == borrowData.ownerId
-        ) &&
-        (
-          bothReviewsSubmitted ||
-          graceExpired
-        ) &&
-        validCompletedBorrowReview(resource.data);
+    function canReadPublicProfile(data) {
+      return isVerifiedResident() &&
+        data.role == 'resident' &&
+        hasVerifiedResidentStatus(data.verificationStatus) &&
+        data.communityId == myUserDoc().data.communityId;
     }
 
-    function validRevieweeReputationUpdate(userId) {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let triggerReviewId = request.resource.data.lastTrustReviewId;
-      return signedIn() &&
-        changed.hasOnly([
-          'reputationScore',
-          'communityTrustScore',
-          'totalReviews',
-          'trustedResident',
-          'accountFlagged',
-          'trustFlagReason',
-          'lastTrustReviewId',
-          'trustScoreUpdatedAt',
-          'updatedAt',
-        ]) &&
-        triggerReviewId is string &&
-        exists(/databases/$(database)/documents/reviews/$(triggerReviewId)) &&
-        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.revieweeId == userId &&
-        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.visible == true &&
-        get(/databases/$(database)/documents/reviews/$(triggerReviewId)).data.status == 'published' &&
-        request.resource.data.totalReviews is int &&
-        request.resource.data.totalReviews >= 0 &&
-        request.resource.data.reputationScore is number &&
-        request.resource.data.reputationScore >= 0 &&
-        request.resource.data.reputationScore <= 5 &&
-        request.resource.data.communityTrustScore is number &&
-        request.resource.data.communityTrustScore >= 0 &&
-        request.resource.data.communityTrustScore <= 5 &&
-        request.resource.data.trustedResident is bool &&
-        request.resource.data.accountFlagged is bool &&
-        request.resource.data.trustFlagReason is string &&
-        request.resource.data.trustScoreUpdatedAt == request.time &&
-        request.resource.data.updatedAt == request.time;
-    }
-
+// --- users collection ---
     match /users/{uid} {
-      allow get: if isOwner(uid) ||
-        isAdmin() ||
-        canReadCommunityResident(resource.data) ||
-        signedIn();
+      allow get: if isOwner(uid) || isAdmin();
       allow list: if isSystemAdmin() ||
-        (isAdmin() && resource.data.communityId == adminCommunityId()) ||
-        canReadCommunityResident(resource.data);
+        (isAdmin() && resource.data.communityId == adminCommunityId());
 
       allow create: if isOwner(uid) &&
         request.resource.data.uid == uid &&
         request.resource.data.role == 'resident' &&
         request.resource.data.verificationStatus == 'pending';
 
+      // Trust/reputation fields are updated only by Cloud Functions (Admin SDK)
+      // or manually by admins — never by resident clients.
       allow update: if isAdmin() ||
         (isOwner(uid) && ownSafeUserUpdate()) ||
-        validBorrowCompletionCounterUpdate(uid) ||
-        validRevieweeReputationUpdate(uid);
+        (isOwner(uid) && ownerCanChangeCommunityWithVerificationReset());
       allow delete: if isAdmin();
+    }
+
+    // Community-visible resident fields only. Synced from /users by Cloud Functions.
+    match /publicProfiles/{uid} {
+      allow get: if isOwner(uid) ||
+        isAdmin() ||
+        canReadPublicProfile(resource.data);
+      allow list: if isVerifiedResident() &&
+        resource.data.communityId == myUserDoc().data.communityId;
+      allow create, update, delete: if isAdmin();
     }
 
     match /admins/{uid} {
@@ -1060,6 +1216,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+// --- verificationRequests collection ---
     match /verificationRequests/{requestId} {
       allow read: if signedIn() &&
         (
@@ -1102,13 +1259,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+// --- items collection (marketplace) ---
     match /items/{itemId} {
       allow read: if signedIn();
-      allow create: if isVerifiedResident() &&
-        request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAdmin() ||
-        (signedIn() && resource.data.ownerId == request.auth.uid) ||
-        validBorrowItemCompletionUpdate(itemId);
+      allow create: if validItemCreate();
+      allow update: if isAdmin() ||
+        ownerCanMarkItemUnavailable() ||
+        ownerSafeItemUpdate() ||
+        ownerCanArchiveItem();
+      allow delete: if isAdmin();
     }
 
     match /borrowRequests/{requestId} {
@@ -1126,10 +1285,11 @@ service cloud.firestore {
 
     match /services/{serviceId} {
       allow read: if signedIn();
-      allow create: if isVerifiedResident() &&
-        request.resource.data.providerId == request.auth.uid;
-      allow update, delete: if isAdmin() ||
-        (signedIn() && resource.data.providerId == request.auth.uid);
+      allow create: if validServiceCreate(serviceId);
+      allow update: if isAdmin() ||
+        providerSafeServiceUpdate() ||
+        providerCanSetServiceStatus();
+      allow delete: if isAdmin();
     }
 
     match /serviceRequests/{requestId} {
@@ -1151,6 +1311,7 @@ service cloud.firestore {
         );
     }
 
+// --- reviews and reports collections ---
     match /reviews/{reviewId} {
       allow get: if signedIn() &&
         (
@@ -1165,7 +1326,8 @@ service cloud.firestore {
           resource.data.reviewerId == request.auth.uid
         );
       allow create: if validReviewCreate(request.resource.data);
-      allow update: if isAdmin() || validReviewPublishUpdate();
+      // Publishing is handled server-side by Cloud Functions.
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -1190,6 +1352,7 @@ service cloud.firestore {
       allow create, update, delete: if isSystemAdmin();
     }
 
+// --- connections collection ---
     match /connections/{connectionId} {
       allow get: if connectionParticipant(resource.data) ||
         adminCanAccessCommunity(resource.data.communityId);
@@ -1222,6 +1385,7 @@ service cloud.firestore {
         adminCanAccessCommunity(resource.data.communityId);
     }
 
+// --- chats collection ---
     match /chats/{chatId} {
       allow get: if chatParticipant(resource.data) ||
         (isVerifiedResident() &&
@@ -1240,41 +1404,15 @@ service cloud.firestore {
       }
     }
 
+// --- notifications collection ---
     match /notifications/{notificationId} {
       allow read, update, delete: if signedIn() &&
         resource.data.userId == request.auth.uid;
-      allow create: if signedIn() &&
-        request.resource.data.userId is string &&
-        request.resource.data.type is string &&
-        request.resource.data.title is string &&
-        request.resource.data.body is string &&
-        request.resource.data.read == false &&
-        request.resource.data.createdAt == request.time &&
-        (
-          isAdmin() ||
-          (
-            request.resource.data.actorId == request.auth.uid &&
-            request.resource.data.userId != request.auth.uid &&
-            request.resource.data.type in [
-              'chatMessage',
-              'connectionRequest',
-              'connectionAccepted',
-              'borrowRequest',
-              'borrowApproved',
-              'borrowRejected',
-              'serviceRequest',
-              'serviceAccepted',
-              'serviceRejected'
-            ]
-          ) ||
-          (
-            request.resource.data.type == 'chatMessage' &&
-            request.resource.data.senderId == request.auth.uid &&
-            request.resource.data.userId != request.auth.uid
-          )
-        );
+      // In-app notifications are created by Cloud Functions or admins.
+      allow create: if isAdmin();
     }
 
+// --- Community post validation helpers ---
     function validCommunityPostType(type) {
       return type in ['news', 'announcement', 'warning', 'event', 'maintenance'];
     }
@@ -1340,6 +1478,7 @@ service cloud.firestore {
       return communityPostDraftUpdate() || communityPostPublishUpdate();
     }
 
+// --- communityPosts and default deny ---
     match /communityPosts/{postId} {
       allow read: if signedIn() && (
         adminCanAccessCommunity(resource.data.communityId) ||

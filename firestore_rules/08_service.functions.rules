@@ -1,0 +1,76 @@
+    // --- Service listing helpers ---
+    function serviceProvider() {
+      return signedIn() && resource.data.providerId == request.auth.uid;
+    }
+
+    function serviceChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function serviceProviderSnapshotUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.providerId == resource.data.providerId &&
+        request.resource.data.providerName == resource.data.providerName &&
+        request.resource.data.providerEmail == resource.data.providerEmail &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function serviceListingFieldsUnchanged() {
+      return request.resource.data.title == resource.data.title &&
+        request.resource.data.description == resource.data.description &&
+        request.resource.data.category == resource.data.category &&
+        request.resource.data.priceType == resource.data.priceType &&
+        request.resource.data.priceAmount == resource.data.priceAmount &&
+        request.resource.data.availability == resource.data.availability;
+    }
+
+    function serviceIsEditableListing() {
+      return resource.data.status == 'active';
+    }
+
+    function providerSafeServiceUpdate() {
+      return serviceProvider() &&
+        serviceIsEditableListing() &&
+        request.resource.data.status == 'active' &&
+        serviceProviderSnapshotUnchanged() &&
+        serviceChangedKeysOnly([
+          'title',
+          'description',
+          'category',
+          'priceType',
+          'priceAmount',
+          'availability',
+          'updatedAt',
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        request.resource.data.priceType is string &&
+        request.resource.data.availability is string;
+    }
+
+    function providerCanSetServiceStatus() {
+      return serviceProvider() &&
+        serviceProviderSnapshotUnchanged() &&
+        serviceListingFieldsUnchanged() &&
+        serviceChangedKeysOnly(['status', 'updatedAt']) &&
+        request.resource.data.status in ['active', 'inactive', 'archived'];
+    }
+
+    function validServiceCreate(serviceId) {
+      let data = request.resource.data;
+      return isVerifiedResident() &&
+        data.providerId == request.auth.uid &&
+        data.status == 'active' &&
+        data.id == serviceId &&
+        data.title is string &&
+        data.description is string &&
+        data.category is string &&
+        data.priceType is string &&
+        data.availability is string &&
+        data.providerName is string &&
+        data.providerEmail is string &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+

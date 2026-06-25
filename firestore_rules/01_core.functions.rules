@@ -1,0 +1,80 @@
+    // --- Core auth/admin/resident helpers ---
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function myAdminDoc() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function hasProfile() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasAdminProfile() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidAdminDoc(data) {
+      return data.isActive != false &&
+        data.role in ['communityAdmin', 'systemAdmin'];
+    }
+
+    function isAdmin() {
+      return hasAdminProfile() && isValidAdminDoc(myAdminDoc().data);
+    }
+
+    function isSystemAdmin() {
+      return hasAdminProfile() &&
+        isValidAdminDoc(myAdminDoc().data) &&
+        myAdminDoc().data.role == 'systemAdmin';
+    }
+
+    function adminCommunityId() {
+      return myAdminDoc().data.communityId;
+    }
+
+    function adminCanAccessCommunity(communityId) {
+      return isSystemAdmin() ||
+        (
+          isAdmin() &&
+          communityId is string &&
+          communityId != '' &&
+          communityId == adminCommunityId()
+        );
+    }
+
+    function hasVerifiedResidentStatus(status) {
+      return status in ['verified', 'approved'];
+    }
+
+    function isVerifiedResident() {
+      return hasProfile() &&
+        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus);
+    }
+
+    function isVerifiedResidentData(data) {
+      return data.role == 'resident' &&
+        hasVerifiedResidentStatus(data.verificationStatus);
+    }
+
+    function canReadCommunityResident(data) {
+      return isVerifiedResident() &&
+        isVerifiedResidentData(data) &&
+        data.communityId == myUserDoc().data.communityId;
+    }
+

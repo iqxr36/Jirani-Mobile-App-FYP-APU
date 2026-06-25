@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -28,22 +29,20 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _localError = null);
-    debugPrint(
-      '[AdminLoginScreen] login button pressed email=${_emailCtrl.text.trim()}',
-    );
+    authDebugLog('[AdminLoginScreen] login button pressed');
     final auth = context.read<AuthProvider>();
-    debugPrint('[AdminLoginScreen] login call started');
+    authDebugLog('[AdminLoginScreen] login call started');
     await auth.login(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
     );
-    debugPrint('[AdminLoginScreen] login call finished');
+    authDebugLog('[AdminLoginScreen] login call finished');
     if (!mounted) return;
 
     final admin = auth.currentAdmin;
     final user = auth.currentUser;
     if (auth.errorMessage != null || (admin == null && user == null)) {
-      debugPrint('[AdminLoginScreen] login error=${auth.errorMessage}');
+      authDebugLog('[AdminLoginScreen] login failed');
       setState(() => _localError = auth.errorMessage);
       return;
     }

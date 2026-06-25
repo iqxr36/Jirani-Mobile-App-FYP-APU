@@ -1,9 +1,14 @@
+/// Data-layer convention: ViewModels and Providers depend on repositories under
+/// `shared/data/repositories/` for Firestore-backed entities. Orchestration lives
+/// in `shared/services/`; some repositories delegate to a service. UI must not
+/// import services directly.
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
+import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/admin_user.dart';
@@ -37,10 +42,10 @@ class AuthRepository {
   }
 
   Future<AppUser?> getCurrentAppUser() async {
-    debugPrint('[AuthRepository.getCurrentAppUser] started');
+    authDebugLog('[AuthRepository.getCurrentAppUser] started');
     final user = _authService.currentUser;
     if (user == null) return null;
-    debugPrint('[AuthRepository.getCurrentAppUser] firebase uid=${user.uid}');
+    authDebugLog('[AuthRepository.getCurrentAppUser] firebase session present');
     await _authService.reloadCurrentUser();
     final refreshedUser = _authService.currentUser;
     if (refreshedUser == null) return null;
@@ -57,7 +62,7 @@ class AuthRepository {
       final data = doc.data();
       if (data != null) {
         final appUser = AppUser.fromMap(data);
-        debugPrint(
+        authDebugLog(
           '[AuthRepository.getCurrentAppUser] profile found role=${appUser.role}',
         );
         final profileUpdates = <String, dynamic>{};
@@ -92,16 +97,16 @@ class AuthRepository {
   }
 
   Future<AdminUser?> getCurrentAdminUser() async {
-    debugPrint('[AuthRepository.getCurrentAdminUser] started');
+    authDebugLog('[AuthRepository.getCurrentAdminUser] started');
     final user = _authService.currentUser;
-    debugPrint(
-      '[AuthRepository.getCurrentAdminUser] current FirebaseAuth UID=${user?.uid}',
+    authDebugLog(
+      '[AuthRepository.getCurrentAdminUser] firebase session=${user != null}',
     );
     if (user == null) return null;
     await _authService.reloadCurrentUser();
     final refreshedUser = _authService.currentUser;
-    debugPrint(
-      '[AuthRepository.getCurrentAdminUser] refreshed FirebaseAuth UID=${refreshedUser?.uid}',
+    authDebugLog(
+      '[AuthRepository.getCurrentAdminUser] firebase session refreshed',
     );
     if (refreshedUser == null) return null;
 
@@ -110,15 +115,15 @@ class AuthRepository {
       final docRef = _firestore
           .collection(AppConstants.adminsCollection)
           .doc(refreshedUser.uid);
-      debugPrint(
-        '[AuthRepository.getCurrentAdminUser] Firestore path=${docRef.path}',
+      authDebugLog(
+        '[AuthRepository.getCurrentAdminUser] Firestore read attempt ${attempt + 1}',
       );
       final DocumentSnapshot<Map<String, dynamic>> doc;
       try {
         doc = await docRef.get();
       } on FirebaseException catch (e) {
-        debugPrint(
-          '[AuthRepository.getCurrentAdminUser] Firestore read failed path=${docRef.path} code=${e.code} message=${e.message}',
+        authDebugLog(
+          '[AuthRepository.getCurrentAdminUser] Firestore read failed code=${e.code}',
         );
         throw Exception(
           'Firestore read failed for ${docRef.path}: ${e.code}'
@@ -126,11 +131,10 @@ class AuthRepository {
         );
       }
 
-      debugPrint(
+      authDebugLog(
         '[AuthRepository.getCurrentAdminUser] doc.exists=${doc.exists}',
       );
       final data = doc.data();
-      debugPrint('[AuthRepository.getCurrentAdminUser] doc.data=$data');
       if (data != null) {
         return _mapAdminProfile({...data, 'uid': refreshedUser.uid});
       }
@@ -225,45 +229,17 @@ class AuthRepository {
   }
 
   AdminUser _mapAdminProfile(Map<String, dynamic> data) {
-    const fieldsUsedByAdminUser = <String>[
-      'uid',
-      'fullName',
-      'email',
-      'phoneNumber',
-      'role',
-      'communityId',
-      'communityName',
-      'profileImageUrl',
-      'permissions',
-      'isActive',
-      'status',
-      'createdAt',
-      'updatedAt',
-    ];
-    for (final field in fieldsUsedByAdminUser) {
-      final value = data[field];
-      debugPrint(
-        '[AuthRepository._mapAdminProfile] AdminUser.fromMap field "$field" '
-        'type=${value.runtimeType} value=$value',
-      );
-    }
-
     final AdminUser admin;
     try {
       admin = AdminUser.fromMap(data);
     } catch (e, stackTrace) {
-      debugPrint(
-        '[AuthRepository._mapAdminProfile] AdminUser.fromMap exception: $e',
-      );
-      debugPrintStack(stackTrace: stackTrace);
+      authDebugLogError('[AuthRepository._mapAdminProfile]', e, stackTrace);
       throw Exception('Admin document found but model mapping failed: $e');
     }
 
-    debugPrint(
+    authDebugLog(
       '[AuthRepository.getCurrentAdminUser] profile mapped '
-      'uid=${admin.uid} role=${admin.role} isActive=${admin.isActive} '
-      'email=${admin.email} communityId=${admin.communityId} '
-      'communityName=${admin.communityName} permissions=${admin.permissions}',
+      'role=${admin.role} isActive=${admin.isActive}',
     );
     if (!admin.isActive) {
       throw Exception('This admin account is disabled.');
@@ -376,7 +352,7 @@ class AuthRepository {
   }
 
   Future<void> login({required String email, required String password}) async {
-    debugPrint('[AuthRepository.login] signIn started email=${email.trim()}');
+    authDebugLog('[AuthRepository.login] signIn started');
     final credential = await _authService.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -386,18 +362,18 @@ class AuthRepository {
     if (firebaseUser == null) {
       throw Exception('Unable to login user.');
     }
-    debugPrint('[AuthRepository.login] signIn success uid=${firebaseUser.uid}');
+    authDebugLog('[AuthRepository.login] signIn success');
 
     await _authService.reloadCurrentUser();
-    debugPrint('[AuthRepository.login] firebase user reloaded');
+    authDebugLog('[AuthRepository.login] firebase user reloaded');
   }
 
   /// Google Sign-In. Returns `null` if the user cancelled the account picker.
   Future<AppUser?> signInWithGoogle() async {
-    debugPrint('[AuthRepository.signInWithGoogle] started');
+    authDebugLog('[AuthRepository.signInWithGoogle] started');
     final credential = await _authService.signInWithGoogle();
     if (credential == null) {
-      debugPrint('[AuthRepository.signInWithGoogle] cancelled');
+      authDebugLog('[AuthRepository.signInWithGoogle] cancelled');
       return null;
     }
     final firebaseUser = credential.user;
@@ -411,16 +387,16 @@ class AuthRepository {
       preferredFullName: refreshed.displayName?.trim() ?? '',
       preferredEmail: refreshed.email?.trim() ?? '',
     );
-    debugPrint('[AuthRepository.signInWithGoogle] done uid=${appUser.uid}');
+    authDebugLog('[AuthRepository.signInWithGoogle] done');
     return appUser;
   }
 
   /// Apple Sign-In. Returns `null` if the user cancelled.
   Future<AppUser?> signInWithApple() async {
-    debugPrint('[AuthRepository.signInWithApple] started');
+    authDebugLog('[AuthRepository.signInWithApple] started');
     final AppleSignInFlowResult? result = await _authService.signInWithApple();
     if (result == null) {
-      debugPrint('[AuthRepository.signInWithApple] cancelled');
+      authDebugLog('[AuthRepository.signInWithApple] cancelled');
       return null;
     }
     final firebaseUser = result.credential.user;
@@ -448,7 +424,7 @@ class AuthRepository {
       preferredFullName: fullName,
       preferredEmail: email,
     );
-    debugPrint('[AuthRepository.signInWithApple] done uid=${appUser.uid}');
+    authDebugLog('[AuthRepository.signInWithApple] done');
     return appUser;
   }
 

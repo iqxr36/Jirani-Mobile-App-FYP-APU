@@ -72,6 +72,7 @@ class AppConstants {
   // Firestore collections
   static const String adminsCollection = 'admins';
   static const String usersCollection = 'users';
+  static const String publicProfilesCollection = 'publicProfiles';
   static const String itemsCollection = 'items';
   static const String communitiesCollection = 'communities';
   static const String verificationRequestsCollection = 'verificationRequests';
