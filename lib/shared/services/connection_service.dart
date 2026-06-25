@@ -2,12 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
+import 'package:jirani/shared/services/notification_service.dart';
 
 class ConnectionService {
-  ConnectionService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  ConnectionService({
+    FirebaseFirestore? firestore,
+    NotificationService? notificationService,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _notificationService = notificationService ?? NotificationService();
 
   final FirebaseFirestore _firestore;
+  final NotificationService _notificationService;
 
   CollectionReference<Map<String, dynamic>> get _connections =>
       _firestore.collection(AppConstants.connectionsCollection);
@@ -35,6 +40,16 @@ class ConnectionService {
         'createdAt': now,
         'updatedAt': now,
       });
+      await _notificationService.create(
+        userId: toUser.uid,
+        type: AppConstants.notificationTypeConnectionRequest,
+        title: fromUser.fullName.trim().isEmpty
+            ? 'New connection request'
+            : fromUser.fullName.trim(),
+        body: 'Sent you a neighbor connection request.',
+        connectionId: id,
+        category: 'Community',
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -219,6 +234,28 @@ class ConnectionService {
       'status': targetStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    if (targetStatus == AppConstants.connectionAccepted) {
+      final accepterName = await _userDisplayName(currentUserId);
+      await _notificationService.create(
+        userId: connection.fromUserId,
+        type: AppConstants.notificationTypeConnectionAccepted,
+        title: accepterName,
+        body: 'Accepted your connection request.',
+        connectionId: connectionId,
+        category: 'Community',
+      );
+    }
+  }
+
+  Future<String> _userDisplayName(String uid) async {
+    final snap = await _users.doc(uid).get();
+    final data = snap.data();
+    if (data == null) return 'A neighbor';
+    final first = (data['firstName'] as String?)?.trim() ?? '';
+    final last = (data['lastName'] as String?)?.trim() ?? '';
+    final full = '$first $last'.trim();
+    return full.isEmpty ? 'A neighbor' : full;
   }
 
   void _validateParticipants({

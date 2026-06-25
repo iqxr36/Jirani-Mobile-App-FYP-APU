@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
@@ -7,7 +8,10 @@ import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/resident/logic/verification_access.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';
 import 'package:jirani/resident/providers/connection_provider.dart';
+import 'package:jirani/resident/providers/notification_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
+import 'package:jirani/shared/models/community_post_model.dart';
+import 'package:jirani/shared/services/community_post_service.dart';
 import 'package:jirani/resident/screens/chat/resident_messages_view.dart';
 import 'package:jirani/resident/screens/connections/resident_connections_view.dart';
 import 'package:jirani/resident/screens/notifications/resident_notifications_view.dart';
@@ -49,8 +53,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   );
   Timer? _carouselTimer;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _adminWarningSub;
+  StreamSubscription<List<CommunityPostModel>>? _communityPostsSub;
+  final _communityPostService = CommunityPostService();
+  List<CommunityPostModel> _communityPosts = const <CommunityPostModel>[];
   int _carouselIndex = 0;
   String? _warningWatchUserId;
+  String? _watchedCommunityId;
   final Set<String> _shownAdminWarningIds = <String>{};
 
   static const _carouselSlides = <_CarouselSlide>[
@@ -87,15 +95,49 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   void dispose() {
     _carouselTimer?.cancel();
     _adminWarningSub?.cancel();
+    _communityPostsSub?.cancel();
     _carouselController.dispose();
     super.dispose();
+  }
+
+  List<_CarouselSlide> get _activeCarouselSlides {
+    if (_communityPosts.isEmpty) return _carouselSlides;
+    return _communityPosts
+        .map(
+          (post) => _CarouselSlide(
+            title: post.title.toUpperCase(),
+            subtitle: post.body,
+            badge: post.displayCategory.toUpperCase(),
+            icon: post.icon,
+            imageUrl: post.imageUrl,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  void _watchCommunityPosts(AppUser? user) {
+    final communityId = user?.communityId.trim() ?? '';
+    if (communityId == _watchedCommunityId) return;
+    _watchedCommunityId = communityId;
+    _communityPostsSub?.cancel();
+    _communityPostsSub = null;
+    if (communityId.isEmpty) {
+      _communityPosts = const <CommunityPostModel>[];
+      return;
+    }
+    _communityPostsSub = _communityPostService
+        .watchPublishedPostsForCommunity(communityId)
+        .listen((posts) {
+          if (!mounted) return;
+          setState(() => _communityPosts = posts);
+        });
   }
 
   void _startCarouselTimer() {
     _carouselTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (!mounted || !_carouselController.hasClients) return;
 
-      final nextIndex = (_carouselIndex + 1) % _carouselSlides.length;
+      final nextIndex = (_carouselIndex + 1) % _activeCarouselSlides.length;
       _carouselController.animateToPage(
         nextIndex,
         duration: const Duration(milliseconds: 520),
@@ -240,10 +282,13 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().currentUser;
     _watchAdminWarnings(user);
+    _watchCommunityPosts(user);
     final incomingConnectionCount = context
         .watch<ConnectionProvider>()
         .incomingRequestCount;
     final unreadMessageCount = context.watch<ChatProvider>().totalUnreadCount;
+    final unreadNotificationCount =
+        context.watch<NotificationProvider>().unreadCount;
     final firstName = _firstName(user?.fullName ?? '');
 
     return JiraniBackground(
@@ -264,6 +309,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                   firstName,
                   incomingConnectionCount,
                   unreadMessageCount,
+                  unreadNotificationCount,
                 ),
               ),
               if (user != null && !residentHasFullAppAccess(user))
@@ -285,6 +331,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     String firstName,
     int incomingConnectionCount,
     int unreadMessageCount,
+    int unreadNotificationCount,
   ) {
     final isDark = context.isDarkUi;
     final communityName = user?.communityName.trim().isNotEmpty == true
@@ -374,7 +421,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                         icon: Icons.notifications_outlined,
                         label: 'Notifications',
                         onTap: () => _openNotifications(context, user),
-                        showBadge: true,
+                        badgeCount: unreadNotificationCount,
                       ),
                     ],
                   ),
@@ -427,6 +474,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   }
 
   Widget _buildCarousel() {
+    final slides = _activeCarouselSlides;
     return Padding(
       padding: const EdgeInsets.only(top: 24),
       child: SizedBox(
@@ -434,10 +482,10 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
         child: PageView.builder(
           controller: _carouselController,
           clipBehavior: Clip.none,
-          itemCount: _carouselSlides.length,
+          itemCount: slides.length,
           onPageChanged: (i) => setState(() => _carouselIndex = i),
           itemBuilder: (context, index) {
-            final slide = _carouselSlides[index];
+            final slide = slides[index];
             return Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 22),
               child: _CarouselCard(
@@ -452,11 +500,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   }
 
   Widget _buildPageIndicators() {
+    final slides = _activeCarouselSlides;
     return Padding(
       padding: const EdgeInsets.only(top: 0, bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(_carouselSlides.length, (i) {
+        children: List.generate(slides.length, (i) {
           final active = i == _carouselIndex;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -694,14 +743,12 @@ class _HeaderAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.showBadge = false,
     this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool showBadge;
   final int badgeCount;
 
   @override
@@ -765,19 +812,6 @@ class _HeaderAction extends StatelessWidget {
                         ),
                       ),
                     )
-                  else if (showBadge)
-                    Positioned(
-                      right: 1,
-                      top: 1,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -853,12 +887,14 @@ class _CarouselSlide {
     required this.subtitle,
     required this.badge,
     required this.icon,
+    this.imageUrl,
   });
 
   final String title;
   final String subtitle;
   final String badge;
   final IconData icon;
+  final String? imageUrl;
 }
 
 class _CarouselCard extends StatelessWidget {
@@ -885,7 +921,14 @@ class _CarouselCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _gradientFallback(),
+            if (slide.imageUrl != null && slide.imageUrl!.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: slide.imageUrl!,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => _gradientFallback(),
+              )
+            else
+              _gradientFallback(),
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

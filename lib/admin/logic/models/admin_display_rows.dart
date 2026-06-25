@@ -48,6 +48,7 @@ class AdminReportRow {
     required this.target,
     required this.content,
     required this.description,
+    required this.inboxSubtitle,
   });
 
   final String title;
@@ -57,6 +58,7 @@ class AdminReportRow {
   final String target;
   final String content;
   final String description;
+  final String inboxSubtitle;
 }
 
 class AdminTransactionRow {
@@ -116,22 +118,36 @@ AdminReportRow adminReportRowFromReport(ReportModel report) {
     AppConstants.reportTypeUserMisconduct => 'Med',
     _ => 'Low',
   };
+  final reporter = report.reporterName.isEmpty
+      ? report.reporterId
+      : report.reporterName;
+  final target = report.reportedUserName.isEmpty
+      ? report.reportedUserId
+      : report.reportedUserName;
+  final description = report.description.isEmpty
+      ? 'No description provided.'
+      : report.description;
+  final isMarketplaceDispute = report.relatedBorrowRequestId.trim().isNotEmpty;
+  final isChatReport = report.chatId.trim().isNotEmpty;
+  final inboxSubtitle = isMarketplaceDispute
+      ? '$reporter - $description'
+      : report.reporterId == report.reportedUserId ||
+            report.title == 'Low Community Trust Score'
+      ? description
+      : isChatReport && report.title.isNotEmpty
+      ? '$reporter • ${report.title}'
+      : '$reporter reported $target';
   return AdminReportRow(
     title: report.title.isEmpty ? adminStatusLabel(report.type) : report.title,
     priority: priority,
-    reporter: report.reporterName.isEmpty
-        ? report.reporterId
-        : report.reporterName,
+    reporter: reporter,
     reporterEmail: report.reporterId,
-    target: report.reportedUserName.isEmpty
-        ? report.reportedUserId
-        : report.reportedUserName,
+    target: target,
     content: report.itemId.isEmpty
         ? report.relatedBorrowRequestId
         : 'Item ${report.itemId}',
-    description: report.description.isEmpty
-        ? 'No description provided.'
-        : report.description,
+    description: description,
+    inboxSubtitle: inboxSubtitle,
   );
 }
 

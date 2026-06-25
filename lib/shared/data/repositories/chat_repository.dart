@@ -14,8 +14,11 @@ class ChatRepository {
     return _service.watchChats(currentUser);
   }
 
-  Stream<List<ChatMessageModel>> watchMessages(String chatId) {
-    return _service.watchMessages(chatId);
+  Stream<List<ChatMessageModel>> watchMessages(
+    String chatId,
+    String currentUserId,
+  ) {
+    return _service.watchMessages(chatId, currentUserId);
   }
 
   Future<ChatModel> openOrCreateChat({
@@ -32,8 +35,14 @@ class ChatRepository {
     required ChatModel chat,
     required AppUser sender,
     required String text,
+    ChatMessageModel? replyTo,
   }) {
-    return _service.sendTextMessage(chat: chat, sender: sender, text: text);
+    return _service.sendTextMessage(
+      chat: chat,
+      sender: sender,
+      text: text,
+      replyTo: replyTo,
+    );
   }
 
   Future<void> sendAttachmentMessage({
@@ -44,6 +53,7 @@ class ChatRepository {
     required String fileName,
     required String type,
     required int fileSize,
+    ChatMessageModel? replyTo,
   }) {
     return _service.sendAttachmentMessage(
       chat: chat,
@@ -53,6 +63,7 @@ class ChatRepository {
       fileName: fileName,
       type: type,
       fileSize: fileSize,
+      replyTo: replyTo,
     );
   }
 
@@ -83,8 +94,45 @@ class ChatRepository {
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,
-    required String reason,
+    required String category,
+    required String note,
+    List<ChatMessageModel> reportedMessages = const [],
+    bool reportEntireConversation = false,
   }) {
-    return _service.reportChat(chat: chat, reporter: reporter, reason: reason);
+    return _service.reportChat(
+      chat: chat,
+      reporter: reporter,
+      category: category,
+      note: note,
+      reportedMessages: reportedMessages,
+      reportEntireConversation: reportEntireConversation,
+    );
+  }
+
+  Future<void> pinMessage({
+    required ChatModel chat,
+    required AppUser user,
+    required ChatMessageModel message,
+  }) {
+    return _service.pinMessage(chat: chat, user: user, message: message);
+  }
+
+  Future<void> unpinMessage({
+    required ChatModel chat,
+    required AppUser user,
+  }) {
+    return _service.unpinMessage(chat: chat, user: user);
+  }
+
+  Future<void> deleteMessageForUser({
+    required ChatModel chat,
+    required String messageId,
+    required String userId,
+  }) {
+    return _service.deleteMessageForUser(
+      chat: chat,
+      messageId: messageId,
+      userId: userId,
+    );
   }
 }

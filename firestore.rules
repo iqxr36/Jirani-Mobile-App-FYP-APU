@@ -187,12 +187,13 @@ service cloud.firestore {
     function chatParticipantById(chatId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/chats/$(chatId)) &&
-        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        chatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data);
     }
 
     function chatParticipantByIdAfter(chatId) {
       return signedIn() &&
-        request.auth.uid in getAfter(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        exists(/databases/$(database)/documents/chats/$(chatId)) &&
+        chatParticipant(getAfter(/databases/$(database)/documents/chats/$(chatId)).data);
     }
 
     function chatParticipantsAreVerifiedResidents(data) {
@@ -264,7 +265,21 @@ service cloud.firestore {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return chatParticipantByIdAfter(chatId) &&
         changed.hasOnly(['readBy']) &&
+        request.resource.data.readBy is list &&
         request.auth.uid in request.resource.data.readBy;
+    }
+
+    function validChatMessageDeleteForUser(chatId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let before = resource.data.get('deletedFor', []);
+      let after = request.resource.data.deletedFor;
+      return chatParticipantById(chatId) &&
+        changed.hasOnly(['deletedFor']) &&
+        after is list &&
+        before is list &&
+        request.auth.uid in after &&
+        after.hasAll(before) &&
+        (request.auth.uid in before || after.size() == before.size() + 1);
     }
 
     function borrowRequestOwner() {
@@ -1219,7 +1234,8 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow get, list: if chatParticipantById(chatId);
         allow create: if validChatMessageCreate(chatId, request.resource.data);
-        allow update: if validChatMessageReadUpdate(chatId);
+        allow update: if validChatMessageReadUpdate(chatId) ||
+          validChatMessageDeleteForUser(chatId);
         allow delete: if false;
       }
     }
@@ -1237,11 +1253,109 @@ service cloud.firestore {
         (
           isAdmin() ||
           (
+            request.resource.data.actorId == request.auth.uid &&
+            request.resource.data.userId != request.auth.uid &&
+            request.resource.data.type in [
+              'chatMessage',
+              'connectionRequest',
+              'connectionAccepted',
+              'borrowRequest',
+              'borrowApproved',
+              'borrowRejected',
+              'serviceRequest',
+              'serviceAccepted',
+              'serviceRejected'
+            ]
+          ) ||
+          (
             request.resource.data.type == 'chatMessage' &&
             request.resource.data.senderId == request.auth.uid &&
             request.resource.data.userId != request.auth.uid
           )
         );
+    }
+
+    function validCommunityPostType(type) {
+      return type in ['news', 'announcement', 'warning', 'event', 'maintenance'];
+    }
+
+    function validCommunityPostImageUrl(data) {
+      return !('imageUrl' in data) ||
+        (data.imageUrl is string && data.imageUrl.size() <= 2048);
+    }
+
+    function validCommunityPostCreate(postId) {
+      return isAdmin() &&
+        adminCanAccessCommunity(request.resource.data.communityId) &&
+        request.resource.data.communityId is string &&
+        request.resource.data.communityId != '' &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.authorName is string &&
+        request.resource.data.audience is string &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.body is string &&
+        request.resource.data.body.size() > 0 &&
+        validCommunityPostType(request.resource.data.type) &&
+        request.resource.data.status == 'draft' &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        validCommunityPostImageUrl(request.resource.data) &&
+        (
+          !('id' in request.resource.data) ||
+          request.resource.data.id == postId
+        );
+    }
+
+    function communityPostDraftUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'draft' &&
+        changed.hasOnly([
+          'title',
+          'body',
+          'type',
+          'audience',
+          'imageUrl',
+          'updatedAt',
+        ]) &&
+        request.resource.data.status == 'draft' &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.authorId == resource.data.authorId &&
+        request.resource.data.authorName == resource.data.authorName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        validCommunityPostType(request.resource.data.type) &&
+        validCommunityPostImageUrl(request.resource.data);
+    }
+
+    function communityPostPublishUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'draft' &&
+        request.resource.data.status == 'published' &&
+        changed.hasOnly(['status', 'publishedAt', 'updatedAt']) &&
+        request.resource.data.publishedAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+    function validCommunityPostUpdate() {
+      return communityPostDraftUpdate() || communityPostPublishUpdate();
+    }
+
+    match /communityPosts/{postId} {
+      allow read: if signedIn() && (
+        adminCanAccessCommunity(resource.data.communityId) ||
+        (
+          isVerifiedResident() &&
+          resource.data.communityId == myUserDoc().data.communityId &&
+          resource.data.status == 'published'
+        )
+      );
+      allow create: if validCommunityPostCreate(postId);
+      allow update: if isAdmin() &&
+        resource.data.authorId == request.auth.uid &&
+        adminCanAccessCommunity(resource.data.communityId) &&
+        validCommunityPostUpdate();
+      allow delete: if isAdmin() &&
+        adminCanAccessCommunity(resource.data.communityId);
     }
 
     match /activityLogs/{logId} {

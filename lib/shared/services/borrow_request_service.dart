@@ -8,19 +8,23 @@ import 'package:jirani/resident/logic/marketplace_borrow_flow.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/services/notification_service.dart';
 
 class BorrowRequestService {
   BorrowRequestService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
+    NotificationService? notificationService,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _storageOverride = storage;
+       _storageOverride = storage,
+       _notificationService = notificationService ?? NotificationService();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final FirebaseStorage? _storageOverride;
+  final NotificationService _notificationService;
 
   FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
 
@@ -173,6 +177,16 @@ class BorrowRequestService {
         'adminResolvedAt': null,
         'adminResolvedBy': '',
       });
+      await _notificationService.create(
+        userId: item.ownerId,
+        type: AppConstants.notificationTypeBorrowRequest,
+        title: borrower.fullName.trim().isEmpty
+            ? 'New borrow request'
+            : borrower.fullName.trim(),
+        body: 'Requested to borrow "${item.title}".',
+        borrowRequestId: doc.id,
+        category: 'Marketplace',
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -258,6 +272,14 @@ class BorrowRequestService {
         });
       }
       await batch.commit();
+      await _notificationService.create(
+        userId: request.borrowerId,
+        type: AppConstants.notificationTypeBorrowApproved,
+        title: 'Borrow request approved',
+        body: 'Your request for "${request.itemTitle}" was approved.',
+        borrowRequestId: request.id,
+        category: 'Marketplace',
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -298,6 +320,14 @@ class BorrowRequestService {
         'rejectedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      await _notificationService.create(
+        userId: request.borrowerId,
+        type: AppConstants.notificationTypeBorrowRejected,
+        title: 'Borrow request declined',
+        body: 'Your request for "${request.itemTitle}" was declined.',
+        borrowRequestId: request.id,
+        category: 'Marketplace',
+      );
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(

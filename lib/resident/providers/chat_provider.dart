@@ -70,7 +70,8 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
-    return _repository.watchMessages(chatId);
+    final userId = _currentUser?.uid ?? '';
+    return _repository.watchMessages(chatId, userId);
   }
 
   ChatModel? chatById(String chatId) {
@@ -93,10 +94,16 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendTextMessage({
     required ChatModel chat,
     required String text,
+    ChatMessageModel? replyTo,
   }) async {
     final sender = _requireCurrentUser();
     await _runAction(
-      () => _repository.sendTextMessage(chat: chat, sender: sender, text: text),
+      () => _repository.sendTextMessage(
+        chat: chat,
+        sender: sender,
+        text: text,
+        replyTo: replyTo,
+      ),
     );
   }
 
@@ -107,6 +114,7 @@ class ChatProvider extends ChangeNotifier {
     required String fileName,
     required String type,
     required int fileSize,
+    ChatMessageModel? replyTo,
   }) async {
     final sender = _requireCurrentUser();
     await _runAction(
@@ -118,6 +126,7 @@ class ChatProvider extends ChangeNotifier {
         fileName: fileName,
         type: type,
         fileSize: fileSize,
+        replyTo: replyTo,
       ),
     );
   }
@@ -136,14 +145,51 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> reportChat({
     required ChatModel chat,
-    required String reason,
+    required String category,
+    required String note,
+    List<ChatMessageModel> reportedMessages = const [],
+    bool reportEntireConversation = false,
   }) async {
     final reporter = _requireCurrentUser();
     await _runAction(
       () => _repository.reportChat(
         chat: chat,
         reporter: reporter,
-        reason: reason,
+        category: category,
+        note: note,
+        reportedMessages: reportedMessages,
+        reportEntireConversation: reportEntireConversation,
+      ),
+    );
+  }
+
+  Future<void> pinMessage({
+    required ChatModel chat,
+    required ChatMessageModel message,
+  }) async {
+    final user = _requireCurrentUser();
+    await _runAction(
+      () => _repository.pinMessage(chat: chat, user: user, message: message),
+    );
+  }
+
+  Future<void> unpinMessage({required ChatModel chat}) async {
+    final user = _requireCurrentUser();
+    await _runAction(
+      () => _repository.unpinMessage(chat: chat, user: user),
+    );
+  }
+
+  Future<void> deleteMessageForUser({
+    required ChatModel chat,
+    required String messageId,
+  }) async {
+    final user = _requireCurrentUser();
+    await _runAction(
+      () => _repository.deleteMessageForUser(
+        chat: chat,
+        messageId: messageId,
+        userId: user.uid,
       ),
     );
   }

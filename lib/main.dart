@@ -10,13 +10,19 @@ import 'package:jirani/resident/providers/borrow_request_provider.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';
 import 'package:jirani/resident/providers/connection_provider.dart';
 import 'package:jirani/resident/providers/item_provider.dart';
+import 'package:jirani/resident/providers/notification_provider.dart';
 import 'package:jirani/resident/providers/network_status_provider.dart';
 import 'package:jirani/resident/providers/review_provider.dart';
+import 'package:jirani/resident/providers/theme_provider.dart';
 import 'package:jirani/shared/logic/auth_wrapper.dart';
+import 'package:jirani/shared/services/push_notification_service.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/shared/widgets/network_status_overlay.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+final PushNotificationService pushNotificationService = PushNotificationService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +52,9 @@ void main() async {
       //   providerApple: const AppleDeviceCheckProvider(),
       // );
     }
+    if (!kIsWeb) {
+      await pushNotificationService.initialize(navigatorKey: appNavigatorKey);
+    }
     runApp(const TrustCommunityApp());
   } catch (e, stackTrace) {
     debugPrint('Firebase startup failed: $e');
@@ -67,6 +76,7 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => BorrowRequestProvider(),
         ),
         ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
+        ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
         if (!kIsWeb)
           ChangeNotifierProvider<NetworkStatusProvider>(
             create: (_) => NetworkStatusProvider(),
@@ -87,24 +97,39 @@ class TrustCommunityApp extends StatelessWidget {
             return chatProvider;
           },
         ),
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (_) => NotificationProvider(),
+          update: (_, auth, provider) {
+            final notificationProvider = provider ?? NotificationProvider();
+            notificationProvider.watchForUser(auth.currentUser);
+            return notificationProvider;
+          },
+        ),
       ],
-      child: MaterialApp(
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        builder: (context, child) {
-          final media = MediaQuery.of(context);
-          final appBody = JiraniBackground(
-            child: child ?? const SizedBox.shrink(),
-          );
-          return MediaQuery(
-            data: media.copyWith(
-              textScaler: JiraniResponsive.clampedTextScaler(context),
-            ),
-            child: kIsWeb ? appBody : NetworkStatusOverlay(child: appBody),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: AppConstants.appName,
+            navigatorKey: appNavigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            builder: (context, child) {
+              final media = MediaQuery.of(context);
+              final appBody = JiraniBackground(
+                child: child ?? const SizedBox.shrink(),
+              );
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: JiraniResponsive.clampedTextScaler(context),
+                ),
+                child: kIsWeb ? appBody : NetworkStatusOverlay(child: appBody),
+              );
+            },
+            home: const AuthWrapper(),
           );
         },
-        home: const AuthWrapper(),
       ),
     );
   }
@@ -134,38 +159,44 @@ class StartupErrorScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: Color(0xFFE29578),
-                    size: 42,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Color(0xFFE29578),
+                        size: 42,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '${AppConstants.appName} could not load',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'A startup or rendering error stopped this screen from loading.',
+                      ),
+                      const SizedBox(height: 16),
+                      SelectableText(
+                        error,
+                        style: const TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Admin portal could not start',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'A startup or rendering error stopped the web admin portal from loading.',
-                  ),
-                  const SizedBox(height: 16),
-                  SelectableText(
-                    error,
-                    style: const TextStyle(color: Color(0xFF6B7280)),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

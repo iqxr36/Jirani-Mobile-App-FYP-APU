@@ -12,47 +12,71 @@ class VerificationPermissionRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
+  Future<void> saveNotificationPreference({
+    required bool enabled,
+    required String status,
+    String? token,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing signed-in user.');
+    }
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
+      'notificationEnabled': enabled,
+      'notificationPermissionStatus': status,
+      if (token != null && token.isNotEmpty) 'fcmToken': token,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updateNotificationEnabled({
+    required bool enabled,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing signed-in user.');
+    }
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
+      'notificationEnabled': enabled,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> saveFcmToken(String token) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || token.trim().isEmpty) return;
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
+      'fcmToken': token.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> saveCameraPreference({
     required bool enabled,
     required String status,
-  }) {
-    return _saveUserFields({
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing signed-in user.');
+    }
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
       'cameraEnabled': enabled,
       'cameraPermissionStatus': status,
-    });
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> savePhotosDocumentsPreference({
     required bool enabled,
     required String status,
-  }) {
-    return _saveUserFields({
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing signed-in user.');
+    }
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
       'photosDocumentsEnabled': enabled,
       'photosDocumentsPermissionStatus': status,
-    });
-  }
-
-  Future<void> saveNotificationPreference({
-    required bool enabled,
-    required String status,
-    String? token,
-  }) {
-    final data = <String, dynamic>{
-      'notificationEnabled': enabled,
-      'notificationPermissionStatus': status,
-    };
-    if (token != null && token.isNotEmpty) {
-      data['fcmToken'] = token;
-    }
-    return _saveUserFields(data);
-  }
-
-  Future<void> _saveUserFields(Map<String, dynamic> data) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
-      ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

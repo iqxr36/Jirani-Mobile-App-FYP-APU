@@ -11,9 +11,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/agent_debug_log.dart';
+import 'package:jirani/resident/screens/chat/chat_message_action_menu.dart';
+import 'package:jirani/resident/screens/chat/chat_report_sheet.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
+import 'package:jirani/shared/models/pinned_chat_message.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -83,6 +86,8 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
   late final chat_core.InMemoryChatController _chatController;
   StreamSubscription<List<ChatMessageModel>>? _messagesSub;
   final ImagePicker _imagePicker = ImagePicker();
+  Map<String, ChatMessageModel> _messagesById = const {};
+  ChatMessageModel? _replyingTo;
 
   @override
   void initState() {
@@ -143,6 +148,9 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
       final chatMessages = messages
           .map((message) => message.toChatMessage(currentUserId: currentUserId))
           .toList(growable: false);
+      _messagesById = {
+        for (final message in messages) message.id: message,
+      };
       _chatController.setMessages(chatMessages, animated: false);
       // #region agent log
       unawaited(
@@ -256,8 +264,16 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     final provider = context.read<ChatProvider>();
     final chat = provider.chatById(widget.initialChat.id) ?? widget.initialChat;
     final messenger = ScaffoldMessenger.of(context);
+    final replyTo = _replyingTo;
     try {
-      await provider.sendTextMessage(chat: chat, text: text);
+      await provider.sendTextMessage(
+        chat: chat,
+        text: text,
+        replyTo: replyTo,
+      );
+      if (replyTo != null && mounted) {
+        setState(() => _replyingTo = null);
+      }
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text(provider.errorMessage ?? 'Message not sent.')),
@@ -405,6 +421,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
         ),
       );
       // #endregion
+      final replyTo = _replyingTo;
       await provider.sendAttachmentMessage(
         chat: chat,
         bytes: attachment.bytes,
@@ -412,7 +429,11 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
         fileName: attachment.fileName,
         type: attachment.type,
         fileSize: attachment.fileSize,
+        replyTo: replyTo,
       );
+      if (replyTo != null && mounted) {
+        setState(() => _replyingTo = null);
+      }
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(
@@ -628,45 +649,132 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
-  Future<void> _reportChat(ChatModel chat) async {
-    Navigator.of(context).pop();
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report Chat'),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Tell admins what happened',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
+  Future<void> _reportChat(ChatModel chat, {ChatMessageModel? message}) async {
+    if (message == null) {
+      Navigator.of(context).pop();
+    }
+    final submission = await showChatReportSheet(
+      context,
+      title: message == null ? 'Report Chat' : 'Report Message',
+      subtitle: message == null
+          ? 'Send this conversation to admins for review.'
+          : 'Send this message to admins for review.',
+      highlightedMessage: message,
     );
-    controller.dispose();
-    if (reason == null || !mounted) return;
+    if (submission == null || !mounted) return;
 
     final provider = context.read<ChatProvider>();
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await provider.reportChat(chat: chat, reason: reason);
-      messenger.showSnackBar(const SnackBar(content: Text('Chat reported.')));
+      await provider.reportChat(
+        chat: chat,
+        category: submission.category,
+        note: submission.note,
+        reportedMessages: message == null ? const [] : [message],
+        reportEntireConversation: message == null,
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            message == null ? 'Chat reported.' : 'Message reported.',
+          ),
+        ),
+      );
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text(provider.errorMessage ?? 'Unable to report chat.'),
+          content: Text(provider.errorMessage ?? 'Unable to submit report.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showMessageActionMenu(
+    ChatModel chat,
+    String currentUserId,
+    chat_core.Message message,
+  ) async {
+    final model = _messagesById[message.id];
+    if (model == null) return;
+    final isPinned = chat.pinnedMessage?.messageId == model.id;
+    final action = await showChatMessageActionMenu(
+      context,
+      message: model,
+      isPinned: isPinned,
+      showReport: model.senderId != currentUserId,
+    );
+    if (action == null || !mounted) return;
+
+    if (action == ChatMessageAction.reply) {
+      setState(() => _replyingTo = model);
+    } else if (action == ChatMessageAction.pin) {
+      await _togglePin(chat, model, isPinned);
+    } else if (action == ChatMessageAction.deleteForYou) {
+      await _confirmDeleteMessage(chat, model);
+    } else if (action == ChatMessageAction.report) {
+      await _reportChat(chat, message: model);
+    }
+  }
+
+  Future<void> _togglePin(
+    ChatModel chat,
+    ChatMessageModel? message,
+    bool isPinned,
+  ) async {
+    final provider = context.read<ChatProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (isPinned) {
+        await provider.unpinMessage(chat: chat);
+      } else if (message != null) {
+        await provider.pinMessage(chat: chat, message: message);
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.errorMessage ?? 'Unable to update pinned message.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteMessage(
+    ChatModel chat,
+    ChatMessageModel message,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete for you?'),
+        content: const Text(
+          'This message will be removed from your chat view. The other resident will still see it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final provider = context.read<ChatProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await provider.deleteMessageForUser(chat: chat, messageId: message.id);
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.errorMessage ?? 'Unable to delete message.',
+          ),
         ),
       );
     }
@@ -694,6 +802,11 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                 onBack: () => Navigator.of(context).pop(),
                 onDetails: () => _showChatDetails(chat, currentUserId),
               ),
+              if (chat.pinnedMessage != null)
+                _PinnedMessageBanner(
+                  pinned: chat.pinnedMessage!,
+                  onUnpin: () => _togglePin(chat, null, true),
+                ),
               Expanded(
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(
@@ -730,7 +843,47 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                           }) {
                             _openMessage(message);
                           },
+                      onMessageLongPress:
+                          (
+                            context,
+                            message, {
+                            required index,
+                            required details,
+                          }) {
+                            _showMessageActionMenu(
+                              chat,
+                              currentUserId,
+                              message,
+                            );
+                          },
                       builders: chat_core.Builders(
+                        composerBuilder: (context) {
+                          return Composer(
+                            topWidget: _replyingTo == null
+                                ? null
+                                : _ReplyComposerBar(
+                                    senderName: chat.participantName(
+                                      _replyingTo!.senderId,
+                                    ),
+                                    preview: _replyingTo!.previewText,
+                                    onCancel: () =>
+                                        setState(() => _replyingTo = null),
+                                  ),
+                          );
+                        },
+                        textMessageBuilder:
+                            (
+                              context,
+                              message,
+                              index, {
+                              required isSentByMe,
+                              groupStatus,
+                            }) {
+                              return _TextMessageBubble(
+                                message: message,
+                                isSentByMe: isSentByMe,
+                              );
+                            },
                         chatAnimatedListBuilder: (context, itemBuilder) {
                           return ChatAnimatedListReversed(
                             itemBuilder: itemBuilder,
@@ -745,9 +898,24 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                               required isSentByMe,
                               groupStatus,
                             }) {
-                              return _SafeImageMessageCard(
-                                message: message,
-                                isSentByMe: isSentByMe,
+                              final reply = _replyFromMessageMetadata(
+                                message.metadata,
+                              );
+                              return Column(
+                                crossAxisAlignment: isSentByMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  if (reply != null)
+                                    _ReplyQuoteStrip(
+                                      reply: reply,
+                                      isSentByMe: isSentByMe,
+                                    ),
+                                  _SafeImageMessageCard(
+                                    message: message,
+                                    isSentByMe: isSentByMe,
+                                  ),
+                                ],
                               );
                             },
                         fileMessageBuilder:
@@ -758,11 +926,26 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                               required isSentByMe,
                               groupStatus,
                             }) {
-                              return _SafeFileMessageCard(
-                                name: message.name,
-                                mimeType: message.mimeType,
-                                size: message.size,
-                                isSentByMe: isSentByMe,
+                              final reply = _replyFromMessageMetadata(
+                                message.metadata,
+                              );
+                              return Column(
+                                crossAxisAlignment: isSentByMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  if (reply != null)
+                                    _ReplyQuoteStrip(
+                                      reply: reply,
+                                      isSentByMe: isSentByMe,
+                                    ),
+                                  _SafeFileMessageCard(
+                                    name: message.name,
+                                    mimeType: message.mimeType,
+                                    size: message.size,
+                                    isSentByMe: isSentByMe,
+                                  ),
+                                ],
                               );
                             },
                         emptyChatListBuilder: (context) => const _EmptyThread(),
@@ -773,6 +956,248 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
                       backgroundColor: context.glassFill(lightAlpha: 0.92),
                     ),
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+ChatMessageReply? _replyFromMessageMetadata(Map<String, Object?>? metadata) {
+  if (metadata == null) return null;
+  final messageId = metadata['replyToMessageId']?.toString() ?? '';
+  if (messageId.isEmpty) return null;
+  return ChatMessageReply(
+    messageId: messageId,
+    senderId: metadata['replyToSenderId']?.toString() ?? '',
+    senderName: metadata['replyToSenderName']?.toString() ?? '',
+    type: metadata['replyToType']?.toString() ?? AppConstants.chatMessageText,
+    text: metadata['replyToText']?.toString() ?? '',
+  );
+}
+
+class _PinnedMessageBanner extends StatelessWidget {
+  const _PinnedMessageBanner({
+    required this.pinned,
+    required this.onUnpin,
+  });
+
+  final PinnedChatMessage pinned;
+  final VoidCallback onUnpin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: context.softSurface(),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.residentOutline()),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.push_pin, color: _kBrandTeal, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pinned.senderName,
+                        style: TextStyle(
+                          color: _kBrandTeal,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        pinned.previewText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.appInk,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Unpin',
+                  onPressed: onUnpin,
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: context.appMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReplyComposerBar extends StatelessWidget {
+  const _ReplyComposerBar({
+    required this.senderName,
+    required this.preview,
+    required this.onCancel,
+  });
+
+  final String senderName;
+  final String preview;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 0),
+      child: Row(
+        children: [
+          Container(width: 3, height: 42, color: _kBrandTeal),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  senderName,
+                  style: const TextStyle(
+                    color: _kBrandTeal,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  preview,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: context.appMuted),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onCancel,
+            icon: const Icon(Icons.close_rounded),
+            color: context.appMuted,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReplyQuoteStrip extends StatelessWidget {
+  const _ReplyQuoteStrip({
+    required this.reply,
+    required this.isSentByMe,
+  });
+
+  final ChatMessageReply reply;
+  final bool isSentByMe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      constraints: const BoxConstraints(maxWidth: 280),
+      decoration: BoxDecoration(
+        color: isSentByMe
+            ? Colors.white.withValues(alpha: 0.18)
+            : _kBrandTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          left: BorderSide(
+            color: isSentByMe ? Colors.white : _kBrandTeal,
+            width: 3,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            reply.senderName,
+            style: TextStyle(
+              color: isSentByMe ? Colors.white : _kBrandTeal,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reply.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isSentByMe
+                  ? Colors.white.withValues(alpha: 0.92)
+                  : context.appInk,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextMessageBubble extends StatelessWidget {
+  const _TextMessageBubble({
+    required this.message,
+    required this.isSentByMe,
+  });
+
+  final chat_core.TextMessage message;
+  final bool isSentByMe;
+
+  @override
+  Widget build(BuildContext context) {
+    final reply = _replyFromMessageMetadata(message.metadata);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Align(
+        alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 320),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSentByMe ? _kBrandTeal : context.softSurface(),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isSentByMe ? 16 : 4),
+              bottomRight: Radius.circular(isSentByMe ? 4 : 16),
+            ),
+            border: isSentByMe
+                ? null
+                : Border.all(color: context.residentOutline()),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (reply != null)
+                _ReplyQuoteStrip(reply: reply, isSentByMe: isSentByMe),
+              Text(
+                message.text,
+                style: TextStyle(
+                  color: isSentByMe ? Colors.white : context.appInk,
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

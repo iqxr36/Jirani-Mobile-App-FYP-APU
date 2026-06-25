@@ -1,18 +1,29 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/logic/models/admin_display_rows.dart';
+import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
+import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/reported_chat_message_snapshot.dart';
 import 'package:jirani/shared/models/report_model.dart';
+import 'package:jirani/shared/utils/chat_report_formatters.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _ReportInboxFilter { open, completed }
+
+AppUser? _residentById(List<AppUser> residents, String userId) {
+  for (final resident in residents) {
+    if (resident.uid == userId) return resident;
+  }
+  return null;
+}
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -265,6 +276,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       request?.disputeEvidenceImageUrl ?? '',
       request?.minorIssuePhotoUrl ?? '',
       request?.returnProofImageUrl ?? '',
+      ...report.reportedMessages
+          .where(
+            (message) =>
+                message.type == AppConstants.chatMessageImage &&
+                message.mediaUrl.trim().isNotEmpty,
+          )
+          .map((message) => message.mediaUrl),
     ]) {
       final trimmed = url.trim();
       if (trimmed.isEmpty || !seen.add(trimmed)) continue;
@@ -495,7 +513,7 @@ class AdminReportInboxTile extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w800),
       ),
       subtitle: Text(
-        '${report.reporter} - ${report.description}',
+        report.inboxSubtitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -535,12 +553,26 @@ class _AdminReportCaseFile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final disputeRequest = request;
+    final isMarketplaceDispute = disputeRequest != null;
     final disputeReason = _bestText(
       [request?.disputeReason, request?.minorIssueReason, row.description],
       fallback: 'No dispute reason was provided.',
     );
+    final conductReason = _bestText(
+      [row.description],
+      fallback: 'No issue details were provided.',
+    );
     final deposit = request?.depositAmount ?? 0;
     final deduction = request?.minorDeductionAmount ?? 0;
+    final resident = _residentById(
+      context.watch<AdminProvider>().residents,
+      report.reportedUserId,
+    );
+    final showPartyMetrics =
+        report.reporterId.trim().isNotEmpty &&
+        report.reportedUserId.trim().isNotEmpty &&
+        report.reporterId != report.reportedUserId;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,33 +582,58 @@ class _AdminReportCaseFile extends StatelessWidget {
           priority: row.priority,
           status: request?.status ?? report.status,
           depositLabel: 'RM ${deposit.toStringAsFixed(2)}',
-          itemTitle: request?.itemTitle ?? row.content,
+          itemTitle: isMarketplaceDispute
+              ? disputeRequest.itemTitle
+              : adminStatusLabel(report.type),
+          showDeposit: isMarketplaceDispute,
         ),
         const SizedBox(height: 16),
-        _PartyComparison(
-          borrowerName: request?.borrowerName ?? row.target,
-          borrowerEmail: request?.borrowerEmail ?? '',
-          borrowerId: request?.borrowerId ?? report.reportedUserId,
-          borrowerPhone: request?.borrowerPhoneNumber ?? '',
-          borrowerReputationScore: request?.borrowerReputationScore,
-          borrowerVerified: request?.borrowerVerified,
-          lenderName: request?.ownerName ?? row.reporter,
-          lenderEmail: request?.ownerEmail ?? '',
-          lenderId: request?.ownerId ?? report.reporterId,
-        ),
-        const SizedBox(height: 16),
-        _DisputeProblemCard(
-          reason: disputeReason,
-          reportedBy: row.reporter,
-          reportedAgainst: row.target,
-          returnedCondition: request?.itemConditionAfter ?? '',
-          ownerNotes: request?.ownerReturnNotes ?? '',
-          depositLabel: 'RM ${deposit.toStringAsFixed(2)}',
-          deductionLabel: deduction > 0
-              ? 'RM ${deduction.toStringAsFixed(2)} requested'
-              : 'No partial deduction requested',
-          evidenceUrls: evidenceUrls,
-        ),
+        if (disputeRequest != null) ...[
+          _PartyComparison(
+            borrowerName: disputeRequest.borrowerName,
+            borrowerEmail: disputeRequest.borrowerEmail,
+            borrowerId: disputeRequest.borrowerId,
+            borrowerPhone: disputeRequest.borrowerPhoneNumber,
+            borrowerReputationScore: disputeRequest.borrowerReputationScore,
+            borrowerVerified: disputeRequest.borrowerVerified,
+            lenderName: disputeRequest.ownerName,
+            lenderEmail: disputeRequest.ownerEmail,
+            lenderId: disputeRequest.ownerId,
+          ),
+          const SizedBox(height: 16),
+          _DisputeProblemCard(
+            reason: disputeReason,
+            reportedBy: row.reporter,
+            reportedAgainst: row.target,
+            returnedCondition: disputeRequest.itemConditionAfter,
+            ownerNotes: disputeRequest.ownerReturnNotes,
+            depositLabel: 'RM ${deposit.toStringAsFixed(2)}',
+            deductionLabel: deduction > 0
+                ? 'RM ${deduction.toStringAsFixed(2)} requested'
+                : 'No partial deduction requested',
+            evidenceUrls: evidenceUrls,
+          ),
+        ] else ...[
+          _ResidentSubjectCard(
+            name: row.target,
+            userId: report.reportedUserId,
+            email: resident?.email ?? '',
+            phone: resident?.phoneNumber ?? '',
+            trustScore: resident?.communityTrustScore,
+            totalReviews: resident?.totalReviews,
+            verified: resident?.isVerifiedResident,
+            accountFlagged: resident?.accountFlagged,
+          ),
+          const SizedBox(height: 16),
+          _ConductIssueCard(
+            reason: conductReason,
+            reportedBy: showPartyMetrics ? row.reporter : null,
+            reportedAgainst: showPartyMetrics ? row.target : null,
+            reportCategory: report.reportCategory,
+            reportedMessages: report.reportedMessages,
+            evidenceUrls: evidenceUrls,
+          ),
+        ],
         const SizedBox(height: 16),
         _TransactionFactsCard(
           report: report,
@@ -620,6 +677,7 @@ class _CaseSummaryBanner extends StatelessWidget {
     required this.status,
     required this.depositLabel,
     required this.itemTitle,
+    this.showDeposit = true,
   });
 
   final String title;
@@ -627,6 +685,7 @@ class _CaseSummaryBanner extends StatelessWidget {
   final String status;
   final String depositLabel;
   final String itemTitle;
+  final bool showDeposit;
 
   @override
   Widget build(BuildContext context) {
@@ -658,12 +717,13 @@ class _CaseSummaryBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  itemTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AdminColors.muted),
-                ),
+                if (itemTitle.trim().isNotEmpty)
+                  Text(
+                    itemTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AdminColors.muted),
+                  ),
               ],
             ),
           ),
@@ -673,7 +733,8 @@ class _CaseSummaryBanner extends StatelessWidget {
             children: [
               AdminStatusPill(label: priority, color: AdminColors.danger),
               AdminStatusPill(label: status, color: AdminColors.primary),
-              _MiniMetric(label: 'Deposit held', value: depositLabel),
+              if (showDeposit)
+                _MiniMetric(label: 'Deposit held', value: depositLabel),
             ],
           ),
         ],
@@ -767,6 +828,7 @@ class _PartyCard extends StatelessWidget {
     required this.verified,
     required this.icon,
     required this.accent,
+    this.extraFacts = const [],
   });
 
   final String role;
@@ -778,6 +840,7 @@ class _PartyCard extends StatelessWidget {
   final bool? verified;
   final IconData icon;
   final Color accent;
+  final List<Widget> extraFacts;
 
   @override
   Widget build(BuildContext context) {
@@ -841,6 +904,221 @@ class _PartyCard extends StatelessWidget {
               label: 'Verification',
               value: verified! ? 'Verified resident' : 'Not verified',
             ),
+          ...extraFacts,
+        ],
+      ),
+    );
+  }
+}
+
+class _ResidentSubjectCard extends StatelessWidget {
+  const _ResidentSubjectCard({
+    required this.name,
+    required this.userId,
+    required this.email,
+    required this.phone,
+    required this.trustScore,
+    required this.totalReviews,
+    required this.verified,
+    required this.accountFlagged,
+  });
+
+  final String name;
+  final String userId;
+  final String email;
+  final String phone;
+  final double? trustScore;
+  final int? totalReviews;
+  final bool? verified;
+  final bool? accountFlagged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PartyCard(
+      role: 'Resident',
+      name: name,
+      email: email,
+      id: userId,
+      phone: phone,
+      score: trustScore != null && trustScore! > 0 ? trustScore : null,
+      verified: verified,
+      icon: Icons.person_rounded,
+      accent: AdminColors.primary,
+      extraFacts: [
+        if (totalReviews != null)
+          _CompactFact(
+            label: 'Published reviews',
+            value: totalReviews.toString(),
+          ),
+        if (accountFlagged == true)
+          const _CompactFact(label: 'Account status', value: 'Flagged'),
+      ],
+    );
+  }
+}
+
+class _ConductIssueCard extends StatelessWidget {
+  const _ConductIssueCard({
+    required this.reason,
+    required this.reportedBy,
+    required this.reportedAgainst,
+    required this.reportCategory,
+    required this.reportedMessages,
+    required this.evidenceUrls,
+  });
+
+  final String reason;
+  final String? reportedBy;
+  final String? reportedAgainst;
+  final String reportCategory;
+  final List<ReportedChatMessageSnapshot> reportedMessages;
+  final List<String> evidenceUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final heading = Row(
+                children: const [
+                  Icon(Icons.report_rounded, color: AdminColors.primary),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Issue Details',
+                      style: TextStyle(
+                        color: AdminColors.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+              final proofButton = AdminReportEvidencePreview(
+                imageUrls: evidenceUrls,
+              );
+              if (constraints.maxWidth < 460) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    heading,
+                    if (evidenceUrls.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      proofButton,
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: heading),
+                  if (evidenceUrls.isNotEmpty) proofButton,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          if (reportCategory.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _MiniMetric(
+                label: 'Category',
+                value: chatReportCategoryLabel(reportCategory),
+              ),
+            ),
+          Text(
+            reason,
+            style: const TextStyle(
+              color: AdminColors.ink,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (reportedMessages.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Quoted messages',
+              style: TextStyle(
+                color: AdminColors.ink,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final message in reportedMessages)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _QuotedChatMessageCard(message: message),
+              ),
+          ],
+          if (reportedBy != null && reportedAgainst != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _MiniMetric(label: 'Reported by', value: reportedBy!),
+                _MiniMetric(label: 'Against', value: reportedAgainst!),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _QuotedChatMessageCard extends StatelessWidget {
+  const _QuotedChatMessageCard({required this.message});
+
+  final ReportedChatMessageSnapshot message;
+
+  @override
+  Widget build(BuildContext context) {
+    final month = message.sentAt.month.toString().padLeft(2, '0');
+    final day = message.sentAt.day.toString().padLeft(2, '0');
+    final hour = message.sentAt.hour.toString().padLeft(2, '0');
+    final minute = message.sentAt.minute.toString().padLeft(2, '0');
+    final timestamp =
+        '${message.sentAt.year}-$month-$day $hour:$minute';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AdminColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${message.senderName} • $timestamp',
+            style: const TextStyle(
+              color: AdminColors.muted,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message.displayBody,
+            style: const TextStyle(
+              color: AdminColors.ink,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -998,6 +1276,13 @@ class _TransactionFactsCard extends StatelessWidget {
               ),
           ],
           _CompactFact(label: 'Report ID', value: report.id),
+          if (report.chatId.trim().isNotEmpty)
+            _CompactFact(label: 'Chat ID', value: report.chatId),
+          if (report.reportCategory.trim().isNotEmpty)
+            _CompactFact(
+              label: 'Report category',
+              value: chatReportCategoryLabel(report.reportCategory),
+            ),
           _CompactFact(label: 'Report type', value: report.type),
           _CompactFact(label: 'Report status', value: report.status),
           _CompactFact(label: 'Created', value: formatDate(report.createdAt)),

@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 import {FieldValue} from "firebase-admin/firestore";
 import {logger} from "firebase-functions";
 import {setGlobalOptions} from "firebase-functions/v2";
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import {onObjectFinalized} from "firebase-functions/v2/storage";
 
 import {type VerificationRequestData} from "./ocr/extractFields";
@@ -242,6 +242,162 @@ export const processVerificationDocumentExtraction = onObjectFinalized(
       const requestRef = db.collection("verificationRequests").doc(requestId);
       await markFailed(requestRef, requestId, error);
     }
+  },
+);
+
+const NOTIFICATIONS_COLLECTION = "notifications";
+const COMMUNITY_POSTS_COLLECTION = "communityPosts";
+const USERS_COLLECTION = "users";
+const VERIFICATION_VERIFIED = "verified";
+
+function notificationTypeForPost(postType: string): string {
+  switch (postType) {
+  case "event":
+    return "communityEvent";
+  case "maintenance":
+    return "maintenanceNotice";
+  case "announcement":
+    return "communityAnnouncement";
+  case "warning":
+    return "communityWarning";
+  default:
+    return "communityNews";
+  }
+}
+
+function categoryForNotificationType(type: string): string {
+  switch (type) {
+  case "communityEvent":
+    return "Events";
+  case "maintenanceNotice":
+    return "Maintenance";
+  case "communityNews":
+    return "News";
+  case "communityAnnouncement":
+    return "Announcements";
+  case "communityWarning":
+    return "Warnings";
+  default:
+    return "Updates";
+  }
+}
+
+export const sendPushOnNotificationCreated = onDocumentCreated(
+  `${NOTIFICATIONS_COLLECTION}/{notificationId}`,
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const data = snapshot.data();
+    const userId = String(data.userId ?? "").trim();
+    if (!userId) return;
+
+    const userSnap = await db.collection(USERS_COLLECTION).doc(userId).get();
+    const userData = userSnap.data();
+    if (!userData) return;
+
+    const enabled = userData.notificationEnabled !== false;
+    const token = String(userData.fcmToken ?? "").trim();
+    if (!enabled || !token) {
+      await snapshot.ref.update({pushSent: false});
+      return;
+    }
+
+    const title = String(data.title ?? "Jirani");
+    const body = String(data.body ?? "");
+    const type = String(data.type ?? "");
+
+    const messageData: Record<string, string> = {type};
+    for (const key of [
+      "chatId",
+      "connectionId",
+      "borrowRequestId",
+      "serviceRequestId",
+      "postId",
+    ]) {
+      const value = data[key];
+      if (typeof value === "string" && value.trim()) {
+        messageData[key] = value.trim();
+      }
+    }
+
+    try {
+      await admin.messaging().send({
+        token,
+        notification: {title, body},
+        data: messageData,
+      });
+      await snapshot.ref.update({pushSent: true});
+    } catch (error) {
+      logger.error("Failed to send push notification", {
+        notificationId: event.params.notificationId,
+        userId,
+        error: errorMessage(error),
+      });
+      await snapshot.ref.update({pushSent: false});
+    }
+  },
+);
+
+export const fanOutCommunityPostNotifications = onDocumentUpdated(
+  `${COMMUNITY_POSTS_COLLECTION}/{postId}`,
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+    if (before.status === "published" || after.status !== "published") return;
+
+    const communityId = String(after.communityId ?? "").trim();
+    const postId = event.params.postId;
+    const title = String(after.title ?? "Community update");
+    const body = String(after.body ?? "");
+    const type = notificationTypeForPost(String(after.type ?? "news"));
+    const category = categoryForNotificationType(type);
+    const authorId = String(after.authorId ?? "");
+
+    if (!communityId) return;
+
+    const residents = await db
+      .collection(USERS_COLLECTION)
+      .where("communityId", "==", communityId)
+      .where("verificationStatus", "==", VERIFICATION_VERIFIED)
+      .get();
+
+    const batchSize = 400;
+    let batch = db.batch();
+    let writes = 0;
+
+    for (const resident of residents.docs) {
+      if (resident.id === authorId) continue;
+      const notificationRef = db.collection(NOTIFICATIONS_COLLECTION).doc();
+      batch.set(notificationRef, {
+        userId: resident.id,
+        type,
+        title,
+        body,
+        category,
+        postId,
+        actorId: authorId,
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      writes++;
+      if (writes >= batchSize) {
+        await batch.commit();
+        batch = db.batch();
+        writes = 0;
+      }
+    }
+
+    if (writes > 0) {
+      await batch.commit();
+    }
+
+    logger.info("Fan-out community post notifications", {
+      postId,
+      communityId,
+      recipientCount: residents.size,
+    });
   },
 );
 

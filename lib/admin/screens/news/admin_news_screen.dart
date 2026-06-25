@@ -1,52 +1,180 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
-import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/models/community_post_model.dart';
+import 'package:jirani/shared/services/community_post_service.dart';
 import 'package:provider/provider.dart';
 
-class AdminNewsScreen extends StatelessWidget {
+class AdminNewsScreen extends StatefulWidget {
   const AdminNewsScreen({super.key});
 
-  static const _posts = <_NewsPost>[
-    _NewsPost(
-      title: 'Lift maintenance notice',
-      category: 'Maintenance',
-      status: 'Scheduled',
-      date: 'Jun 18',
-      audience: 'All residents',
-      body:
-          'Tower A lift maintenance is planned from 10:00 AM to 1:00 PM. Residents are advised to use the service lift during the maintenance window.',
-      icon: Icons.build_circle_outlined,
-      color: AdminColors.warning,
-    ),
-    _NewsPost(
-      title: 'Community weekend breakfast',
-      category: 'Event',
-      status: 'Draft',
-      date: 'Jun 22',
-      audience: 'One South Residence',
-      body:
-          'A casual breakfast gathering at the multipurpose hall. Admins can publish final event details once confirmed.',
-      icon: Icons.event_available_outlined,
-      color: AdminColors.primary,
-    ),
-    _NewsPost(
-      title: 'Security reminder',
-      category: 'Notice',
-      status: 'Published',
-      date: 'Today',
-      audience: 'Verified residents',
-      body:
-          'Residents are reminded not to share access cards and to report unknown visitors to the guardhouse.',
-      icon: Icons.shield_outlined,
-      color: AdminColors.success,
-    ),
-  ];
+  @override
+  State<AdminNewsScreen> createState() => _AdminNewsScreenState();
+}
+
+class _AdminNewsScreenState extends State<AdminNewsScreen> {
+  final _service = CommunityPostService();
+  final _imagePicker = ImagePicker();
+  final _titleController = TextEditingController();
+  final _bodyController = TextEditingController();
+  String _postType = AppConstants.communityPostTypeNews;
+  String? _coverImagePath;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickCoverImage() async {
+    if (_submitting) return;
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    setState(() => _coverImagePath = picked.path);
+  }
+
+  void _removeCoverImage() {
+    if (_submitting) return;
+    setState(() => _coverImagePath = null);
+  }
+
+  Future<void> _createDraft(AdminProvider admin) async {
+    final communityId = admin.communityId.trim();
+    final authorId = admin.currentAdminUid;
+    if (communityId.isEmpty || authorId == null) {
+      _showSnack('Select a community before creating posts.');
+      return;
+    }
+    if (_titleController.text.trim().isEmpty ||
+        _bodyController.text.trim().isEmpty) {
+      _showSnack('Title and message are required.');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final draft = await _service.createDraft(
+        communityId: communityId,
+        authorId: authorId,
+        authorName: admin.communityName.isNotEmpty
+            ? admin.communityName
+            : 'Community admin',
+        type: _postType,
+        title: _titleController.text,
+        body: _bodyController.text,
+      );
+      final coverPath = _coverImagePath;
+      if (coverPath != null && coverPath.isNotEmpty) {
+        final imageUrl = await _service.uploadCoverImage(
+          adminId: authorId,
+          postId: draft.id,
+          filePath: coverPath,
+        );
+        await _service.updatePost(
+          postId: draft.id,
+          authorId: authorId,
+          imageUrl: imageUrl,
+        );
+      }
+      _titleController.clear();
+      _bodyController.clear();
+      setState(() => _coverImagePath = null);
+      if (mounted) _showSnack('Draft saved.');
+    } catch (error) {
+      if (mounted) _showSnack(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _publish(CommunityPostModel post, AdminProvider admin) async {
+    final authorId = admin.currentAdminUid;
+    if (authorId == null) return;
+    setState(() => _submitting = true);
+    try {
+      await _service.publishPost(postId: post.id, authorId: authorId);
+      if (mounted) {
+        _showSnack('Published to residents. Notifications will be sent.');
+      }
+    } catch (error) {
+      if (mounted) _showSnack(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _deletePost(CommunityPostModel post, AdminProvider admin) async {
+    final adminId = admin.currentAdminUid;
+    if (adminId == null) return;
+    if (_submitting) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(post.isPublished ? 'Remove published post?' : 'Delete draft?'),
+          content: Text(
+            post.isPublished
+                ? 'Residents will no longer see "${post.title}" in their home feed. This cannot be undone.'
+                : 'Delete "${post.title}" from your publishing queue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _submitting = true);
+    try {
+      await _service.deletePost(
+        postId: post.id,
+        adminId: adminId,
+        communityId: admin.communityId,
+      );
+      if (mounted) {
+        _showSnack(
+          post.isPublished ? 'Post removed from residents.' : 'Draft deleted.',
+        );
+      }
+    } catch (error) {
+      if (mounted) _showSnack(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
+    final communityId = admin.communityId.trim();
     final community = admin.communityName.isNotEmpty
         ? admin.communityName
         : 'Current community';
@@ -56,552 +184,258 @@ class AdminNewsScreen extends StatelessWidget {
         AdminControlBar(
           title: 'News & announcements',
           subtitle:
-              'Create residence news, event posts, and maintenance notices for residents.',
+              'Create news, announcements, warnings, events, and maintenance notices for residents.',
           controls: [
             FilledButton.icon(
-              onPressed: () {},
+              onPressed: _submitting ? null : () => _createDraft(admin),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New post'),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.schedule_rounded),
-              label: const Text('Schedule'),
+              label: const Text('Save draft'),
             ),
           ],
         ),
         const SizedBox(height: 18),
         const AdminCommunityScopeBanner(),
         const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = JiraniResponsive.isAdminWide(constraints.maxWidth);
-            if (!wide) {
-              return Column(
-                children: [
-                  _ComposerPanel(community: community),
-                  const SizedBox(height: 18),
-                  const _InsightsGrid(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 5, child: _ComposerPanel(community: community)),
-                const SizedBox(width: 18),
-                const Expanded(flex: 4, child: _InsightsGrid()),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 18),
         AdminPanel(
-          title: 'Publishing queue',
-          action: '${_posts.length} posts',
-          padding: const EdgeInsets.all(16),
+          title: 'Compose resident update',
+          padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var index = 0; index < _posts.length; index++) ...[
-                _NewsQueueCard(post: _posts[index]),
-                if (index != _posts.length - 1) const SizedBox(height: 12),
+              Text(
+                'Publishing to $community',
+                style: const TextStyle(color: AdminColors.muted),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _postType,
+                decoration: const InputDecoration(labelText: 'Post type'),
+                items: const [
+                  DropdownMenuItem(
+                    value: AppConstants.communityPostTypeNews,
+                    child: Text('News'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppConstants.communityPostTypeAnnouncement,
+                    child: Text('Announcement'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppConstants.communityPostTypeWarning,
+                    child: Text('Warning'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppConstants.communityPostTypeEvent,
+                    child: Text('Event'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppConstants.communityPostTypeMaintenance,
+                    child: Text('Maintenance'),
+                  ),
+                ],
+                onChanged: _submitting
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() => _postType = value);
+                      },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _titleController,
+                enabled: !_submitting,
+                decoration: const InputDecoration(labelText: 'Post title'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bodyController,
+                enabled: !_submitting,
+                minLines: 4,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  labelText: 'Resident message',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _submitting ? null : _pickCoverImage,
+                    icon: const Icon(Icons.image_outlined),
+                    label: const Text('Add cover photo'),
+                  ),
+                  if (_coverImagePath != null) ...[
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: _submitting ? null : _removeCoverImage,
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ],
+              ),
+              if (_coverImagePath != null) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(_coverImagePath!),
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ],
             ],
           ),
         ),
+        const SizedBox(height: 18),
+        if (communityId.isEmpty)
+          const AdminPanel(
+            title: 'Publishing queue',
+            padding: EdgeInsets.all(20),
+            child: Text('Configure a community scope to manage posts.'),
+          )
+        else
+          StreamBuilder<List<CommunityPostModel>>(
+            stream: _service.watchCommunityPosts(communityId: communityId),
+            builder: (context, snapshot) {
+              final posts = snapshot.data ?? const <CommunityPostModel>[];
+              return AdminPanel(
+                title: 'Publishing queue',
+                action: '${posts.length} posts',
+                padding: const EdgeInsets.all(16),
+                child: posts.isEmpty
+                    ? const Text(
+                        'No posts yet. Save a draft, then publish it.',
+                        style: TextStyle(color: AdminColors.muted),
+                      )
+                    : Column(
+                        children: [
+                          for (var index = 0; index < posts.length; index++) ...[
+                            _NewsQueueCard(
+                              post: posts[index],
+                              onPublish: posts[index].isDraft && !_submitting
+                                  ? () => _publish(posts[index], admin)
+                                  : null,
+                              onDelete: !_submitting
+                                  ? () => _deletePost(posts[index], admin)
+                                  : null,
+                            ),
+                            if (index != posts.length - 1)
+                              const SizedBox(height: 12),
+                          ],
+                        ],
+                      ),
+              );
+            },
+          ),
       ],
     );
   }
 }
 
-class _ComposerPanel extends StatelessWidget {
-  const _ComposerPanel({required this.community});
+class _NewsQueueCard extends StatelessWidget {
+  const _NewsQueueCard({
+    required this.post,
+    this.onPublish,
+    this.onDelete,
+  });
 
-  final String community;
+  final CommunityPostModel post;
+  final VoidCallback? onPublish;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final date = DateFormat('MMM d').format(post.publishedAt ?? post.updatedAt);
+    final status = post.isPublished ? 'Published' : 'Draft';
+
     return Container(
-      decoration: _adminElevatedDecoration(),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AdminColors.border),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: AdminColors.primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(14),
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: post.imageUrl!,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: post.accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(post.icon, color: post.accentColor),
                   ),
-                  child: const Icon(
-                    Icons.campaign_outlined,
-                    color: AdminColors.primary,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Compose resident update',
-                        style: TextStyle(
+                        post.title,
+                        style: const TextStyle(
                           color: AdminColors.ink,
-                          fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          height: 1.15,
                         ),
                       ),
-                      SizedBox(height: 5),
                       Text(
-                        'Draft news once, then publish it to the resident carousel and notification center.',
-                        style: TextStyle(color: AdminColors.muted, height: 1.4),
+                        '$status · $date · ${post.displayCategory}',
+                        style: const TextStyle(color: AdminColors.muted),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _ScopeChip(
-                  icon: Icons.apartment_rounded,
-                  label: community,
-                  color: AdminColors.primary,
-                ),
-                const _ScopeChip(
-                  icon: Icons.visibility_outlined,
-                  label: 'Residents preview',
-                  color: AdminColors.accent,
-                ),
-                const _ScopeChip(
-                  icon: Icons.notifications_active_outlined,
-                  label: 'Push-ready',
-                  color: AdminColors.success,
-                ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            const _FieldPreview(
-              label: 'Post title',
-              value: 'Water supply interruption notice',
-            ),
-            const SizedBox(height: 12),
-            const _FieldPreview(
-              label: 'Resident message',
-              value:
-                  'Water supply may be temporarily interrupted from 9:00 AM to 12:00 PM while maintenance work is carried out.',
-              tall: true,
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.remove_red_eye_outlined),
-                    label: const Text('Preview'),
+                if (onPublish != null || onDelete != null)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (onPublish != null)
+                        FilledButton(
+                          onPressed: onPublish,
+                          child: const Text('Publish'),
+                        ),
+                      if (onDelete != null)
+                        TextButton.icon(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          label: const Text('Remove'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AdminColors.accent,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Publish'),
-                  ),
-                ),
               ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              post.body,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AdminColors.ink, height: 1.4),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-class _InsightsGrid extends StatelessWidget {
-  const _InsightsGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return AdminResponsiveGrid(
-      minTileWidth: 180,
-      mainAxisExtent: 132,
-      children: const [
-        _NewsMetricCard(
-          label: 'Published',
-          value: '12',
-          icon: Icons.check_circle_outline_rounded,
-          color: AdminColors.success,
-        ),
-        _NewsMetricCard(
-          label: 'Drafts',
-          value: '4',
-          icon: Icons.edit_note_rounded,
-          color: AdminColors.primary,
-        ),
-        _NewsMetricCard(
-          label: 'Scheduled',
-          value: '3',
-          icon: Icons.schedule_rounded,
-          color: AdminColors.warning,
-        ),
-        _NewsMetricCard(
-          label: 'Residents reached',
-          value: '86%',
-          icon: Icons.trending_up_rounded,
-          color: AdminColors.accent,
-        ),
-      ],
-    );
-  }
-}
-
-class _NewsMetricCard extends StatelessWidget {
-  const _NewsMetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _adminElevatedDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 21),
-              ),
-              const Spacer(),
-              Icon(
-                Icons.arrow_outward_rounded,
-                color: color.withValues(alpha: 0.55),
-                size: 18,
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AdminColors.ink,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AdminColors.muted,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NewsQueueCard extends StatelessWidget {
-  const _NewsQueueCard({required this.post});
-
-  final _NewsPost post;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AdminColors.background,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AdminColors.border),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: post.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(post.icon, color: post.color, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          post.title,
-                          style: const TextStyle(
-                            color: AdminColors.ink,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        _StatusPill(label: post.status, color: post.color),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      post.body,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AdminColors.muted,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _MetaChip(
-                          icon: Icons.category_outlined,
-                          label: post.category,
-                        ),
-                        _MetaChip(
-                          icon: Icons.calendar_month_outlined,
-                          label: post.date,
-                        ),
-                        _MetaChip(
-                          icon: Icons.people_alt_outlined,
-                          label: post.audience,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                tooltip: 'Open post',
-                onPressed: () {},
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FieldPreview extends StatelessWidget {
-  const _FieldPreview({
-    required this.label,
-    required this.value,
-    this.tall = false,
-  });
-
-  final String label;
-  final String value;
-  final bool tall;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(14, 12, 14, tall ? 22 : 12),
-      decoration: BoxDecoration(
-        color: AdminColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AdminColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AdminColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AdminColors.ink,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScopeChip extends StatelessWidget {
-  const _ScopeChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Chip(icon: icon, label: label, color: color);
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Chip(icon: icon, label: label, color: AdminColors.muted);
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label, required this.color});
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-BoxDecoration _adminElevatedDecoration() {
-  return BoxDecoration(
-    color: AdminColors.surface,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: AdminColors.border),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.08),
-        blurRadius: 24,
-        spreadRadius: -10,
-        offset: const Offset(0, 14),
-      ),
-    ],
-  );
-}
-
-class _NewsPost {
-  const _NewsPost({
-    required this.title,
-    required this.category,
-    required this.status,
-    required this.date,
-    required this.audience,
-    required this.body,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String category;
-  final String status;
-  final String date;
-  final String audience;
-  final String body;
-  final IconData icon;
-  final Color color;
 }

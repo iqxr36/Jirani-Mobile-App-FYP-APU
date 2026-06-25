@@ -41,6 +41,7 @@ class AppConstants {
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
   static const String storageBorrowRequestProofsPath = 'borrow_request_proofs';
   static const String storageChatAttachmentsPath = 'chat_attachments';
+  static const String storageCommunityPostImagesPath = 'community_post_images';
 
   // Marketplace item categories
   static const String itemCategoryTools = 'tools';
@@ -91,7 +92,36 @@ class AppConstants {
   static const String adminStatusRejected = 'rejected';
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
+  static const String communityPostsCollection = 'communityPosts';
   static const String activityLogsCollection = 'activityLogs';
+
+  // Notification types
+  static const String notificationTypeChatMessage = 'chatMessage';
+  static const String notificationTypeAdminWarning = 'adminWarning';
+  static const String notificationTypeConnectionRequest = 'connectionRequest';
+  static const String notificationTypeConnectionAccepted =
+      'connectionAccepted';
+  static const String notificationTypeBorrowRequest = 'borrowRequest';
+  static const String notificationTypeBorrowApproved = 'borrowApproved';
+  static const String notificationTypeBorrowRejected = 'borrowRejected';
+  static const String notificationTypeServiceRequest = 'serviceRequest';
+  static const String notificationTypeServiceAccepted = 'serviceAccepted';
+  static const String notificationTypeServiceRejected = 'serviceRejected';
+  static const String notificationTypeCommunityNews = 'communityNews';
+  static const String notificationTypeCommunityEvent = 'communityEvent';
+  static const String notificationTypeMaintenanceNotice = 'maintenanceNotice';
+  static const String notificationTypeCommunityAnnouncement =
+      'communityAnnouncement';
+  static const String notificationTypeCommunityWarning = 'communityWarning';
+
+  // Community post types and statuses
+  static const String communityPostTypeNews = 'news';
+  static const String communityPostTypeAnnouncement = 'announcement';
+  static const String communityPostTypeWarning = 'warning';
+  static const String communityPostTypeEvent = 'event';
+  static const String communityPostTypeMaintenance = 'maintenance';
+  static const String communityPostStatusDraft = 'draft';
+  static const String communityPostStatusPublished = 'published';
 
   // Chat message types
   static const String chatMessageText = 'text';
@@ -174,6 +204,21 @@ class AppConstants {
   static const String reportStatusUnderReview = 'underReview';
   static const String reportStatusResolved = 'resolved';
   static const String reportStatusDismissed = 'dismissed';
+
+  // Chat report categories
+  static const String chatReportCategoryHarassment = 'harassment';
+  static const String chatReportCategoryScam = 'scam';
+  static const String chatReportCategoryThreat = 'threat';
+  static const String chatReportCategorySpam = 'spam';
+  static const String chatReportCategoryOther = 'other';
+
+  static const List<String> chatReportCategories = [
+    chatReportCategoryHarassment,
+    chatReportCategoryScam,
+    chatReportCategoryThreat,
+    chatReportCategorySpam,
+    chatReportCategoryOther,
+  ];
 
   // Services catalog (Phase 6)
   static const String serviceCategoryCleaning = 'cleaning';

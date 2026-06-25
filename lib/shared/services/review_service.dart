@@ -327,6 +327,7 @@ class ReviewService {
       title: 'Low Community Trust Score',
       description:
           '${_displayName(reported)} has a Community Trust Score of ${trustScore.toStringAsFixed(2)} from $totalReviews published reviews.',
+      reporterNameOverride: 'Automated',
     );
   }
 
@@ -339,6 +340,7 @@ class ReviewService {
     required String reportedUserName,
     required String title,
     required String description,
+    String? reporterNameOverride,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
@@ -354,7 +356,7 @@ class ReviewService {
         'relatedBorrowRequestId': relatedBorrowRequestId,
         'itemId': itemId,
         'reporterId': uid,
-        'reporterName': _displayName(reporter),
+        'reporterName': reporterNameOverride ?? _displayName(reporter),
         'reportedUserId': reportedUserId,
         'reportedUserName': reportedUserName,
         'communityId': (reporter['communityId'] as String?) ?? '',

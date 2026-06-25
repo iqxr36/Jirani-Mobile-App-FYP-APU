@@ -12,23 +12,29 @@ import 'package:jirani/resident/logic/chat_access.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
+import 'package:jirani/shared/models/pinned_chat_message.dart';
+import 'package:jirani/shared/models/reported_chat_message_snapshot.dart';
+import 'package:jirani/shared/utils/chat_report_formatters.dart';
+import 'package:jirani/shared/services/notification_service.dart';
 
 class ChatService {
-  ChatService({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _firestore = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  ChatService({
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+    NotificationService? notificationService,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance,
+       _notificationService = notificationService ?? NotificationService();
 
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+  final NotificationService _notificationService;
 
   CollectionReference<Map<String, dynamic>> get _chats =>
       _firestore.collection(AppConstants.chatsCollection);
 
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection(AppConstants.reportsCollection);
-
-  CollectionReference<Map<String, dynamic>> get _notifications =>
-      _firestore.collection(AppConstants.notificationsCollection);
 
   Stream<List<ChatModel>> watchChats(AppUser currentUser) {
     final currentUserId = currentUser.uid;
@@ -66,7 +72,10 @@ class ChatService {
         });
   }
 
-  Stream<List<ChatMessageModel>> watchMessages(String chatId) {
+  Stream<List<ChatMessageModel>> watchMessages(
+    String chatId,
+    String currentUserId,
+  ) {
     return _chats
         .doc(chatId)
         .collection(AppConstants.messagesCollection)
@@ -75,6 +84,7 @@ class ChatService {
         .map((snapshot) {
           return snapshot.docs
               .map((doc) => ChatMessageModel.fromMap(doc.id, doc.data()))
+              .where((message) => !message.isDeletedFor(currentUserId))
               .toList(growable: false);
         });
   }
@@ -189,6 +199,7 @@ class ChatService {
     required ChatModel chat,
     required AppUser sender,
     required String text,
+    ChatMessageModel? replyTo,
   }) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty) return;
@@ -197,6 +208,7 @@ class ChatService {
       sender: sender,
       type: AppConstants.chatMessageText,
       text: cleanText,
+      replyTo: _replyFromMessage(chat: chat, message: replyTo),
     );
   }
 
@@ -208,6 +220,7 @@ class ChatService {
     required String fileName,
     required String type,
     required int fileSize,
+    ChatMessageModel? replyTo,
   }) async {
     if (bytes == null && (localFilePath == null || localFilePath.isEmpty)) {
       throw Exception('Attachment file data is missing.');
@@ -314,7 +327,75 @@ class ChatService {
       mimeType: mimeType ?? '',
       fileSize: fileSize,
       messageId: messageDoc.id,
+      replyTo: _replyFromMessage(chat: chat, message: replyTo),
     );
+  }
+
+  Future<void> pinMessage({
+    required ChatModel chat,
+    required AppUser user,
+    required ChatMessageModel message,
+  }) {
+    validateChatAccess(chat: chat, sender: user);
+    final pinned = PinnedChatMessage.fromMessage(
+      message,
+      senderName: chat.participantName(message.senderId),
+    );
+    return _chats.doc(chat.id).update({
+      'pinnedMessage': pinned.toMap(),
+      'pinnedBy': user.uid,
+      'pinnedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> unpinMessage({
+    required ChatModel chat,
+    required AppUser user,
+  }) {
+    validateChatAccess(chat: chat, sender: user);
+    return _chats.doc(chat.id).update({
+      'pinnedMessage': FieldValue.delete(),
+      'pinnedBy': FieldValue.delete(),
+      'pinnedAt': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteMessageForUser({
+    required ChatModel chat,
+    required String messageId,
+    required String userId,
+  }) async {
+    if (!chat.participantIds.contains(userId)) {
+      throw Exception('You are not a participant in this chat.');
+    }
+
+    final messageRef = _chats
+        .doc(chat.id)
+        .collection(AppConstants.messagesCollection)
+        .doc(messageId);
+
+    try {
+      final snapshot = await messageRef.get();
+      if (!snapshot.exists) {
+        throw Exception('Message not found.');
+      }
+
+      final existing = _stringListFrom(snapshot.data()?['deletedFor']);
+      if (existing.contains(userId)) return;
+
+      await messageRef.update({
+        'deletedFor': <String>[...existing, userId],
+      });
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Unable to delete this message. Please try again later.',
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<void> markChatRead({
@@ -422,17 +503,54 @@ class ChatService {
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,
-    required String reason,
+    required String category,
+    required String note,
+    List<ChatMessageModel> reportedMessages = const [],
+    bool reportEntireConversation = false,
   }) {
     final reportedUserId = chat.otherParticipantId(reporter.uid);
+    final reportedUserName = chat.participantName(reportedUserId);
+    final snapshots = reportedMessages
+        .map(
+          (message) => ReportedChatMessageSnapshot.fromMessage(
+            message,
+            senderName: chat.participantName(message.senderId),
+          ),
+        )
+        .toList(growable: false);
+    final title = reportEntireConversation || snapshots.isEmpty
+        ? 'Chat conversation reported'
+        : 'Chat message reported';
+    final description = buildChatReportDescription(
+      category: category,
+      note: note,
+      reportedMessages: snapshots,
+    );
+    final evidenceImageUrl = snapshots
+        .where(
+          (message) =>
+              message.type == AppConstants.chatMessageImage &&
+              message.mediaUrl.trim().isNotEmpty,
+        )
+        .map((message) => message.mediaUrl.trim())
+        .firstOrNull;
     final now = FieldValue.serverTimestamp();
     return _reports.add({
       'type': AppConstants.reportTypeUserMisconduct,
       'status': AppConstants.reportStatusOpen,
+      'title': title,
+      'description': description,
       'reporterId': reporter.uid,
+      'reporterName': reporter.fullName,
       'reportedUserId': reportedUserId,
+      'reportedUserName': reportedUserName,
       'chatId': chat.id,
-      'reason': reason.trim().isEmpty ? 'Chat reported by resident.' : reason,
+      'reportCategory': category,
+      'reportedMessageIds': snapshots.map((message) => message.messageId).toList(),
+      'reportedMessages': snapshots.map((message) => message.toMap()).toList(),
+      'relatedBorrowRequestId': '',
+      'itemId': '',
+      if (evidenceImageUrl != null) 'evidenceImageUrl': evidenceImageUrl,
       'communityId': reporter.communityId,
       'communityName': reporter.communityName,
       'createdAt': now,
@@ -451,6 +569,7 @@ class ChatService {
     String mimeType = '',
     int fileSize = 0,
     String? messageId,
+    ChatMessageReply? replyTo,
   }) async {
     validateChatAccess(chat: chat, sender: sender);
 
@@ -497,6 +616,8 @@ class ChatService {
       'fileSize': fileSize,
       'createdAt': now,
       'readBy': <String>[sender.uid],
+      'deletedFor': <String>[],
+      ..._replyFields(replyTo),
     });
 
     batch.update(chatRef, {
@@ -542,16 +663,13 @@ class ChatService {
     required String recipientId,
     required String body,
   }) {
-    return _notifications.add({
-      'userId': recipientId,
-      'type': 'chatMessage',
-      'title': _displayName(sender),
-      'body': body,
-      'chatId': chat.id,
-      'senderId': sender.uid,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    return _notificationService.createChatMessageNotification(
+      recipientId: recipientId,
+      senderId: sender.uid,
+      senderName: _displayName(sender),
+      chatId: chat.id,
+      preview: body,
+    );
   }
 
   String _previewText({required String type, required String text}) {
@@ -578,5 +696,37 @@ class ChatService {
 
   String _displayName(AppUser user) {
     return user.fullName.trim().isNotEmpty ? user.fullName.trim() : 'Resident';
+  }
+
+  ChatMessageReply? _replyFromMessage({
+    required ChatModel chat,
+    required ChatMessageModel? message,
+  }) {
+    if (message == null) return null;
+    return ChatMessageReply(
+      messageId: message.id,
+      senderId: message.senderId,
+      senderName: chat.participantName(message.senderId),
+      type: message.type,
+      text: message.previewText,
+    );
+  }
+
+  Map<String, String> _replyFields(ChatMessageReply? replyTo) {
+    if (replyTo == null) return const {};
+    return {
+      'replyToMessageId': replyTo.messageId,
+      'replyToSenderId': replyTo.senderId,
+      'replyToSenderName': replyTo.senderName,
+      'replyToType': replyTo.type,
+      'replyToText': replyTo.text,
+    };
+  }
+
+  List<String> _stringListFrom(dynamic value) {
+    if (value is List) {
+      return value.whereType<String>().toList(growable: false);
+    }
+    return const [];
   }
 }

@@ -12,6 +12,7 @@ import 'package:jirani/resident/screens/profile/resident_edit_profile_view.dart'
 import 'package:jirani/resident/screens/profile/resident_reviews_view.dart';
 import 'package:jirani/resident/screens/profile/resident_settings_view.dart';
 import 'package:jirani/resident/screens/verification/verification_process_view.dart';
+import 'package:jirani/shared/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -29,9 +30,46 @@ class ResidentProfileView extends StatefulWidget {
 
 class _ResidentProfileViewState extends State<ResidentProfileView> {
   final _imagePicker = ImagePicker();
+  final _permissionRepository = VerificationPermissionRepository();
   bool _pushNotifications = true;
   bool _locationAlerts = true;
   bool _profileImageSaving = false;
+  bool _loadedNotificationPreference = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadedNotificationPreference) return;
+    _loadedNotificationPreference = true;
+    _loadNotificationPreference();
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final user = context.read<AuthViewModel>().currentUser;
+    if (user == null) return;
+    final snap = await FirebaseFirestore.instance
+        .collection(AppConstants.usersCollection)
+        .doc(user.uid)
+        .get();
+    final enabled = snap.data()?['notificationEnabled'];
+    if (!mounted) return;
+    if (enabled is bool) {
+      setState(() => _pushNotifications = enabled);
+    }
+  }
+
+  Future<void> _setPushNotifications(bool value) async {
+    setState(() => _pushNotifications = value);
+    try {
+      await _permissionRepository.updateNotificationEnabled(enabled: value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _pushNotifications = !value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update notification settings.')),
+      );
+    }
+  }
 
   void _openVerificationProcess() {
     Navigator.of(context).push<void>(
@@ -77,8 +115,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
               pushNotifications: _pushNotifications,
               locationAlerts: _locationAlerts,
               onDarkThemeChanged: themeProvider.setDarkMode,
-              onPushNotificationsChanged: (value) =>
-                  setState(() => _pushNotifications = value),
+              onPushNotificationsChanged: _setPushNotifications,
               onLocationAlertsChanged: (value) =>
                   setState(() => _locationAlerts = value),
               onPrivacy: () => _showUnavailable('Privacy'),

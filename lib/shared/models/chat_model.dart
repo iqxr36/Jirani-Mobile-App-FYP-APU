@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/models/pinned_chat_message.dart';
 
 class ChatModel {
   const ChatModel({
@@ -17,6 +18,8 @@ class ChatModel {
     required this.deletedFor,
     required this.createdAt,
     required this.updatedAt,
+    this.pinnedMessage,
+    this.pinnedBy = '',
   });
 
   final String id;
@@ -33,6 +36,8 @@ class ChatModel {
   final List<String> deletedFor;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final PinnedChatMessage? pinnedMessage;
+  final String pinnedBy;
 
   String otherParticipantId(String currentUserId) {
     return participantIds.firstWhere(
@@ -58,6 +63,10 @@ class ChatModel {
   bool isDeletedFor(String userId) => deletedFor.contains(userId);
 
   factory ChatModel.fromMap(String id, Map<String, dynamic> data) {
+    final pinnedRaw = data['pinnedMessage'];
+    final pinnedMessage = pinnedRaw is Map
+        ? PinnedChatMessage.fromMap(Map<String, dynamic>.from(pinnedRaw))
+        : null;
     return ChatModel(
       id: id,
       participantIds: _toStringList(data['participantIds']),
@@ -74,6 +83,11 @@ class ChatModel {
       deletedFor: _toStringList(data['deletedFor']),
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
+      pinnedMessage:
+          pinnedMessage != null && pinnedMessage.messageId.trim().isNotEmpty
+          ? pinnedMessage
+          : null,
+      pinnedBy: (data['pinnedBy'] as String?) ?? '',
     );
   }
 

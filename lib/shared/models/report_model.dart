@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:jirani/shared/models/reported_chat_message_snapshot.dart';
 
 class ReportModel {
   const ReportModel({
@@ -16,6 +17,9 @@ class ReportModel {
     required this.depositAmount,
     required this.minorDeductionAmount,
     required this.status,
+    required this.chatId,
+    required this.reportCategory,
+    required this.reportedMessages,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -34,10 +38,19 @@ class ReportModel {
   final double? depositAmount;
   final double? minorDeductionAmount;
   final String status;
+  final String chatId;
+  final String reportCategory;
+  final List<ReportedChatMessageSnapshot> reportedMessages;
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  bool get isChatReport => chatId.trim().isNotEmpty;
+
   factory ReportModel.fromMap(String id, Map<String, dynamic> data) {
+    final description = _firstNonEmpty([
+      data['description'] as String?,
+      data['reason'] as String?,
+    ]);
     return ReportModel(
       id: id,
       type: (data['type'] as String?) ?? '',
@@ -48,14 +61,37 @@ class ReportModel {
       reportedUserId: (data['reportedUserId'] as String?) ?? '',
       reportedUserName: (data['reportedUserName'] as String?) ?? '',
       title: (data['title'] as String?) ?? '',
-      description: (data['description'] as String?) ?? '',
+      description: description,
       evidenceImageUrl: (data['evidenceImageUrl'] as String?) ?? '',
       depositAmount: _toDouble(data['depositAmount']),
       minorDeductionAmount: _toDouble(data['minorDeductionAmount']),
       status: (data['status'] as String?) ?? '',
+      chatId: (data['chatId'] as String?) ?? '',
+      reportCategory: (data['reportCategory'] as String?) ?? '',
+      reportedMessages: _parseReportedMessages(data['reportedMessages']),
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
     );
+  }
+
+  static String _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      final text = value?.trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
+  static List<ReportedChatMessageSnapshot> _parseReportedMessages(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map(
+          (entry) => ReportedChatMessageSnapshot.fromMap(
+            Map<String, dynamic>.from(entry),
+          ),
+        )
+        .toList(growable: false);
   }
 
   static double? _toDouble(dynamic value) {
