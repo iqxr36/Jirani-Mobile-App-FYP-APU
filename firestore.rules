@@ -825,6 +825,7 @@ service cloud.firestore {
         'lastName',
         'fullName',
         'email',
+        'pendingEmail',
         'phoneNumber',
         'phoneVerified',
         'emailVerified',

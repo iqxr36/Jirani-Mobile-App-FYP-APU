@@ -9,6 +9,7 @@ class AppUser {
     required this.email,
     required this.phoneNumber,
     required this.emailVerified,
+    this.pendingEmail = '',
     required this.phoneVerified,
     required this.role,
     required this.verificationStatus,
@@ -35,6 +36,7 @@ class AppUser {
   final String firstName;
   final String lastName;
   final String email;
+  final String pendingEmail;
   final String phoneNumber;
   final bool emailVerified;
   final bool phoneVerified;
@@ -66,11 +68,18 @@ class AppUser {
   bool get isAdmin => isCommunityAdmin || isSystemAdmin;
   String get fullName => '$firstName $lastName'.trim();
 
+  bool get hasPendingEmailChange {
+    final pending = pendingEmail.trim();
+    return pending.isNotEmpty &&
+        pending.toLowerCase() != email.trim().toLowerCase();
+  }
+
   AppUser copyWith({
     String? uid,
     String? firstName,
     String? lastName,
     String? email,
+    String? pendingEmail,
     String? phoneNumber,
     bool? emailVerified,
     bool? phoneVerified,
@@ -99,6 +108,7 @@ class AppUser {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       email: email ?? this.email,
+      pendingEmail: pendingEmail ?? this.pendingEmail,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       emailVerified: emailVerified ?? this.emailVerified,
       phoneVerified: phoneVerified ?? this.phoneVerified,
@@ -169,6 +179,7 @@ class AppUser {
       firstName: names.$1,
       lastName: names.$2,
       email: (map['email'] as String?) ?? '',
+      pendingEmail: (map['pendingEmail'] as String?) ?? '',
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
       emailVerified: map['emailVerified'] as bool? ?? false,
       phoneVerified: map['phoneVerified'] as bool? ?? false,

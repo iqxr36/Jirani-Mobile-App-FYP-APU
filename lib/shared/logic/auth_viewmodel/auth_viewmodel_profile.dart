@@ -84,8 +84,14 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
 
     try {
       final trimmedEmail = email.trim();
-      final previousEmail = _currentUser?.email.trim() ?? '';
-      if (trimmedEmail.toLowerCase() != previousEmail.toLowerCase()) {
+      final authEmail =
+          (_firebaseUser?.email ?? _repository.currentFirebaseUser?.email ?? '')
+              .trim();
+      final storedEmail = _currentUser?.email.trim() ?? '';
+      final previousEmail = authEmail.isNotEmpty ? authEmail : storedEmail;
+      final emailChangeRequested =
+          trimmedEmail.toLowerCase() != previousEmail.toLowerCase();
+      if (emailChangeRequested) {
         await _repository.updateResidentEmail(trimmedEmail);
       }
       final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);

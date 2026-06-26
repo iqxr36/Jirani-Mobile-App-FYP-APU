@@ -249,107 +249,122 @@ AppUser _borrowerFromRequest({
   return (parts.first, parts.skip(1).join(' '));
 }
 
-Future<String?> _showRejectReasonSheet(BuildContext context) async {
-  final controller = TextEditingController();
-  String? errorText;
-  try {
-    return await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: context.residentOutline(),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Reject Request',
-                      style: TextStyle(
-                        color: context.appInk,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Add a short reason so the borrower understands your decision.',
-                      style: TextStyle(
-                        color: context.appMuted,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      minLines: 3,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.done,
-                      decoration: context.residentInputDecoration(
-                        label: 'Reason',
-                        hint: 'Example: Item is unavailable that day',
-                      ).copyWith(errorText: errorText),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _SecondaryButton(
-                            label: 'Cancel',
-                            icon: Icons.close_rounded,
-                            onTap: () => Navigator.of(context).pop(),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _DangerButton(
-                            label: 'Reject',
-                            icon: Icons.block_rounded,
-                            onTap: () {
-                              final reason = controller.text.trim();
-                              if (reason.isEmpty) {
-                                setSheetState(() {
-                                  errorText = 'Reason is required.';
-                                });
-                                return;
-                              }
-                              Navigator.of(context).pop(reason);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+Future<String?> _showRejectReasonSheet(BuildContext context) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) => const _RejectReasonSheet(),
+  );
+}
+
+class _RejectReasonSheet extends StatefulWidget {
+  const _RejectReasonSheet();
+
+  @override
+  State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
+}
+
+class _RejectReasonSheetState extends State<_RejectReasonSheet> {
+  final TextEditingController _controller = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _controller.text.trim();
+    if (reason.isEmpty) {
+      setState(() => _errorText = 'Reason is required.');
+      return;
+    }
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.residentOutline(),
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
-            );
-          },
-        );
-      },
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Reject Request',
+              style: TextStyle(
+                color: context.appInk,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Add a short reason so the borrower understands your decision.',
+              style: TextStyle(
+                color: context.appMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _controller,
+              minLines: 3,
+              maxLines: 4,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              decoration: context
+                  .residentInputDecoration(
+                    label: 'Reason',
+                    hint: 'Example: Item is unavailable that day',
+                  )
+                  .copyWith(errorText: _errorText),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _SecondaryButton(
+                    label: 'Cancel',
+                    icon: Icons.close_rounded,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DangerButton(
+                    label: 'Reject',
+                    icon: Icons.block_rounded,
+                    onTap: _submit,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
-  } finally {
-    controller.dispose();
   }
 }
 

@@ -82,7 +82,11 @@ class _ResidentEditProfileViewState extends State<ResidentEditProfileView> {
   Future<void> _saveProfile() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final auth = context.read<AuthViewModel>();
-    final previousEmail = auth.currentUser?.email.trim().toLowerCase() ?? '';
+    final authEmail =
+        (auth.firebaseUser?.email ?? auth.currentUser?.email ?? '').trim();
+    final previousEmail = authEmail.isNotEmpty
+        ? authEmail.toLowerCase()
+        : (auth.currentUser?.email.trim().toLowerCase() ?? '');
     final nextEmail = _emailController.text.trim().toLowerCase();
     final emailChanged = nextEmail.isNotEmpty && nextEmail != previousEmail;
     final success = await auth.updateResidentProfileBasics(
@@ -92,14 +96,36 @@ class _ResidentEditProfileViewState extends State<ResidentEditProfileView> {
       phoneNumber: _phoneController.text,
     );
     if (!mounted) return;
-    _showSnack(
-      success
-          ? emailChanged
-                ? 'Profile updated. Check your new email to confirm the change.'
-                : 'Profile updated.'
-          : auth.errorMessage ?? 'Could not update profile.',
-    );
-    if (success) Navigator.of(context).pop();
+    if (!success) {
+      _showSnack(auth.errorMessage ?? 'Could not update profile.');
+      return;
+    }
+    if (emailChanged) {
+      final pendingEmail = _emailController.text.trim();
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Confirm your new email'),
+            content: Text(
+              'We sent a confirmation link to $pendingEmail. '
+              'Open that email and tap the link. Your profile will keep showing '
+              'your current address until you confirm.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Got it'),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted) return;
+    } else {
+      _showSnack('Profile updated.');
+    }
+    Navigator.of(context).pop();
   }
 
   Future<void> _sendPasswordReset(AppUser user) async {
@@ -203,6 +229,18 @@ class _ResidentEditProfileViewState extends State<ResidentEditProfileView> {
                                       hint: 'name@example.com',
                                     ),
                                     validator: Validators.validateEmail,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    user.hasPendingEmailChange
+                                        ? 'Waiting for confirmation at ${user.pendingEmail}.'
+                                        : 'Changing email sends a confirmation link to the new address.',
+                                    style: TextStyle(
+                                      color: context.appMuted,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.35,
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(

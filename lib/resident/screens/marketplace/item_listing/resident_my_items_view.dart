@@ -348,14 +348,19 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
   ) async {
     final reason = await _showRejectReasonSheet(context);
     if (reason == null || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<BorrowRequestProvider>();
     await provider.rejectBorrowRequest(
       requestId: request.id,
       ownerId: user.uid,
       rejectionReason: reason,
     );
-    if (!context.mounted) return;
-    _showSnack(context, provider.errorMessage ?? 'Request rejected.');
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(provider.errorMessage ?? 'Request rejected.'),
+      ),
+    );
   }
 }
 class _EmptyMyItemsCard extends StatelessWidget {
@@ -681,121 +686,129 @@ class _IncomingRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(22),
-        child: _GlassPanel(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _RequestBorrowerAvatar(request: request, radius: 22),
-                  const SizedBox(width: 10),
-                  Expanded(child: _BorrowerSummary(request: request)),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _StatusPill(
-                        label: _requestStatusLabel(request),
-                        tone: _requestStatusTone(request),
-                      ),
-                      const SizedBox(height: 8),
-                      _TinyTextButton(
-                        label: 'Profile',
-                        icon: Icons.person_search_rounded,
-                        onTap: onViewBorrowerProfile,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _RequestItemThumb(request: request, size: 74),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+    return _GlassPanel(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: onOpen,
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          request.itemTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.appInk,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _requestDateRange(request),
-                          style: TextStyle(
-                            color: context.appMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (request.pickupTime.trim().isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Pickup: ${request.pickupTime.trim()}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.appMuted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                        _RequestBorrowerAvatar(request: request, radius: 22),
+                        const SizedBox(width: 10),
+                        Expanded(child: _BorrowerSummary(request: request)),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            _StatusPill(
+                              label: _requestStatusLabel(request),
+                              tone: _requestStatusTone(request),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            _TinyTextButton(
+                              label: 'Profile',
+                              icon: Icons.person_search_rounded,
+                              onTap: onViewBorrowerProfile,
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _RequestMoneyRow(request: request),
-              if (_requestIsPending(request)) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DangerButton(
-                        label: 'Reject',
-                        icon: Icons.close_rounded,
-                        onTap: onReject,
-                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _RequestItemThumb(request: request, size: 74),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                request.itemTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: context.appInk,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _requestDateRange(request),
+                                style: TextStyle(
+                                  color: context.appMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (request.pickupTime.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Pickup: ${request.pickupTime.trim()}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: context.appMuted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Consumer<BorrowRequestProvider>(
-                        builder: (context, provider, _) {
-                          return _PrimaryButton(
-                            label: provider.isLoading
-                                ? 'Approving...'
-                                : 'Approve',
-                            icon: Icons.check_rounded,
-                            onTap: provider.isLoading ? null : onApprove,
-                          );
-                        },
-                      ),
-                    ),
+                    const SizedBox(height: 12),
+                    _RequestMoneyRow(request: request),
                   ],
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
-        ),
+          if (_requestIsPending(request)) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _DangerButton(
+                    label: 'Reject',
+                    icon: Icons.close_rounded,
+                    onTap: onReject,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Consumer<BorrowRequestProvider>(
+                    builder: (context, provider, _) {
+                      return _PrimaryButton(
+                        label: provider.isLoading
+                            ? 'Approving...'
+                            : 'Approve',
+                        icon: Icons.check_rounded,
+                        onTap: provider.isLoading ? null : onApprove,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

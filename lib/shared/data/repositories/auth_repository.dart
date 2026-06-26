@@ -74,6 +74,12 @@ class AuthRepository {
         if (appUser.emailVerified != authEmailVerified) {
           profileUpdates['emailVerified'] = authEmailVerified;
         }
+        final pendingEmail = appUser.pendingEmail.trim();
+        if (pendingEmail.isNotEmpty &&
+            authEmail.isNotEmpty &&
+            pendingEmail.toLowerCase() == authEmail.toLowerCase()) {
+          profileUpdates['pendingEmail'] = '';
+        }
         if (profileUpdates.isNotEmpty) {
           profileUpdates['updatedAt'] = FieldValue.serverTimestamp();
           await _firestore
@@ -83,6 +89,9 @@ class AuthRepository {
           return appUser.copyWith(
             email: syncedEmail,
             emailVerified: authEmailVerified,
+            pendingEmail: profileUpdates.containsKey('pendingEmail')
+                ? ''
+                : appUser.pendingEmail,
           );
         }
         return appUser;
@@ -212,19 +221,13 @@ class AuthRepository {
       return;
     }
 
-    final existingProfile = await _firestore
-        .collection(AppConstants.usersCollection)
-        .where('email', isEqualTo: trimmedEmail)
-        .limit(2)
-        .get();
-    final emailBelongsToOtherProfile = existingProfile.docs.any(
-      (doc) => doc.id != firebaseUser.uid,
-    );
-    if (emailBelongsToOtherProfile) {
-      throw Exception('This email is already used by another account.');
-    }
-
+    // Duplicate checks must go through Firebase Auth — residents cannot query
+    // /users by email (Firestore list rules are admin-only).
     await _authService.verifyBeforeUpdateEmail(trimmedEmail);
+    await _firestore.collection(AppConstants.usersCollection).doc(firebaseUser.uid).update({
+      'pendingEmail': trimmedEmail,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
     await _authService.reloadCurrentUser();
   }
 

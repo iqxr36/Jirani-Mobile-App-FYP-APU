@@ -329,14 +329,22 @@ class _ResidentLenderRequestDetailViewState
   ) async {
     final reason = await _showRejectReasonSheet(context);
     if (reason == null || !context.mounted) return;
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<BorrowRequestProvider>();
     await provider.rejectBorrowRequest(
       requestId: request.id,
       ownerId: user.uid,
       rejectionReason: reason,
     );
-    if (!context.mounted) return;
-    _showSnack(context, provider.errorMessage ?? 'Request rejected.');
+
+    final message = provider.errorMessage ?? 'Request rejected.';
+    final succeeded = provider.errorMessage == null;
+    if (succeeded) {
+      navigator.pop();
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openChat(BorrowRequest request, AppUser? user) async {

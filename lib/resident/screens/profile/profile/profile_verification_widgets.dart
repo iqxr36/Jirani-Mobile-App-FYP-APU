@@ -94,7 +94,11 @@ class _IdentityVerificationPanel extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final email = user?.email.trim() ?? '';
+    final pendingEmail = user?.pendingEmail.trim() ?? '';
     final phone = user?.phoneNumber.trim() ?? '';
+    final emailValue = user?.hasPendingEmailChange == true
+        ? '$email\nPending confirmation: $pendingEmail'
+        : (email.isEmpty ? 'No email saved' : email);
 
     return Container(
       decoration: BoxDecoration(
@@ -114,7 +118,7 @@ class _IdentityVerificationPanel extends StatelessWidget {
           _IdentityVerificationRow(
             icon: Icons.mark_email_read_outlined,
             title: 'Email Address',
-            value: email.isEmpty ? 'No email saved' : email,
+            value: emailValue,
             verified: user?.emailVerified ?? false,
             actionLabel: 'Verify now',
             onTap: onVerifyEmail,
