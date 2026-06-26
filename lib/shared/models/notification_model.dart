@@ -39,6 +39,17 @@ class NotificationModel {
 
   bool get unread => !read;
 
+  bool get isCommunityUpdate {
+    return switch (type) {
+      AppConstants.notificationTypeCommunityNews ||
+      AppConstants.notificationTypeCommunityAnnouncement ||
+      AppConstants.notificationTypeCommunityWarning ||
+      AppConstants.notificationTypeCommunityEvent ||
+      AppConstants.notificationTypeMaintenanceNotice => true,
+      _ => false,
+    };
+  }
+
   String get displayCategory {
     final value = category.trim();
     if (value.isNotEmpty) return value;

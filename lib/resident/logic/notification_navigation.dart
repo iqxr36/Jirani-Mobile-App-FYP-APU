@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/resident/providers/borrow_request_provider.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';
 import 'package:jirani/resident/screens/chat/resident_chat_thread_view.dart';
 import 'package:jirani/resident/screens/chat/resident_messages_view.dart';
@@ -8,6 +9,7 @@ import 'package:jirani/resident/screens/home/community_post_detail_view.dart';
 import 'package:jirani/resident/screens/home/resident_home_view.dart';
 import 'package:jirani/resident/screens/home/resident_marketplace_view.dart';
 import 'package:jirani/resident/screens/home/resident_services_view.dart';
+import 'package:jirani/resident/screens/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/resident/screens/notifications/resident_notifications_view.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
@@ -47,29 +49,8 @@ Future<void> navigateFromNotification(
 ) async {
   switch (notification.type) {
     case AppConstants.notificationTypeChatMessage:
-      final chatId = notification.chatId.trim();
-      if (chatId.isEmpty) {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => const ResidentMessagesView(),
-          ),
-        );
-        return;
-      }
-      final chat = context.read<ChatProvider>().chatById(chatId);
-      if (chat != null) {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => ResidentChatThreadView(initialChat: chat),
-          ),
-        );
-      } else {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => const ResidentMessagesView(),
-          ),
-        );
-      }
+      await _openChatNotification(context, notification);
+      return;
     case AppConstants.notificationTypeConnectionRequest:
     case AppConstants.notificationTypeConnectionAccepted:
       await Navigator.of(context).push<void>(
@@ -77,14 +58,12 @@ Future<void> navigateFromNotification(
           builder: (_) => const ResidentConnectionsView(),
         ),
       );
+      return;
     case AppConstants.notificationTypeBorrowRequest:
     case AppConstants.notificationTypeBorrowApproved:
     case AppConstants.notificationTypeBorrowRejected:
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const ResidentMarketplaceView(),
-        ),
-      );
+      await _openBorrowNotification(context, notification);
+      return;
     case AppConstants.notificationTypeServiceRequest:
     case AppConstants.notificationTypeServiceAccepted:
     case AppConstants.notificationTypeServiceRejected:
@@ -93,28 +72,113 @@ Future<void> navigateFromNotification(
           builder: (_) => const ResidentServicesView(),
         ),
       );
+      return;
     case AppConstants.notificationTypeCommunityNews:
     case AppConstants.notificationTypeCommunityAnnouncement:
     case AppConstants.notificationTypeCommunityEvent:
     case AppConstants.notificationTypeMaintenanceNotice:
     case AppConstants.notificationTypeCommunityWarning:
-      final postId = notification.postId.trim();
-      if (postId.isNotEmpty) {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => CommunityPostDetailView(postId: postId),
-          ),
-        );
-        return;
-      }
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const ResidentHomeView(),
-        ),
-      );
+      await _openCommunityNotification(context, notification);
+      return;
     default:
       await _openNotificationsInbox(context);
   }
+}
+
+Future<void> _openChatNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final chatId = notification.chatId.trim();
+  if (chatId.isEmpty) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMessagesView(),
+      ),
+    );
+    return;
+  }
+
+  final chat = context.read<ChatProvider>().chatById(chatId);
+  if (chat != null) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ResidentChatThreadView(initialChat: chat),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => const ResidentMessagesView(),
+    ),
+  );
+}
+
+Future<void> _openBorrowNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final requestId = notification.borrowRequestId.trim();
+  if (requestId.isEmpty) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMarketplaceView(),
+      ),
+    );
+    return;
+  }
+
+  final request = await context
+      .read<BorrowRequestProvider>()
+      .fetchBorrowRequest(requestId);
+  if (!context.mounted) return;
+
+  if (request == null) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMarketplaceView(),
+      ),
+    );
+    return;
+  }
+
+  if (notification.type == AppConstants.notificationTypeBorrowRequest) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ResidentLenderRequestDetailView(initialRequest: request),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => MarketplaceTransactionView(initialRequest: request),
+    ),
+  );
+}
+
+Future<void> _openCommunityNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final postId = notification.postId.trim();
+  if (postId.isNotEmpty) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CommunityPostDetailView(postId: postId),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => const ResidentHomeView(),
+    ),
+  );
 }
 
 Future<void> _openNotificationsInbox(BuildContext context) {

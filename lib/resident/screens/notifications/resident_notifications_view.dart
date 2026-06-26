@@ -27,11 +27,7 @@ class _ResidentNotificationsViewState extends State<ResidentNotificationsView> {
   ) {
     return switch (_selectedFilter) {
       1 => notifications.where((item) => item.unread),
-      2 => notifications.where(
-        (item) =>
-            item.displayCategory != 'System' &&
-            item.type != 'adminWarning',
-      ),
+      2 => notifications.where((item) => item.isCommunityUpdate),
       _ => notifications,
     };
   }
@@ -126,9 +122,11 @@ class _ResidentNotificationsViewState extends State<ResidentNotificationsView> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                _selectedFilter == 1
-                                    ? 'No unread notifications'
-                                    : 'No notifications yet',
+                                switch (_selectedFilter) {
+                                  1 => 'No unread notifications',
+                                  2 => 'No residence updates yet',
+                                  _ => 'No notifications yet',
+                                },
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: context.appInk,

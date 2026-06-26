@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, getDocs, query, collection, where, setDoc, updateDoc } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -84,6 +84,15 @@ after(async () => {
 });
 
 describe('service provider updates', () => {
+  test('provider can list their own services', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertSucceeds(
+      getDocs(
+        query(collection(db, 'services'), where('providerId', '==', PROVIDER_ID)),
+      ),
+    );
+  });
+
   test('provider can update listing details on an active service', async () => {
     const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
     await assertSucceeds(

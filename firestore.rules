@@ -998,6 +998,24 @@ service cloud.firestore {
         ]);
     }
 
+    function itemIsArchivedListing() {
+      return resource.data.status == 'archived' ||
+        resource.data.isArchived == true;
+    }
+
+    function ownerCanUnarchiveItem() {
+      return itemOwner() &&
+        itemIsArchivedListing() &&
+        request.resource.data.isArchived != true &&
+        request.resource.data.status == 'available' &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'isArchived',
+          'status',
+          'updatedAt',
+        ]);
+    }
+
     function ownerCanMarkItemUnavailable() {
       return itemOwner() &&
         itemIsEditableListing() &&
@@ -1037,6 +1055,7 @@ service cloud.firestore {
           isAdmin() &&
           (isSystemAdmin() || adminCanAccessCommunity(resource.data.communityId))
         ) ||
+        itemOwner() ||
         (
           hasProfile() &&
           resource.data.communityId is string &&
@@ -1130,6 +1149,7 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
           (isSystemAdmin() || adminCanAccessCommunity(serviceListingProviderCommunityId()))
         ) ||
+        serviceProvider() ||
         (
           hasProfile() &&
           exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
@@ -1399,7 +1419,8 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         ownerCanMarkItemUnavailable() ||
         ownerSafeItemUpdate() ||
-        ownerCanArchiveItem();
+        ownerCanArchiveItem() ||
+        ownerCanUnarchiveItem();
       allow delete: if isAdmin();
     }
 

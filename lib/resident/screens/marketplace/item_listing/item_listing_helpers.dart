@@ -65,7 +65,7 @@ String _depositDecisionLabel(String decision) {
 }
 
 String _statusLabel(ItemModel item) {
-  if (item.isArchived || item.status == AppConstants.itemStatusArchived) {
+  if (_itemIsArchived(item)) {
     return 'Archived';
   }
   if (item.status == AppConstants.itemStatusAvailable) return 'Available';
@@ -75,7 +75,7 @@ String _statusLabel(ItemModel item) {
 }
 
 _StatusTone _itemStatusTone(ItemModel item) {
-  if (item.isArchived || item.status == AppConstants.itemStatusArchived) {
+  if (_itemIsArchived(item)) {
     return _StatusTone.neutral;
   }
   if (item.status == AppConstants.itemStatusAvailable) {
@@ -85,10 +85,14 @@ _StatusTone _itemStatusTone(ItemModel item) {
 }
 
 bool _listingHasLiveBorrow(ItemModel item) {
-  if (item.isArchived || item.status == AppConstants.itemStatusArchived) {
+  if (_itemIsArchived(item)) {
     return false;
   }
   return item.status != AppConstants.itemStatusAvailable;
+}
+
+bool _itemIsArchived(ItemModel item) {
+  return item.isArchived || item.status == AppConstants.itemStatusArchived;
 }
 
 int _pendingRequestCountForItem(String itemId, List<BorrowRequest> requests) {

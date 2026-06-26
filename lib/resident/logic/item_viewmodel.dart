@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/data/repositories/item_repository.dart';
@@ -176,6 +177,26 @@ class ItemViewModel extends ChangeNotifier {
       await _repository.archiveItem(itemId);
       if (_selectedItem?.id == itemId) {
         _selectedItem = _selectedItem?.copyWith(isArchived: true);
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> unarchiveItem(String itemId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _repository.unarchiveItem(itemId);
+      if (_selectedItem?.id == itemId) {
+        _selectedItem = _selectedItem?.copyWith(
+          isArchived: false,
+          status: AppConstants.itemStatusAvailable,
+        );
       }
     } catch (e) {
       _errorMessage = e.toString();

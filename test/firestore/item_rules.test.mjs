@@ -7,7 +7,17 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -86,6 +96,18 @@ before(async () => {
       ...baseItem,
       title: 'Ladder',
     });
+    await setDoc(doc(db, 'items', 'item-unarchive'), {
+      ...baseItem,
+      title: 'Hammer',
+      isArchived: true,
+      status: 'archived',
+    });
+    await setDoc(doc(db, 'items', 'item-legacy-archive'), {
+      ...baseItem,
+      title: 'Saw',
+      isArchived: true,
+      status: 'available',
+    });
   });
 });
 
@@ -94,6 +116,15 @@ after(async () => {
 });
 
 describe('item owner updates', () => {
+  test('owner can list their own marketplace items', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertSucceeds(
+      getDocs(
+        query(collection(db, 'items'), where('ownerId', '==', OWNER_ID)),
+      ),
+    );
+  });
+
   test('owner can update listing details on an available item', async () => {
     const db = testEnv.authenticatedContext(OWNER_ID).firestore();
     await assertSucceeds(
@@ -151,6 +182,28 @@ describe('item owner updates', () => {
       updateDoc(doc(db, 'items', 'item-archive'), {
         isArchived: true,
         status: 'archived',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('owner can unarchive an archived item', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'items', 'item-unarchive'), {
+        isArchived: false,
+        status: 'available',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('owner can unarchive legacy item archived with isArchived only', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'items', 'item-legacy-archive'), {
+        isArchived: false,
+        status: 'available',
         updatedAt: new Date(),
       }),
     );

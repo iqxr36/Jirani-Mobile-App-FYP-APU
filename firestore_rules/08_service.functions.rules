@@ -84,6 +84,7 @@
           exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
           (isSystemAdmin() || adminCanAccessCommunity(serviceListingProviderCommunityId()))
         ) ||
+        serviceProvider() ||
         (
           hasProfile() &&
           exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&

@@ -145,12 +145,15 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
                 item: item,
                 pendingRequestCount: pendingCount,
                 locked: locked,
-                onEdit: locked
+                onEdit: locked || _itemIsArchived(item)
                     ? null
                     : () => _openListingForm(context, item: item),
-                onArchive: item.isArchived || locked
+                onArchive: _itemIsArchived(item) || locked
                     ? null
                     : () => _confirmArchive(context, item),
+                onUnarchive: _itemIsArchived(item) && !locked
+                    ? () => _confirmUnarchive(context, item)
+                    : null,
               ),
             );
           },
@@ -269,6 +272,35 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
     await provider.archiveItem(item.id);
     if (!context.mounted) return;
     _showSnack(context, provider.errorMessage ?? 'Item archived.');
+  }
+
+  Future<void> _confirmUnarchive(BuildContext context, ItemModel item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Unarchive item?'),
+          content: Text(
+            '${item.title} will appear in marketplace browsing again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Unarchive'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) return;
+    final provider = context.read<ItemProvider>();
+    await provider.unarchiveItem(item.id);
+    if (!context.mounted) return;
+    _showSnack(context, provider.errorMessage ?? 'Item unarchived.');
   }
 
   void _openRequestDetail(BuildContext context, BorrowRequest request) {
@@ -453,6 +485,7 @@ class _MyItemCard extends StatelessWidget {
     required this.locked,
     required this.onEdit,
     required this.onArchive,
+    required this.onUnarchive,
   });
 
   final ItemModel item;
@@ -460,6 +493,7 @@ class _MyItemCard extends StatelessWidget {
   final bool locked;
   final VoidCallback? onEdit;
   final VoidCallback? onArchive;
+  final VoidCallback? onUnarchive;
 
   @override
   Widget build(BuildContext context) {
@@ -561,11 +595,17 @@ class _MyItemCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _DangerButton(
-                  label: item.isArchived ? 'Archived' : 'Archive',
-                  icon: Icons.archive_outlined,
-                  onTap: onArchive,
-                ),
+                child: _itemIsArchived(item)
+                    ? _SecondaryButton(
+                        label: 'Unarchive',
+                        icon: Icons.unarchive_outlined,
+                        onTap: onUnarchive,
+                      )
+                    : _DangerButton(
+                        label: 'Archive',
+                        icon: Icons.archive_outlined,
+                        onTap: onArchive,
+                      ),
               ),
             ],
           ),

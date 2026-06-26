@@ -25,4 +25,10 @@ mixin _BorrowRequestQueriesMixin on _BorrowRequestServiceBase {
     });
   }
 
+  Future<BorrowRequest?> fetchBorrowRequest(String requestId) async {
+    final snap = await _requests.doc(requestId).get();
+    final data = snap.data();
+    if (data == null) return null;
+    return BorrowRequest.fromMap(snap.id, data);
+  }
 }

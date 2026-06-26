@@ -71,6 +71,24 @@
         ]);
     }
 
+    function itemIsArchivedListing() {
+      return resource.data.status == 'archived' ||
+        resource.data.isArchived == true;
+    }
+
+    function ownerCanUnarchiveItem() {
+      return itemOwner() &&
+        itemIsArchivedListing() &&
+        request.resource.data.isArchived != true &&
+        request.resource.data.status == 'available' &&
+        itemOwnerSnapshotUnchanged() &&
+        itemChangedKeysOnly([
+          'isArchived',
+          'status',
+          'updatedAt',
+        ]);
+    }
+
     function ownerCanMarkItemUnavailable() {
       return itemOwner() &&
         itemIsEditableListing() &&
@@ -110,6 +128,7 @@
           isAdmin() &&
           (isSystemAdmin() || adminCanAccessCommunity(resource.data.communityId))
         ) ||
+        itemOwner() ||
         (
           hasProfile() &&
           resource.data.communityId is string &&

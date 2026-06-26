@@ -26,6 +26,10 @@ class BorrowRequestProvider extends ChangeNotifier {
   List<BorrowRequest> get incomingRequests => _incomingRequests;
   BorrowRequest? get selectedRequest => _selectedRequest;
 
+  Future<BorrowRequest?> fetchBorrowRequest(String requestId) {
+    return _service.fetchBorrowRequest(requestId);
+  }
+
   void watchMyBorrowRequests(String borrowerId) {
     _mySub?.cancel();
     _isLoading = true;

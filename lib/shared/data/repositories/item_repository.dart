@@ -310,6 +310,35 @@ class ItemRepository {
     }
   }
 
+  Future<void> unarchiveItem(String itemId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('You must be signed in.');
+    }
+
+    final docRef = _firestore
+        .collection(AppConstants.itemsCollection)
+        .doc(itemId);
+    final snap = await docRef.get();
+    final data = snap.data();
+    if (data == null) {
+      throw Exception('Item not found.');
+    }
+    if ((data['ownerId'] as String?) != uid) {
+      throw Exception('You can only unarchive your own item.');
+    }
+
+    try {
+      await docRef.update({
+        'isArchived': false,
+        'status': AppConstants.itemStatusAvailable,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to unarchive item.');
+    }
+  }
+
   Future<List<String>> uploadItemImages({
     required String uid,
     required String itemId,
