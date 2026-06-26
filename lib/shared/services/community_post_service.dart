@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -110,11 +110,10 @@ class CommunityPostService {
   Future<String> uploadCoverImage({
     required String adminId,
     required String postId,
-    required String filePath,
+    required Uint8List bytes,
   }) async {
-    final file = File(filePath);
-    if (!await file.exists()) {
-      throw Exception('Cover image file not found.');
+    if (bytes.isEmpty) {
+      throw Exception('Cover image is empty.');
     }
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage
@@ -124,7 +123,10 @@ class CommunityPostService {
         .child(postId)
         .child('cover_$ts.jpg');
     try {
-      await ref.putFile(file);
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       return ref.getDownloadURL();
     } on FirebaseException catch (e) {
       if (e.code == 'unauthorized' || e.code == 'permission-denied') {

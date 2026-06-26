@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +11,8 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
 import 'package:jirani/shared/services/community_post_service.dart';
 import 'package:provider/provider.dart';
+
+const int _kMaxCoverImageBytes = 5 * 1024 * 1024;
 
 class AdminNewsScreen extends StatefulWidget {
   const AdminNewsScreen({super.key});
@@ -25,7 +27,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   String _postType = AppConstants.communityPostTypeNews;
-  String? _coverImagePath;
+  Uint8List? _coverImageBytes;
   bool _submitting = false;
 
   @override
@@ -44,12 +46,19 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
-    setState(() => _coverImagePath = picked.path);
+
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    if (bytes.lengthInBytes > _kMaxCoverImageBytes) {
+      _showSnack('Choose a cover image under 5 MB.');
+      return;
+    }
+    setState(() => _coverImageBytes = bytes);
   }
 
   void _removeCoverImage() {
     if (_submitting) return;
-    setState(() => _coverImagePath = null);
+    setState(() => _coverImageBytes = null);
   }
 
   Future<void> _createDraft(AdminProvider admin) async {
@@ -76,12 +85,12 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
         title: _titleController.text,
         body: _bodyController.text,
       );
-      final coverPath = _coverImagePath;
-      if (coverPath != null && coverPath.isNotEmpty) {
+      final coverBytes = _coverImageBytes;
+      if (coverBytes != null && coverBytes.isNotEmpty) {
         final imageUrl = await _service.uploadCoverImage(
           adminId: authorId,
           postId: draft.id,
-          filePath: coverPath,
+          bytes: coverBytes,
         );
         await _service.updatePost(
           postId: draft.id,
@@ -91,7 +100,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
       }
       _titleController.clear();
       _bodyController.clear();
-      setState(() => _coverImagePath = null);
+      setState(() => _coverImageBytes = null);
       if (mounted) _showSnack('Draft saved.');
     } catch (error) {
       if (mounted) _showSnack(error.toString());
@@ -264,7 +273,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                     icon: const Icon(Icons.image_outlined),
                     label: const Text('Add cover photo'),
                   ),
-                  if (_coverImagePath != null) ...[
+                  if (_coverImageBytes != null) ...[
                     const SizedBox(width: 12),
                     TextButton(
                       onPressed: _submitting ? null : _removeCoverImage,
@@ -273,12 +282,12 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                   ],
                 ],
               ),
-              if (_coverImagePath != null) ...[
+              if (_coverImageBytes != null) ...[
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(_coverImagePath!),
+                  child: Image.memory(
+                    _coverImageBytes!,
                     height: 160,
                     width: double.infinity,
                     fit: BoxFit.cover,
