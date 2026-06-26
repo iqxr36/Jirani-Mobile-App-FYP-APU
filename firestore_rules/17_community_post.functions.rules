@@ -60,6 +60,25 @@
         request.resource.data.updatedAt == request.time;
     }
 
+    function communityPostCoverReplaceUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'published' &&
+        request.resource.data.status == 'published' &&
+        changed.hasOnly(['imageUrl', 'updatedAt']) &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.authorId == resource.data.authorId &&
+        request.resource.data.authorName == resource.data.authorName &&
+        request.resource.data.title == resource.data.title &&
+        request.resource.data.body == resource.data.body &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.audience == resource.data.audience &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.publishedAt == resource.data.publishedAt &&
+        validCommunityPostImageUrl(request.resource.data);
+    }
+
     function validCommunityPostUpdate() {
-      return communityPostDraftUpdate() || communityPostPublishUpdate();
+      return communityPostDraftUpdate() ||
+        communityPostPublishUpdate() ||
+        communityPostCoverReplaceUpdate();
     }

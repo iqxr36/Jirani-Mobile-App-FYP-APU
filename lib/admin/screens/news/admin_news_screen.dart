@@ -28,6 +28,8 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   final _bodyController = TextEditingController();
   String _postType = AppConstants.communityPostTypeNews;
   Uint8List? _coverImageBytes;
+  String _coverImageFileName = '';
+  String? _coverImageMimeType;
   bool _submitting = false;
 
   @override
@@ -37,28 +39,45 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     super.dispose();
   }
 
-  Future<void> _pickCoverImage() async {
-    if (_submitting) return;
+  Future<_PickedCoverImage?> _pickCoverImageBytes() async {
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1920,
       maxHeight: 1080,
       imageQuality: 85,
     );
-    if (picked == null) return;
+    if (picked == null) return null;
 
     final bytes = await picked.readAsBytes();
-    if (!mounted) return;
     if (bytes.lengthInBytes > _kMaxCoverImageBytes) {
       _showSnack('Choose a cover image under 5 MB.');
-      return;
+      return null;
     }
-    setState(() => _coverImageBytes = bytes);
+    return _PickedCoverImage(
+      bytes: bytes,
+      fileName: picked.name,
+      mimeType: picked.mimeType,
+    );
+  }
+
+  Future<void> _pickCoverImage() async {
+    if (_submitting) return;
+    final picked = await _pickCoverImageBytes();
+    if (picked == null || !mounted) return;
+    setState(() {
+      _coverImageBytes = picked.bytes;
+      _coverImageFileName = picked.fileName;
+      _coverImageMimeType = picked.mimeType;
+    });
   }
 
   void _removeCoverImage() {
     if (_submitting) return;
-    setState(() => _coverImageBytes = null);
+    setState(() {
+      _coverImageBytes = null;
+      _coverImageFileName = '';
+      _coverImageMimeType = null;
+    });
   }
 
   Future<void> _createDraft(AdminProvider admin) async {
@@ -91,6 +110,8 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
           adminId: authorId,
           postId: draft.id,
           bytes: coverBytes,
+          originalFileName: _coverImageFileName,
+          mimeType: _coverImageMimeType,
         );
         await _service.updatePost(
           postId: draft.id,
@@ -100,8 +121,39 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
       }
       _titleController.clear();
       _bodyController.clear();
-      setState(() => _coverImageBytes = null);
+      setState(() {
+        _coverImageBytes = null;
+        _coverImageFileName = '';
+        _coverImageMimeType = null;
+      });
       if (mounted) _showSnack('Draft saved.');
+    } catch (error) {
+      if (mounted) _showSnack(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _replacePostCover(
+    CommunityPostModel post,
+    AdminProvider admin,
+  ) async {
+    final authorId = admin.currentAdminUid;
+    if (authorId == null || _submitting) return;
+
+    final picked = await _pickCoverImageBytes();
+    if (picked == null || !mounted) return;
+
+    setState(() => _submitting = true);
+    try {
+      await _service.replaceCoverImage(
+        postId: post.id,
+        authorId: authorId,
+        bytes: picked.bytes,
+        originalFileName: picked.fileName,
+        mimeType: picked.mimeType,
+      );
+      if (mounted) _showSnack('Cover photo updated.');
     } catch (error) {
       if (mounted) _showSnack(error.toString());
     } finally {
@@ -326,6 +378,9 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                               onPublish: posts[index].isDraft && !_submitting
                                   ? () => _publish(posts[index], admin)
                                   : null,
+                              onReplaceCover: !_submitting
+                                  ? () => _replacePostCover(posts[index], admin)
+                                  : null,
                               onDelete: !_submitting
                                   ? () => _deletePost(posts[index], admin)
                                   : null,
@@ -343,15 +398,29 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   }
 }
 
+class _PickedCoverImage {
+  const _PickedCoverImage({
+    required this.bytes,
+    required this.fileName,
+    this.mimeType,
+  });
+
+  final Uint8List bytes;
+  final String fileName;
+  final String? mimeType;
+}
+
 class _NewsQueueCard extends StatelessWidget {
   const _NewsQueueCard({
     required this.post,
     this.onPublish,
+    this.onReplaceCover,
     this.onDelete,
   });
 
   final CommunityPostModel post;
   final VoidCallback? onPublish;
+  final VoidCallback? onReplaceCover;
   final VoidCallback? onDelete;
 
   @override
@@ -380,6 +449,12 @@ class _NewsQueueCard extends StatelessWidget {
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        width: 56,
+                        height: 56,
+                        color: post.accentColor.withValues(alpha: 0.12),
+                        child: Icon(post.icon, color: post.accentColor),
+                      ),
                     ),
                   )
                 else
@@ -411,7 +486,7 @@ class _NewsQueueCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (onPublish != null || onDelete != null)
+                if (onPublish != null || onReplaceCover != null || onDelete != null)
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -421,6 +496,12 @@ class _NewsQueueCard extends StatelessWidget {
                         FilledButton(
                           onPressed: onPublish,
                           child: const Text('Publish'),
+                        ),
+                      if (onReplaceCover != null)
+                        OutlinedButton.icon(
+                          onPressed: onReplaceCover,
+                          icon: const Icon(Icons.image_outlined, size: 18),
+                          label: const Text('Replace cover'),
                         ),
                       if (onDelete != null)
                         TextButton.icon(

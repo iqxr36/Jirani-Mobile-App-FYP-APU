@@ -111,21 +111,28 @@ class CommunityPostService {
     required String adminId,
     required String postId,
     required Uint8List bytes,
+    String originalFileName = '',
+    String? mimeType,
   }) async {
     if (bytes.isEmpty) {
       throw Exception('Cover image is empty.');
     }
+    final extension = _coverImageExtension(
+      fileName: originalFileName,
+      bytes: bytes,
+      mimeType: mimeType,
+    );
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage
         .ref()
         .child(AppConstants.storageCommunityPostImagesPath)
         .child(adminId)
         .child(postId)
-        .child('cover_$ts.jpg');
+        .child('cover_$ts.$extension');
     try {
       await ref.putData(
         bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+        SettableMetadata(contentType: _coverImageContentType(extension)),
       );
       return ref.getDownloadURL();
     } on FirebaseException catch (e) {
@@ -136,6 +143,95 @@ class CommunityPostService {
       }
       throw Exception(e.message ?? 'Failed to upload cover image.');
     }
+  }
+
+  Future<void> replaceCoverImage({
+    required String postId,
+    required String authorId,
+    required Uint8List bytes,
+    String originalFileName = '',
+    String? mimeType,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != authorId) {
+      throw Exception('Missing signed-in admin profile.');
+    }
+    final ref = _posts.doc(postId);
+    final snap = await ref.get();
+    final data = snap.data();
+    if (data == null) throw Exception('Post not found.');
+    final post = CommunityPostModel.fromMap(snap.id, data);
+    if (post.authorId != authorId) {
+      throw Exception('Only the author can update this post cover.');
+    }
+
+    final imageUrl = await uploadCoverImage(
+      adminId: authorId,
+      postId: postId,
+      bytes: bytes,
+      originalFileName: originalFileName,
+      mimeType: mimeType,
+    );
+
+    try {
+      await ref.update({
+        'imageUrl': imageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore rules are deployed and your '
+          'admin profile has a valid communityId.',
+        );
+      }
+      throw Exception(e.message ?? 'Failed to update post cover.');
+    }
+  }
+
+  static String _coverImageExtension({
+    required String fileName,
+    required Uint8List bytes,
+    String? mimeType,
+  }) {
+    final mime = (mimeType ?? '').trim().toLowerCase();
+    if (mime.contains('png')) return 'png';
+    if (mime.contains('webp')) return 'webp';
+    if (mime.contains('jpeg') || mime.contains('jpg')) return 'jpg';
+
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'png';
+    }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'jpg';
+    }
+    if (bytes.length >= 12) {
+      final riff = String.fromCharCodes(bytes.sublist(0, 4));
+      final webp = String.fromCharCodes(bytes.sublist(8, 12));
+      if (riff == 'RIFF' && webp == 'WEBP') return 'webp';
+    }
+
+    final trimmed = fileName.trim().toLowerCase();
+    final extension = trimmed.contains('.') ? trimmed.split('.').last : 'jpg';
+    return switch (extension) {
+      'jpg' || 'jpeg' || 'png' || 'webp' => extension == 'jpeg' ? 'jpg' : extension,
+      _ => 'jpg',
+    };
+  }
+
+  static String _coverImageContentType(String extension) {
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
   }
 
   Future<void> updatePost({
