@@ -52,6 +52,17 @@ class CommunityPostService {
     return watchCommunityPosts(communityId: communityId, publishedOnly: true);
   }
 
+  Future<CommunityPostModel?> getPublishedPost(String postId) async {
+    final id = postId.trim();
+    if (id.isEmpty) return null;
+    final snap = await _posts.doc(id).get();
+    final data = snap.data();
+    if (!snap.exists || data == null) return null;
+    final post = CommunityPostModel.fromMap(snap.id, data);
+    if (!post.isPublished) return null;
+    return post;
+  }
+
   Future<CommunityPostModel> createDraft({
     required String communityId,
     required String authorId,

@@ -4,6 +4,7 @@ import 'package:jirani/resident/providers/chat_provider.dart';
 import 'package:jirani/resident/screens/chat/resident_chat_thread_view.dart';
 import 'package:jirani/resident/screens/chat/resident_messages_view.dart';
 import 'package:jirani/resident/screens/connections/resident_connections_view.dart';
+import 'package:jirani/resident/screens/home/community_post_detail_view.dart';
 import 'package:jirani/resident/screens/home/resident_home_view.dart';
 import 'package:jirani/resident/screens/home/resident_marketplace_view.dart';
 import 'package:jirani/resident/screens/home/resident_services_view.dart';
@@ -97,6 +98,15 @@ Future<void> navigateFromNotification(
     case AppConstants.notificationTypeCommunityEvent:
     case AppConstants.notificationTypeMaintenanceNotice:
     case AppConstants.notificationTypeCommunityWarning:
+      final postId = notification.postId.trim();
+      if (postId.isNotEmpty) {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => CommunityPostDetailView(postId: postId),
+          ),
+        );
+        return;
+      }
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (_) => const ResidentHomeView(),

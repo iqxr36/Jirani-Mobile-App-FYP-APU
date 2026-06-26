@@ -157,7 +157,11 @@ export const onServiceRequestNotificationOrchestration = onDocumentWritten(
 );
 
 export const onCommunityPostNotificationOrchestration = onDocumentWritten(
-  "communityPosts/{postId}",
+  {
+    document: "communityPosts/{postId}",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+  },
   async (event) => {
     const postId = event.params.postId;
     const before = event.data?.before.data();

@@ -17,6 +17,7 @@ export type InAppNotificationInput = {
   borrowRequestId?: string;
   serviceRequestId?: string;
   postId?: string;
+  notificationId?: string;
 };
 
 export async function residentDisplayName(
@@ -45,14 +46,14 @@ export async function residentDisplayName(
   return combined.length > 0 ? combined : "Resident";
 }
 
-export async function createInAppNotification(
-  db: Firestore,
-  input: InAppNotificationInput,
-): Promise<string | null> {
-  if (!input.userId || input.userId === input.actorId) {
-    return null;
-  }
+export function communityPostNotificationId(
+  postId: string,
+  userId: string,
+): string {
+  return `cp_${postId}_${userId}`.replace(/\//g, "_");
+}
 
+function buildNotificationPayload(input: InAppNotificationInput): DocumentData {
   const payload: DocumentData = {
     userId: input.userId,
     actorId: input.actorId,
@@ -71,6 +72,50 @@ export async function createInAppNotification(
   if (input.serviceRequestId) payload.serviceRequestId = input.serviceRequestId;
   if (input.postId) payload.postId = input.postId;
 
+  return payload;
+}
+
+function isAlreadyExistsError(error: unknown): boolean {
+  const code = (error as { code?: number | string }).code;
+  return code === 6 || code === "already-exists" || code === "ALREADY_EXISTS";
+}
+
+export async function createInAppNotificationIfAbsent(
+  db: Firestore,
+  notificationId: string,
+  input: InAppNotificationInput,
+): Promise<string | null> {
+  if (!input.userId || input.userId === input.actorId) {
+    return null;
+  }
+
+  const ref = db.collection("notifications").doc(notificationId);
+  const payload = buildNotificationPayload(input);
+
+  try {
+    await ref.create(payload);
+    return ref.id;
+  } catch (error) {
+    if (isAlreadyExistsError(error)) {
+      return ref.id;
+    }
+    throw error;
+  }
+}
+
+export async function createInAppNotification(
+  db: Firestore,
+  input: InAppNotificationInput,
+): Promise<string | null> {
+  if (!input.userId || input.userId === input.actorId) {
+    return null;
+  }
+
+  if (input.notificationId) {
+    return createInAppNotificationIfAbsent(db, input.notificationId, input);
+  }
+
+  const payload = buildNotificationPayload(input);
   const ref = await db.collection("notifications").add(payload);
   return ref.id;
 }
