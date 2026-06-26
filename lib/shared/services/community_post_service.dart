@@ -192,6 +192,7 @@ class CommunityPostService {
         'publishedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      // Community post notifications are created server-side by Cloud Functions.
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(

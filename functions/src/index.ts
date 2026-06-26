@@ -11,6 +11,7 @@ import {
   borrowBecameCompleted,
 } from "./borrow_completion";
 import { handleBorrowRequestNotificationChanges } from "./borrow_notifications";
+import { handleCommunityPostNotificationChanges } from "./community_post_notifications";
 import { handleConnectionNotificationChanges } from "./connection_notifications";
 import { notifyChatMessageCreated } from "./chat_notifications";
 import { sendFcmForNotification } from "./notifications";
@@ -148,6 +149,31 @@ export const onServiceRequestNotificationOrchestration = onDocumentWritten(
     } catch (error) {
       logger.error("Failed service request notification orchestration", {
         requestId,
+        error,
+      });
+      throw error;
+    }
+  },
+);
+
+export const onCommunityPostNotificationOrchestration = onDocumentWritten(
+  "communityPosts/{postId}",
+  async (event) => {
+    const postId = event.params.postId;
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const db = admin.firestore();
+
+    try {
+      await handleCommunityPostNotificationChanges(
+        db,
+        postId,
+        before,
+        after,
+      );
+    } catch (error) {
+      logger.error("Failed community post notification orchestration", {
+        postId,
         error,
       });
       throw error;

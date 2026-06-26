@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -15,6 +15,7 @@ const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
 const PROJECT_ID = 'jirani-item-rules-test';
 const OWNER_ID = 'item-owner';
 const NEIGHBOR_ID = 'item-neighbor';
+const OUTSIDER_ID = 'item-outsider';
 const ITEM_ID = 'item-1';
 
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
@@ -66,6 +67,14 @@ before(async () => {
       verificationStatus: 'verified',
       communityId: 'community-1',
       communityName: 'Palm Grove',
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'users', OUTSIDER_ID), {
+      uid: OUTSIDER_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-2',
+      communityName: 'Other Place',
       updatedAt: new Date(),
     });
     await setDoc(doc(db, 'items', ITEM_ID), baseItem);
@@ -162,5 +171,15 @@ describe('item delete and neighbor access', () => {
         updatedAt: new Date(),
       }),
     );
+  });
+
+  test('neighbor in same community can read a marketplace item', async () => {
+    const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
+    await assertSucceeds(getDoc(doc(db, 'items', ITEM_ID)));
+  });
+
+  test('resident in another community cannot read marketplace items', async () => {
+    const db = testEnv.authenticatedContext(OUTSIDER_ID).firestore();
+    await assertFails(getDoc(doc(db, 'items', ITEM_ID)));
   });
 });

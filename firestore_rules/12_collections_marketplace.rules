@@ -1,6 +1,6 @@
     // --- items collection (marketplace) ---
     match /items/{itemId} {
-      allow read: if signedIn();
+      allow read: if canReadMarketplaceItem();
       allow create: if validItemCreate();
       allow update: if isAdmin() ||
         ownerCanMarkItemUnavailable() ||
@@ -23,7 +23,7 @@
     }
 
     match /services/{serviceId} {
-      allow read: if signedIn();
+      allow read: if canReadServiceListing();
       allow create: if validServiceCreate(serviceId);
       allow update: if isAdmin() ||
         providerSafeServiceUpdate() ||
@@ -39,13 +39,7 @@
            resource.data.providerId == request.auth.uid)
         );
 
-      allow create: if isVerifiedResident() &&
-        request.resource.data.requesterId == request.auth.uid;
+      allow create: if validServiceRequestCreate(requestId);
 
-      allow update: if isAdmin() ||
-        (
-          signedIn() &&
-          (resource.data.requesterId == request.auth.uid ||
-           resource.data.providerId == request.auth.uid)
-        );
+      allow update: if isAdmin() || validServiceRequestUpdate();
     }

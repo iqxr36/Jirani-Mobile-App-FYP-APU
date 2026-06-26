@@ -312,6 +312,17 @@ service cloud.firestore {
     }
 
 // --- Borrow request helpers ---
+    //
+    // Borrow status state machine (primary path):
+    //   pending ──owner approve──► approved ──borrower pay──► approved+paid
+    //        │                         │
+    //        ├──owner reject──► rejected
+    //        └──borrower cancel──► cancelled
+    //   approved+paid ──owner handover──► pickupReady ──borrower confirm──► active
+    //   active ──borrower return──► returnSubmitted ──owner inspect──► completed
+    //        │                                              ├── minorIssuePending
+    //        │                                              └── disputed
+    //   Trust/reputation fields on users are server-written only (Cloud Functions).
     function borrowRequestOwner() {
       return signedIn() && request.auth.uid == resource.data.ownerId;
     }
@@ -933,7 +944,12 @@ service cloud.firestore {
         request.resource.data.communityId == resource.data.communityId &&
         request.resource.data.communityName == resource.data.communityName &&
         request.resource.data.createdAt == resource.data.createdAt &&
-        request.resource.data.lastCompletedBorrowRequestId == resource.data.lastCompletedBorrowRequestId;
+        (
+          (!('lastCompletedBorrowRequestId' in resource.data) &&
+            !('lastCompletedBorrowRequestId' in request.resource.data)) ||
+          request.resource.data.lastCompletedBorrowRequestId ==
+            resource.data.lastCompletedBorrowRequestId
+        );
     }
 
     function itemIsEditableListing() {
@@ -1016,6 +1032,18 @@ service cloud.firestore {
         data.updatedAt == request.time;
     }
 
+    function canReadMarketplaceItem() {
+      return (
+          isAdmin() &&
+          (isSystemAdmin() || adminCanAccessCommunity(resource.data.communityId))
+        ) ||
+        (
+          hasProfile() &&
+          resource.data.communityId is string &&
+          resource.data.communityId == myUserDoc().data.communityId
+        );
+    }
+
 // --- Service listing helpers ---
     function serviceProvider() {
       return signedIn() && resource.data.providerId == request.auth.uid;
@@ -1088,6 +1116,111 @@ service cloud.firestore {
         data.availability is string &&
         data.providerName is string &&
         data.providerEmail is string &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+
+    function serviceListingProviderCommunityId() {
+      return userDoc(resource.data.providerId).data.communityId;
+    }
+
+    function canReadServiceListing() {
+      return (
+          isAdmin() &&
+          exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
+          (isSystemAdmin() || adminCanAccessCommunity(serviceListingProviderCommunityId()))
+        ) ||
+        (
+          hasProfile() &&
+          exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
+          serviceListingProviderCommunityId() == myUserDoc().data.communityId
+        );
+    }
+
+    function serviceRequestChangedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function serviceRequestSnapshotUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.serviceId == resource.data.serviceId &&
+        request.resource.data.serviceTitle == resource.data.serviceTitle &&
+        request.resource.data.providerId == resource.data.providerId &&
+        request.resource.data.providerName == resource.data.providerName &&
+        request.resource.data.requesterId == resource.data.requesterId &&
+        request.resource.data.requesterName == resource.data.requesterName &&
+        request.resource.data.message == resource.data.message &&
+        request.resource.data.preferredDate == resource.data.preferredDate &&
+        request.resource.data.preferredTime == resource.data.preferredTime &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function serviceRequestProvider() {
+      return signedIn() && resource.data.providerId == request.auth.uid;
+    }
+
+    function serviceRequestRequester() {
+      return signedIn() && resource.data.requesterId == request.auth.uid;
+    }
+
+    function providerCanAcceptServiceRequest() {
+      return serviceRequestProvider() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'accepted' &&
+        serviceRequestSnapshotUnchanged() &&
+        serviceRequestChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function providerCanRejectServiceRequest() {
+      return serviceRequestProvider() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'rejected' &&
+        serviceRequestSnapshotUnchanged() &&
+        serviceRequestChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function providerCanCompleteServiceRequest() {
+      return serviceRequestProvider() &&
+        resource.data.status == 'accepted' &&
+        request.resource.data.status == 'completed' &&
+        serviceRequestSnapshotUnchanged() &&
+        serviceRequestChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function requesterCanCancelServiceRequest() {
+      return serviceRequestRequester() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        serviceRequestSnapshotUnchanged() &&
+        serviceRequestChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function validServiceRequestUpdate() {
+      return providerCanAcceptServiceRequest() ||
+        providerCanRejectServiceRequest() ||
+        providerCanCompleteServiceRequest() ||
+        requesterCanCancelServiceRequest();
+    }
+
+    function validServiceRequestCreate(requestId) {
+      let data = request.resource.data;
+      return isVerifiedResident() &&
+        data.id == requestId &&
+        data.requesterId == request.auth.uid &&
+        data.serviceId is string &&
+        exists(/databases/$(database)/documents/services/$(data.serviceId)) &&
+        exists(/databases/$(database)/documents/users/$(get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId)) &&
+        get(/databases/$(database)/documents/services/$(data.serviceId)).data.status == 'active' &&
+        get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId != request.auth.uid &&
+        data.providerId == get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId &&
+        data.serviceTitle == get(/databases/$(database)/documents/services/$(data.serviceId)).data.title &&
+        data.providerName == get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerName &&
+        userDoc(data.providerId).data.communityId == myUserDoc().data.communityId &&
+        data.requesterName is string &&
+        data.message is string &&
+        data.preferredDate is timestamp &&
+        data.preferredTime is string &&
+        data.status == 'pending' &&
         data.createdAt == request.time &&
         data.updatedAt == request.time;
     }
@@ -1261,7 +1394,7 @@ service cloud.firestore {
 
 // --- items collection (marketplace) ---
     match /items/{itemId} {
-      allow read: if signedIn();
+      allow read: if canReadMarketplaceItem();
       allow create: if validItemCreate();
       allow update: if isAdmin() ||
         ownerCanMarkItemUnavailable() ||
@@ -1284,7 +1417,7 @@ service cloud.firestore {
     }
 
     match /services/{serviceId} {
-      allow read: if signedIn();
+      allow read: if canReadServiceListing();
       allow create: if validServiceCreate(serviceId);
       allow update: if isAdmin() ||
         providerSafeServiceUpdate() ||
@@ -1300,15 +1433,9 @@ service cloud.firestore {
            resource.data.providerId == request.auth.uid)
         );
 
-      allow create: if isVerifiedResident() &&
-        request.resource.data.requesterId == request.auth.uid;
+      allow create: if validServiceRequestCreate(requestId);
 
-      allow update: if isAdmin() ||
-        (
-          signedIn() &&
-          (resource.data.requesterId == request.auth.uid ||
-           resource.data.providerId == request.auth.uid)
-        );
+      allow update: if isAdmin() || validServiceRequestUpdate();
     }
 
 // --- reviews and reports collections ---

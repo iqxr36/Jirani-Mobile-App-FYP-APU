@@ -17,7 +17,12 @@
         request.resource.data.communityId == resource.data.communityId &&
         request.resource.data.communityName == resource.data.communityName &&
         request.resource.data.createdAt == resource.data.createdAt &&
-        request.resource.data.lastCompletedBorrowRequestId == resource.data.lastCompletedBorrowRequestId;
+        (
+          (!('lastCompletedBorrowRequestId' in resource.data) &&
+            !('lastCompletedBorrowRequestId' in request.resource.data)) ||
+          request.resource.data.lastCompletedBorrowRequestId ==
+            resource.data.lastCompletedBorrowRequestId
+        );
     }
 
     function itemIsEditableListing() {
@@ -98,5 +103,17 @@
         data.hasDeposit is bool &&
         data.createdAt == request.time &&
         data.updatedAt == request.time;
+    }
+
+    function canReadMarketplaceItem() {
+      return (
+          isAdmin() &&
+          (isSystemAdmin() || adminCanAccessCommunity(resource.data.communityId))
+        ) ||
+        (
+          hasProfile() &&
+          resource.data.communityId is string &&
+          resource.data.communityId == myUserDoc().data.communityId
+        );
     }
 

@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:jirani/resident/screens/notifications/resident_notifications_view.dart';
+import 'package:jirani/resident/logic/notification_navigation.dart';
 import 'package:jirani/shared/data/repositories/verification_permission_repository.dart';
 
 @pragma('vm:entry-point')
@@ -121,11 +121,12 @@ class PushNotificationService {
   void _handleOpenedMessage(RemoteMessage message) {
     final context = _navigatorKey?.currentContext;
     if (context == null) return;
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ResidentNotificationsView(),
-      ),
-    );
+    final data = message.data;
+    if (data.isEmpty) {
+      unawaited(navigateFromPushData(context, const {}));
+      return;
+    }
+    unawaited(navigateFromPushData(context, data));
   }
 
   Future<void> dispose() async {

@@ -113,6 +113,9 @@ export async function sendFcmForNotification(
   if (typeof notification.connectionId === "string" && notification.connectionId) {
     data.connectionId = notification.connectionId;
   }
+  if (typeof notification.postId === "string" && notification.postId) {
+    data.postId = notification.postId;
+  }
 
   try {
     await getMessaging().send({

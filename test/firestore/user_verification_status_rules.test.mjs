@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -97,7 +97,7 @@ describe('verificationStatus client writes', () => {
         locationVerified: false,
         locationVerificationStatus: 'pending',
         locationVerifiedCommunityName: '',
-        updatedAt: Timestamp.now(),
+        updatedAt: serverTimestamp(),
       }),
     );
   });

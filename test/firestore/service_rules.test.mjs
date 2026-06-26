@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -15,6 +15,7 @@ const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
 const PROJECT_ID = 'jirani-service-rules-test';
 const PROVIDER_ID = 'service-provider';
 const NEIGHBOR_ID = 'service-neighbor';
+const OUTSIDER_ID = 'service-outsider';
 const SERVICE_ID = 'service-1';
 
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
@@ -58,6 +59,14 @@ before(async () => {
       verificationStatus: 'verified',
       communityId: 'community-1',
       communityName: 'Palm Grove',
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'users', OUTSIDER_ID), {
+      uid: OUTSIDER_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-2',
+      communityName: 'Other Place',
       updatedAt: new Date(),
     });
     await setDoc(doc(db, 'services', SERVICE_ID), baseService);
@@ -145,5 +154,15 @@ describe('service delete and neighbor access', () => {
         updatedAt: new Date(),
       }),
     );
+  });
+
+  test('neighbor in same community can read a service listing', async () => {
+    const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
+    await assertSucceeds(getDoc(doc(db, 'services', SERVICE_ID)));
+  });
+
+  test('resident in another community cannot read service listings', async () => {
+    const db = testEnv.authenticatedContext(OUTSIDER_ID).firestore();
+    await assertFails(getDoc(doc(db, 'services', SERVICE_ID)));
   });
 });

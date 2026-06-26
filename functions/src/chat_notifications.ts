@@ -1,3 +1,4 @@
+import * as admin from "firebase-admin";
 import { createInAppNotification, residentDisplayName } from "./notifications";
 
 type Firestore = admin.firestore.Firestore;
