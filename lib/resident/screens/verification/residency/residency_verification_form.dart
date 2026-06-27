@@ -133,10 +133,6 @@ class _ResidencyVerificationFormState
       _showMessage('Select a document type before uploading.');
       return;
     }
-    if (!_allowsImageUpload(documentType)) {
-      _showMessage('This document type only accepts PDF files.');
-      return;
-    }
 
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -162,7 +158,7 @@ class _ResidencyVerificationFormState
 
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: _allowedExtensionsFor(documentType),
+      allowedExtensions: _allowedExtensionsFor(),
       withData: true,
     );
     if (!mounted) return;
@@ -180,8 +176,8 @@ class _ResidencyVerificationFormState
     }
 
     final extension = _fileExtension(file.name);
-    if (!_allowedExtensionsFor(documentType).contains(extension)) {
-      _showMessage(_unsupportedFileTypeMessage(documentType));
+    if (!_allowedExtensionsFor().contains(extension)) {
+      _showMessage(_unsupportedFileTypeMessage());
       return;
     }
 
@@ -220,7 +216,7 @@ class _ResidencyVerificationFormState
     if (selected != null && mounted) {
       setState(() {
         _documentType = selected;
-        if (!_isCurrentFileAllowedFor(selected)) {
+        if (!_isCurrentFileAllowedFor()) {
           _fileName = null;
           _localFilePath = null;
           _fileBytes = null;
@@ -256,7 +252,7 @@ class _ResidencyVerificationFormState
       return;
     }
     if (bytes.lengthInBytes > _kMaxDocumentBytes) {
-      _showMessage('Choose a document smaller than 10 MB.');
+      _showMessage('Choose a document smaller than 25 MB.');
       return;
     }
 
@@ -301,39 +297,27 @@ class _ResidencyVerificationFormState
     return 'Select document type';
   }
 
-  bool _allowsImageUpload(String documentType) {
-    return documentType == AppConstants.documentTypeAccessCard ||
-        documentType == AppConstants.documentTypeOtherProof;
+  bool _allowsImageUpload() {
+    return true;
   }
 
-  List<String> _allowedExtensionsFor(String documentType) {
-    if (documentType == AppConstants.documentTypeTenancyAgreement ||
-        documentType == AppConstants.documentTypeUtilityBill) {
-      return _kPdfOnlyDocumentExtensions;
-    }
+  List<String> _allowedExtensionsFor() {
     return _kImageAndPdfDocumentExtensions;
   }
 
   String _acceptedFormatsLabel(String? documentType) {
     if (documentType == null) return 'Select a document type first.';
-    if (_allowsImageUpload(documentType)) {
-      return 'Accepted formats: JPG, PNG, WEBP, HEIC, or PDF.';
-    }
-    return 'Accepted format: PDF only.';
+    return 'Accepted formats: JPG, PNG, WEBP, HEIC, HEIF, or PDF.';
   }
 
-  String _unsupportedFileTypeMessage(String documentType) {
-    return _allowsImageUpload(documentType)
-        ? 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.'
-        : 'Only PDF files are supported for this document type.';
+  String _unsupportedFileTypeMessage() {
+    return 'Only JPG, PNG, WEBP, HEIC, HEIF, or PDF files are supported.';
   }
 
-  bool _isCurrentFileAllowedFor(String documentType) {
+  bool _isCurrentFileAllowedFor() {
     final fileName = _fileName;
     if (fileName == null) return true;
-    return _allowedExtensionsFor(
-      documentType,
-    ).contains(_fileExtension(fileName));
+    return _allowedExtensionsFor().contains(_fileExtension(fileName));
   }
 
   String _fileExtension(String fileName) {
@@ -354,7 +338,7 @@ class _ResidencyVerificationFormState
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final documentType = _documentType;
     final allowsGalleryUpload =
-        documentType != null && _allowsImageUpload(documentType);
+        documentType != null && _allowsImageUpload();
 
     return Scaffold(
       resizeToAvoidBottomInset: true,

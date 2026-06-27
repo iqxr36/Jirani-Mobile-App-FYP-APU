@@ -38,7 +38,11 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
   late final TextEditingController _accountNumberController;
   late final TextEditingController _dueDateController;
   late final TextEditingController _utilityProviderController;
+  late final TextEditingController _residentNameController;
+  late final TextEditingController _issuerController;
+  late final TextEditingController _documentDateController;
   late final TextEditingController _cardNumberController;
+  late final TextEditingController _summaryController;
   late final TextEditingController _fullTextController;
   String _billType = 'Other';
 
@@ -50,7 +54,7 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         ? DocumentType.otherProof
         : data.type;
     _tenantNameController = TextEditingController(
-      text: data.billHolderName ?? data.tenantName ?? '',
+      text: data.billHolderName ?? data.tenantName ?? data.residentName ?? '',
     );
     _landlordNameController = TextEditingController(
       text: data.landlordName ?? '',
@@ -73,7 +77,15 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     _utilityProviderController = TextEditingController(
       text: data.utilityProvider ?? '',
     );
+    _residentNameController = TextEditingController(
+      text: data.residentName ?? data.tenantName ?? data.billHolderName ?? '',
+    );
+    _issuerController = TextEditingController(text: data.issuer ?? '');
+    _documentDateController = TextEditingController(
+      text: data.documentDate ?? '',
+    );
     _cardNumberController = TextEditingController(text: data.cardNumber ?? '');
+    _summaryController = TextEditingController(text: data.summary ?? '');
     _fullTextController = TextEditingController(text: data.fullText);
     final utilityType = data.utilityType ?? data.billType;
     _billType = _billTypes.contains(utilityType) ? utilityType! : 'Other';
@@ -91,7 +103,11 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
     _accountNumberController.dispose();
     _dueDateController.dispose();
     _utilityProviderController.dispose();
+    _residentNameController.dispose();
+    _issuerController.dispose();
+    _documentDateController.dispose();
     _cardNumberController.dispose();
+    _summaryController.dispose();
     _fullTextController.dispose();
     super.dispose();
   }
@@ -187,6 +203,17 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         _textField(_fullTextController, 'Full OCR Text', maxLines: 8),
       ],
       DocumentType.accessCard => [
+        _textField(_residentNameController, 'Resident Name'),
+        _textField(_unitNumberController, 'Unit Number'),
+        _textField(
+          _propertyAddressController,
+          'Property Address',
+          maxLines: 2,
+        ),
+        _textField(_issuerController, 'Issuer'),
+        _textField(_documentDateController, 'Document Date'),
+        _textField(_cardNumberController, 'Card Number'),
+        _textField(_summaryController, 'Summary', maxLines: 3),
         _textField(
           _fullTextController,
           'Full OCR Text',
@@ -195,6 +222,17 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
         ),
       ],
       DocumentType.otherProof || DocumentType.unknown => [
+        _textField(_residentNameController, 'Resident Name'),
+        _textField(_unitNumberController, 'Unit Number'),
+        _textField(
+          _propertyAddressController,
+          'Property Address',
+          maxLines: 2,
+        ),
+        _textField(_issuerController, 'Issuer'),
+        _textField(_documentDateController, 'Document Date'),
+        _textField(_cardNumberController, 'Card Number'),
+        _textField(_summaryController, 'Summary', maxLines: 3),
         _textField(
           _fullTextController,
           'Full OCR Text',
@@ -246,10 +284,15 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
             : null,
         propertyAddress:
             _type == DocumentType.tenancyAgreement ||
-                _type == DocumentType.utilityBill
+                _type == DocumentType.utilityBill ||
+                _type == DocumentType.accessCard ||
+                _type == DocumentType.otherProof
             ? _emptyToNull(_propertyAddressController.text)
             : null,
-        unitNumber: _type == DocumentType.tenancyAgreement
+        unitNumber:
+            _type == DocumentType.tenancyAgreement ||
+                _type == DocumentType.accessCard ||
+                _type == DocumentType.otherProof
             ? _emptyToNull(_unitNumberController.text)
             : null,
         agreementDate: _type == DocumentType.tenancyAgreement
@@ -281,7 +324,26 @@ class _OcrReviewDialogState extends State<OcrReviewDialog> {
             ? _emptyToNull(_utilityProviderController.text)
             : null,
         utilityType: _type == DocumentType.utilityBill ? _billType : null,
-        cardNumber: null,
+        residentName:
+            _type == DocumentType.accessCard || _type == DocumentType.otherProof
+            ? _emptyToNull(_residentNameController.text)
+            : null,
+        issuer:
+            _type == DocumentType.accessCard || _type == DocumentType.otherProof
+            ? _emptyToNull(_issuerController.text)
+            : null,
+        documentDate:
+            _type == DocumentType.accessCard || _type == DocumentType.otherProof
+            ? _emptyToNull(_documentDateController.text)
+            : null,
+        cardNumber:
+            _type == DocumentType.accessCard || _type == DocumentType.otherProof
+            ? _emptyToNull(_cardNumberController.text)
+            : null,
+        summary:
+            _type == DocumentType.accessCard || _type == DocumentType.otherProof
+            ? _emptyToNull(_summaryController.text)
+            : null,
         fullText: _fullTextController.text.trim(),
       ),
     );

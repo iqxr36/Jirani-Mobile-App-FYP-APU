@@ -104,7 +104,6 @@ dependencies:
   http: ^1.6.0
 
   # OCR and documents
-  google_mlkit_text_recognition: ^0.15.1
   path_provider: ^2.1.5
   pdfx: ^2.9.2
 

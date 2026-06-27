@@ -33,6 +33,7 @@ import {
   recalculateTrustScoreForUser,
   reviewBecamePublished,
 } from "./trust_score";
+export {processVerificationRequestOcr} from "./ocr/processVerificationOcr";
 
 admin.initializeApp();
 

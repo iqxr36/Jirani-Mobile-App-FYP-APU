@@ -36,17 +36,26 @@ class VerificationRepository {
   final FirebaseStorage _storage;
   static const Duration _uploadTimeout = Duration(seconds: 90);
   static const Duration _networkTimeout = Duration(seconds: 25);
-  static const Set<String> _pdfOnlyExtensions = {'pdf'};
-  static const Set<String> _imageAndPdfExtensions = {
+  static const Set<String> _verificationDocumentExtensions = {
     'jpg',
     'jpeg',
     'png',
     'webp',
     'heic',
+    'heif',
     'pdf',
   };
 
   User? get currentFirebaseUser => _auth.currentUser;
+
+  static Set<String> get supportedVerificationDocumentExtensions =>
+      Set.unmodifiable(_verificationDocumentExtensions);
+
+  static bool isSupportedVerificationFileName(String originalFileName) {
+    final extension = _normalizedExtension(originalFileName);
+    return extension != null &&
+        _verificationDocumentExtensions.contains(extension);
+  }
 
   Future<VerificationRequest?> getCurrentUserLatestRequest() async {
     final user = _auth.currentUser;
@@ -166,7 +175,6 @@ class VerificationRepository {
         .collection(AppConstants.verificationRequestsCollection)
         .doc();
     final requestId = docRef.id;
-    final usesDocumentAiExtraction = _usesDocumentAiExtraction(documentType);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileObjectName = _safeVerificationStorageObjectName(
       timestamp,
@@ -174,67 +182,14 @@ class VerificationRepository {
       documentType: documentType,
     );
 
-    final ref = usesDocumentAiExtraction
-        ? _storage
-              .ref()
-              .child(AppConstants.storageResidentDocumentsPath)
-              .child(uid)
-              .child(requestId)
-              .child(fileObjectName)
-        : _storage
-              .ref()
-              .child(AppConstants.storageVerificationDocumentsPath)
-              .child(uid)
-              .child(fileObjectName);
+    final ref = _storage
+        .ref()
+        .child(AppConstants.storageResidentDocumentsPath)
+        .child(uid)
+        .child(requestId)
+        .child(fileObjectName);
     final mime = _mimeTypeForStorageName(fileObjectName, fileBytes);
-
-    final request = VerificationRequest(
-      id: requestId,
-      userId: uid,
-      fullName: appUser.fullName,
-      email: appUser.email,
-      phoneNumber: appUser.phoneNumber,
-      documentType: documentType,
-      documentUrl: '',
-      communityId: appUser.communityId,
-      communityName: communityName.trim(),
-      unitNumber: unitNumber.trim(),
-      notes: notes?.trim() ?? '',
-      status: AppConstants.verificationSubmitted,
-      rejectionReason: null,
-      submittedAt: DateTime.now(),
-      reviewedAt: null,
-      reviewedBy: null,
-      cancelledAt: null,
-      cancelledBy: null,
-      ocrStatus: usesDocumentAiExtraction
-          ? AppConstants.ocrStatusProcessing
-          : AppConstants.ocrStatusPending,
-      ocrText: '',
-      ocrFields: const {},
-      ocrError: null,
-      ocrProcessedAt: null,
-      storagePath: ref.fullPath,
-      adminStatus: usesDocumentAiExtraction
-          ? AppConstants.adminStatusProcessing
-          : AppConstants.adminStatusPendingReview,
-    );
-
-    if (usesDocumentAiExtraction) {
-      await docRef
-          .set({
-            ...request.toMap(),
-            'fileName': fileObjectName,
-            'filePath': ref.fullPath,
-            'residentId': uid,
-            'residentEmail': appUser.email,
-            'uploadedAt': FieldValue.serverTimestamp(),
-            'submittedAt': FieldValue.serverTimestamp(),
-            'processedAt': null,
-            'extractedFields': const <String, dynamic>{},
-          })
-          .timeout(_networkTimeout);
-    }
+    final storageBucket = ref.bucket;
 
     final metadata = SettableMetadata(
       contentType: mime,
@@ -242,6 +197,7 @@ class VerificationRepository {
         'documentId': requestId,
         'residentId': uid,
         'documentType': _storageMetadataDocumentType(documentType),
+        'storageBucket': storageBucket,
       },
     );
 
@@ -276,21 +232,54 @@ class VerificationRepository {
     }
     final documentUrl = await ref.getDownloadURL().timeout(_networkTimeout);
 
-    if (usesDocumentAiExtraction) {
-      await docRef
-          .update({
-            'documentUrl': documentUrl,
-            'fileUrl': documentUrl,
-            'updatedAt': FieldValue.serverTimestamp(),
-          })
-          .timeout(_networkTimeout);
-    } else {
+    final request = VerificationRequest(
+      id: requestId,
+      userId: uid,
+      fullName: appUser.fullName,
+      email: appUser.email,
+      phoneNumber: appUser.phoneNumber,
+      documentType: documentType,
+      documentUrl: documentUrl,
+      communityId: appUser.communityId,
+      communityName: communityName.trim(),
+      unitNumber: unitNumber.trim(),
+      notes: notes?.trim() ?? '',
+      status: AppConstants.verificationSubmitted,
+      rejectionReason: null,
+      submittedAt: DateTime.now(),
+      reviewedAt: null,
+      reviewedBy: null,
+      cancelledAt: null,
+      cancelledBy: null,
+      ocrStatus: AppConstants.ocrStatusPending,
+      ocrText: '',
+      ocrFields: const {},
+      ocrError: null,
+      ocrProcessedAt: null,
+      storagePath: ref.fullPath,
+      adminStatus: AppConstants.adminStatusProcessing,
+    );
+
+    try {
       await docRef
           .set({
-            ...request.copyWith(documentUrl: documentUrl).toMap(),
+            ...request.toMap(),
+            'fileName': fileObjectName,
+            'filePath': ref.fullPath,
+            'fileUrl': documentUrl,
+            'storageBucket': storageBucket,
+            'residentId': uid,
+            'residentEmail': appUser.email,
+            'uploadedAt': FieldValue.serverTimestamp(),
             'submittedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+            'processedAt': null,
+            'extractedFields': const <String, dynamic>{},
           })
           .timeout(_networkTimeout);
+    } catch (_) {
+      await _deleteUploadedVerificationObject(ref);
+      rethrow;
     }
 
     final saved = await docRef.get().timeout(_networkTimeout);
@@ -299,6 +288,16 @@ class VerificationRepository {
       return request;
     }
     return VerificationRequest.fromMap(data);
+  }
+
+  static Future<void> _deleteUploadedVerificationObject(
+    Reference ref,
+  ) async {
+    try {
+      await ref.delete().timeout(_networkTimeout);
+    } catch (_) {
+      // Best effort cleanup only. The original Firestore error should surface.
+    }
   }
 
   /// `{timestamp}_verification_document.{ext}` - ext from [originalFileName] only, sanitized.
@@ -311,27 +310,21 @@ class VerificationRepository {
         documentType == AppConstants.documentTypeTenancyAgreement;
     final baseName = path.basename(originalFileName);
     final dot = baseName.lastIndexOf('.');
-    var ext = '';
-    if (dot != -1 && dot < baseName.length - 1) {
-      ext = baseName
-          .substring(dot + 1)
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9]'), '');
-    }
-    if (ext.isEmpty) {
+    final normalizedExtension = _normalizedExtension(baseName);
+    if (normalizedExtension == null) {
       throw VerificationUnsupportedFileTypeException(
-        'Could not determine file type. Use JPG, PNG, WEBP, HEIC, or PDF.',
+        'Could not determine file type. Use JPG, PNG, WEBP, HEIC, HEIF, or PDF.',
       );
     }
 
-    final allowed = _allowedExtensionsForDocumentType(documentType);
-    if (!allowed.contains(ext)) {
+    final allowed = _allowedExtensionsForDocumentType();
+    if (!allowed.contains(normalizedExtension)) {
       throw VerificationUnsupportedFileTypeException(
-        _unsupportedFileTypeMessage(documentType),
+        _unsupportedFileTypeMessage(),
       );
     }
 
-    if (ext == 'jpeg') ext = 'jpg';
+    final ext = normalizedExtension == 'jpeg' ? 'jpg' : normalizedExtension;
 
     if (!tenancyAgreement) {
       return '${timestamp}_verification_document.$ext';
@@ -345,33 +338,23 @@ class VerificationRepository {
     return '${safeStem.isEmpty ? 'tenancy_agreement' : safeStem}.$ext';
   }
 
-  static Set<String> _allowedExtensionsForDocumentType(String documentType) {
-    return switch (documentType) {
-      AppConstants.documentTypeTenancyAgreement ||
-      AppConstants.documentTypeUtilityBill => _pdfOnlyExtensions,
-      AppConstants.documentTypeAccessCard ||
-      AppConstants.documentTypeOtherProof => _imageAndPdfExtensions,
-      _ => _imageAndPdfExtensions,
-    };
+  static String? _normalizedExtension(String fileName) {
+    final baseName = path.basename(fileName);
+    final dot = baseName.lastIndexOf('.');
+    if (dot == -1 || dot >= baseName.length - 1) return null;
+    final ext = baseName
+        .substring(dot + 1)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return ext.isEmpty ? null : ext;
   }
 
-  static String _unsupportedFileTypeMessage(String documentType) {
-    return switch (documentType) {
-      AppConstants.documentTypeTenancyAgreement =>
-        'Only PDF tenancy agreements are supported.',
-      AppConstants.documentTypeUtilityBill =>
-        'Only PDF utility bills are supported.',
-      AppConstants.documentTypeAccessCard =>
-        'Only JPG, PNG, WEBP, HEIC, or PDF access cards are supported.',
-      AppConstants.documentTypeOtherProof =>
-        'Only JPG, PNG, WEBP, HEIC, or PDF other proof documents are supported.',
-      _ => 'Only JPG, PNG, WEBP, HEIC, or PDF files are supported.',
-    };
+  static Set<String> _allowedExtensionsForDocumentType() {
+    return _verificationDocumentExtensions;
   }
 
-  static bool _usesDocumentAiExtraction(String documentType) {
-    return documentType == AppConstants.documentTypeTenancyAgreement ||
-        documentType == AppConstants.documentTypeUtilityBill;
+  static String _unsupportedFileTypeMessage() {
+    return 'Only JPG, PNG, WEBP, HEIC, HEIF, or PDF files are supported.';
   }
 
   static String _storageMetadataDocumentType(String documentType) {
@@ -394,6 +377,7 @@ class VerificationRepository {
     if (lower.endsWith('.png')) return 'image/png';
     if (lower.endsWith('.webp')) return 'image/webp';
     if (lower.endsWith('.heic')) return 'image/heic';
+    if (lower.endsWith('.heif')) return 'image/heif';
     if (lower.endsWith('.pdf')) return 'application/pdf';
     return 'application/octet-stream';
   }

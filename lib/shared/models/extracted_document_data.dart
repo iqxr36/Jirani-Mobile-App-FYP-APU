@@ -24,7 +24,11 @@ class ExtractedDocumentData {
     this.totalAmount,
     this.utilityProvider,
     this.utilityType,
+    this.residentName,
+    this.issuer,
+    this.documentDate,
     this.cardNumber,
+    this.summary,
     required this.fullText,
   });
 
@@ -44,7 +48,11 @@ class ExtractedDocumentData {
   final String? totalAmount;
   final String? utilityProvider;
   final String? utilityType;
+  final String? residentName;
+  final String? issuer;
+  final String? documentDate;
   final String? cardNumber;
+  final String? summary;
   final String fullText;
 
   Map<String, dynamic> toMap() {
@@ -65,7 +73,11 @@ class ExtractedDocumentData {
       'totalAmount': totalAmount,
       'utilityProvider': utilityProvider,
       'utilityType': utilityType,
+      'residentName': residentName,
+      'issuer': issuer,
+      'documentDate': documentDate,
       'cardNumber': cardNumber,
+      'summary': summary,
       'fullText': fullText,
     };
   }
@@ -89,6 +101,15 @@ class ExtractedDocumentData {
       add('totalAmount', totalAmount ?? amount);
       add('utilityProvider', utilityProvider);
       add('utilityType', utilityType ?? billType);
+    } else if (type == DocumentType.accessCard ||
+        type == DocumentType.otherProof) {
+      add('residentName', residentName ?? tenantName);
+      add('unitNumber', unitNumber);
+      add('propertyAddress', propertyAddress);
+      add('issuer', issuer);
+      add('documentDate', documentDate);
+      add('cardNumber', cardNumber);
+      add('summary', summary);
     } else {
       add('tenantName', tenantName);
       add('landlordName', landlordName);
@@ -124,7 +145,11 @@ class ExtractedDocumentData {
     String? totalAmount,
     String? utilityProvider,
     String? utilityType,
+    String? residentName,
+    String? issuer,
+    String? documentDate,
     String? cardNumber,
+    String? summary,
     String? fullText,
   }) {
     return ExtractedDocumentData(
@@ -144,7 +169,11 @@ class ExtractedDocumentData {
       totalAmount: totalAmount ?? this.totalAmount,
       utilityProvider: utilityProvider ?? this.utilityProvider,
       utilityType: utilityType ?? this.utilityType,
+      residentName: residentName ?? this.residentName,
+      issuer: issuer ?? this.issuer,
+      documentDate: documentDate ?? this.documentDate,
       cardNumber: cardNumber ?? this.cardNumber,
+      summary: summary ?? this.summary,
       fullText: fullText ?? this.fullText,
     );
   }

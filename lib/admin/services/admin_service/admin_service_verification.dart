@@ -212,6 +212,13 @@ mixin _AdminServiceVerificationMixin on _AdminServiceBase {
       case DocumentType.accessCard:
       case DocumentType.otherProof:
       case DocumentType.unknown:
+        add('resident_name', data.residentName ?? data.tenantName);
+        add('unit_number', data.unitNumber);
+        add('property_address', data.propertyAddress);
+        add('issuer', data.issuer);
+        add('document_date', data.documentDate);
+        add('card_number', data.cardNumber);
+        add('summary', data.summary);
         break;
     }
     return fields;

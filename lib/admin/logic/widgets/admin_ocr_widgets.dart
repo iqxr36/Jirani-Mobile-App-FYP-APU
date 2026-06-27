@@ -3,7 +3,6 @@ import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/shared/services/ocr_parser_service.dart';
 import 'package:jirani/shared/models/extracted_document_data.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 
@@ -127,26 +126,7 @@ class AdminOcrResultView extends StatelessWidget {
     final text = request.ocrText.trim();
     final fullTextOnly = _usesFullTextOnly(request.documentType);
     final structuredFields = _structuredFieldEntries(request);
-    final Map<String, String> parsedFields;
-    final bool showParsedConfidence;
-    if (structuredFields.isNotEmpty) {
-      parsedFields = const <String, String>{};
-      showParsedConfidence = false;
-    } else if (fullTextOnly) {
-      parsedFields = const <String, String>{};
-      showParsedConfidence = false;
-    } else if (_shouldParseDisplayFields(request)) {
-      parsedFields = _parseDisplayFields(request);
-      showParsedConfidence = true;
-    } else {
-      parsedFields = request.ocrFields;
-      showParsedConfidence = false;
-    }
-    final visibleFields = Map<String, String>.from(parsedFields)
-      ..remove('type')
-      ..remove('fullText');
-    final showFullText =
-        fullTextOnly || (visibleFields.isEmpty && structuredFields.isEmpty);
+    final showFullText = fullTextOnly || structuredFields.isEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -166,25 +146,9 @@ class AdminOcrResultView extends StatelessWidget {
                 )
                 .toList(),
           ),
-        ] else if (visibleFields.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: visibleFields.entries
-                .map(
-                  (e) => AdminOcrFieldChip(
-                    label: e.key,
-                    value: e.value,
-                    confidence: showParsedConfidence
-                        ? _parsedFieldConfidence(request.documentType)
-                        : null,
-                  ),
-                )
-                .toList(),
-          ),
         ],
         if (showFullText) ...[
-          if (visibleFields.isNotEmpty) ...[
+          if (structuredFields.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: AdminColors.border),
             const SizedBox(height: 12),
@@ -223,38 +187,9 @@ class AdminOcrResultView extends StatelessWidget {
     );
   }
 
-  bool _shouldParseDisplayFields(VerificationRequest request) {
-    if (request.ocrText.trim().isEmpty) return false;
-    return request.documentType == AppConstants.documentTypeTenancyAgreement ||
-        request.documentType == AppConstants.documentTypeUtilityBill;
-  }
-
   bool _usesFullTextOnly(String documentType) {
     return documentType == AppConstants.documentTypeAccessCard ||
         documentType == AppConstants.documentTypeOtherProof;
-  }
-
-  Map<String, String> _parseDisplayFields(VerificationRequest request) {
-    final text = request.ocrText.trim();
-    if (text.isEmpty) return const {};
-    final parser = OcrParserService();
-    final parsed = switch (request.documentType) {
-      AppConstants.documentTypeTenancyAgreement =>
-        parser.extractTenancyAgreement(text),
-      AppConstants.documentTypeUtilityBill => parser.extractUtilityBill(text),
-      AppConstants.documentTypeOtherProof => parser.extractOtherProof(text),
-      _ => parser.processOcrText(text),
-    };
-    return parsed.toFieldMap();
-  }
-
-  double? _parsedFieldConfidence(String documentType) {
-    return switch (documentTypeFromValue(documentType)) {
-      DocumentType.tenancyAgreement || DocumentType.utilityBill => 1.0,
-      DocumentType.accessCard ||
-      DocumentType.otherProof ||
-      DocumentType.unknown => null,
-    };
   }
 
   List<AdminStructuredFieldEntry> _structuredFieldEntries(
@@ -292,7 +227,15 @@ class AdminOcrResultView extends StatelessWidget {
       },
       DocumentType.accessCard ||
       DocumentType.otherProof ||
-      DocumentType.unknown => const <String, String>{},
+      DocumentType.unknown => const <String, String>{
+        'resident_name': 'Resident Name',
+        'unit_number': 'Unit Number',
+        'property_address': 'Property Address',
+        'issuer': 'Issuer',
+        'document_date': 'Document Date',
+        'card_number': 'Card Number',
+        'summary': 'Summary',
+      },
     };
   }
 }

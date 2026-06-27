@@ -1,22 +1,20 @@
-import 'package:jirani/shared/services/ocr_parser_service.dart';
 import 'package:jirani/shared/models/extracted_document_data.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 
 class AdminVerificationReviewService {
-  AdminVerificationReviewService({OcrParserService? parser})
-    : _parser = parser ?? OcrParserService();
-
-  final OcrParserService _parser;
+  const AdminVerificationReviewService();
 
   ExtractedDocumentData initialReviewData(VerificationRequest request) {
     final structuredData = _structuredDataFromRequest(request);
     if (structuredData != null) return structuredData;
 
     final documentType = documentTypeFromValue(request.documentType);
-    if (documentType == DocumentType.unknown) {
-      return _parser.processOcrText(request.ocrText);
-    }
-    return _parser.extractByDocumentType(request.ocrText, documentType);
+    return ExtractedDocumentData(
+      type: documentType == DocumentType.unknown
+          ? DocumentType.otherProof
+          : documentType,
+      fullText: request.ocrText,
+    );
   }
 
   ExtractedDocumentData? _structuredDataFromRequest(
@@ -68,9 +66,30 @@ class AdminVerificationReviewService {
         utilityType: firstValue(['utility_type', 'bill_type']),
         fullText: request.ocrText,
       ),
-      DocumentType.accessCard ||
-      DocumentType.otherProof ||
-      DocumentType.unknown => null,
+      DocumentType.accessCard => ExtractedDocumentData(
+        type: DocumentType.accessCard,
+        residentName: firstValue(['resident_name', 'tenant_name']),
+        tenantName: firstValue(['resident_name', 'tenant_name']),
+        propertyAddress: value('property_address'),
+        unitNumber: value('unit_number'),
+        issuer: value('issuer'),
+        documentDate: value('document_date'),
+        cardNumber: value('card_number'),
+        summary: value('summary'),
+        fullText: request.ocrText,
+      ),
+      DocumentType.otherProof || DocumentType.unknown => ExtractedDocumentData(
+        type: DocumentType.otherProof,
+        residentName: firstValue(['resident_name', 'tenant_name']),
+        tenantName: firstValue(['resident_name', 'tenant_name']),
+        propertyAddress: value('property_address'),
+        unitNumber: value('unit_number'),
+        issuer: value('issuer'),
+        documentDate: value('document_date'),
+        cardNumber: value('card_number'),
+        summary: value('summary'),
+        fullText: request.ocrText,
+      ),
     };
   }
 }

@@ -1439,7 +1439,7 @@ service cloud.firestore {
     }
 
     match /services/{serviceId} {
-      allow read: if canReadServiceListing();
+      allow read: if isAdmin() || canReadServiceListing();
       allow create: if validServiceCreate(serviceId);
       allow update: if isAdmin() ||
         providerSafeServiceUpdate() ||
