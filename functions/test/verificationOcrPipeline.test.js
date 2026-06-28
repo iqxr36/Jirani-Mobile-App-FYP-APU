@@ -7,6 +7,7 @@ const {
   OCR_STATUS_FAILED,
   buildFailurePayload,
   buildSuccessPayload,
+  evaluateAutoVerification,
   normalizeDocumentAiDocument,
   parseGeminiExtraction,
   shouldStartVerificationOcr,
@@ -110,5 +111,79 @@ test("starts OCR only after upload URL exists and request is pending", () => {
       },
     ),
     false,
+  );
+});
+
+test("auto-verification is eligible when first and last name plus unit match", () => {
+  const decision = evaluateAutoVerification({
+    request: {
+      documentType: "utilityBill",
+      fullName: "Nur Aisyah Hassan",
+      unitNumber: "A-18-07",
+    },
+    user: {
+      firstName: "Nur Aisyah",
+      lastName: "Hassan",
+      email: "nur@example.com",
+      phoneNumber: "+60123456789",
+      unitNumber: "A-18-07",
+      communityName: "Vista Harmoni",
+    },
+    extractedFields: {
+      bill_holder_name: {
+        value: "Nur Aisyah binti Hassan",
+        confidence: 0.98,
+        source: "gemini",
+      },
+      service_address: {
+        value: "Unit A-18-07, Vista Harmoni Condominium",
+        confidence: 0.96,
+        source: "gemini",
+      },
+    },
+    ocrText: "Bill holder: Nur Aisyah binti Hassan",
+  });
+
+  assert.equal(decision.eligible, true);
+  assert.equal(decision.decision, "auto_verified");
+  assert.equal(decision.checks.firstNameMatch.passed, true);
+  assert.equal(decision.checks.lastNameMatch.passed, true);
+  assert.equal(decision.checks.unitMatch.passed, true);
+  assert.equal(decision.checks.communityObserved.passed, true);
+});
+
+test("auto-verification requires matching extracted unit or address", () => {
+  const decision = evaluateAutoVerification({
+    request: {
+      documentType: "tenancyAgreement",
+      fullName: "Nur Aisyah Hassan",
+      unitNumber: "C-5-6",
+    },
+    user: {
+      firstName: "Nur Aisyah",
+      lastName: "Hassan",
+      unitNumber: "C-5-6",
+    },
+    extractedFields: {
+      tenant_name: {
+        value: "Nur Aisyah binti Hassan",
+        confidence: 1,
+        source: "gemini",
+      },
+      unit_number: {
+        value: "B-12-07",
+        confidence: 1,
+        source: "gemini",
+      },
+    },
+    ocrText: "Tenant: Nur Aisyah binti Hassan. Unit B-12-07.",
+  });
+
+  assert.equal(decision.eligible, false);
+  assert.equal(decision.decision, "manual_review");
+  assert.equal(decision.checks.unitMatch.passed, false);
+  assert.match(
+    decision.reasons.join(" "),
+    /unit\/address does not match/,
   );
 });

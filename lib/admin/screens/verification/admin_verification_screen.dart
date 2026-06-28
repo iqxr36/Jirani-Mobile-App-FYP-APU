@@ -240,9 +240,7 @@ class AdminVerificationDetail extends StatelessWidget {
     }
 
     final r = request!;
-    final canReview =
-        r.status == AppConstants.verificationSubmitted ||
-        r.status == AppConstants.verificationRequestPending;
+    final canReview = _canAdminReview(r);
     return AdminPanel(
       title: r.fullName.isEmpty ? 'Resident Details' : r.fullName,
       action: r.status,
@@ -302,6 +300,24 @@ class AdminVerificationDetail extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  bool _canAdminReview(VerificationRequest request) {
+    if (request.status == AppConstants.verificationRejected ||
+        request.status == AppConstants.verificationVerified) {
+      return false;
+    }
+    if (request.status == AppConstants.verificationSubmitted ||
+        request.status == AppConstants.verificationRequestPending) {
+      return true;
+    }
+    if (request.adminStatus == AppConstants.adminStatusOcrMatched ||
+        request.adminStatus == AppConstants.adminStatusManualCheckRequired ||
+        request.adminStatus == AppConstants.adminStatusPendingReview ||
+        request.adminStatus == AppConstants.adminStatusProcessing) {
+      return true;
+    }
+    return false;
   }
 
   Future<void> _approve(

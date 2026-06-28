@@ -67,7 +67,7 @@ class _VerificationBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                verificationStatusMessage(user?.verificationStatus ?? ''),
+                residentAccessMessage(user),
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.3,

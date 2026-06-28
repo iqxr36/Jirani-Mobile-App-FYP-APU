@@ -100,5 +100,100 @@ void main() {
       expect(find.text('FULL EXTRACTED TEXT'), findsOneWidget);
       expect(find.text('Lift access card C-5-6'), findsOneWidget);
     });
+
+    testWidgets('shows manual-review mismatch checks from backend', (
+      tester,
+    ) async {
+      final request = VerificationRequest(
+        id: 'request-3',
+        userId: 'user-1',
+        fullName: 'Faisal Ahmed',
+        email: 'faisalahmed@gmail.com',
+        phoneNumber: '+60197888597',
+        documentType: AppConstants.documentTypeTenancyAgreement,
+        documentUrl: 'https://example.com/tenancy.pdf',
+        communityId: 'community-1',
+        communityName: 'One South Residence',
+        unitNumber: 'C-5-6',
+        notes: '',
+        status: AppConstants.verificationSubmitted,
+        rejectionReason: null,
+        submittedAt: DateTime(2026, 6, 18),
+        reviewedAt: null,
+        reviewedBy: null,
+        ocrStatus: AppConstants.ocrStatusCompleted,
+        ocrText: 'Tenant: Nur Aisyah. Unit A-18-07.',
+        extractedFields: const {
+          'tenant_name': ExtractedVerificationField(
+            value: 'Nur Aisyah binti Hassan',
+            confidence: 1,
+            source: 'gemini',
+          ),
+          'unit_number': ExtractedVerificationField(
+            value: 'A-18-07',
+            confidence: 1,
+            source: 'gemini',
+          ),
+        },
+        autoVerification: const AutoVerificationResult(
+          eligible: false,
+          decision: 'manual_review',
+          reasons: [
+            'Extracted document name does not contain the resident first name.',
+            'Extracted document unit/address does not match the resident unit.',
+          ],
+          checks: {
+            'firstNameMatch': AutoVerificationCheck(
+              passed: false,
+              expected: 'Faisal',
+              actual: 'Nur Aisyah binti Hassan',
+              source: 'tenant_name',
+            ),
+            'lastNameMatch': AutoVerificationCheck(
+              passed: false,
+              expected: 'Ahmed',
+              actual: 'Nur Aisyah binti Hassan',
+              source: 'tenant_name',
+            ),
+            'unitMatch': AutoVerificationCheck(
+              passed: false,
+              expected: 'C-5-6',
+              actual: 'A-18-07',
+              source: 'unit_number',
+            ),
+            'communityObserved': AutoVerificationCheck(
+              passed: false,
+              expected: 'One South Residence',
+              actual: 'Vista Harmoni',
+              source: 'property_address',
+            ),
+            'emailObserved': AutoVerificationCheck(
+              passed: true,
+              expected: 'faisalahmed@gmail.com',
+              skipped: true,
+            ),
+            'phoneObserved': AutoVerificationCheck(
+              passed: true,
+              expected: '60197888597',
+              skipped: true,
+            ),
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: AdminOcrResultView(request: request)),
+        ),
+      );
+
+      expect(find.text('Manual review required'), findsOneWidget);
+      expect(find.text('First name'), findsOneWidget);
+      expect(find.text('Unit'), findsOneWidget);
+      expect(find.text('Community'), findsOneWidget);
+      expect(find.textContaining('Faisal'), findsOneWidget);
+      expect(find.textContaining('A-18-07'), findsWidgets);
+      expect(find.textContaining('One South Residence'), findsOneWidget);
+    });
   });
 }

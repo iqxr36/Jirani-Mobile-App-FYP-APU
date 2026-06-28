@@ -23,6 +23,10 @@ class AppUser {
     this.trustedResident = false,
     this.accountFlagged = false,
     this.trustFlagReason = '',
+    this.accountStatus = AppConstants.accountStatusActive,
+    this.suspendedReason = '',
+    this.suspendedAt,
+    this.archivedAt,
     required this.completedBorrowings,
     required this.completedLendings,
     required this.completedServices,
@@ -52,6 +56,10 @@ class AppUser {
   final bool trustedResident;
   final bool accountFlagged;
   final String trustFlagReason;
+  final String accountStatus;
+  final String suspendedReason;
+  final DateTime? suspendedAt;
+  final DateTime? archivedAt;
   final int completedBorrowings;
   final int completedLendings;
   final int completedServices;
@@ -62,6 +70,10 @@ class AppUser {
 
   bool get isVerifiedResident =>
       verificationStatus == AppConstants.verificationVerified;
+  bool get isSuspended => accountStatus == AppConstants.accountStatusSuspended;
+  bool get isArchived => accountStatus == AppConstants.accountStatusArchived;
+  bool get isActiveAccount =>
+      accountStatus.isEmpty || accountStatus == AppConstants.accountStatusActive;
   bool get isResident => role == AppConstants.roleResident;
   bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
   bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
@@ -95,6 +107,10 @@ class AppUser {
     bool? trustedResident,
     bool? accountFlagged,
     String? trustFlagReason,
+    String? accountStatus,
+    String? suspendedReason,
+    DateTime? suspendedAt,
+    DateTime? archivedAt,
     int? completedBorrowings,
     int? completedLendings,
     int? completedServices,
@@ -124,6 +140,10 @@ class AppUser {
       trustedResident: trustedResident ?? this.trustedResident,
       accountFlagged: accountFlagged ?? this.accountFlagged,
       trustFlagReason: trustFlagReason ?? this.trustFlagReason,
+      accountStatus: accountStatus ?? this.accountStatus,
+      suspendedReason: suspendedReason ?? this.suspendedReason,
+      suspendedAt: suspendedAt ?? this.suspendedAt,
+      archivedAt: archivedAt ?? this.archivedAt,
       completedBorrowings: completedBorrowings ?? this.completedBorrowings,
       completedLendings: completedLendings ?? this.completedLendings,
       completedServices: completedServices ?? this.completedServices,
@@ -156,6 +176,10 @@ class AppUser {
       'trustedResident': trustedResident,
       'accountFlagged': accountFlagged,
       'trustFlagReason': trustFlagReason,
+      'accountStatus': accountStatus,
+      'suspendedReason': suspendedReason,
+      if (suspendedAt != null) 'suspendedAt': Timestamp.fromDate(suspendedAt!),
+      if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
       'completedBorrowings': completedBorrowings,
       'completedLendings': completedLendings,
       'completedServices': completedServices,
@@ -197,6 +221,11 @@ class AppUser {
       trustedResident: map['trustedResident'] as bool? ?? false,
       accountFlagged: map['accountFlagged'] as bool? ?? false,
       trustFlagReason: (map['trustFlagReason'] as String?) ?? '',
+      accountStatus:
+          (map['accountStatus'] as String?) ?? AppConstants.accountStatusActive,
+      suspendedReason: (map['suspendedReason'] as String?) ?? '',
+      suspendedAt: _parseOptionalDate(map['suspendedAt']),
+      archivedAt: _parseOptionalDate(map['archivedAt']),
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),
@@ -242,5 +271,14 @@ class AppUser {
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
     return DateTime.now();
+  }
+
+  static DateTime? _parseOptionalDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 }

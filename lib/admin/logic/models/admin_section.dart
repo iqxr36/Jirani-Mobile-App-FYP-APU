@@ -11,6 +11,11 @@ enum AdminSection {
     'Review resident proof documents',
     Icons.verified_user_rounded,
   ),
+  notifications(
+    'Notifications',
+    'Admin alerts and review tasks',
+    Icons.notifications_active_rounded,
+  ),
   residents(
     'Residents',
     'Directory and account controls',

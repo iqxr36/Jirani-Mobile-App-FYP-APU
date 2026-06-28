@@ -6,8 +6,23 @@ import 'package:jirani/shared/models/app_user.dart';
 bool residentHasFullAppAccess(AppUser? user) =>
     user != null &&
     user.isResident &&
+    user.isActiveAccount &&
     user.isVerifiedResident &&
     user.locationVerified;
+
+String residentAccessMessage(AppUser? user) {
+  if (user == null) {
+    return verificationStatusMessage(AppConstants.verificationPending);
+  }
+  switch (user.accountStatus) {
+    case AppConstants.accountStatusSuspended:
+      return 'Your account is suspended. Contact community admin for assistance.';
+    case AppConstants.accountStatusArchived:
+      return 'Your account is archived. Contact community admin if you need access restored.';
+    default:
+      return verificationStatusMessage(user.verificationStatus);
+  }
+}
 
 String verificationStatusMessage(String status) {
   switch (status) {
@@ -24,8 +39,7 @@ String verificationStatusMessage(String status) {
 }
 
 void showVerificationRequiredSnack(BuildContext context, {AppUser? user}) {
-  final status = user?.verificationStatus ?? AppConstants.verificationPending;
   ScaffoldMessenger.of(
     context,
-  ).showSnackBar(SnackBar(content: Text(verificationStatusMessage(status))));
+  ).showSnackBar(SnackBar(content: Text(residentAccessMessage(user))));
 }

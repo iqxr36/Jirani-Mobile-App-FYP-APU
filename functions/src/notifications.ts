@@ -17,6 +17,11 @@ export type InAppNotificationInput = {
   borrowRequestId?: string;
   serviceRequestId?: string;
   postId?: string;
+  verificationRequestId?: string;
+  residentId?: string;
+  reportId?: string;
+  communityId?: string;
+  ocrDecision?: string;
   notificationId?: string;
 };
 
@@ -71,6 +76,13 @@ function buildNotificationPayload(input: InAppNotificationInput): DocumentData {
   if (input.borrowRequestId) payload.borrowRequestId = input.borrowRequestId;
   if (input.serviceRequestId) payload.serviceRequestId = input.serviceRequestId;
   if (input.postId) payload.postId = input.postId;
+  if (input.verificationRequestId) {
+    payload.verificationRequestId = input.verificationRequestId;
+  }
+  if (input.residentId) payload.residentId = input.residentId;
+  if (input.reportId) payload.reportId = input.reportId;
+  if (input.communityId) payload.communityId = input.communityId;
+  if (input.ocrDecision) payload.ocrDecision = input.ocrDecision;
 
   return payload;
 }
@@ -160,6 +172,18 @@ export async function sendFcmForNotification(
   }
   if (typeof notification.postId === "string" && notification.postId) {
     data.postId = notification.postId;
+  }
+  if (
+    typeof notification.verificationRequestId === "string" &&
+    notification.verificationRequestId
+  ) {
+    data.verificationRequestId = notification.verificationRequestId;
+  }
+  if (typeof notification.reportId === "string" && notification.reportId) {
+    data.reportId = notification.reportId;
+  }
+  if (typeof notification.ocrDecision === "string" && notification.ocrDecision) {
+    data.ocrDecision = notification.ocrDecision;
   }
 
   try {

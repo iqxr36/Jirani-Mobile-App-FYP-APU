@@ -36,8 +36,12 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
             return mapped;
           })
           .where((request) {
-            if (s.isNotEmpty && s != 'all' && request.status != s) {
-              return false;
+            if (s.isNotEmpty && s != 'all') {
+              if (s == AppConstants.verificationSubmitted) {
+                if (!_needsAdminVerificationDecision(request)) return false;
+              } else if (request.status != s) {
+                return false;
+              }
             }
             if (includeAllCommunities) return true;
             if (scopeCommunityId.isNotEmpty &&
@@ -54,6 +58,24 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
       requests.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
       return requests;
     });
+  }
+
+  bool _needsAdminVerificationDecision(VerificationRequest request) {
+    if (request.status == AppConstants.verificationRejected ||
+        request.status == AppConstants.verificationVerified) {
+      return false;
+    }
+    if (request.status == AppConstants.verificationSubmitted ||
+        request.status == AppConstants.verificationRequestPending) {
+      return true;
+    }
+    if (request.adminStatus == AppConstants.adminStatusOcrMatched ||
+        request.adminStatus == AppConstants.adminStatusManualCheckRequired ||
+        request.adminStatus == AppConstants.adminStatusPendingReview ||
+        request.adminStatus == AppConstants.adminStatusProcessing) {
+      return true;
+    }
+    return false;
   }
 
   Stream<List<AppUser>> watchResidents({

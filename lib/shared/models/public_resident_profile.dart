@@ -14,6 +14,7 @@ class PublicResidentProfile {
     required this.communityName,
     required this.role,
     required this.verificationStatus,
+    this.accountStatus = AppConstants.accountStatusActive,
     required this.reputationScore,
     required this.totalReviews,
     required this.communityTrustScore,
@@ -32,6 +33,7 @@ class PublicResidentProfile {
   final String communityName;
   final String role;
   final String verificationStatus;
+  final String accountStatus;
   final double reputationScore;
   final int totalReviews;
   final double communityTrustScore;
@@ -44,7 +46,8 @@ class PublicResidentProfile {
   String get fullName => '$firstName $lastName'.trim();
 
   bool get isVerifiedResident =>
-      verificationStatus == AppConstants.verificationVerified;
+      verificationStatus == AppConstants.verificationVerified &&
+      accountStatus == AppConstants.accountStatusActive;
 
   bool get isResident => role == AppConstants.roleResident;
 
@@ -64,6 +67,8 @@ class PublicResidentProfile {
       communityName: (map['communityName'] as String?) ?? '',
       role: (map['role'] as String?) ?? AppConstants.roleResident,
       verificationStatus: normalizedStatus,
+      accountStatus:
+          (map['accountStatus'] as String?) ?? AppConstants.accountStatusActive,
       reputationScore: _parseDouble(map['reputationScore']),
       totalReviews: _parseInt(map['totalReviews']),
       communityTrustScore: _parseDouble(
@@ -89,6 +94,7 @@ class PublicResidentProfile {
       phoneVerified: false,
       role: role,
       verificationStatus: verificationStatus,
+      accountStatus: accountStatus,
       profileImageUrl: profileImageUrl,
       communityId: communityId,
       communityName: communityName,

@@ -4,9 +4,12 @@ import {logger} from "firebase-functions";
 import {defineString} from "firebase-functions/params";
 import {FieldValue} from "firebase-admin/firestore";
 import {
+  ADMIN_STATUS_MANUAL_CHECK_REQUIRED,
+  ADMIN_STATUS_OCR_MATCHED,
   ADMIN_STATUS_PROCESSING,
   buildFailurePayload,
   buildSuccessPayload,
+  evaluateAutoVerification,
   extractFieldsWithGemini,
   hasDocumentUpload,
   mimeTypeForPath,
@@ -15,7 +18,9 @@ import {
   processWithDocumentAi,
   shouldStartVerificationOcr,
   type VerificationRequestLike,
+  type VerificationUserLike,
 } from "./verificationOcrPipeline";
+import {createInAppNotificationIfAbsent} from "../notifications";
 
 const documentAiProcessorName = defineString("DOCUMENT_AI_PROCESSOR_NAME");
 const geminiProjectId = defineString("GEMINI_PROJECT_ID", {
@@ -146,16 +151,67 @@ export const processVerificationRequestOcr = onDocumentWritten(
         extractedFields,
       });
 
-      await requestRef.update({
-        ...successPayload,
-        ocrError: FieldValue.delete(),
-        ocrProcessedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+      const userId = stringValue(data.userId);
+      const userRef = userId ? db.collection("users").doc(userId) : null;
+      const userSnap = userRef ? await userRef.get() : null;
+      const userData = userSnap?.data() as VerificationUserLike | undefined;
+      const autoVerification = evaluateAutoVerification({
+        request: data,
+        user: userData,
+        extractedFields,
+        ocrText: extractedText,
       });
+
+      if (autoVerification.eligible) {
+        await requestRef.update({
+          ...successPayload,
+          status: stringValue(data.status) || "submitted",
+          adminStatus: ADMIN_STATUS_OCR_MATCHED,
+          autoVerification,
+          verificationMethod: "ocr_recommendation",
+          ocrError: FieldValue.delete(),
+          ocrProcessedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        await notifyAdminsForOcrResult(db, {
+          requestId,
+          residentId: userId,
+          residentName: stringValue(data.fullName) || residentNameFromUser(userData),
+          communityId: stringValue(data.communityId),
+          communityName: stringValue(data.communityName),
+          decision: "ocr_matched",
+          reasons: [],
+        });
+
+        logger.info("Verification OCR matched and awaits admin approval", {
+          requestId,
+          userId,
+          reasons: autoVerification.reasons,
+        });
+      } else {
+        await requestRef.update({
+          ...successPayload,
+          adminStatus: ADMIN_STATUS_MANUAL_CHECK_REQUIRED,
+          autoVerification,
+          ocrError: FieldValue.delete(),
+          ocrProcessedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        await notifyAdminsForOcrResult(db, {
+          requestId,
+          residentId: userId,
+          residentName: stringValue(data.fullName) || residentNameFromUser(userData),
+          communityId: stringValue(data.communityId),
+          communityName: stringValue(data.communityName),
+          decision: "manual_review",
+          reasons: autoVerification.reasons,
+        });
+      }
 
       logger.info("Verification OCR completed", {
         requestId,
         fieldsCount: Object.keys(extractedFields).length,
+        autoVerificationDecision: autoVerification.decision,
       });
     } catch (error) {
       const failurePayload = buildFailurePayload(error, extractedText);
@@ -196,4 +252,66 @@ function storageBucketFromUrl(value: string): string {
   }
 
   return "";
+}
+
+function residentNameFromUser(user: VerificationUserLike | undefined): string {
+  if (!user) return "Resident";
+  const fullName = stringValue(user.fullName);
+  if (fullName) return fullName;
+  const firstName = stringValue(user.firstName);
+  const lastName = stringValue(user.lastName);
+  return `${firstName} ${lastName}`.trim() || "Resident";
+}
+
+async function notifyAdminsForOcrResult(
+  db: admin.firestore.Firestore,
+  params: {
+    requestId: string;
+    residentId: string;
+    residentName: string;
+    communityId: string;
+    communityName: string;
+    decision: "ocr_matched" | "manual_review";
+    reasons: string[];
+  },
+): Promise<void> {
+  const admins = await db.collection("admins").get();
+  const reason = params.reasons[0] || "OCR details need admin confirmation.";
+  const matched = params.decision === "ocr_matched";
+  const notified = new Set<string>();
+
+  await Promise.all(admins.docs.map(async (doc) => {
+    const data = doc.data();
+    const uid = stringValue(data.uid) || doc.id;
+    if (!uid || notified.has(uid)) return;
+    if (data.isActive === false) return;
+
+    const role = stringValue(data.role);
+    const adminCommunityId = stringValue(data.communityId);
+    const adminCommunityName = stringValue(data.communityName);
+    const inScope = role === "systemAdmin" ||
+      (params.communityId && adminCommunityId === params.communityId) ||
+      (params.communityName && adminCommunityName === params.communityName);
+    if (!inScope) return;
+
+    notified.add(uid);
+    await createInAppNotificationIfAbsent(
+      db,
+      `verification_${params.decision}_${params.requestId}_${uid}`,
+      {
+        userId: uid,
+        actorId: "system_ocr",
+        type: matched ? "verificationOcrMatched" : "verificationOcrReview",
+        title: matched ? "OCR matched resident details" : "Verification needs review",
+        body: matched ?
+          `${params.residentName}'s submitted information matches the uploaded document. Admin approval is still required.` :
+          `${params.residentName}'s document was extracted, but needs admin review. ${reason}`,
+        category: "verification",
+        verificationRequestId: params.requestId,
+        residentId: params.residentId,
+        communityId: params.communityId,
+        ocrDecision: params.decision,
+      },
+    );
+  }));
 }

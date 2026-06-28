@@ -4,6 +4,7 @@ import 'package:jirani/admin/screens/dashboard/admin_overview_screen.dart';
 import 'package:jirani/admin/screens/dashboard/admin_transactions_screen.dart';
 import 'package:jirani/admin/screens/listings/admin_listings_screen.dart';
 import 'package:jirani/admin/screens/news/admin_news_screen.dart';
+import 'package:jirani/admin/screens/notifications/admin_notifications_screen.dart';
 import 'package:jirani/admin/screens/reports/admin_reports_screen.dart';
 import 'package:jirani/admin/screens/settings/admin_settings_screen.dart';
 import 'package:jirani/admin/screens/users/admin_residents_screen.dart';
@@ -14,6 +15,8 @@ import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
+import 'package:jirani/shared/data/repositories/notification_repository.dart';
+import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -54,6 +57,7 @@ class _AdminDashboardView extends StatefulWidget {
 class _AdminDashboardViewState extends State<_AdminDashboardView> {
   AdminSection _section = AdminSection.overview;
   String? _selectedRequestId;
+  String? _selectedReportId;
   String? _configuredAdminUid;
 
   @override
@@ -73,10 +77,14 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
   Widget build(BuildContext context) {
     final wide =
         JiraniResponsive.windowClass(context) == JiraniWindowClass.expanded;
+    final currentAdmin = context.watch<AuthViewModel>().currentAdmin;
     final content = _AdminContent(
       section: _section,
       selectedRequestId: _selectedRequestId,
+      selectedReportId: _selectedReportId,
+      adminUid: currentAdmin?.uid ?? '',
       onSelectRequest: (id) => setState(() => _selectedRequestId = id),
+      onNotificationSelected: _openNotificationTarget,
     );
 
     if (wide) {
@@ -95,6 +103,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
                     section: _section,
                     onLogout: widget.onLogout,
                     isLoggingOut: widget.isLoggingOut,
+                    onNotificationSelected: _openNotificationTarget,
                   ),
                   Expanded(child: content),
                 ],
@@ -122,10 +131,9 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
       appBar: AppBar(
         title: Text(_section.title),
         actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded),
+          AdminNotificationBell(
+            adminUid: currentAdmin?.uid ?? '',
+            onNotificationSelected: _openNotificationTarget,
           ),
           IconButton(
             tooltip: 'Sign out',
@@ -168,6 +176,24 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
         ],
       ),
     );
+  }
+
+  void _openNotificationTarget(NotificationModel notification) {
+    final requestId = notification.verificationRequestId.trim();
+    final reportId = notification.reportId.trim();
+    if (requestId.isNotEmpty) {
+      setState(() {
+        _section = AdminSection.verification;
+        _selectedRequestId = requestId;
+      });
+      return;
+    }
+    if (reportId.isNotEmpty) {
+      setState(() {
+        _section = AdminSection.reports;
+        _selectedReportId = reportId;
+      });
+    }
   }
 
   int _bottomIndexFor(AdminSection section) {
@@ -332,11 +358,13 @@ class _AdminTopBar extends StatelessWidget {
     required this.section,
     required this.onLogout,
     required this.isLoggingOut,
+    required this.onNotificationSelected,
   });
 
   final AdminSection section;
   final VoidCallback onLogout;
   final bool isLoggingOut;
+  final ValueChanged<NotificationModel> onNotificationSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -390,10 +418,9 @@ class _AdminTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          IconButton.filledTonal(
-            tooltip: 'Notifications',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded),
+          AdminNotificationBell(
+            adminUid: admin?.uid ?? '',
+            onNotificationSelected: onNotificationSelected,
           ),
           const SizedBox(width: 10),
           AdminAvatar(
@@ -417,16 +444,304 @@ class _AdminTopBar extends StatelessWidget {
   }
 }
 
+class AdminNotificationBell extends StatefulWidget {
+  const AdminNotificationBell({
+    super.key,
+    required this.adminUid,
+    required this.onNotificationSelected,
+  });
+
+  final String adminUid;
+  final ValueChanged<NotificationModel> onNotificationSelected;
+
+  @override
+  State<AdminNotificationBell> createState() => _AdminNotificationBellState();
+}
+
+class _AdminNotificationBellState extends State<AdminNotificationBell> {
+  final NotificationRepository _repository = NotificationRepository();
+
+  @override
+  Widget build(BuildContext context) {
+    final adminUid = widget.adminUid.trim();
+    if (adminUid.isEmpty) {
+      return IconButton.filledTonal(
+        tooltip: 'Notifications',
+        onPressed: null,
+        icon: const Icon(Icons.notifications_none_rounded),
+      );
+    }
+
+    return StreamBuilder<int>(
+      stream: _repository.watchUnreadCount(adminUid),
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton.filledTonal(
+              tooltip: 'Notifications',
+              onPressed: () => _showNotifications(context),
+              icon: const Icon(Icons.notifications_none_rounded),
+            ),
+            if (count > 0)
+              Positioned(
+                right: 2,
+                top: 2,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: AdminColors.danger,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AdminColors.surface, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    count > 99 ? '99+' : count.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showNotifications(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _AdminNotificationDialog(
+        adminUid: widget.adminUid,
+        repository: _repository,
+        onNotificationSelected: (notification) async {
+          await _repository.markRead(notification.id);
+          if (!dialogContext.mounted) return;
+          Navigator.of(dialogContext).pop();
+          widget.onNotificationSelected(notification);
+        },
+      ),
+    );
+  }
+}
+
+class _AdminNotificationDialog extends StatelessWidget {
+  const _AdminNotificationDialog({
+    required this.adminUid,
+    required this.repository,
+    required this.onNotificationSelected,
+  });
+
+  final String adminUid;
+  final NotificationRepository repository;
+  final Future<void> Function(NotificationModel notification)
+  onNotificationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      alignment: Alignment.topRight,
+      insetPadding: const EdgeInsets.only(top: 72, right: 28, left: 28),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 560),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 10, 12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: TextStyle(
+                        color: AdminColors.ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => repository.markAllRead(adminUid),
+                    child: const Text('Mark all read'),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AdminColors.border),
+            Flexible(
+              child: StreamBuilder<List<NotificationModel>>(
+                stream: repository.watchNotifications(adminUid),
+                builder: (context, snapshot) {
+                  final notifications =
+                      snapshot.data ?? const <NotificationModel>[];
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      notifications.isEmpty) {
+                    return const SizedBox(
+                      height: 160,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (notifications.isEmpty) {
+                    return const SizedBox(
+                      height: 180,
+                      child: Center(
+                        child: Text(
+                          'No notifications yet.',
+                          style: TextStyle(color: AdminColors.muted),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: AdminColors.border),
+                    itemBuilder: (context, index) {
+                      final notification = notifications[index];
+                      return _AdminNotificationTile(
+                        notification: notification,
+                        onTap: () => onNotificationSelected(notification),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminNotificationTile extends StatelessWidget {
+  const _AdminNotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  final NotificationModel notification;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final canNavigate =
+        notification.verificationRequestId.trim().isNotEmpty ||
+        notification.reportId.trim().isNotEmpty;
+    return Material(
+      color: notification.unread
+          ? AdminColors.primary.withValues(alpha: 0.06)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: canNavigate ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: notification.accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  notification.icon,
+                  color: notification.accentColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AdminColors.ink,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          notification.relativeTime,
+                          style: const TextStyle(
+                            color: AdminColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.body,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AdminColors.muted,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      notification.displayCategory,
+                      style: TextStyle(
+                        color: notification.accentColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AdminContent extends StatelessWidget {
   const _AdminContent({
     required this.section,
     required this.selectedRequestId,
+    required this.selectedReportId,
+    required this.adminUid,
     required this.onSelectRequest,
+    required this.onNotificationSelected,
   });
 
   final AdminSection section;
   final String? selectedRequestId;
+  final String? selectedReportId;
+  final String adminUid;
   final ValueChanged<String> onSelectRequest;
+  final ValueChanged<NotificationModel> onNotificationSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -442,10 +757,16 @@ class _AdminContent extends StatelessWidget {
               selectedRequestId: selectedRequestId,
               onSelectRequest: onSelectRequest,
             ),
+            AdminSection.notifications => AdminNotificationsScreen(
+              adminUid: adminUid,
+              onNotificationSelected: onNotificationSelected,
+            ),
             AdminSection.residents => const AdminResidentsScreen(),
             AdminSection.news => const AdminNewsScreen(),
             AdminSection.listings => const AdminListingsScreen(),
-            AdminSection.reports => const AdminReportsScreen(),
+            AdminSection.reports => AdminReportsScreen(
+              selectedReportId: selectedReportId,
+            ),
             AdminSection.transactions => const AdminTransactionsScreen(),
             AdminSection.settings => const AdminSettingsScreen(),
           },

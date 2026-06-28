@@ -11,6 +11,8 @@ export const OCR_STATUS_FAILED = "failed";
 export const ADMIN_STATUS_PROCESSING = "processing";
 export const ADMIN_STATUS_PENDING_REVIEW = "pending_review";
 export const ADMIN_STATUS_MANUAL_CHECK_REQUIRED = "manual_check_required";
+export const ADMIN_STATUS_CONFIRMED = "confirmed";
+export const ADMIN_STATUS_OCR_MATCHED = "ocr_matched";
 
 export type VerificationDocumentType =
   | "tenancyAgreement"
@@ -30,6 +32,7 @@ export interface ExtractedVerificationField {
 export type ExtractedVerificationFields = Record<string, ExtractedVerificationField>;
 
 export interface VerificationRequestLike {
+  userId?: unknown;
   status?: unknown;
   documentType?: unknown;
   documentUrl?: unknown;
@@ -39,7 +42,19 @@ export interface VerificationRequestLike {
   ocrStatus?: unknown;
   fullName?: unknown;
   unitNumber?: unknown;
+  communityId?: unknown;
   communityName?: unknown;
+}
+
+export interface VerificationUserLike {
+  firstName?: unknown;
+  lastName?: unknown;
+  fullName?: unknown;
+  email?: unknown;
+  phoneNumber?: unknown;
+  unitNumber?: unknown;
+  communityName?: unknown;
+  verificationStatus?: unknown;
 }
 
 export interface DocumentAiResult {
@@ -63,6 +78,21 @@ export interface OcrSuccessPayload {
   adminStatus: string;
   ocrError: null;
   documentAiPageCount: number;
+}
+
+export interface AutoVerificationCheck {
+  passed: boolean;
+  expected?: string;
+  actual?: string;
+  source?: string;
+  skipped?: boolean;
+}
+
+export interface AutoVerificationDecision {
+  eligible: boolean;
+  decision: "auto_verified" | "manual_review";
+  reasons: string[];
+  checks: Record<string, AutoVerificationCheck>;
 }
 
 export interface OcrFailurePayload {
@@ -329,6 +359,115 @@ export function buildSuccessPayload(params: {
   };
 }
 
+export function evaluateAutoVerification(params: {
+  request: VerificationRequestLike;
+  user: VerificationUserLike | undefined;
+  extractedFields: ExtractedVerificationFields;
+  ocrText: string;
+}): AutoVerificationDecision {
+  const reasons: string[] = [];
+  const checks: Record<string, AutoVerificationCheck> = {};
+  const documentType = normalizeDocumentType(params.request.documentType);
+
+  if (!params.user) {
+    return {
+      eligible: false,
+      decision: "manual_review",
+      reasons: ["Resident profile was not found."],
+      checks,
+    };
+  }
+
+  const firstName = cleanString(params.user.firstName);
+  const lastName = cleanString(params.user.lastName);
+  const fallbackFullName = cleanString(params.user.fullName) ||
+    cleanString(params.request.fullName);
+  const parsedFallback = splitFallbackName(fallbackFullName);
+  const expectedFirstName = firstName || parsedFallback.firstName;
+  const expectedLastName = lastName || parsedFallback.lastName;
+
+  const nameField = preferredNameField(documentType, params.extractedFields);
+  const nameValue = nameField?.field.value ?? "";
+  const normalizedName = normalizeTextForMatch(nameValue);
+  const firstNameMatch = nameContainsToken(normalizedName, expectedFirstName);
+  const lastNameMatch = nameContainsToken(normalizedName, expectedLastName);
+  const nameConfidenceOk = (nameField?.field.confidence ?? 0) >= 0.8;
+
+  checks.firstNameMatch = {
+    passed: firstNameMatch,
+    expected: expectedFirstName,
+    actual: nameValue,
+    source: nameField?.key,
+  };
+  checks.lastNameMatch = {
+    passed: lastNameMatch,
+    expected: expectedLastName,
+    actual: nameValue,
+    source: nameField?.key,
+  };
+  checks.nameConfidence = {
+    passed: nameConfidenceOk,
+    expected: ">= 0.8",
+    actual: String(nameField?.field.confidence ?? 0),
+    source: nameField?.key,
+  };
+
+  if (!expectedFirstName) reasons.push("Resident first name is missing.");
+  if (!expectedLastName) reasons.push("Resident last name is missing.");
+  if (!nameValue) reasons.push("Document holder name was not extracted.");
+  if (expectedFirstName && !firstNameMatch) {
+    reasons.push("Extracted document name does not contain the resident first name.");
+  }
+  if (expectedLastName && !lastNameMatch) {
+    reasons.push("Extracted document name does not contain the resident last name.");
+  }
+  if (nameField && !nameConfidenceOk) {
+    reasons.push("Extracted document name confidence is below 80%.");
+  }
+
+  const expectedUnit = cleanString(params.user.unitNumber) ||
+    cleanString(params.request.unitNumber);
+  const unitMatch = extractedUnitMatches(
+    expectedUnit,
+    documentType,
+    params.extractedFields,
+  );
+  checks.unitMatch = unitMatch.check;
+  if (!expectedUnit) {
+    reasons.push("Resident unit number is missing.");
+  } else if (!unitMatch.check.passed) {
+    reasons.push("Extracted document unit/address does not match the resident unit.");
+  }
+
+  checks.emailObserved = emailObservedCheck(
+    cleanString(params.user.email),
+    params.ocrText,
+  );
+  checks.phoneObserved = phoneObservedCheck(
+    cleanString(params.user.phoneNumber),
+    params.ocrText,
+  );
+  checks.communityObserved = communityObservedCheck(
+    cleanString(params.user.communityName) ||
+      cleanString(params.request.communityName),
+    params.extractedFields,
+    params.ocrText,
+  );
+
+  const eligible = reasons.length === 0 &&
+    firstNameMatch &&
+    lastNameMatch &&
+    nameConfidenceOk &&
+    unitMatch.check.passed;
+
+  return {
+    eligible,
+    decision: eligible ? "auto_verified" : "manual_review",
+    reasons,
+    checks,
+  };
+}
+
 export function buildFailurePayload(error: unknown, ocrText?: string): OcrFailurePayload {
   const message = readableErrorMessage(error);
   return {
@@ -444,6 +583,182 @@ function truncateForPrompt(value: string): string {
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function splitFallbackName(value: string): {firstName: string; lastName: string} {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return {firstName: "", lastName: ""};
+  if (parts.length === 1) return {firstName: parts[0], lastName: ""};
+  return {firstName: parts[0], lastName: parts.slice(1).join(" ")};
+}
+
+function preferredNameField(
+  documentType: VerificationDocumentType,
+  fields: ExtractedVerificationFields,
+): {key: string; field: ExtractedVerificationField} | null {
+  const keys = documentType === "utilityBill" ?
+    ["bill_holder_name", "resident_name", "tenant_name"] :
+    documentType === "tenancyAgreement" ?
+      ["tenant_name", "resident_name", "bill_holder_name"] :
+      ["resident_name", "tenant_name", "bill_holder_name"];
+
+  for (const key of keys) {
+    const field = fields[key];
+    if (field?.value.trim()) return {key, field};
+  }
+  return null;
+}
+
+function normalizeTextForMatch(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(bin|binti|bt|bte|ibn|a\/l|a\/p|mr|mrs|ms|miss|dr)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function nameContainsToken(normalizedName: string, expectedValue: string): boolean {
+  const tokens = normalizeTextForMatch(expectedValue)
+    .split(" ")
+    .filter((token) => token.length >= 2);
+  if (tokens.length === 0) return false;
+  const nameTokens = new Set(normalizedName.split(" ").filter(Boolean));
+  return tokens.every((token) => nameTokens.has(token));
+}
+
+function normalizeUnit(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function extractedUnitMatches(
+  expectedUnit: string,
+  documentType: VerificationDocumentType,
+  fields: ExtractedVerificationFields,
+): {check: AutoVerificationCheck} {
+  const normalizedExpected = normalizeUnit(expectedUnit);
+  if (!normalizedExpected) {
+    return {check: {passed: false, expected: expectedUnit}};
+  }
+
+  const candidateKeys = documentType === "utilityBill" ?
+    ["unit_number", "service_address", "property_address"] :
+    ["unit_number", "property_address", "service_address"];
+
+  for (const key of candidateKeys) {
+    const field = fields[key];
+    const value = field?.value.trim() ?? "";
+    if (!value) continue;
+    const normalizedValue = normalizeUnit(value);
+    const confidenceOk = field ? field.confidence >= 0.8 : true;
+    if (normalizedValue.includes(normalizedExpected) && confidenceOk) {
+      return {
+        check: {
+          passed: true,
+          expected: expectedUnit,
+          actual: value,
+          source: key,
+        },
+      };
+    }
+  }
+
+  const actual = candidateKeys
+    .map((key) => fields[key]?.value.trim())
+    .filter((value): value is string => Boolean(value))
+    .join(" | ");
+
+  return {
+    check: {
+      passed: false,
+      expected: expectedUnit,
+      actual,
+      source: candidateKeys.join(","),
+    },
+  };
+}
+
+function emailObservedCheck(expectedEmail: string, ocrText: string): AutoVerificationCheck {
+  if (!expectedEmail) return {passed: true, skipped: true};
+  const normalizedExpected = expectedEmail.toLowerCase();
+  const emails = Array.from(ocrText.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi))
+    .map((match) => match[0].toLowerCase());
+  if (emails.length === 0) {
+    return {passed: true, expected: normalizedExpected, skipped: true};
+  }
+  return {
+    passed: emails.includes(normalizedExpected),
+    expected: normalizedExpected,
+    actual: emails.join(", "),
+  };
+}
+
+function phoneObservedCheck(expectedPhone: string, ocrText: string): AutoVerificationCheck {
+  const expectedDigits = digitsOnly(expectedPhone);
+  if (expectedDigits.length < 7) return {passed: true, skipped: true};
+
+  const phones = Array.from(ocrText.matchAll(/(?:\+?\d[\d\s().-]{6,}\d)/g))
+    .map((match) => digitsOnly(match[0]))
+    .filter((value) => value.length >= 7);
+
+  if (phones.length === 0) {
+    return {passed: true, expected: expectedDigits, skipped: true};
+  }
+
+  const matched = phones.some((value) =>
+    value.endsWith(expectedDigits) ||
+    expectedDigits.endsWith(value) ||
+    value.endsWith(expectedDigits.slice(-8)),
+  );
+
+  return {
+    passed: matched,
+    expected: expectedDigits,
+    actual: phones.join(", "),
+  };
+}
+
+function communityObservedCheck(
+  expectedCommunity: string,
+  fields: ExtractedVerificationFields,
+  ocrText: string,
+): AutoVerificationCheck {
+  if (!expectedCommunity) return {passed: true, skipped: true};
+
+  const addressValues = [
+    fields.property_address?.value.trim(),
+    fields.service_address?.value.trim(),
+  ].filter((value): value is string => Boolean(value));
+  const haystack = normalizeTextForMatch([...addressValues, ocrText].join(" "));
+  const expectedTokens = normalizeTextForMatch(expectedCommunity)
+    .split(" ")
+    .filter((token) =>
+      token.length >= 3 &&
+      !["residence", "residences", "resident", "condominium", "apartment"].includes(token),
+    );
+
+  if (expectedTokens.length === 0) {
+    return {
+      passed: true,
+      expected: expectedCommunity,
+      skipped: true,
+    };
+  }
+
+  const passed = expectedTokens.every((token) => haystack.includes(token));
+  return {
+    passed,
+    expected: expectedCommunity,
+    actual: addressValues.join(" | "),
+    source: "property_address,service_address,ocrText",
+    skipped: addressValues.length === 0 && !passed,
+  };
+}
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

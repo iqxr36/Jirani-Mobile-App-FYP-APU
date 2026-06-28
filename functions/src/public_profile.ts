@@ -60,6 +60,8 @@ export function buildPublicProfilePayload(
       typeof data.communityName === "string" ? data.communityName : "",
     role: "resident",
     verificationStatus,
+    accountStatus:
+      typeof data.accountStatus === "string" ? data.accountStatus : "active",
     reputationScore: asNumber(data.reputationScore),
     communityTrustScore: asNumber(
       data.communityTrustScore ?? data.reputationScore,

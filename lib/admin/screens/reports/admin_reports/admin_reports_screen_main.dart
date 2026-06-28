@@ -1,7 +1,9 @@
 part of '../admin_reports_screen.dart';
 
 class AdminReportsScreen extends StatefulWidget {
-  const AdminReportsScreen({super.key});
+  const AdminReportsScreen({super.key, this.selectedReportId});
+
+  final String? selectedReportId;
 
   @override
   State<AdminReportsScreen> createState() => _AdminReportsScreenState();
@@ -12,6 +14,24 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   _ReportInboxFilter _inboxFilter = _ReportInboxFilter.open;
   final ScrollController _detailScrollController = ScrollController();
   final ScrollController _inboxScrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedReportId = widget.selectedReportId;
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminReportsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextId = widget.selectedReportId;
+    if (nextId != null && nextId != oldWidget.selectedReportId) {
+      setState(() {
+        _selectedReportId = nextId;
+        _inboxFilter = _ReportInboxFilter.open;
+      });
+    }
+  }
 
   void _setInboxFilter(_ReportInboxFilter filter) {
     if (_inboxFilter == filter) return;

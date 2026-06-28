@@ -19,6 +19,11 @@ class NotificationModel {
     this.borrowRequestId = '',
     this.serviceRequestId = '',
     this.postId = '',
+    this.verificationRequestId = '',
+    this.residentId = '',
+    this.reportId = '',
+    this.communityId = '',
+    this.ocrDecision = '',
   });
 
   final String id;
@@ -36,6 +41,11 @@ class NotificationModel {
   final String borrowRequestId;
   final String serviceRequestId;
   final String postId;
+  final String verificationRequestId;
+  final String residentId;
+  final String reportId;
+  final String communityId;
+  final String ocrDecision;
 
   bool get unread => !read;
 
@@ -86,6 +96,12 @@ class NotificationModel {
       borrowRequestId: (data['borrowRequestId'] as String?) ?? '',
       serviceRequestId: (data['serviceRequestId'] as String?) ?? '',
       postId: (data['postId'] as String?) ?? '',
+      verificationRequestId:
+          (data['verificationRequestId'] as String?) ?? '',
+      residentId: (data['residentId'] as String?) ?? '',
+      reportId: (data['reportId'] as String?) ?? '',
+      communityId: (data['communityId'] as String?) ?? '',
+      ocrDecision: (data['ocrDecision'] as String?) ?? '',
     );
   }
 
@@ -107,6 +123,12 @@ class NotificationModel {
       if (borrowRequestId.isNotEmpty) 'borrowRequestId': borrowRequestId,
       if (serviceRequestId.isNotEmpty) 'serviceRequestId': serviceRequestId,
       if (postId.isNotEmpty) 'postId': postId,
+      if (verificationRequestId.isNotEmpty)
+        'verificationRequestId': verificationRequestId,
+      if (residentId.isNotEmpty) 'residentId': residentId,
+      if (reportId.isNotEmpty) 'reportId': reportId,
+      if (communityId.isNotEmpty) 'communityId': communityId,
+      if (ocrDecision.isNotEmpty) 'ocrDecision': ocrDecision,
     };
   }
 
@@ -135,6 +157,9 @@ class NotificationModel {
       AppConstants.notificationTypeCommunityNews => 'News',
       AppConstants.notificationTypeCommunityAnnouncement => 'Announcements',
       AppConstants.notificationTypeCommunityWarning => 'Warnings',
+      AppConstants.notificationTypeVerificationOcrMatched ||
+      AppConstants.notificationTypeVerificationOcrReview => 'Verification',
+      AppConstants.notificationTypeAdminReport => 'Reports',
       _ => 'Updates',
     };
   }
@@ -163,6 +188,12 @@ class NotificationModel {
         Icons.notifications_active_outlined,
       AppConstants.notificationTypeCommunityWarning =>
         Icons.warning_amber_rounded,
+      AppConstants.notificationTypeVerificationOcrMatched =>
+        Icons.fact_check_outlined,
+      AppConstants.notificationTypeVerificationOcrReview =>
+        Icons.manage_search_rounded,
+      AppConstants.notificationTypeAdminReport =>
+        Icons.report_problem_outlined,
       _ => Icons.notifications_active_outlined,
     };
   }
@@ -188,6 +219,11 @@ class NotificationModel {
       AppConstants.notificationTypeCommunityAnnouncement =>
         const Color(0xFF006D77),
       AppConstants.notificationTypeCommunityWarning => const Color(0xFFB42318),
+      AppConstants.notificationTypeVerificationOcrMatched =>
+        const Color(0xFF2F855A),
+      AppConstants.notificationTypeVerificationOcrReview =>
+        const Color(0xFFB7791F),
+      AppConstants.notificationTypeAdminReport => const Color(0xFFB42318),
       _ => const Color(0xFF2F855A),
     };
   }

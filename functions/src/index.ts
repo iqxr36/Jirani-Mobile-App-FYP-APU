@@ -16,6 +16,7 @@ import { handleConnectionNotificationChanges } from "./connection_notifications"
 import { notifyChatMessageCreated } from "./chat_notifications";
 import { sendFcmForNotification } from "./notifications";
 import { handleServiceRequestNotificationChanges } from "./service_notifications";
+import { handleReportNotificationChanges } from "./report_notifications";
 import { syncPublicProfileFromUser } from "./public_profile";
 import {
   publishEligibleReviewsForBorrowRequest,
@@ -179,6 +180,26 @@ export const onCommunityPostNotificationOrchestration = onDocumentWritten(
     } catch (error) {
       logger.error("Failed community post notification orchestration", {
         postId,
+        error,
+      });
+      throw error;
+    }
+  },
+);
+
+export const onReportNotificationOrchestration = onDocumentWritten(
+  "reports/{reportId}",
+  async (event) => {
+    const reportId = event.params.reportId;
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const db = admin.firestore();
+
+    try {
+      await handleReportNotificationChanges(db, reportId, before, after);
+    } catch (error) {
+      logger.error("Failed report notification orchestration", {
+        reportId,
         error,
       });
       throw error;

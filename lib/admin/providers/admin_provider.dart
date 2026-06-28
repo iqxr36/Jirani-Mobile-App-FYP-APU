@@ -340,6 +340,136 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateResidentDetails({
+    required AppUser resident,
+    required String adminUid,
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required String unitNumber,
+    required String communityId,
+    required String communityName,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.updateResidentDetails(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        unitNumber: unitNumber,
+        communityId: communityId,
+        communityName: communityName,
+      ),
+    );
+  }
+
+  Future<bool> suspendResident({
+    required AppUser resident,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.suspendResident(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<bool> reactivateResident({
+    required AppUser resident,
+    required String adminUid,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.reactivateResident(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+      ),
+    );
+  }
+
+  Future<bool> archiveResident({
+    required AppUser resident,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.archiveResident(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<bool> unarchiveResident({
+    required AppUser resident,
+    required String adminUid,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.unarchiveResident(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+      ),
+    );
+  }
+
+  Future<bool> resetResidentVerification({
+    required AppUser resident,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.resetResidentVerification(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<bool> overrideResidentVerification({
+    required AppUser resident,
+    required String adminUid,
+    required String status,
+    required String reason,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.overrideResidentVerification(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        status: status,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<bool> sendResidentNotice({
+    required AppUser resident,
+    required String adminUid,
+    required String title,
+    required String message,
+  }) {
+    return _runResidentAction(
+      resident,
+      () => _service.sendResidentNotice(
+        residentUid: resident.uid,
+        adminUid: adminUid,
+        title: title,
+        message: message,
+      ),
+    );
+  }
+
   Future<void> loadDashboardStats() async {
     try {
       _dashboardStats = await _service.getAdminDashboardStats(
@@ -367,6 +497,31 @@ class AdminProvider extends ChangeNotifier {
   void _handleStreamError(Object e) {
     _errorMessage = e.toString();
     notifyListeners();
+  }
+
+  Future<bool> _runResidentAction(
+    AppUser resident,
+    Future<void> Function() action,
+  ) async {
+    if (!_residentIsInAdminScope(resident)) {
+      _errorMessage = 'This resident is outside your assigned community.';
+      notifyListeners();
+      return false;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await action();
+      await loadDashboardStats();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void _refreshLocalDashboardStats() {
@@ -480,6 +635,18 @@ class AdminProvider extends ChangeNotifier {
   bool _reportIsInAdminScope(ReportModel report) {
     if (_includeAllCommunities) return true;
     return _belongsToVisibleResident(report.reporterId, report.reportedUserId);
+  }
+
+  bool _residentIsInAdminScope(AppUser resident) {
+    if (_includeAllCommunities) return true;
+    if (_communityId.isNotEmpty && resident.communityId == _communityId) {
+      return true;
+    }
+    if (_communityName.isNotEmpty &&
+        resident.communityName == _communityName) {
+      return true;
+    }
+    return false;
   }
 
   @override

@@ -29,6 +29,7 @@ class VerificationRequest {
     this.storagePath = '',
     this.adminStatus = '',
     this.extractedFields = const {},
+    this.autoVerification,
     this.processedAt,
     this.errorMessage,
   });
@@ -59,6 +60,7 @@ class VerificationRequest {
   final String storagePath;
   final String adminStatus;
   final Map<String, ExtractedVerificationField> extractedFields;
+  final AutoVerificationResult? autoVerification;
   final DateTime? processedAt;
   final String? errorMessage;
 
@@ -89,6 +91,7 @@ class VerificationRequest {
     String? storagePath,
     String? adminStatus,
     Map<String, ExtractedVerificationField>? extractedFields,
+    AutoVerificationResult? autoVerification,
     DateTime? processedAt,
     String? errorMessage,
   }) {
@@ -119,6 +122,7 @@ class VerificationRequest {
       storagePath: storagePath ?? this.storagePath,
       adminStatus: adminStatus ?? this.adminStatus,
       extractedFields: extractedFields ?? this.extractedFields,
+      autoVerification: autoVerification ?? this.autoVerification,
       processedAt: processedAt ?? this.processedAt,
       errorMessage: errorMessage ?? this.errorMessage,
     );
@@ -158,6 +162,8 @@ class VerificationRequest {
       'extractedFields': extractedFields.map(
         (key, value) => MapEntry(key, value.toMap()),
       ),
+      if (autoVerification != null)
+        'autoVerification': autoVerification!.toMap(),
       'processedAt': processedAt != null
           ? Timestamp.fromDate(processedAt!)
           : null,
@@ -198,6 +204,9 @@ class VerificationRequest {
       storagePath: (map['storagePath'] as String?) ?? '',
       adminStatus: (map['adminStatus'] as String?) ?? '',
       extractedFields: _parseExtractedFields(map['extractedFields']),
+      autoVerification: AutoVerificationResult.fromValue(
+        map['autoVerification'],
+      ),
       processedAt: _parseOptionalDate(map['processedAt']),
       errorMessage: map['errorMessage'] as String?,
     );
@@ -272,6 +281,92 @@ class ExtractedVerificationField {
     return ExtractedVerificationField(
       value: value?.toString() ?? '',
       confidence: 0,
+    );
+  }
+}
+
+class AutoVerificationResult {
+  const AutoVerificationResult({
+    required this.eligible,
+    required this.decision,
+    required this.reasons,
+    required this.checks,
+  });
+
+  final bool eligible;
+  final String decision;
+  final List<String> reasons;
+  final Map<String, AutoVerificationCheck> checks;
+
+  bool get requiresManualReview =>
+      decision == 'manual_review' || (!eligible && reasons.isNotEmpty);
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'eligible': eligible,
+      'decision': decision,
+      'reasons': reasons,
+      'checks': checks.map((key, value) => MapEntry(key, value.toMap())),
+    };
+  }
+
+  static AutoVerificationResult? fromValue(dynamic value) {
+    if (value is! Map) return null;
+    final rawReasons = value['reasons'];
+    final rawChecks = value['checks'];
+    return AutoVerificationResult(
+      eligible: value['eligible'] == true,
+      decision: value['decision']?.toString() ?? '',
+      reasons: rawReasons is Iterable
+          ? rawReasons.map((reason) => reason.toString()).toList()
+          : const [],
+      checks: rawChecks is Map
+          ? rawChecks.map(
+              (key, check) => MapEntry(
+                key.toString(),
+                AutoVerificationCheck.fromValue(check),
+              ),
+            )
+          : const {},
+    );
+  }
+}
+
+class AutoVerificationCheck {
+  const AutoVerificationCheck({
+    required this.passed,
+    this.expected = '',
+    this.actual = '',
+    this.source = '',
+    this.skipped = false,
+  });
+
+  final bool passed;
+  final String expected;
+  final String actual;
+  final String source;
+  final bool skipped;
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'passed': passed,
+      if (expected.isNotEmpty) 'expected': expected,
+      if (actual.isNotEmpty) 'actual': actual,
+      if (source.isNotEmpty) 'source': source,
+      if (skipped) 'skipped': skipped,
+    };
+  }
+
+  factory AutoVerificationCheck.fromValue(dynamic value) {
+    if (value is! Map) {
+      return const AutoVerificationCheck(passed: false);
+    }
+    return AutoVerificationCheck(
+      passed: value['passed'] == true,
+      expected: value['expected']?.toString() ?? '',
+      actual: value['actual']?.toString() ?? '',
+      source: value['source']?.toString() ?? '',
+      skipped: value['skipped'] == true,
     );
   }
 }

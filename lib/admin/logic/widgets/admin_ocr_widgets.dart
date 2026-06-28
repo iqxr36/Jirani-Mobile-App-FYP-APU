@@ -127,10 +127,25 @@ class AdminOcrResultView extends StatelessWidget {
     final fullTextOnly = _usesFullTextOnly(request.documentType);
     final structuredFields = _structuredFieldEntries(request);
     final showFullText = fullTextOnly || structuredFields.isEmpty;
+    final autoVerification = request.autoVerification;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (request.adminStatus == AppConstants.adminStatusOcrMatched ||
+            autoVerification?.eligible == true) ...[
+          const AdminStatusNotice(
+            icon: Icons.verified_user_rounded,
+            title: 'OCR matched resident details',
+            body: 'Admin approval is still required before this resident becomes verified.',
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (autoVerification != null &&
+            autoVerification.requiresManualReview) ...[
+          AdminAutoVerificationReviewPanel(result: autoVerification),
+          const SizedBox(height: 14),
+        ],
         if (structuredFields.isNotEmpty) ...[
           Wrap(
             spacing: 8,
@@ -238,6 +253,246 @@ class AdminOcrResultView extends StatelessWidget {
       },
     };
   }
+}
+
+class AdminAutoVerificationReviewPanel extends StatelessWidget {
+  const AdminAutoVerificationReviewPanel({super.key, required this.result});
+
+  final AutoVerificationResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _reviewRows(result.checks);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AdminColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AdminColors.warning.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: AdminColors.warning,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Manual review required',
+                  style: TextStyle(
+                    color: AdminColors.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (result.reasons.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: result.reasons
+                  .map((reason) => _AdminReviewReasonChip(reason: reason))
+                  .toList(),
+            ),
+          ],
+          if (rows.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: rows
+                  .map((row) => _AdminVerificationCheckTile(row: row))
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<_AdminVerificationCheckRow> _reviewRows(
+    Map<String, AutoVerificationCheck> checks,
+  ) {
+    const labels = <String, String>{
+      'firstNameMatch': 'First name',
+      'lastNameMatch': 'Last name',
+      'unitMatch': 'Unit',
+      'communityObserved': 'Community',
+      'emailObserved': 'Email',
+      'phoneObserved': 'Phone',
+    };
+
+    return labels.entries
+        .map((entry) {
+          final check = checks[entry.key];
+          if (check == null) return null;
+          return _AdminVerificationCheckRow(label: entry.value, check: check);
+        })
+        .whereType<_AdminVerificationCheckRow>()
+        .toList();
+  }
+}
+
+class _AdminReviewReasonChip extends StatelessWidget {
+  const _AdminReviewReasonChip({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AdminColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AdminColors.danger.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        reason,
+        style: const TextStyle(
+          color: AdminColors.danger,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminVerificationCheckTile extends StatelessWidget {
+  const _AdminVerificationCheckTile({required this.row});
+
+  final _AdminVerificationCheckRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final check = row.check;
+    final color = _statusColor(check);
+    final status = _statusLabel(check);
+    final actual = check.actual.trim().isEmpty ? 'Not found' : check.actual;
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 190, maxWidth: 360),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _statusIcon(check),
+                color: color,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  row.label,
+                  style: const TextStyle(
+                    color: AdminColors.ink,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                status,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          if (check.expected.trim().isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _AdminVerificationCheckLine(
+              label: 'Submitted',
+              value: check.expected,
+            ),
+          ],
+          const SizedBox(height: 4),
+          _AdminVerificationCheckLine(label: 'Document', value: actual),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(AutoVerificationCheck check) {
+    if (check.skipped) return AdminColors.muted;
+    return check.passed ? AdminColors.success : AdminColors.danger;
+  }
+
+  IconData _statusIcon(AutoVerificationCheck check) {
+    if (check.skipped) return Icons.remove_circle_outline_rounded;
+    return check.passed ? Icons.check_circle_rounded : Icons.cancel_rounded;
+  }
+
+  String _statusLabel(AutoVerificationCheck check) {
+    if (check.skipped) return 'Not found';
+    return check.passed ? 'Match' : 'Mismatch';
+  }
+}
+
+class _AdminVerificationCheckLine extends StatelessWidget {
+  const _AdminVerificationCheckLine({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          color: AdminColors.ink,
+          fontSize: 11,
+          height: 1.35,
+        ),
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(
+              color: AdminColors.muted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminVerificationCheckRow {
+  const _AdminVerificationCheckRow({
+    required this.label,
+    required this.check,
+  });
+
+  final String label;
+  final AutoVerificationCheck check;
 }
 
 class AdminOcrFieldChip extends StatelessWidget {

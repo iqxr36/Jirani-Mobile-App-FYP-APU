@@ -19,6 +19,11 @@ class AppConstants {
   static const String verificationRequestPending = 'pending';
   static const String verificationRequestCancelled = 'cancelled';
 
+  // Resident account statuses
+  static const String accountStatusActive = 'active';
+  static const String accountStatusSuspended = 'suspended';
+  static const String accountStatusArchived = 'archived';
+
   /// OCR processing statuses for verification request documents.
   static const String ocrStatusPending = 'pending';
   static const String ocrStatusProcessing = 'processing';
@@ -90,6 +95,7 @@ class AppConstants {
   static const String adminStatusPendingReview = 'pending_review';
   static const String adminStatusManualCheckRequired = 'manual_check_required';
   static const String adminStatusConfirmed = 'confirmed';
+  static const String adminStatusOcrMatched = 'ocr_matched';
   static const String adminStatusRejected = 'rejected';
   static const String messagesCollection = 'messages';
   static const String notificationsCollection = 'notifications';
@@ -114,6 +120,11 @@ class AppConstants {
   static const String notificationTypeCommunityAnnouncement =
       'communityAnnouncement';
   static const String notificationTypeCommunityWarning = 'communityWarning';
+  static const String notificationTypeVerificationOcrMatched =
+      'verificationOcrMatched';
+  static const String notificationTypeVerificationOcrReview =
+      'verificationOcrReview';
+  static const String notificationTypeAdminReport = 'adminReport';
 
   // Community post types and statuses
   static const String communityPostTypeNews = 'news';
@@ -137,6 +148,16 @@ class AppConstants {
   // Activity log event types
   static const String activityVerificationApproved = 'verificationApproved';
   static const String activityVerificationRejected = 'verificationRejected';
+  static const String activityResidentUpdated = 'residentUpdated';
+  static const String activityResidentSuspended = 'residentSuspended';
+  static const String activityResidentReactivated = 'residentReactivated';
+  static const String activityResidentArchived = 'residentArchived';
+  static const String activityResidentUnarchived = 'residentUnarchived';
+  static const String activityResidentVerificationReset =
+      'residentVerificationReset';
+  static const String activityResidentVerificationOverridden =
+      'residentVerificationOverridden';
+  static const String activityResidentNoticeSent = 'residentNoticeSent';
 
   // Borrow request statuses (Phase 4–5)
   static const String borrowStatusPending = 'pending';

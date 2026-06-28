@@ -17,6 +17,7 @@ part 'admin_service/admin_service_watchers.dart';
 part 'admin_service/admin_service_verification.dart';
 part 'admin_service/admin_service_reports.dart';
 part 'admin_service/admin_service_stats.dart';
+part 'admin_service/admin_service_residents.dart';
 
 abstract class _AdminServiceBase {
   _AdminServiceBase({FirebaseAuth? auth, FirebaseFirestore? firestore})
@@ -32,6 +33,7 @@ class AdminService extends _AdminServiceBase
         _AdminServiceWatchersMixin,
         _AdminServiceVerificationMixin,
         _AdminServiceReportsMixin,
-        _AdminServiceStatsMixin {
+        _AdminServiceStatsMixin,
+        _AdminServiceResidentsMixin {
   AdminService({super.auth, super.firestore});
 }
