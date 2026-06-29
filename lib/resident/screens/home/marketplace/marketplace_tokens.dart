@@ -11,8 +11,6 @@ enum _MarketplaceSection { browse, requests }
 
 enum _RentalMode { daily, hourly }
 
-enum _PaymentMethod { googlePay, card }
-
 class _CategoryFilter {
   const _CategoryFilter(this.label, this.value);
 

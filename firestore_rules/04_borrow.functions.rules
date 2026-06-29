@@ -22,6 +22,15 @@
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
 
+    function borrowRequiresPayment(data) {
+      return (data.hasUsageFee == true && data.usageFeeAmount > 0) ||
+        (data.hasDeposit == true && data.depositAmount > 0);
+    }
+
+    function borrowPaymentSatisfied(data) {
+      return data.paymentStatus == 'completed' || !borrowRequiresPayment(data);
+    }
+
     function ownerCanApproveBorrowRequest() {
       return borrowRequestOwner() &&
         resource.data.status == 'pending' &&
@@ -53,20 +62,6 @@
         borrowChangedKeysOnly(['status', 'updatedAt']);
     }
 
-    function borrowerCanCompletePayment() {
-      return borrowRequestBorrower() &&
-        resource.data.status == 'approved' &&
-        request.resource.data.status == 'approved' &&
-        request.resource.data.paymentStatus == 'completed' &&
-        borrowChangedKeysOnly([
-          'paymentStatus',
-          'paymentCompletedAt',
-          'paymentProvider',
-          'chatId',
-          'updatedAt',
-        ]);
-    }
-
     function borrowerCanConfirmPickupReady() {
       return borrowRequestBorrower() &&
         resource.data.status == 'pickupReady' &&
@@ -81,7 +76,7 @@
     function ownerCanConfirmHandover() {
       return borrowRequestOwner() &&
         resource.data.status == 'approved' &&
-        resource.data.paymentStatus == 'completed' &&
+        borrowPaymentSatisfied(resource.data) &&
         request.resource.data.status == 'pickupReady' &&
         borrowChangedKeysOnly([
           'status',
@@ -491,7 +486,6 @@
       return ownerCanApproveBorrowRequest() ||
         ownerCanRejectBorrowRequest() ||
         borrowerCanCancelBorrowRequest() ||
-        borrowerCanCompletePayment() ||
         borrowerCanConfirmPickupReady() ||
         ownerCanConfirmHandover() ||
         borrowerCanSubmitReturn() ||

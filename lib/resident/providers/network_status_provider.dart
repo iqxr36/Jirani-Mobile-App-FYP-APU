@@ -20,6 +20,7 @@ class NetworkStatusProvider extends ChangeNotifier {
     InternetConnectivityChecker? connectivityChecker,
   }) : assert(offlineFailureThreshold > 0),
        _offlineFailureThreshold = offlineFailureThreshold,
+       _checkInterval = checkInterval,
        _checkConnectivity =
            checkConnectivity ?? Connectivity().checkConnectivity,
        _connectivityStream =
@@ -37,11 +38,12 @@ class NetworkStatusProvider extends ChangeNotifier {
     }
   }
 
-  static const _defaultCheckInterval = Duration(seconds: 20);
-  static const _defaultTimeout = Duration(seconds: 2);
-  static const _defaultOfflineFailureThreshold = 1;
+  static const _defaultCheckInterval = Duration(seconds: 60);
+  static const _defaultTimeout = Duration(seconds: 5);
+  static const _defaultOfflineFailureThreshold = 3;
 
   final int _offlineFailureThreshold;
+  final Duration _checkInterval;
   final Future<List<ConnectivityResult>> Function() _checkConnectivity;
   final Stream<List<ConnectivityResult>> _connectivityStream;
   final InternetConnectivityChecker _connectivityChecker;
@@ -66,7 +68,7 @@ class NetworkStatusProvider extends ChangeNotifier {
     );
     await refresh(silent: true);
     _timer = Timer.periodic(
-      _defaultCheckInterval,
+      _checkInterval,
       (_) => unawaited(refresh(silent: true)),
     );
   }
@@ -114,9 +116,11 @@ class NetworkStatusProvider extends ChangeNotifier {
 
   Future<NetworkStatus> _resolveOfflineStatus() async {
     _consecutiveProbeFailures += 1;
-    if (_consecutiveProbeFailures < _offlineFailureThreshold &&
-        _status == NetworkStatus.online) {
-      return NetworkStatus.online;
+    if (_consecutiveProbeFailures < _offlineFailureThreshold) {
+      if (_status == NetworkStatus.online) {
+        return NetworkStatus.online;
+      }
+      return NetworkStatus.unknown;
     }
 
     return NetworkStatus.offline;

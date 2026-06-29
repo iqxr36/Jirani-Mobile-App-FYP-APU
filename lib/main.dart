@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/core/utils/responsive.dart';
@@ -14,6 +15,7 @@ import 'package:jirani/resident/providers/connection_provider.dart';
 import 'package:jirani/resident/providers/item_provider.dart';
 import 'package:jirani/resident/providers/notification_provider.dart';
 import 'package:jirani/resident/providers/network_status_provider.dart';
+import 'package:jirani/resident/providers/payment_provider.dart';
 import 'package:jirani/resident/providers/review_provider.dart';
 import 'package:jirani/resident/providers/theme_provider.dart';
 import 'package:jirani/shared/logic/auth_wrapper.dart';
@@ -74,7 +76,9 @@ class _AppBootstrapState extends State<AppBootstrap> {
       return;
     }
 
-    final online = await hasInternetAccess();
+    final online = InternetConnectivityChecker.hasNetworkInterface(
+      await Connectivity().checkConnectivity(),
+    );
     if (!mounted) return;
 
     if (online) {
@@ -101,7 +105,9 @@ class _AppBootstrapState extends State<AppBootstrap> {
     if (_isRetrying || _phase == _BootstrapPhase.ready) return;
 
     setState(() => _isRetrying = true);
-    final online = await hasInternetAccess();
+    final online = InternetConnectivityChecker.hasNetworkInterface(
+      await Connectivity().checkConnectivity(),
+    );
     if (!mounted) return;
 
     if (!online) {
@@ -126,6 +132,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
       if (!kIsWeb) {
         await _activateFirebaseAppCheck();
       }
+      await _configureStripe();
       if (!kIsWeb) {
         await pushNotificationService.initialize(navigatorKey: appNavigatorKey);
       }
@@ -215,6 +222,16 @@ Future<void> _activateFirebaseAppCheck() async {
   );
 }
 
+Future<void> _configureStripe() async {
+  const publishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+  if (publishableKey.trim().isEmpty) {
+    debugPrint('Stripe publishable key not configured.');
+    return;
+  }
+  Stripe.publishableKey = publishableKey;
+  await Stripe.instance.applySettings();
+}
+
 class TrustCommunityApp extends StatelessWidget {
   const TrustCommunityApp({super.key});
 
@@ -228,6 +245,9 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => BorrowRequestProvider(),
         ),
         ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
+        ChangeNotifierProvider<PaymentProvider>(
+          create: (_) => PaymentProvider(),
+        ),
         ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
         if (!kIsWeb)
           ChangeNotifierProvider<NetworkStatusProvider>(

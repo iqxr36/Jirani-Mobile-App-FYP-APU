@@ -383,8 +383,4 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
       throw Exception(e.message ?? 'Failed to save deposit decision.');
     }
   }
-  static String _marketplaceChatId(String borrowerId, String ownerId) {
-    final ids = <String>[borrowerId, ownerId]..sort();
-    return ids.join('_');
-  }
 }

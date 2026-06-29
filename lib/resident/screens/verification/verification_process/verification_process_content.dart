@@ -134,36 +134,38 @@ class _VerificationProcessContent extends StatelessWidget {
   }
 
   bool _needsDocumentAction(AppUser? user, VerificationRequest? request) {
-    final userStatus = user?.verificationStatus;
-    if (userStatus == AppConstants.verificationPending) {
-      return true;
-    }
-
     final requestStatus = request?.status;
-    if (userStatus == AppConstants.verificationVerified ||
-        requestStatus == AppConstants.verificationVerified ||
-        userStatus == AppConstants.verificationSubmitted ||
+    if (requestStatus == AppConstants.verificationVerified ||
         requestStatus == AppConstants.verificationSubmitted ||
         requestStatus == AppConstants.verificationRequestPending) {
       return false;
     }
+    if (requestStatus == AppConstants.verificationRejected ||
+        requestStatus == AppConstants.verificationRequestCancelled) {
+      return true;
+    }
+
+    final userStatus = user?.verificationStatus;
+    if (userStatus == AppConstants.verificationPending) {
+      return true;
+    }
+    if (userStatus == AppConstants.verificationVerified ||
+        userStatus == AppConstants.verificationSubmitted) {
+      return false;
+    }
     return request == null ||
         userStatus == AppConstants.verificationPending ||
-        userStatus == AppConstants.verificationRejected ||
-        requestStatus == AppConstants.verificationRejected ||
-        requestStatus == AppConstants.verificationRequestCancelled;
+        userStatus == AppConstants.verificationRejected;
   }
 
   String _documentActionLabel(AppUser? user, VerificationRequest? request) {
-    final userStatus = user?.verificationStatus;
-    if (userStatus == AppConstants.verificationPending) {
-      return 'Submit Verification Documents';
-    }
-
     final requestStatus = request?.status;
-    if (userStatus == AppConstants.verificationRejected ||
-        requestStatus == AppConstants.verificationRejected ||
+    if (requestStatus == AppConstants.verificationRejected ||
         requestStatus == AppConstants.verificationRequestCancelled) {
+      return 'Submit Updated Documents';
+    }
+    final userStatus = user?.verificationStatus;
+    if (userStatus == AppConstants.verificationRejected) {
       return 'Submit Updated Documents';
     }
     return 'Submit Verification Documents';
@@ -182,6 +184,14 @@ class _VerificationProcessContent extends StatelessWidget {
     AppUser? user,
     VerificationRequest? request,
   ) {
+    final requestStatus = request?.status;
+    if (requestStatus == AppConstants.verificationSubmitted ||
+        requestStatus == AppConstants.verificationRequestPending ||
+        requestStatus == AppConstants.verificationVerified ||
+        requestStatus == AppConstants.verificationRejected ||
+        requestStatus == AppConstants.verificationRequestCancelled) {
+      return request;
+    }
     if (user?.verificationStatus == AppConstants.verificationPending) {
       return null;
     }

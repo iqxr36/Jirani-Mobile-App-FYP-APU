@@ -21,6 +21,21 @@
       allow read, write: if isAdmin();
     }
 
+    match /payments/{paymentId} {
+      allow read: if isAdmin() ||
+        (
+          signedIn() &&
+          (resource.data.payerId == request.auth.uid ||
+           resource.data.receiverId == request.auth.uid)
+        );
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid}/paymentMethods/{paymentMethodId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

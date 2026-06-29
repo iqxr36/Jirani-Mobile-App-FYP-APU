@@ -99,7 +99,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                   setState(() => _locationAlerts = value),
               onPrivacy: () => _showUnavailable('Privacy'),
               onLanguage: () => _showUnavailable('Language'),
-              onPaymentMethods: () => _showUnavailable('Payment Methods'),
+              onPaymentMethods: _openPaymentMethods,
               onHelp: () => _showUnavailable('Help & Support'),
             );
           },
@@ -117,6 +117,12 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   void _openRatings() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const ResidentReviewsView()),
+    );
+  }
+
+  void _openPaymentMethods() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const PaymentMethodsView()),
     );
   }
 

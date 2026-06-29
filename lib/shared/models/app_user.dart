@@ -27,6 +27,7 @@ class AppUser {
     this.suspendedReason = '',
     this.suspendedAt,
     this.archivedAt,
+    this.stripeCustomerId = '',
     required this.completedBorrowings,
     required this.completedLendings,
     required this.completedServices,
@@ -60,6 +61,7 @@ class AppUser {
   final String suspendedReason;
   final DateTime? suspendedAt;
   final DateTime? archivedAt;
+  final String stripeCustomerId;
   final int completedBorrowings;
   final int completedLendings;
   final int completedServices;
@@ -111,6 +113,7 @@ class AppUser {
     String? suspendedReason,
     DateTime? suspendedAt,
     DateTime? archivedAt,
+    String? stripeCustomerId,
     int? completedBorrowings,
     int? completedLendings,
     int? completedServices,
@@ -144,6 +147,7 @@ class AppUser {
       suspendedReason: suspendedReason ?? this.suspendedReason,
       suspendedAt: suspendedAt ?? this.suspendedAt,
       archivedAt: archivedAt ?? this.archivedAt,
+      stripeCustomerId: stripeCustomerId ?? this.stripeCustomerId,
       completedBorrowings: completedBorrowings ?? this.completedBorrowings,
       completedLendings: completedLendings ?? this.completedLendings,
       completedServices: completedServices ?? this.completedServices,
@@ -180,6 +184,7 @@ class AppUser {
       'suspendedReason': suspendedReason,
       if (suspendedAt != null) 'suspendedAt': Timestamp.fromDate(suspendedAt!),
       if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
+      if (stripeCustomerId.isNotEmpty) 'stripeCustomerId': stripeCustomerId,
       'completedBorrowings': completedBorrowings,
       'completedLendings': completedLendings,
       'completedServices': completedServices,
@@ -226,6 +231,7 @@ class AppUser {
       suspendedReason: (map['suspendedReason'] as String?) ?? '',
       suspendedAt: _parseOptionalDate(map['suspendedAt']),
       archivedAt: _parseOptionalDate(map['archivedAt']),
+      stripeCustomerId: (map['stripeCustomerId'] as String?) ?? '',
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),

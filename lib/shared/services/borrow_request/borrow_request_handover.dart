@@ -1,51 +1,6 @@
 part of '../borrow_request_service.dart';
 
 mixin _BorrowRequestHandoverMixin on _BorrowRequestServiceBase {
-  Future<void> completeManualPayment({
-    required String requestId,
-    required String borrowerId,
-    String chatId = '',
-  }) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null || uid != borrowerId) {
-      throw Exception('Only the borrower can complete this payment.');
-    }
-
-    try {
-      final requestRef = _requests.doc(requestId);
-      final snapshot = await requestRef.get();
-      final data = snapshot.data();
-      if (data == null) throw Exception('Borrow request not found.');
-      final request = BorrowRequest.fromMap(snapshot.id, data);
-
-      if (!MarketplaceBorrowFlow.canCompleteManualPayment(
-        request: request,
-        borrowerId: borrowerId,
-      )) {
-        throw Exception(
-          'Payment is only available after the owner approves this request.',
-        );
-      }
-
-      await requestRef.update({
-        'paymentStatus': AppConstants.paymentStatusCompleted,
-        'paymentCompletedAt': FieldValue.serverTimestamp(),
-        'paymentProvider': AppConstants.paymentProviderManualV1,
-        'chatId': chatId.trim().isEmpty
-            ? _BorrowRequestDisputeMixin._marketplaceChatId(request.borrowerId, request.ownerId)
-            : chatId.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') {
-        throw Exception(
-          'Permission denied. Check Firestore rules for borrow request access.',
-        );
-      }
-      throw Exception(e.message ?? 'Failed to complete payment.');
-    }
-  }
-
   Future<String?> _uploadProofImage({
     required String requestId,
     required String uid,

@@ -15,9 +15,10 @@ class _MarketplaceTransactionViewState
   final TextEditingController _handoverCodeController = TextEditingController();
   final TextEditingController _returnNotesController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
-  _PaymentMethod _paymentMethod = _PaymentMethod.googlePay;
   int _rating = 5;
   bool _localReviewSubmitted = false;
+  bool _paymentMethodsRequested = false;
+  PaymentMethodModel? _selectedPaymentMethod;
 
   @override
   void dispose() {
@@ -37,11 +38,42 @@ class _MarketplaceTransactionViewState
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_paymentMethodsRequested) return;
+    _paymentMethodsRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<PaymentProvider>().loadPaymentMethods();
+      }
+    });
+  }
+
+  PaymentMethodModel? _effectivePaymentMethod(
+    List<PaymentMethodModel> methods,
+  ) {
+    final selectedId = _selectedPaymentMethod?.stripePaymentMethodId;
+    if (selectedId != null) {
+      for (final method in methods) {
+        if (method.stripePaymentMethodId == selectedId) return method;
+      }
+    }
+    for (final method in methods) {
+      if (method.isDefault) return method;
+    }
+    return methods.isEmpty ? null : methods.first;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sideInset = JiraniResponsive.scaled(context, 20);
     final user = context.watch<AuthViewModel>().currentUser;
     final requestProvider = context.watch<BorrowRequestProvider>();
+    final paymentProvider = context.watch<PaymentProvider>();
     final request = _currentRequest(requestProvider);
+    final selectedPaymentMethod = _effectivePaymentMethod(
+      paymentProvider.paymentMethods,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -73,12 +105,11 @@ class _MarketplaceTransactionViewState
                         reviewController: _reviewController,
                         handoverCodeController: _handoverCodeController,
                         rating: _rating,
-                        paymentMethod: _paymentMethod,
                         localReviewSubmitted: _localReviewSubmitted,
+                        selectedPaymentMethod: selectedPaymentMethod,
                         onRatingChanged: (rating) =>
                             setState(() => _rating = rating),
-                        onPaymentMethodChanged: (method) =>
-                            setState(() => _paymentMethod = method),
+                        onChoosePaymentMethod: _choosePaymentMethod,
                         onPayment: () => _completePayment(request, user),
                         onOpenChat: () => _openChat(request, user),
                         onPickupReady: () => _confirmPickupReady(request, user),
@@ -104,29 +135,80 @@ class _MarketplaceTransactionViewState
   Future<void> _completePayment(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
-    final requestProvider = context.read<BorrowRequestProvider>();
+    final paymentProvider = context.read<PaymentProvider>();
+    final selectedPaymentMethod = _effectivePaymentMethod(
+      paymentProvider.paymentMethods,
+    );
+    if (selectedPaymentMethod == null) {
+      await _choosePaymentMethod();
+      return;
+    }
 
-    try {
-      final ok = await requestProvider.completeManualPayment(
-        requestId: request.id,
-        borrowerId: user.uid,
-      );
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            ok
-                ? 'Payment completed. Chat and handover code are unlocked.'
-                : requestProvider.errorMessage ?? 'Payment could not complete.',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+    final result = await paymentProvider.payMarketplaceBorrowRequest(
+      request: request,
+      paymentMethod: selectedPaymentMethod,
+    );
+    if (!mounted) return;
+
+    final feedback = _paymentFeedback(result, paymentProvider);
+    messenger.showSnackBar(
+      SnackBar(content: Text(feedback.message), duration: feedback.duration),
+    );
+  }
+
+  ({String message, Duration duration}) _paymentFeedback(
+    MarketplacePaymentSheetResult? result,
+    PaymentProvider provider,
+  ) {
+    if (result == null) {
+      return (
+        message:
+            provider.errorMessage ?? 'Payment could not complete. Please try again.',
+        duration: const Duration(seconds: 4),
       );
     }
+    switch (result.status) {
+      case AppConstants.paymentStatusSucceeded:
+        return (
+          message: 'Payment received. Chat and handover unlock shortly.',
+          duration: const Duration(seconds: 3),
+        );
+      case AppConstants.paymentStatusFlowCancelled:
+        return (
+          message: 'Payment cancelled. Your card was not charged.',
+          duration: const Duration(seconds: 2),
+        );
+      case AppConstants.paymentStatusCancelled:
+        return (
+          message: 'Payment was cancelled. No charge was made.',
+          duration: const Duration(seconds: 3),
+        );
+      case AppConstants.paymentStatusFailed:
+        return (
+          message: provider.errorMessage ??
+              'Payment failed. Please try a different card.',
+          duration: const Duration(seconds: 5),
+        );
+      case AppConstants.paymentStatusPending:
+      default:
+        return (
+          message:
+              "Payment submitted. We're confirming with Stripe — pull to refresh in a moment.",
+          duration: const Duration(seconds: 4),
+        );
+    }
+  }
+
+  Future<void> _choosePaymentMethod() async {
+    final selected = await Navigator.of(context).push<PaymentMethodModel>(
+      MaterialPageRoute<PaymentMethodModel>(
+        builder: (_) => _MarketplacePaymentMethodPickerView(
+          initialPaymentMethodId: _selectedPaymentMethod?.stripePaymentMethodId,
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() => _selectedPaymentMethod = selected);
   }
 
   Future<void> _openChat(BorrowRequest request, AppUser? user) async {
@@ -264,10 +346,10 @@ class _TransactionBody extends StatelessWidget {
     required this.reviewController,
     required this.handoverCodeController,
     required this.rating,
-    required this.paymentMethod,
     required this.localReviewSubmitted,
+    required this.selectedPaymentMethod,
     required this.onRatingChanged,
-    required this.onPaymentMethodChanged,
+    required this.onChoosePaymentMethod,
     required this.onPayment,
     required this.onOpenChat,
     required this.onPickupReady,
@@ -282,10 +364,10 @@ class _TransactionBody extends StatelessWidget {
   final TextEditingController reviewController;
   final TextEditingController handoverCodeController;
   final int rating;
-  final _PaymentMethod paymentMethod;
   final bool localReviewSubmitted;
+  final PaymentMethodModel? selectedPaymentMethod;
   final ValueChanged<int> onRatingChanged;
-  final ValueChanged<_PaymentMethod> onPaymentMethodChanged;
+  final VoidCallback onChoosePaymentMethod;
   final VoidCallback onPayment;
   final VoidCallback onOpenChat;
   final VoidCallback onPickupReady;
@@ -322,8 +404,8 @@ class _TransactionBody extends StatelessWidget {
         if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
           return _CheckoutCard(
             request: request,
-            paymentMethod: paymentMethod,
-            onPaymentMethodChanged: onPaymentMethodChanged,
+            selectedPaymentMethod: selectedPaymentMethod,
+            onChoosePaymentMethod: onChoosePaymentMethod,
             onPayment: onPayment,
           );
         }
@@ -400,103 +482,6 @@ class _CheckoutTitleBar extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PaymentMethodTile extends StatelessWidget {
-  const _PaymentMethodTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = context.appInk;
-    final muted = context.appMuted;
-
-    return Material(
-      color: selected
-          ? _kBrandTeal.withValues(alpha: 0.10)
-          : context.softSurface(),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 60),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? _kBrandTeal : context.residentOutline(),
-              width: selected ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: context.isDarkUi
-                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: _kBrandTeal, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: ink,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                selected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: selected ? _kBrandTeal : muted,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -583,14 +568,14 @@ class _TrackingStepCard extends StatelessWidget {
 class _CheckoutCard extends StatelessWidget {
   const _CheckoutCard({
     required this.request,
-    required this.paymentMethod,
-    required this.onPaymentMethodChanged,
+    required this.selectedPaymentMethod,
+    required this.onChoosePaymentMethod,
     required this.onPayment,
   });
 
   final BorrowRequest request;
-  final _PaymentMethod paymentMethod;
-  final ValueChanged<_PaymentMethod> onPaymentMethodChanged;
+  final PaymentMethodModel? selectedPaymentMethod;
+  final VoidCallback onChoosePaymentMethod;
   final VoidCallback onPayment;
 
   @override
@@ -635,60 +620,109 @@ class _CheckoutCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _SectionLabel('Payment Method'),
-              const SizedBox(height: 4),
-              Text(
-                'Choose a payment method',
-                style: TextStyle(
-                  color: context.appMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _PaymentMethodTile(
-                icon: Icons.phone_iphone_rounded,
-                title: 'Google Pay',
-                subtitle: 'Fast in-app payment',
-                selected: paymentMethod == _PaymentMethod.googlePay,
-                onTap: () => onPaymentMethodChanged(_PaymentMethod.googlePay),
-              ),
-              const SizedBox(height: 10),
-              _PaymentMethodTile(
-                icon: Icons.credit_card_rounded,
-                title: 'Credit / Debit Card',
-                subtitle: 'Visa or Mastercard',
-                selected: paymentMethod == _PaymentMethod.card,
-                onTap: () => onPaymentMethodChanged(_PaymentMethod.card),
-              ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _kWarmAccent.withValues(alpha: 0.10),
+                  color: selectedPaymentMethod == null
+                      ? _kWarmAccent.withValues(alpha: 0.10)
+                      : _kBrandTeal.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text(
-                  'Temporary in-app payment. Stripe will replace this action later.',
-                  style: TextStyle(
-                    color: context.appInk,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selectedPaymentMethod == null
+                          ? Icons.credit_card_off_rounded
+                          : Icons.credit_card_rounded,
+                      color: selectedPaymentMethod == null
+                          ? _kWarmAccent
+                          : _kBrandTeal,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _CheckoutPaymentMethodSummary(
+                        method: selectedPaymentMethod,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: 12),
+              _SecondaryButton(
+                icon: Icons.account_balance_wallet_outlined,
+                label: selectedPaymentMethod == null
+                    ? 'Choose Payment Method'
+                    : 'Change Payment Method',
+                onTap: onChoosePaymentMethod,
               ),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Consumer<BorrowRequestProvider>(
+        Consumer<PaymentProvider>(
           builder: (context, provider, _) {
             return _PrimaryButton(
-              icon: Icons.lock_open_rounded,
-              label: provider.isLoading ? 'Processing...' : 'Pay Now',
-              onTap: provider.isLoading ? null : onPayment,
+              icon: Icons.lock_rounded,
+              label: provider.isLoading
+                  ? 'Processing...'
+                  : selectedPaymentMethod == null
+                  ? 'Choose a Card First'
+                  : 'Pay with Stripe',
+              onTap: provider.isLoading || selectedPaymentMethod == null
+                  ? null
+                  : onPayment,
             );
           },
+        ),
+      ],
+    );
+  }
+}
+
+class _CheckoutPaymentMethodSummary extends StatelessWidget {
+  const _CheckoutPaymentMethodSummary({required this.method});
+
+  final PaymentMethodModel? method;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = method;
+    if (selected == null) {
+      return Text(
+        'Choose or add a saved card before opening Stripe checkout.',
+        style: TextStyle(
+          color: context.appInk,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          height: 1.3,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_paymentBrandLabel(selected.brand)} ending ${selected.last4}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.appInk,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '**** **** **** ${selected.last4} · Exp ${_paymentExpiry(selected)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.appMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );

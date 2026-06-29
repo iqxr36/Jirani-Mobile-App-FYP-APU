@@ -16,7 +16,7 @@ void main() {
 
     NetworkStatusProvider createProvider({
       required FutureOr<http.Response> Function(http.Request) handler,
-      int offlineFailureThreshold = 1,
+      int offlineFailureThreshold = 3,
       Duration timeout = const Duration(milliseconds: 50),
       Future<List<ConnectivityResult>> Function()? checkConnectivity,
       Stream<List<ConnectivityResult>>? connectivityStream,
@@ -89,18 +89,19 @@ void main() {
       );
     });
 
-    test('reports offline after one failed probe with default threshold', () async {
+    test('keeps gate hidden after one failed probe with default threshold', () async {
       final provider = createProvider(
         handler: (_) => throw http.ClientException('network down'),
+        offlineFailureThreshold: 3,
       );
       addTearDown(provider.dispose);
 
       final isOnline = await provider.refresh();
 
       expect(isOnline, isFalse);
-      expect(provider.status, NetworkStatus.offline);
-      expect(provider.isOffline, isTrue);
-      expect(provider.shouldShowConnectivityGate, isTrue);
+      expect(provider.status, NetworkStatus.unknown);
+      expect(provider.isOffline, isFalse);
+      expect(provider.shouldShowConnectivityGate, isFalse);
     });
 
     test('reports offline immediately when OS connectivity is none', () async {
@@ -117,7 +118,7 @@ void main() {
       expect(provider.shouldShowConnectivityGate, isTrue);
     });
 
-    test('stays offline after one failed probe when threshold is 2', () async {
+    test('keeps gate hidden after one failed probe when threshold is 2', () async {
       final provider = createProvider(
         handler: (_) => throw http.ClientException('network down'),
         offlineFailureThreshold: 2,
@@ -127,10 +128,10 @@ void main() {
       final isOnline = await provider.refresh();
 
       expect(isOnline, isFalse);
-      expect(provider.status, NetworkStatus.offline);
+      expect(provider.status, NetworkStatus.unknown);
       expect(provider.isCheckingConnection, isFalse);
-      expect(provider.shouldShowConnectivityGate, isTrue);
-      expect(provider.isOffline, isTrue);
+      expect(provider.shouldShowConnectivityGate, isFalse);
+      expect(provider.isOffline, isFalse);
     });
 
     test('reports offline after repeated failed probe cycles', () async {
@@ -188,6 +189,8 @@ void main() {
       addTearDown(provider.dispose);
 
       await provider.refresh();
+      await provider.refresh();
+      await provider.refresh();
       expect(provider.status, NetworkStatus.offline);
 
       shouldFail = false;
@@ -204,7 +207,6 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 25));
           return http.Response('', 204);
         },
-        offlineFailureThreshold: 1,
         timeout: const Duration(milliseconds: 1),
       );
       addTearDown(provider.dispose);
@@ -212,7 +214,8 @@ void main() {
       final isOnline = await provider.refresh();
 
       expect(isOnline, isFalse);
-      expect(provider.status, NetworkStatus.offline);
+      expect(provider.status, NetworkStatus.unknown);
+      expect(provider.shouldShowConnectivityGate, isFalse);
     });
   });
 }

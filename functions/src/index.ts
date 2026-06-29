@@ -35,6 +35,15 @@ import {
   reviewBecamePublished,
 } from "./trust_score";
 export {processVerificationRequestOcr} from "./ocr/processVerificationOcr";
+export {
+  createPaymentIntent,
+  createSetupIntent,
+  deletePaymentMethod,
+  getPaymentStatus,
+  listPaymentMethods,
+  setDefaultPaymentMethod,
+  stripeWebhook,
+} from "./stripe_payments";
 
 admin.initializeApp();
 

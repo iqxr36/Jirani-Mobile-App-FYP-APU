@@ -11,6 +11,7 @@ import 'package:jirani/resident/screens/auth/email_verification_view.dart';
 import 'package:jirani/resident/screens/auth/phone_verification_view.dart';
 import 'package:jirani/resident/screens/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/resident/screens/profile/resident_edit_profile_view.dart';
+import 'package:jirani/resident/screens/profile/payment_methods_view.dart';
 import 'package:jirani/resident/screens/profile/resident_reviews_view.dart';
 import 'package:jirani/resident/screens/profile/resident_settings_view.dart';
 import 'package:jirani/resident/screens/verification/verification_process_view.dart';

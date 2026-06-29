@@ -87,6 +87,8 @@ class AppConstants {
   static const String servicesCollection = 'services';
   static const String serviceRequestsCollection = 'serviceRequests';
   static const String transactionsCollection = 'transactions';
+  static const String paymentsCollection = 'payments';
+  static const String paymentMethodsCollection = 'paymentMethods';
   static const String chatsCollection = 'chats';
   static const String connectionsCollection = 'connections';
 
@@ -172,11 +174,21 @@ class AppConstants {
   static const String borrowStatusDisputed = 'disputed';
   static const String borrowStatusCompleted = 'completed';
 
-  // Marketplace payment placeholders (Stripe will replace manual_v1 later)
+// Marketplace payments
   static const String paymentStatusPending = 'pending';
   static const String paymentStatusCompleted = 'completed';
+  static const String paymentStatusSucceeded = 'succeeded';
+  static const String paymentStatusFailed = 'failed';
+  static const String paymentStatusCancelled = 'cancelled';
   static const String paymentStatusRefunded = 'refunded';
+  /// User dismissed the Stripe sheet before completing — no charge made,
+  /// but a pending PaymentIntent may still exist until Stripe auto-expires it.
+  static const String paymentStatusFlowCancelled = 'flowCancelled';
   static const String paymentProviderManualV1 = 'manual_v1';
+  static const String paymentProviderStripe = 'stripe';
+  static const String paymentTypeMarketplace = 'marketplace';
+  static const String paymentTypeService = 'service';
+  static const String defaultPaymentCurrency = 'myr';
 
   /// Item condition at handover (owner selects).
   static const String borrowConditionBeforeExcellent = 'excellent';

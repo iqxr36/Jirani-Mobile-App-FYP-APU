@@ -172,30 +172,6 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> completeManualPayment({
-    required String requestId,
-    required String borrowerId,
-    String chatId = '',
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-    try {
-      await _service.completeManualPayment(
-        requestId: requestId,
-        borrowerId: borrowerId,
-        chatId: chatId,
-      );
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> confirmPickupReady({
     required String requestId,
     required String borrowerId,

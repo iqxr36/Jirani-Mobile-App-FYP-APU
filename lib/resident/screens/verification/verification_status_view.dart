@@ -426,8 +426,15 @@ class _StatusPresentation {
   }
 
   static String _effectiveStatus(String? userStatus, String? requestStatus) {
-    if (userStatus == AppConstants.verificationPending) {
-      return AppConstants.verificationPending;
+    if (requestStatus == AppConstants.verificationSubmitted ||
+        requestStatus == AppConstants.verificationRequestPending) {
+      return AppConstants.verificationSubmitted;
+    }
+    if (requestStatus == AppConstants.verificationVerified) {
+      return AppConstants.verificationVerified;
+    }
+    if (requestStatus == AppConstants.verificationRejected) {
+      return AppConstants.verificationRejected;
     }
     if (userStatus == AppConstants.verificationVerified) {
       return AppConstants.verificationVerified;
@@ -435,11 +442,8 @@ class _StatusPresentation {
     if (userStatus == AppConstants.verificationRejected) {
       return AppConstants.verificationRejected;
     }
-    if (requestStatus == AppConstants.verificationVerified) {
-      return AppConstants.verificationVerified;
-    }
-    if (requestStatus == AppConstants.verificationRejected) {
-      return AppConstants.verificationRejected;
+    if (userStatus == AppConstants.verificationPending) {
+      return AppConstants.verificationPending;
     }
     return AppConstants.verificationSubmitted;
   }

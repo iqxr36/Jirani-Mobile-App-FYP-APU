@@ -1,0 +1,259 @@
+import 'dart:math';
+
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/resident/logic/marketplace_borrow_flow.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/payment_method_model.dart';
+
+class MarketplacePaymentSheetResult {
+  const MarketplacePaymentSheetResult({
+    required this.paymentId,
+    required this.status,
+  });
+
+  final String paymentId;
+  final String status;
+}
+
+class MarketplacePaymentIntentResult {
+  const MarketplacePaymentIntentResult({
+    required this.clientSecret,
+    required this.paymentId,
+    required this.customerId,
+    required this.ephemeralKey,
+  });
+
+  final String clientSecret;
+  final String paymentId;
+  final String customerId;
+  final String ephemeralKey;
+}
+
+class SetupIntentResult {
+  const SetupIntentResult({
+    required this.setupIntentClientSecret,
+    required this.customerId,
+    required this.ephemeralKey,
+  });
+
+  final String setupIntentClientSecret;
+  final String customerId;
+  final String ephemeralKey;
+}
+
+class PaymentService {
+  PaymentService({FirebaseFunctions? functions})
+    : _functions = functions ?? FirebaseFunctions.instance;
+
+  final FirebaseFunctions _functions;
+
+  Future<MarketplacePaymentIntentResult> createMarketplacePaymentIntent({
+    required BorrowRequest request,
+    required PaymentMethodModel paymentMethod,
+  }) async {
+    final amount = marketplaceAmountInMinorUnits(request);
+    if (amount <= 0) {
+      throw Exception('No payment is required for this request.');
+    }
+
+    final callable = _functions.httpsCallable('createPaymentIntent');
+    final result = await callable.call<Map<String, dynamic>>({
+      'amount': amount,
+      'currency': AppConstants.defaultPaymentCurrency,
+      'paymentType': AppConstants.paymentTypeMarketplace,
+      'relatedId': request.id,
+      'payerId': request.borrowerId,
+      'receiverId': request.ownerId,
+      'itemId': request.itemId,
+      'paymentMethodId': paymentMethod.stripePaymentMethodId,
+      'description': 'Jirani marketplace payment for ${request.itemTitle}',
+    });
+    final data = _asMap(result.data);
+    return MarketplacePaymentIntentResult(
+      clientSecret: _readString(data, 'clientSecret'),
+      paymentId: _readString(data, 'paymentId'),
+      customerId: _readString(data, 'customerId'),
+      ephemeralKey: _readString(data, 'ephemeralKey'),
+    );
+  }
+
+  Future<MarketplacePaymentSheetResult> presentMarketplacePaymentSheet({
+    required BorrowRequest request,
+    required PaymentMethodModel paymentMethod,
+  }) async {
+    _ensurePublishableKey();
+    final intent = await createMarketplacePaymentIntent(
+      request: request,
+      paymentMethod: paymentMethod,
+    );
+
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        merchantDisplayName: AppConstants.appName,
+        paymentIntentClientSecret: intent.clientSecret,
+        customerId: intent.customerId,
+        customerEphemeralKeySecret: intent.ephemeralKey,
+        allowsDelayedPaymentMethods: false,
+        primaryButtonLabel: 'Pay ${_formatAmountForButton(request)}',
+        googlePay: const PaymentSheetGooglePay(
+          merchantCountryCode: 'MY',
+          currencyCode: 'MYR',
+          testEnv: true,
+        ),
+      ),
+    );
+
+    try {
+      await Stripe.instance.presentPaymentSheet();
+    } on StripeException catch (e) {
+      if (_isUserCancellation(e)) {
+        return MarketplacePaymentSheetResult(
+          paymentId: intent.paymentId,
+          status: AppConstants.paymentStatusFlowCancelled,
+        );
+      }
+      rethrow;
+    }
+
+    final status = await _waitForWebhookConfirmation(intent.paymentId);
+    return MarketplacePaymentSheetResult(
+      paymentId: intent.paymentId,
+      status: status,
+    );
+  }
+
+  /// Polls Firestore briefly so the UI doesn't see the brief window where
+  /// Stripe has charged but the webhook hasn't updated the doc yet.
+  Future<String> _waitForWebhookConfirmation(String paymentId) async {
+    const maxAttempts = 6;
+    const pollDelay = Duration(milliseconds: 1200);
+    const terminalStatuses = <String>{
+      AppConstants.paymentStatusSucceeded,
+      AppConstants.paymentStatusFailed,
+      AppConstants.paymentStatusCancelled,
+    };
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      await Future.delayed(pollDelay);
+      try {
+        final status = await getPaymentStatus(paymentId);
+        if (terminalStatuses.contains(status)) return status;
+      } catch (_) {
+        // Transient error — try again.
+      }
+    }
+    return AppConstants.paymentStatusPending;
+  }
+
+  static bool _isUserCancellation(StripeException e) {
+    return e.error.code == FailureCode.Canceled;
+  }
+
+  Future<SetupIntentResult> createSetupIntent() async {
+    _ensurePublishableKey();
+    final result = await _functions
+        .httpsCallable('createSetupIntent')
+        .call<Map<String, dynamic>>();
+    final data = _asMap(result.data);
+    return SetupIntentResult(
+      setupIntentClientSecret: _readString(data, 'setupIntentClientSecret'),
+      customerId: _readString(data, 'customerId'),
+      ephemeralKey: _readString(data, 'ephemeralKey'),
+    );
+  }
+
+  Future<void> addPaymentMethod() async {
+    final setupIntent = await createSetupIntent();
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        merchantDisplayName: AppConstants.appName,
+        setupIntentClientSecret: setupIntent.setupIntentClientSecret,
+        customerId: setupIntent.customerId,
+        customerEphemeralKeySecret: setupIntent.ephemeralKey,
+        allowsDelayedPaymentMethods: false,
+        primaryButtonLabel: 'Save Card',
+        googlePay: const PaymentSheetGooglePay(
+          merchantCountryCode: 'MY',
+          currencyCode: 'MYR',
+          testEnv: true,
+          label: 'Save card',
+          amount: '0',
+        ),
+      ),
+    );
+    await Stripe.instance.presentPaymentSheet();
+  }
+
+  Future<List<PaymentMethodModel>> fetchPaymentMethods() async {
+    final result = await _functions
+        .httpsCallable('listPaymentMethods')
+        .call<Map<String, dynamic>>();
+    final data = _asMap(result.data);
+    final rawMethods = data['paymentMethods'];
+    if (rawMethods is! List) return const [];
+    return rawMethods
+        .whereType<Map>()
+        .map((item) => PaymentMethodModel.fromJson(_asMap(item)))
+        .toList(growable: false);
+  }
+
+  Future<void> deletePaymentMethod(String paymentMethodId) async {
+    await _functions.httpsCallable('deletePaymentMethod').call<void>({
+      'paymentMethodId': paymentMethodId,
+    });
+  }
+
+  Future<void> setDefaultPaymentMethod(String paymentMethodId) async {
+    await _functions.httpsCallable('setDefaultPaymentMethod').call<void>({
+      'paymentMethodId': paymentMethodId,
+    });
+  }
+
+  Future<String> getPaymentStatus(String paymentId) async {
+    final result = await _functions.httpsCallable('getPaymentStatus').call({
+      'paymentId': paymentId,
+    });
+    final data = _asMap(result.data);
+    return _readString(data, 'status', fallback: AppConstants.paymentStatusPending);
+  }
+
+  static int marketplaceAmountInMinorUnits(BorrowRequest request) {
+    final total = MarketplaceBorrowFlow.totalDue(
+      usageFee: request.usageFeeAmount,
+      deposit: request.depositAmount,
+    );
+    return max(0, (total * 100).round());
+  }
+
+  static Map<String, dynamic> _asMap(Object? value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return const {};
+  }
+
+  static String _readString(
+    Map<String, dynamic> data,
+    String key, {
+    String fallback = '',
+  }) {
+    final value = data[key];
+    return value is String ? value : fallback;
+  }
+
+  static String _formatAmountForButton(BorrowRequest request) {
+    final total = PaymentService.marketplaceAmountInMinorUnits(request) / 100;
+    return 'RM ${total.toStringAsFixed(total % 1 == 0 ? 0 : 2)}';
+  }
+
+  static void _ensurePublishableKey() {
+    const publishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+    if (publishableKey.trim().isEmpty) {
+      throw Exception(
+        'Stripe publishable key is missing. Start Flutter with '
+        '--dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx.',
+      );
+    }
+  }
+}

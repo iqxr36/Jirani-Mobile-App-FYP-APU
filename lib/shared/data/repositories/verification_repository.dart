@@ -81,7 +81,8 @@ class VerificationRepository {
         ).compareTo(submitted(a.data()['submittedAt'])),
       );
 
-    return VerificationRequest.fromMap(sorted.first.data());
+    final latest = sorted.first;
+    return VerificationRequest.fromMap({...latest.data(), 'id': latest.id});
   }
 
   /// Marks the user's latest cancellable request as cancelled and resets user verification to pending.
@@ -287,7 +288,7 @@ class VerificationRepository {
     if (data == null) {
       return request;
     }
-    return VerificationRequest.fromMap(data);
+    return VerificationRequest.fromMap({...data, 'id': saved.id});
   }
 
   static Future<void> _deleteUploadedVerificationObject(

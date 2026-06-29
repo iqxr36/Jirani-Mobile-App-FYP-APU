@@ -46,8 +46,17 @@ class MarketplaceBorrowFlow {
     return max(0.0, usageFee ?? 0.0) + max(0.0, deposit ?? 0.0);
   }
 
+  static bool requiresPayment(BorrowRequest request) {
+    return totalDue(
+          usageFee: request.usageFeeAmount,
+          deposit: request.depositAmount,
+        ) >
+        0;
+  }
+
   static bool isPaymentComplete(BorrowRequest request) {
-    return request.paymentStatus == AppConstants.paymentStatusCompleted;
+    return !requiresPayment(request) ||
+        request.paymentStatus == AppConstants.paymentStatusCompleted;
   }
 
   static bool canCompleteManualPayment({
@@ -56,7 +65,8 @@ class MarketplaceBorrowFlow {
   }) {
     return request.borrowerId == borrowerId &&
         request.status == AppConstants.borrowStatusApproved &&
-        !isPaymentComplete(request);
+        requiresPayment(request) &&
+        request.paymentStatus != AppConstants.paymentStatusCompleted;
   }
 
   static bool canConfirmPickupReady({
