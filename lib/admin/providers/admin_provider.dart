@@ -340,6 +340,72 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> resolveMarketplaceDeposit({
+    required BorrowRequest borrowRequest,
+    required String decision,
+    required double damageDeductionAmount,
+    required String reason,
+    String reportId = '',
+  }) async {
+    if (!_belongsToVisibleResident(
+      borrowRequest.ownerId,
+      borrowRequest.borrowerId,
+    )) {
+      _errorMessage = 'This transaction is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.resolveMarketplaceDeposit(
+        borrowRequestId: borrowRequest.id,
+        decision: decision,
+        damageDeductionAmount: damageDeductionAmount,
+        reason: reason,
+        reportId: reportId,
+      );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> markManualPayoutPaid({
+    required BorrowRequest borrowRequest,
+    required String reference,
+    String note = '',
+  }) async {
+    if (!_belongsToVisibleResident(
+      borrowRequest.ownerId,
+      borrowRequest.borrowerId,
+    )) {
+      _errorMessage = 'This payout is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.markManualPayoutPaid(
+        borrowRequestId: borrowRequest.id,
+        manualPayoutReference: reference,
+        manualPayoutNote: note,
+      );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> updateResidentDetails({
     required AppUser resident,
     required String adminUid,

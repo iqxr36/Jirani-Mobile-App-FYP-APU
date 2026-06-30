@@ -113,6 +113,10 @@ class AppConstants {
   static const String notificationTypeBorrowRequest = 'borrowRequest';
   static const String notificationTypeBorrowApproved = 'borrowApproved';
   static const String notificationTypeBorrowRejected = 'borrowRejected';
+  static const String notificationTypeBorrowDepositResolved =
+      'borrowDepositResolved';
+  static const String notificationTypeBorrowPayoutReady = 'borrowPayoutReady';
+  static const String notificationTypeBorrowPayoutPaid = 'borrowPayoutPaid';
   static const String notificationTypeServiceRequest = 'serviceRequest';
   static const String notificationTypeServiceAccepted = 'serviceAccepted';
   static const String notificationTypeServiceRejected = 'serviceRejected';
@@ -189,6 +193,49 @@ class AppConstants {
   static const String paymentTypeMarketplace = 'marketplace';
   static const String paymentTypeService = 'service';
   static const String defaultPaymentCurrency = 'myr';
+
+  // Marketplace deposit/refund ledger
+  static const String depositStatusHeld = 'held';
+  static const String depositStatusRefunded = 'refunded';
+  static const String depositStatusPartiallyRefunded = 'partially_refunded';
+  static const String depositStatusDeducted = 'deducted';
+  static const String depositStatusDisputed = 'disputed';
+  static const String depositStatusRefundFailed = 'refund_failed';
+  static const String depositStatusNotRequired = 'not_required';
+
+  static const String refundStatusNotStarted = 'not_started';
+  static const String refundStatusPending = 'pending';
+  static const String refundStatusSucceeded = 'succeeded';
+  static const String refundStatusFailed = 'failed';
+  static const String refundStatusNotRequired = 'not_required';
+
+  static const String damageDecisionNone = 'none';
+  static const String damageDecisionBorrowerAccepted = 'borrower_accepted';
+  static const String damageDecisionAdminFullRefund = 'admin_full_refund';
+  static const String damageDecisionAdminPartialDeduction =
+      'admin_partial_deduction';
+  static const String damageDecisionAdminFullDeduction =
+      'admin_full_deduction';
+
+  static const String manualPayoutStatusNotReady = 'not_ready';
+  static const String manualPayoutStatusBlocked = 'blocked';
+  static const String manualPayoutStatusPendingManual = 'pending_manual';
+  static const String manualPayoutStatusPaid = 'paid';
+  static const String manualPayoutStatusCancelled = 'cancelled';
+
+  static const String stripeConnectStatusNotStarted = 'not_started';
+  static const String stripeConnectStatusNeedsOnboarding = 'needs_onboarding';
+  static const String stripeConnectStatusPending = 'pending';
+  static const String stripeConnectStatusComplete = 'complete';
+
+  static const String stripeTransferStatusNotReady = 'not_ready';
+  static const String stripeTransferStatusPending = 'pending';
+  static const String stripeTransferStatusPaid = 'paid';
+  static const String stripeTransferStatusFailed = 'failed';
+
+  static const String depositResolutionFullRefund = 'full_refund';
+  static const String depositResolutionPartialDeduction = 'partial_deduction';
+  static const String depositResolutionFullDeduction = 'full_deduction';
 
   /// Item condition at handover (owner selects).
   static const String borrowConditionBeforeExcellent = 'excellent';

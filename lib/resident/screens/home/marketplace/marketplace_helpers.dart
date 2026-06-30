@@ -99,6 +99,124 @@ String _borrowerDepositMessage(BorrowRequest request) {
   return 'The lender reported an issue. Deposit release will wait for admin review.';
 }
 
+bool _hasAdminDepositDecision(BorrowRequest request) {
+  return request.adminResolvedAt != null ||
+      request.adminResolutionReason.trim().isNotEmpty ||
+      request.damageDecision.startsWith('admin_');
+}
+
+String _adminDecisionTitle(BorrowRequest request) {
+  if (request.refundStatus == AppConstants.refundStatusPending) {
+    return 'Refund Processing';
+  }
+  if (request.refundStatus == AppConstants.refundStatusFailed) {
+    return 'Refund Needs Review';
+  }
+  if (request.depositStatus == AppConstants.depositStatusRefunded) {
+    return 'Deposit Returned';
+  }
+  if (request.depositStatus == AppConstants.depositStatusPartiallyRefunded) {
+    return 'Partial Deduction Approved';
+  }
+  if (request.depositStatus == AppConstants.depositStatusDeducted) {
+    return 'Deposit Awarded to Lender';
+  }
+  return 'Admin Deposit Decision';
+}
+
+IconData _adminDecisionIcon(BorrowRequest request) {
+  if (request.refundStatus == AppConstants.refundStatusFailed ||
+      request.depositStatus == AppConstants.depositStatusDeducted) {
+    return Icons.report_problem_outlined;
+  }
+  if (request.refundStatus == AppConstants.refundStatusPending) {
+    return Icons.hourglass_top_rounded;
+  }
+  return Icons.verified_rounded;
+}
+
+String _depositStatusLabel(BorrowRequest request) {
+  switch (request.depositStatus) {
+    case AppConstants.depositStatusHeld:
+      return 'Held';
+    case AppConstants.depositStatusRefunded:
+      return 'Refunded';
+    case AppConstants.depositStatusPartiallyRefunded:
+      return 'Partially Refunded';
+    case AppConstants.depositStatusDeducted:
+      return 'Deducted';
+    case AppConstants.depositStatusDisputed:
+      return 'Disputed';
+    case AppConstants.depositStatusRefundFailed:
+      return 'Refund Failed';
+    case AppConstants.depositStatusNotRequired:
+      return 'No Deposit';
+    default:
+      return request.hasDeposit ? 'Pending' : 'No Deposit';
+  }
+}
+
+String _manualPayoutStatusLabel(String status) {
+  switch (status) {
+    case AppConstants.manualPayoutStatusBlocked:
+      return 'Blocked';
+    case AppConstants.manualPayoutStatusPendingManual:
+      return 'Ready';
+    case AppConstants.manualPayoutStatusPaid:
+      return 'Paid';
+    case AppConstants.manualPayoutStatusCancelled:
+      return 'Cancelled';
+    default:
+      return 'Not Ready';
+  }
+}
+
+String _depositLedgerMessage(BorrowRequest request) {
+  if (request.refundStatus == AppConstants.refundStatusPending) {
+    return 'Stripe is processing the deposit refund. The final result is confirmed by webhook.';
+  }
+  if (request.refundStatus == AppConstants.refundStatusFailed) {
+    final reason = request.refundFailureReason.trim();
+    return reason.isEmpty
+        ? 'The refund did not complete. Admin review is required.'
+        : 'The refund did not complete. Reason: $reason';
+  }
+  if (request.depositStatus == AppConstants.depositStatusDisputed) {
+    return 'The deposit is blocked while admin reviews the damage dispute.';
+  }
+  if (request.depositStatus == AppConstants.depositStatusPartiallyRefunded) {
+    return '${_money(request.damageDeductionAmount)} was deducted and ${_money(request.depositRefundAmount)} is being returned to you.';
+  }
+  if (request.depositStatus == AppConstants.depositStatusDeducted) {
+    return 'Admin resolved the deposit for the lender. No deposit refund is due.';
+  }
+  if (request.depositStatus == AppConstants.depositStatusRefunded) {
+    return 'Your refundable deposit has been released through Stripe.';
+  }
+  if (request.depositStatus == AppConstants.depositStatusHeld) {
+    return 'Your deposit is held until the return is completed or reviewed.';
+  }
+  return request.hasDeposit
+      ? 'Deposit settlement will update here after return.'
+      : 'No refundable deposit was required for this item.';
+}
+
+String _manualPayoutMessage(BorrowRequest request) {
+  switch (request.manualPayoutStatus) {
+    case AppConstants.manualPayoutStatusPendingManual:
+      return 'Your payout is ready. Please collect it from admin; admin will record the payout reference after payment.';
+    case AppConstants.manualPayoutStatusPaid:
+      final ref = request.manualPayoutReference.trim();
+      return ref.isEmpty
+          ? 'Admin marked this payout as paid.'
+          : 'Admin marked this payout as paid. Reference: $ref';
+    case AppConstants.manualPayoutStatusBlocked:
+      return 'Payout is blocked until deposit refund or dispute resolution is complete.';
+    default:
+      return 'Payout becomes ready after return and deposit settlement.';
+  }
+}
+
 String _categoryLabel(String category) {
   switch (category) {
     case AppConstants.itemCategoryTools:

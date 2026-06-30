@@ -227,6 +227,7 @@
     function ownerCanSetDepositDecision() {
       return borrowRequestOwner() &&
         resource.data.status == 'completed' &&
+        resource.data.paymentProvider != 'stripe' &&
         request.resource.data.status == 'completed' &&
         resource.data.depositDecision == 'pending' &&
         request.resource.data.depositDecision in [
@@ -248,6 +249,7 @@
         (
           (
             borrowRequestBorrower() &&
+            resource.data.borrowerReviewSubmitted != true &&
             request.resource.data.borrowerReviewSubmitted == true &&
             request.resource.data.borrowerReviewSubmittedAt == request.time &&
             borrowChangedKeysOnly([
@@ -259,6 +261,7 @@
           ) ||
           (
             borrowRequestOwner() &&
+            resource.data.ownerReviewSubmitted != true &&
             request.resource.data.ownerReviewSubmitted == true &&
             request.resource.data.ownerReviewSubmittedAt == request.time &&
             borrowChangedKeysOnly([

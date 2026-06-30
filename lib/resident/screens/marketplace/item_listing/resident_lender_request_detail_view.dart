@@ -1389,6 +1389,8 @@ class _LenderCompletedCard extends StatelessWidget {
     final pendingDeposit =
         request.hasDeposit &&
         request.depositDecision == AppConstants.depositDecisionPending;
+    final reviewSubmitted =
+        localReviewSubmitted || request.ownerReviewSubmitted;
 
     if (!pendingDeposit) {
       return _GlassPanel(
@@ -1407,67 +1409,79 @@ class _LenderCompletedCard extends StatelessWidget {
                 label: 'Deposit',
                 value: _depositDecisionLabel(request.depositDecision),
               ),
+              if (_hasLenderAdminDecision(request)) ...[
+                const SizedBox(height: 12),
+                _LenderAdminDecisionPanel(request: request),
+              ],
               const SizedBox(height: 16),
               const Divider(height: 1),
               const SizedBox(height: 16),
-              Text(
-                'Rate the Borrower',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.appInk,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+              if (reviewSubmitted)
+                const _TrackingStepCard(
+                  icon: Icons.rate_review_rounded,
+                  title: 'Review Submitted',
+                  message:
+                      'Your review is saved and cannot be changed. It stays hidden until both reviews are submitted or the 3-day grace period ends.',
+                )
+              else ...[
+                Text(
+                  'Rate the Borrower',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.appInk,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Did ${request.borrowerName} treat the item safely and return it on time?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.appMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
+                const SizedBox(height: 6),
+                Text(
+                  'Did ${request.borrowerName} treat the item safely and return it on time?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.appMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: RatingBar.builder(
-                  initialRating: rating.toDouble(),
-                  minRating: 1,
-                  itemSize: 32,
-                  allowHalfRating: false,
-                  itemBuilder: (context, _) =>
-                      const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
-                  onRatingUpdate: (value) => onRatingChanged(value.round()),
+                const SizedBox(height: 12),
+                Center(
+                  child: RatingBar.builder(
+                    initialRating: rating.toDouble(),
+                    minRating: 1,
+                    itemSize: 32,
+                    allowHalfRating: false,
+                    itemBuilder: (context, _) => const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFF59E0B),
+                    ),
+                    onRatingUpdate: (value) =>
+                        onRatingChanged(value.round()),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reviewController,
-                minLines: 3,
-                maxLines: 4,
-                decoration: context.residentInputDecoration(
-                  label: 'Private until published',
-                  hint: 'Optional comment about item care and punctuality',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reviewController,
+                  minLines: 3,
+                  maxLines: 4,
+                  decoration: context.residentInputDecoration(
+                    label: 'Private until published',
+                    hint: 'Optional comment about item care and punctuality',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Consumer<ReviewProvider>(
-                builder: (context, provider, _) {
-                  return _PrimaryButton(
-                    label: localReviewSubmitted
-                        ? 'Review Submitted'
-                        : provider.isSubmitting
-                        ? 'Submitting...'
-                        : 'Submit Review',
-                    icon: Icons.rate_review_rounded,
-                    onTap: localReviewSubmitted || provider.isSubmitting
-                        ? null
-                        : onSubmitReview,
-                  );
-                },
-              ),
+                const SizedBox(height: 12),
+                Consumer<ReviewProvider>(
+                  builder: (context, provider, _) {
+                    return _PrimaryButton(
+                      label: provider.isSubmitting
+                          ? 'Submitting...'
+                          : 'Submit Review',
+                      icon: Icons.rate_review_rounded,
+                      onTap: provider.isSubmitting ? null : onSubmitReview,
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -1525,6 +1539,47 @@ class _LenderCompletedCard extends StatelessWidget {
             icon: Icons.verified_rounded,
             onTap: isLoading ? null : onSubmitDepositDecision,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LenderAdminDecisionPanel extends StatelessWidget {
+  const _LenderAdminDecisionPanel({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TrackingStepCard(
+      icon: _lenderAdminDecisionIcon(request),
+      title: _lenderAdminDecisionTitle(request),
+      message: _lenderAdminDecisionMessage(request),
+      child: Column(
+        children: [
+          _MiniInfoTile(
+            label: 'Item fee',
+            value: _money(request.lenderBaseEarning),
+          ),
+          const SizedBox(height: 8),
+          _MiniInfoTile(
+            label: 'Damage deduction',
+            value: _money(request.lenderDamageEarning),
+          ),
+          const SizedBox(height: 8),
+          _MiniInfoTile(
+            label: 'Manual payout total',
+            value: _money(request.lenderTotalEarning),
+            emphasized: true,
+          ),
+          if (request.manualPayoutReference.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _MiniInfoTile(
+              label: 'Payout reference',
+              value: request.manualPayoutReference.trim(),
+            ),
+          ],
         ],
       ),
     );

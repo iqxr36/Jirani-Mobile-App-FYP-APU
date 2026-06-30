@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/resident/providers/payment_provider.dart';
 import 'package:jirani/shared/models/payment_method_model.dart';
+import 'package:jirani/shared/services/payment_service.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kWarmAccent = Color(0xFFE29578);
@@ -26,8 +29,44 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<PaymentProvider>().loadPaymentMethods();
+        context.read<PaymentProvider>().loadConnectAccountStatus();
       }
     });
+  }
+
+  Future<void> _setupStripePayouts() async {
+    final provider = context.read<PaymentProvider>();
+    final result = await provider.createConnectOnboardingLink(
+      returnUrl:
+          'https://final-year-project-faisal.web.app/stripe-connect-return',
+      refreshUrl:
+          'https://final-year-project-faisal.web.app/stripe-connect-refresh',
+    );
+    if (!mounted) return;
+    final url = result?.url.trim() ?? '';
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.errorMessage ?? 'Could not start Stripe payout setup.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted) return;
+    if (!launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Stripe onboarding.')),
+      );
+      return;
+    }
+    await provider.loadConnectAccountStatus();
   }
 
   Future<void> _addPaymentMethod() async {
@@ -111,8 +150,11 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
           child: Consumer<PaymentProvider>(
             builder: (context, provider, _) {
               return RefreshIndicator(
-                onRefresh: provider.loadPaymentMethods,
-                child: SingleChildScrollView(
+                onRefresh: () async {
+                  await provider.loadPaymentMethods();
+                  await provider.loadConnectAccountStatus();
+                },
+                                child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -127,6 +169,13 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                         children: [
                           _Header(onBack: () => Navigator.of(context).pop()),
                           const SizedBox(height: 18),
+                          _PayoutSetupCard(
+                            status: provider.connectStatus,
+                            loading: provider.isLoading,
+                            onSetup: _setupStripePayouts,
+                            onRefresh: provider.loadConnectAccountStatus,
+                          ),
+                          const SizedBox(height: 14),
                           if (provider.isLoading &&
                               provider.paymentMethods.isEmpty)
                             const _LoadingPanel()
@@ -189,6 +238,135 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PayoutSetupCard extends StatelessWidget {
+  const _PayoutSetupCard({
+    required this.status,
+    required this.loading,
+    required this.onSetup,
+    required this.onRefresh,
+  });
+
+  final ConnectAccountStatus? status;
+  final bool loading;
+  final VoidCallback onSetup;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final effectiveStatus = status?.status ??
+        AppConstants.stripeConnectStatusNotStarted;
+    final complete =
+        effectiveStatus == AppConstants.stripeConnectStatusComplete;
+
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  complete
+                      ? Icons.verified_rounded
+                      : Icons.account_balance_rounded,
+                  color: _kBrandTeal,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Stripe Payouts',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _connectStatusLabel(effectiveStatus),
+                      style: TextStyle(
+                        color: complete ? _kBrandTeal : scheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _connectStatusMessage(effectiveStatus),
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          if ((status?.disabledReason ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Stripe note: ${status!.disabledReason}',
+              style: const TextStyle(
+                color: _kWarmAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kBrandTeal,
+                    foregroundColor: scheme.onPrimary,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: loading ? null : onSetup,
+                  icon: Icon(
+                    complete
+                        ? Icons.manage_accounts_rounded
+                        : Icons.open_in_new_rounded,
+                  ),
+                  label: Text(
+                    complete ? 'Manage Payouts' : 'Set Up Payouts',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.outlined(
+                onPressed: loading ? null : () => onRefresh(),
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Refresh status',
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -479,4 +657,30 @@ String _expiry(PaymentMethodModel method) {
   final month = method.expMonth.toString().padLeft(2, '0');
   final year = (method.expYear % 100).toString().padLeft(2, '0');
   return '$month/$year';
+}
+
+String _connectStatusLabel(String status) {
+  switch (status) {
+    case AppConstants.stripeConnectStatusComplete:
+      return 'Ready for Stripe payouts';
+    case AppConstants.stripeConnectStatusPending:
+      return 'Stripe is reviewing details';
+    case AppConstants.stripeConnectStatusNeedsOnboarding:
+      return 'Action needed';
+    default:
+      return 'Not set up';
+  }
+}
+
+String _connectStatusMessage(String status) {
+  switch (status) {
+    case AppConstants.stripeConnectStatusComplete:
+      return 'Damage deductions and lender earnings can be paid to your connected Stripe account automatically.';
+    case AppConstants.stripeConnectStatusPending:
+      return 'Stripe has your details and is checking whether payouts can be enabled.';
+    case AppConstants.stripeConnectStatusNeedsOnboarding:
+      return 'Finish Stripe onboarding before damage deductions can be paid to you automatically.';
+    default:
+      return 'Set up Stripe payouts if you lend marketplace items and want damage deductions paid through Stripe.';
+  }
 }

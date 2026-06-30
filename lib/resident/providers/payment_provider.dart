@@ -14,10 +14,12 @@ class PaymentProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   List<PaymentMethodModel> _paymentMethods = const [];
+  ConnectAccountStatus? _connectStatus;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<PaymentMethodModel> get paymentMethods => _paymentMethods;
+  ConnectAccountStatus? get connectStatus => _connectStatus;
 
   Future<MarketplacePaymentSheetResult?> payMarketplaceBorrowRequest({
     required BorrowRequest request,
@@ -37,6 +39,26 @@ class PaymentProvider extends ChangeNotifier {
       _paymentMethods = methods;
       notifyListeners();
     }
+  }
+
+  Future<void> loadConnectAccountStatus() async {
+    final status = await _run(_service.getConnectAccountStatus);
+    if (status != null) {
+      _connectStatus = status;
+      notifyListeners();
+    }
+  }
+
+  Future<ConnectOnboardingLinkResult?> createConnectOnboardingLink({
+    required String returnUrl,
+    required String refreshUrl,
+  }) {
+    return _run(
+      () => _service.createConnectOnboardingLink(
+        returnUrl: returnUrl,
+        refreshUrl: refreshUrl,
+      ),
+    );
   }
 
   Future<bool> addPaymentMethod() async {

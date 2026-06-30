@@ -120,6 +120,14 @@ mixin _BorrowRequestReturnMixin on _BorrowRequestServiceBase, _BorrowRequestHand
         },
       );
       await batch.commit();
+      if (_hasCompletedStripePayment(request)) {
+        await _resolveMarketplaceDeposit(
+          borrowRequestId: requestId,
+          decision: AppConstants.depositResolutionFullRefund,
+          damageDeductionAmount: 0,
+          reason: ownerReturnNotes.trim(),
+        );
+      }
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(

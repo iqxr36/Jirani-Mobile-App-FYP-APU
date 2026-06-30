@@ -43,6 +43,70 @@ class SetupIntentResult {
   final String ephemeralKey;
 }
 
+class ConnectAccountStatus {
+  const ConnectAccountStatus({
+    required this.accountId,
+    required this.status,
+    required this.payoutsEnabled,
+    required this.chargesEnabled,
+    required this.transfersCapability,
+    required this.detailsSubmitted,
+    required this.requirementsDue,
+    required this.disabledReason,
+  });
+
+  final String accountId;
+  final String status;
+  final bool payoutsEnabled;
+  final bool chargesEnabled;
+  final String transfersCapability;
+  final bool detailsSubmitted;
+  final List<String> requirementsDue;
+  final String disabledReason;
+
+  bool get isComplete => status == AppConstants.stripeConnectStatusComplete;
+  bool get hasStarted => accountId.trim().isNotEmpty;
+
+  factory ConnectAccountStatus.fromJson(Map<String, dynamic> data) {
+    final rawRequirements = data['requirementsDue'];
+    return ConnectAccountStatus(
+      accountId: _connectReadString(data, 'accountId'),
+      status: _connectReadString(
+        data,
+        'status',
+        fallback: AppConstants.stripeConnectStatusNotStarted,
+      ),
+      payoutsEnabled: data['payoutsEnabled'] == true,
+      chargesEnabled: data['chargesEnabled'] == true,
+      transfersCapability: _connectReadString(data, 'transfersCapability'),
+      detailsSubmitted: data['detailsSubmitted'] == true,
+      requirementsDue: rawRequirements is List
+          ? rawRequirements.whereType<String>().toList(growable: false)
+          : const [],
+      disabledReason: _connectReadString(data, 'disabledReason'),
+    );
+  }
+}
+
+String _connectReadString(
+  Map<String, dynamic> data,
+  String key, {
+  String fallback = '',
+}) {
+  final value = data[key];
+  return value is String ? value : fallback;
+}
+
+class ConnectOnboardingLinkResult {
+  const ConnectOnboardingLinkResult({
+    required this.url,
+    required this.status,
+  });
+
+  final String url;
+  final ConnectAccountStatus status;
+}
+
 class PaymentService {
   PaymentService({FirebaseFunctions? functions})
     : _functions = functions ?? FirebaseFunctions.instance;
@@ -217,6 +281,30 @@ class PaymentService {
     });
     final data = _asMap(result.data);
     return _readString(data, 'status', fallback: AppConstants.paymentStatusPending);
+  }
+
+  Future<ConnectAccountStatus> getConnectAccountStatus() async {
+    final result = await _functions
+        .httpsCallable('getConnectAccountStatus')
+        .call<Map<String, dynamic>>();
+    return ConnectAccountStatus.fromJson(_asMap(result.data));
+  }
+
+  Future<ConnectOnboardingLinkResult> createConnectOnboardingLink({
+    required String returnUrl,
+    required String refreshUrl,
+  }) async {
+    final result = await _functions
+        .httpsCallable('createConnectOnboardingLink')
+        .call<Map<String, dynamic>>({
+      'returnUrl': returnUrl,
+      'refreshUrl': refreshUrl,
+    });
+    final data = _asMap(result.data);
+    return ConnectOnboardingLinkResult(
+      url: _readString(data, 'url'),
+      status: ConnectAccountStatus.fromJson(data),
+    );
   }
 
   static int marketplaceAmountInMinorUnits(BorrowRequest request) {

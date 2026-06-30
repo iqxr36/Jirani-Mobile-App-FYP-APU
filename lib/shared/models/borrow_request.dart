@@ -69,6 +69,37 @@ class BorrowRequest {
     this.adminResolutionReason = '',
     this.adminResolvedAt,
     this.adminResolvedBy = '',
+    this.depositStatus = '',
+    this.depositHeldAmount = 0,
+    this.depositRefundAmount = 0,
+    this.depositRefundedAt,
+    this.damageDeductionAmount = 0,
+    this.damageDecision = AppConstants.damageDecisionNone,
+    this.damageDecisionReason = '',
+    this.damageDecidedAt,
+    this.stripeRefundId = '',
+    this.refundStatus = '',
+    this.refundFailureReason = '',
+    this.lenderBaseEarning = 0,
+    this.lenderDamageEarning = 0,
+    this.lenderTotalEarning = 0,
+    this.manualPayoutStatus = '',
+    this.manualPayoutMarkedAt,
+    this.manualPayoutMarkedBy = '',
+    this.manualPayoutReference = '',
+    this.manualPayoutNote = '',
+    this.stripeTransferId = '',
+    this.stripeTransferDestinationAccountId = '',
+    this.stripeTransferAmount = 0,
+    this.stripeTransferStatus = '',
+    this.stripeTransferFailureReason = '',
+    this.stripeTransferCreatedAt,
+    this.stripeTransferUpdatedAt,
+    this.borrowerReviewSubmitted = false,
+    this.borrowerReviewSubmittedAt,
+    this.ownerReviewSubmitted = false,
+    this.ownerReviewSubmittedAt,
+    this.reviewGraceEndsAt,
   });
 
   final String id;
@@ -137,6 +168,37 @@ class BorrowRequest {
   final String adminResolutionReason;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
+  final String depositStatus;
+  final double depositHeldAmount;
+  final double depositRefundAmount;
+  final DateTime? depositRefundedAt;
+  final double damageDeductionAmount;
+  final String damageDecision;
+  final String damageDecisionReason;
+  final DateTime? damageDecidedAt;
+  final String stripeRefundId;
+  final String refundStatus;
+  final String refundFailureReason;
+  final double lenderBaseEarning;
+  final double lenderDamageEarning;
+  final double lenderTotalEarning;
+  final String manualPayoutStatus;
+  final DateTime? manualPayoutMarkedAt;
+  final String manualPayoutMarkedBy;
+  final String manualPayoutReference;
+  final String manualPayoutNote;
+  final String stripeTransferId;
+  final String stripeTransferDestinationAccountId;
+  final double stripeTransferAmount;
+  final String stripeTransferStatus;
+  final String stripeTransferFailureReason;
+  final DateTime? stripeTransferCreatedAt;
+  final DateTime? stripeTransferUpdatedAt;
+  final bool borrowerReviewSubmitted;
+  final DateTime? borrowerReviewSubmittedAt;
+  final bool ownerReviewSubmitted;
+  final DateTime? ownerReviewSubmittedAt;
+  final DateTime? reviewGraceEndsAt;
 
   BorrowRequest copyWith({
     String? id,
@@ -205,6 +267,37 @@ class BorrowRequest {
     String? adminResolutionReason,
     DateTime? adminResolvedAt,
     String? adminResolvedBy,
+    String? depositStatus,
+    double? depositHeldAmount,
+    double? depositRefundAmount,
+    DateTime? depositRefundedAt,
+    double? damageDeductionAmount,
+    String? damageDecision,
+    String? damageDecisionReason,
+    DateTime? damageDecidedAt,
+    String? stripeRefundId,
+    String? refundStatus,
+    String? refundFailureReason,
+    double? lenderBaseEarning,
+    double? lenderDamageEarning,
+    double? lenderTotalEarning,
+    String? manualPayoutStatus,
+    DateTime? manualPayoutMarkedAt,
+    String? manualPayoutMarkedBy,
+    String? manualPayoutReference,
+    String? manualPayoutNote,
+    String? stripeTransferId,
+    String? stripeTransferDestinationAccountId,
+    double? stripeTransferAmount,
+    String? stripeTransferStatus,
+    String? stripeTransferFailureReason,
+    DateTime? stripeTransferCreatedAt,
+    DateTime? stripeTransferUpdatedAt,
+    bool? borrowerReviewSubmitted,
+    DateTime? borrowerReviewSubmittedAt,
+    bool? ownerReviewSubmitted,
+    DateTime? ownerReviewSubmittedAt,
+    DateTime? reviewGraceEndsAt,
   }) {
     return BorrowRequest(
       id: id ?? this.id,
@@ -283,6 +376,52 @@ class BorrowRequest {
           adminResolutionReason ?? this.adminResolutionReason,
       adminResolvedAt: adminResolvedAt ?? this.adminResolvedAt,
       adminResolvedBy: adminResolvedBy ?? this.adminResolvedBy,
+      depositStatus: depositStatus ?? this.depositStatus,
+      depositHeldAmount: depositHeldAmount ?? this.depositHeldAmount,
+      depositRefundAmount: depositRefundAmount ?? this.depositRefundAmount,
+      depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
+      damageDeductionAmount:
+          damageDeductionAmount ?? this.damageDeductionAmount,
+      damageDecision: damageDecision ?? this.damageDecision,
+      damageDecisionReason:
+          damageDecisionReason ?? this.damageDecisionReason,
+      damageDecidedAt: damageDecidedAt ?? this.damageDecidedAt,
+      stripeRefundId: stripeRefundId ?? this.stripeRefundId,
+      refundStatus: refundStatus ?? this.refundStatus,
+      refundFailureReason: refundFailureReason ?? this.refundFailureReason,
+      lenderBaseEarning: lenderBaseEarning ?? this.lenderBaseEarning,
+      lenderDamageEarning: lenderDamageEarning ?? this.lenderDamageEarning,
+      lenderTotalEarning: lenderTotalEarning ?? this.lenderTotalEarning,
+      manualPayoutStatus: manualPayoutStatus ?? this.manualPayoutStatus,
+      manualPayoutMarkedAt:
+          manualPayoutMarkedAt ?? this.manualPayoutMarkedAt,
+      manualPayoutMarkedBy:
+          manualPayoutMarkedBy ?? this.manualPayoutMarkedBy,
+      manualPayoutReference:
+          manualPayoutReference ?? this.manualPayoutReference,
+      manualPayoutNote: manualPayoutNote ?? this.manualPayoutNote,
+      stripeTransferId: stripeTransferId ?? this.stripeTransferId,
+      stripeTransferDestinationAccountId:
+          stripeTransferDestinationAccountId ??
+          this.stripeTransferDestinationAccountId,
+      stripeTransferAmount:
+          stripeTransferAmount ?? this.stripeTransferAmount,
+      stripeTransferStatus: stripeTransferStatus ?? this.stripeTransferStatus,
+      stripeTransferFailureReason:
+          stripeTransferFailureReason ?? this.stripeTransferFailureReason,
+      stripeTransferCreatedAt:
+          stripeTransferCreatedAt ?? this.stripeTransferCreatedAt,
+      stripeTransferUpdatedAt:
+          stripeTransferUpdatedAt ?? this.stripeTransferUpdatedAt,
+      borrowerReviewSubmitted:
+          borrowerReviewSubmitted ?? this.borrowerReviewSubmitted,
+      borrowerReviewSubmittedAt:
+          borrowerReviewSubmittedAt ?? this.borrowerReviewSubmittedAt,
+      ownerReviewSubmitted:
+          ownerReviewSubmitted ?? this.ownerReviewSubmitted,
+      ownerReviewSubmittedAt:
+          ownerReviewSubmittedAt ?? this.ownerReviewSubmittedAt,
+      reviewGraceEndsAt: reviewGraceEndsAt ?? this.reviewGraceEndsAt,
     );
   }
 
@@ -367,6 +506,48 @@ class BorrowRequest {
       adminResolutionReason: (data['adminResolutionReason'] as String?) ?? '',
       adminResolvedAt: _toNullableDate(data['adminResolvedAt']),
       adminResolvedBy: (data['adminResolvedBy'] as String?) ?? '',
+      depositStatus: _parseDepositStatus(data),
+      depositHeldAmount: _toDouble(data['depositHeldAmount']) ?? 0,
+      depositRefundAmount: _toDouble(data['depositRefundAmount']) ?? 0,
+      depositRefundedAt: _toNullableDate(data['depositRefundedAt']),
+      damageDeductionAmount: _toDouble(data['damageDeductionAmount']) ?? 0,
+      damageDecision:
+          (data['damageDecision'] as String?) ?? AppConstants.damageDecisionNone,
+      damageDecisionReason: (data['damageDecisionReason'] as String?) ?? '',
+      damageDecidedAt: _toNullableDate(data['damageDecidedAt']),
+      stripeRefundId: (data['stripeRefundId'] as String?) ?? '',
+      refundStatus: _parseRefundStatus(data),
+      refundFailureReason: (data['refundFailureReason'] as String?) ?? '',
+      lenderBaseEarning: _toDouble(data['lenderBaseEarning']) ?? 0,
+      lenderDamageEarning: _toDouble(data['lenderDamageEarning']) ?? 0,
+      lenderTotalEarning: _toDouble(data['lenderTotalEarning']) ?? 0,
+      manualPayoutStatus: _parseManualPayoutStatus(data),
+      manualPayoutMarkedAt: _toNullableDate(data['manualPayoutMarkedAt']),
+      manualPayoutMarkedBy: (data['manualPayoutMarkedBy'] as String?) ?? '',
+      manualPayoutReference:
+          (data['manualPayoutReference'] as String?) ?? '',
+      manualPayoutNote: (data['manualPayoutNote'] as String?) ?? '',
+      stripeTransferId: (data['stripeTransferId'] as String?) ?? '',
+      stripeTransferDestinationAccountId:
+          (data['stripeTransferDestinationAccountId'] as String?) ?? '',
+      stripeTransferAmount: _toDouble(data['stripeTransferAmount']) ?? 0,
+      stripeTransferStatus:
+          (data['stripeTransferStatus'] as String?) ??
+          AppConstants.stripeTransferStatusNotReady,
+      stripeTransferFailureReason:
+          (data['stripeTransferFailureReason'] as String?) ?? '',
+      stripeTransferCreatedAt: _toNullableDate(data['stripeTransferCreatedAt']),
+      stripeTransferUpdatedAt: _toNullableDate(data['stripeTransferUpdatedAt']),
+      borrowerReviewSubmitted:
+          data['borrowerReviewSubmitted'] as bool? ?? false,
+      borrowerReviewSubmittedAt: _toNullableDate(
+        data['borrowerReviewSubmittedAt'],
+      ),
+      ownerReviewSubmitted: data['ownerReviewSubmitted'] as bool? ?? false,
+      ownerReviewSubmittedAt: _toNullableDate(
+        data['ownerReviewSubmittedAt'],
+      ),
+      reviewGraceEndsAt: _toNullableDate(data['reviewGraceEndsAt']),
     );
   }
 
@@ -480,6 +661,61 @@ class BorrowRequest {
           ? null
           : Timestamp.fromDate(adminResolvedAt!),
       'adminResolvedBy': adminResolvedBy.isEmpty ? null : adminResolvedBy,
+      'depositStatus': depositStatus,
+      'depositHeldAmount': depositHeldAmount,
+      'depositRefundAmount': depositRefundAmount,
+      'depositRefundedAt': depositRefundedAt == null
+          ? null
+          : Timestamp.fromDate(depositRefundedAt!),
+      'damageDeductionAmount': damageDeductionAmount,
+      'damageDecision': damageDecision,
+      'damageDecisionReason': damageDecisionReason,
+      'damageDecidedAt': damageDecidedAt == null
+          ? null
+          : Timestamp.fromDate(damageDecidedAt!),
+      'stripeRefundId': stripeRefundId.isEmpty ? null : stripeRefundId,
+      'refundStatus': refundStatus,
+      'refundFailureReason':
+          refundFailureReason.isEmpty ? null : refundFailureReason,
+      'lenderBaseEarning': lenderBaseEarning,
+      'lenderDamageEarning': lenderDamageEarning,
+      'lenderTotalEarning': lenderTotalEarning,
+      'manualPayoutStatus': manualPayoutStatus,
+      'manualPayoutMarkedAt': manualPayoutMarkedAt == null
+          ? null
+          : Timestamp.fromDate(manualPayoutMarkedAt!),
+      'manualPayoutMarkedBy':
+          manualPayoutMarkedBy.isEmpty ? null : manualPayoutMarkedBy,
+      'manualPayoutReference':
+          manualPayoutReference.isEmpty ? null : manualPayoutReference,
+      'manualPayoutNote': manualPayoutNote.isEmpty ? null : manualPayoutNote,
+      'stripeTransferId': stripeTransferId.isEmpty ? null : stripeTransferId,
+      'stripeTransferDestinationAccountId':
+          stripeTransferDestinationAccountId.isEmpty
+          ? null
+          : stripeTransferDestinationAccountId,
+      'stripeTransferAmount': stripeTransferAmount,
+      'stripeTransferStatus': stripeTransferStatus,
+      'stripeTransferFailureReason': stripeTransferFailureReason.isEmpty
+          ? null
+          : stripeTransferFailureReason,
+      'stripeTransferCreatedAt': stripeTransferCreatedAt == null
+          ? null
+          : Timestamp.fromDate(stripeTransferCreatedAt!),
+      'stripeTransferUpdatedAt': stripeTransferUpdatedAt == null
+          ? null
+          : Timestamp.fromDate(stripeTransferUpdatedAt!),
+      'borrowerReviewSubmitted': borrowerReviewSubmitted,
+      'borrowerReviewSubmittedAt': borrowerReviewSubmittedAt == null
+          ? null
+          : Timestamp.fromDate(borrowerReviewSubmittedAt!),
+      'ownerReviewSubmitted': ownerReviewSubmitted,
+      'ownerReviewSubmittedAt': ownerReviewSubmittedAt == null
+          ? null
+          : Timestamp.fromDate(ownerReviewSubmittedAt!),
+      'reviewGraceEndsAt': reviewGraceEndsAt == null
+          ? null
+          : Timestamp.fromDate(reviewGraceEndsAt!),
     };
   }
 
@@ -523,5 +759,32 @@ class BorrowRequest {
     return hd
         ? AppConstants.depositDecisionPending
         : AppConstants.depositDecisionNotRequired;
+  }
+
+  static String _parseDepositStatus(Map<String, dynamic> data) {
+    final raw = (data['depositStatus'] as String?)?.trim() ?? '';
+    if (raw.isNotEmpty) return raw;
+    final hasDeposit =
+        data['hasDeposit'] as bool? ??
+        ((_toDouble(data['depositAmount']) ?? 0) > 0);
+    if (!hasDeposit) return AppConstants.depositStatusNotRequired;
+    if (data['paymentStatus'] == AppConstants.paymentStatusCompleted) {
+      return AppConstants.depositStatusHeld;
+    }
+    return '';
+  }
+
+  static String _parseRefundStatus(Map<String, dynamic> data) {
+    final raw = (data['refundStatus'] as String?)?.trim() ?? '';
+    if (raw.isNotEmpty) return raw;
+    return _parseDepositStatus(data) == AppConstants.depositStatusNotRequired
+        ? AppConstants.refundStatusNotRequired
+        : AppConstants.refundStatusNotStarted;
+  }
+
+  static String _parseManualPayoutStatus(Map<String, dynamic> data) {
+    final raw = (data['manualPayoutStatus'] as String?)?.trim() ?? '';
+    if (raw.isNotEmpty) return raw;
+    return AppConstants.manualPayoutStatusNotReady;
   }
 }

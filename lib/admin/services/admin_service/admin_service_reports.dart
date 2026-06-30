@@ -1,6 +1,7 @@
 part of '../admin_service.dart';
 
-mixin _AdminServiceReportsMixin on _AdminServiceBase {
+mixin _AdminServiceReportsMixin
+    on _AdminServiceBase, _AdminServicePaymentsMixin {
   Future<void> resolveMarketplaceDispute({
     required String reportId,
     required String borrowRequestId,
@@ -33,6 +34,22 @@ mixin _AdminServiceReportsMixin on _AdminServiceBase {
     final request = BorrowRequest.fromMap(requestSnap.id, requestData);
     if (request.status != AppConstants.borrowStatusDisputed) {
       throw Exception('Only disputed transactions can be resolved by admin.');
+    }
+
+    if (request.paymentProvider == AppConstants.paymentProviderStripe &&
+        request.paymentStatus == AppConstants.paymentStatusCompleted) {
+      await resolveMarketplaceDeposit(
+        borrowRequestId: borrowRequestId.trim(),
+        decision: resolveForBorrower
+            ? AppConstants.depositResolutionFullRefund
+            : AppConstants.depositResolutionFullDeduction,
+        damageDeductionAmount: resolveForBorrower
+            ? 0
+            : (request.depositAmount ?? 0),
+        reason: trimmedReason,
+        reportId: reportId.trim(),
+      );
+      return;
     }
 
     final resolution = resolveForBorrower

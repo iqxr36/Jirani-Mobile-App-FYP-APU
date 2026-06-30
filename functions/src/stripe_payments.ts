@@ -3,12 +3,15 @@ import {logger} from "firebase-functions";
 import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import Stripe from "stripe";
+import {createInAppNotification} from "./notifications";
 
 type DocumentData = admin.firestore.DocumentData;
 
 const PAYMENTS_COLLECTION = "payments";
 const USERS_COLLECTION = "users";
+const ADMINS_COLLECTION = "admins";
 const BORROW_REQUESTS_COLLECTION = "borrowRequests";
+const REPORTS_COLLECTION = "reports";
 const PAYMENT_METHODS_COLLECTION = "paymentMethods";
 const PAYMENT_TYPE_MARKETPLACE = "marketplace";
 const PAYMENT_TYPE_SERVICE = "service";
@@ -16,11 +19,18 @@ const PAYMENT_STATUS_PENDING = "pending";
 const PAYMENT_STATUS_SUCCEEDED = "succeeded";
 const PAYMENT_STATUS_FAILED = "failed";
 const PAYMENT_STATUS_CANCELLED = "cancelled";
+const NOTIFICATION_TYPE_BORROW_DEPOSIT_RESOLVED = "borrowDepositResolved";
+const NOTIFICATION_TYPE_BORROW_PAYOUT_READY = "borrowPayoutReady";
+const NOTIFICATION_TYPE_BORROW_PAYOUT_PAID = "borrowPayoutPaid";
 const BORROW_PAYMENT_STATUS_COMPLETED = "completed";
 const BORROW_PAYMENT_STATUS_FAILED = "failed";
 const BORROW_PAYMENT_STATUS_CANCELLED = "cancelled";
 const BORROW_STATUS_APPROVED = "approved";
+const BORROW_STATUS_COMPLETED = "completed";
+const BORROW_STATUS_DISPUTED = "disputed";
 const STRIPE_PROVIDER = "stripe";
+const ROLE_COMMUNITY_ADMIN = "communityAdmin";
+const ROLE_SYSTEM_ADMIN = "systemAdmin";
 const DEFAULT_CURRENCY = "myr";
 const ALLOWED_CURRENCIES = new Set([DEFAULT_CURRENCY]);
 const ALLOWED_PAYMENT_TYPES = new Set([
@@ -28,6 +38,40 @@ const ALLOWED_PAYMENT_TYPES = new Set([
   PAYMENT_TYPE_SERVICE,
 ]);
 const EPHEMERAL_KEY_API_VERSION = "2026-04-22.dahlia";
+const DEPOSIT_STATUS_HELD = "held";
+const DEPOSIT_STATUS_REFUNDED = "refunded";
+const DEPOSIT_STATUS_PARTIALLY_REFUNDED = "partially_refunded";
+const DEPOSIT_STATUS_DEDUCTED = "deducted";
+const DEPOSIT_STATUS_DISPUTED = "disputed";
+const DEPOSIT_STATUS_REFUND_FAILED = "refund_failed";
+const DEPOSIT_STATUS_NOT_REQUIRED = "not_required";
+const REFUND_STATUS_NOT_STARTED = "not_started";
+const REFUND_STATUS_PENDING = "pending";
+const REFUND_STATUS_SUCCEEDED = "succeeded";
+const REFUND_STATUS_FAILED = "failed";
+const REFUND_STATUS_NOT_REQUIRED = "not_required";
+const DAMAGE_DECISION_NONE = "none";
+const DAMAGE_DECISION_BORROWER_ACCEPTED = "borrower_accepted";
+const DAMAGE_DECISION_ADMIN_FULL_REFUND = "admin_full_refund";
+const DAMAGE_DECISION_ADMIN_PARTIAL_DEDUCTION = "admin_partial_deduction";
+const DAMAGE_DECISION_ADMIN_FULL_DEDUCTION = "admin_full_deduction";
+const MANUAL_PAYOUT_NOT_READY = "not_ready";
+const MANUAL_PAYOUT_BLOCKED = "blocked";
+const MANUAL_PAYOUT_PENDING_MANUAL = "pending_manual";
+const MANUAL_PAYOUT_PAID = "paid";
+const STRIPE_TRANSFER_STATUS_NOT_READY = "not_ready";
+const STRIPE_TRANSFER_STATUS_PENDING = "pending";
+const STRIPE_TRANSFER_STATUS_PAID = "paid";
+const STRIPE_TRANSFER_STATUS_FAILED = "failed";
+const RESOLUTION_FULL_REFUND = "full_refund";
+const RESOLUTION_PARTIAL_DEDUCTION = "partial_deduction";
+const RESOLUTION_FULL_DEDUCTION = "full_deduction";
+const MINOR_ISSUE_ACCEPTED = "accepted";
+const DEPOSIT_DECISION_RETURN_DEPOSIT = "returnDeposit";
+const DEPOSIT_DECISION_PARTIAL_DEDUCTION = "partialDeduction";
+const DEPOSIT_DECISION_WITHHOLD_DEPOSIT = "withholdDeposit";
+const ADMIN_RESOLUTION_FOR_BORROWER = "resolveForBorrower";
+const ADMIN_RESOLUTION_FOR_LENDER = "resolveForLender";
 
 const stripeSecret = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -85,8 +129,21 @@ function readPositiveInt(data: Record<string, unknown>, key: string): number {
   return value;
 }
 
+function readNumber(data: Record<string, unknown>, key: string): number {
+  const value = data[key];
+  if (value === undefined || value === null) return 0;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new HttpsError("invalid-argument", `${key} must be a number.`);
+  }
+  return value;
+}
+
 function toMoneyNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function moneyToMinorUnits(value: number): number {
+  return Math.max(0, Math.round(value * 100));
 }
 
 function expectedMarketplaceAmount(data: DocumentData): number {
@@ -97,6 +154,349 @@ function expectedMarketplaceAmount(data: DocumentData): number {
 
 function marketplaceChatId(borrowerId: string, ownerId: string): string {
   return [borrowerId, ownerId].sort().join("_");
+}
+
+async function isAdminUser(db: admin.firestore.Firestore, uid: string): Promise<boolean> {
+  const [userSnapshot, adminSnapshot] = await Promise.all([
+    db.collection(USERS_COLLECTION).doc(uid).get(),
+    db.collection(ADMINS_COLLECTION).doc(uid).get(),
+  ]);
+  const userRole = userSnapshot.data()?.role;
+  const adminRole = adminSnapshot.data()?.role;
+  return userRole === ROLE_COMMUNITY_ADMIN ||
+    userRole === ROLE_SYSTEM_ADMIN ||
+    adminRole === ROLE_COMMUNITY_ADMIN ||
+    adminRole === ROLE_SYSTEM_ADMIN;
+}
+
+async function requireAdmin(
+  db: admin.firestore.Firestore,
+  uid: string,
+): Promise<void> {
+  if (!await isAdminUser(db, uid)) {
+    throw new HttpsError("permission-denied", "Admin access is required.");
+  }
+}
+
+function safeErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim().slice(0, 500);
+  }
+  return "Stripe refund failed.";
+}
+
+function notificationIdFor(...parts: string[]): string {
+  return parts.join("_").replace(/\//g, "_");
+}
+
+function moneyLabel(value: number): string {
+  return `RM ${value.toFixed(2)}`;
+}
+
+function transferCapable(account: Stripe.Account): boolean {
+  return account.capabilities?.transfers === "active" &&
+    account.charges_enabled === true &&
+    account.payouts_enabled === true;
+}
+
+function connectStatusFor(account: Stripe.Account): string {
+  if (transferCapable(account)) return "complete";
+  if ((account.requirements?.currently_due ?? []).length > 0 ||
+      (account.requirements?.past_due ?? []).length > 0 ||
+      account.details_submitted !== true) {
+    return "needs_onboarding";
+  }
+  return "pending";
+}
+
+function connectReturnUrl(input: Record<string, unknown>, key: string): string {
+  const value = readString(input, key);
+  if (value.startsWith("https://")) return value;
+  return "https://final-year-project-faisal.web.app/stripe-connect-return";
+}
+
+function depositDecisionNotificationBodies(
+  decision: string,
+  itemTitle: string,
+  depositAmount: number,
+  deductionAmount: number,
+  refundAmount: number,
+  reason: string,
+): {borrower: string; lender: string} {
+  const note = reason.trim() ? ` Admin note: ${reason.trim()}` : "";
+  if (decision === RESOLUTION_FULL_REFUND) {
+    return {
+      borrower: `Admin decided to return your ${moneyLabel(depositAmount)} deposit for "${itemTitle}".${note}`,
+      lender: `Admin decided to return the deposit to the borrower for "${itemTitle}". No deposit payout is due.${note}`,
+    };
+  }
+  if (decision === RESOLUTION_PARTIAL_DEDUCTION) {
+    return {
+      borrower: `Admin approved a ${moneyLabel(deductionAmount)} deduction for "${itemTitle}". ${moneyLabel(refundAmount)} will return to you.${note}`,
+      lender: `Admin approved a ${moneyLabel(deductionAmount)} damage deduction for "${itemTitle}". Your manual payout is being prepared.${note}`,
+    };
+  }
+  return {
+    borrower: `Admin awarded the ${moneyLabel(depositAmount)} deposit to the lender for "${itemTitle}". No deposit refund is due.${note}`,
+    lender: `Admin awarded the ${moneyLabel(depositAmount)} deposit to you for "${itemTitle}". Your manual payout is ready to collect.${note}`,
+  };
+}
+
+async function notifyManualPayoutReady(
+  db: admin.firestore.Firestore,
+  borrowRequestId: string,
+  data: DocumentData,
+  actorId: string,
+): Promise<void> {
+  const ownerId = typeof data.ownerId === "string" ? data.ownerId : "";
+  const itemTitle = typeof data.itemTitle === "string" && data.itemTitle.trim() ?
+    data.itemTitle.trim() :
+    "your marketplace item";
+  const payoutAmount = moneyLabel(Math.max(0, toMoneyNumber(data.lenderTotalEarning)));
+  await createInAppNotification(db, {
+    userId: ownerId,
+    actorId,
+    type: NOTIFICATION_TYPE_BORROW_PAYOUT_READY,
+    title: "Deposit payout ready",
+    body: `Admin has ${payoutAmount} ready for "${itemTitle}". Please collect the manual payout from admin.`,
+    category: "Marketplace",
+    borrowRequestId,
+    notificationId: notificationIdFor(
+      "borrowPayoutReady",
+      borrowRequestId,
+      ownerId,
+    ),
+  });
+}
+
+async function syncConnectAccountStatus(
+  db: admin.firestore.Firestore,
+  uid: string,
+  accountId: string,
+): Promise<{account: Stripe.Account; status: string; payoutsEnabled: boolean}> {
+  const account = await stripe().accounts.retrieve(accountId);
+  const status = connectStatusFor(account);
+  const payoutsEnabled = transferCapable(account);
+  await db.collection(USERS_COLLECTION).doc(uid).set({
+    stripeConnectAccountId: account.id,
+    stripeConnectStatus: status,
+    stripeConnectChargesEnabled: account.charges_enabled === true,
+    stripeConnectPayoutsEnabled: account.payouts_enabled === true,
+    stripeConnectTransfersCapability: account.capabilities?.transfers ?? "",
+    stripeConnectDetailsSubmitted: account.details_submitted === true,
+    stripeConnectRequirementsDue: account.requirements?.currently_due ?? [],
+    stripeConnectDisabledReason: account.requirements?.disabled_reason ?? "",
+    stripeConnectUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+  return {account, status, payoutsEnabled};
+}
+
+async function ensureConnectAccount(
+  db: admin.firestore.Firestore,
+  uid: string,
+): Promise<{account: Stripe.Account; status: string; payoutsEnabled: boolean}> {
+  const userRef = db.collection(USERS_COLLECTION).doc(uid);
+  const userSnap = await userRef.get();
+  const userData = userSnap.data();
+  if (!userData) {
+    throw new HttpsError("not-found", "User profile was not found.");
+  }
+
+  const existingAccountId =
+    typeof userData.stripeConnectAccountId === "string" ?
+      userData.stripeConnectAccountId :
+      "";
+  if (existingAccountId) {
+    return syncConnectAccountStatus(db, uid, existingAccountId);
+  }
+
+  const fullName = `${readString(userData, "firstName")} ${readString(userData, "lastName")}`.trim();
+  const account = await stripe().accounts.create({
+    country: "MY",
+    email: readString(userData, "email"),
+    business_type: "individual",
+    business_profile: {
+      name: fullName || "Jirani lender",
+      product_description: "Marketplace item lending payouts on Jirani",
+    },
+    capabilities: {
+      transfers: {requested: true},
+    },
+    controller: {
+      fees: {payer: "application"},
+      losses: {payments: "application"},
+      requirement_collection: "stripe",
+      stripe_dashboard: {type: "express"},
+    },
+    metadata: {
+      firebaseUid: uid,
+      app: "jirani",
+      purpose: "lender_payouts",
+    },
+  });
+  return syncConnectAccountStatus(db, uid, account.id);
+}
+
+export const createConnectOnboardingLink = onCall(
+  {secrets: [stripeSecret]},
+  async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const db = admin.firestore();
+  const {account, status, payoutsEnabled} = await ensureConnectAccount(db, uid);
+  if (payoutsEnabled) {
+    const loginLink = await stripe().accounts.createLoginLink(account.id);
+    return {
+      url: loginLink.url,
+      accountId: account.id,
+      status,
+      payoutsEnabled,
+    };
+  }
+  const accountLink = await stripe().accountLinks.create({
+    account: account.id,
+    type: "account_onboarding",
+    refresh_url: connectReturnUrl(input, "refreshUrl"),
+    return_url: connectReturnUrl(input, "returnUrl"),
+    collection_options: {
+      fields: "eventually_due",
+      future_requirements: "include",
+    },
+  });
+  return {
+    url: accountLink.url,
+    accountId: account.id,
+    status,
+    payoutsEnabled,
+  };
+});
+
+export const getConnectAccountStatus = onCall(
+  {secrets: [stripeSecret]},
+  async (request) => {
+  const uid = requireUid(request.auth);
+  const db = admin.firestore();
+  const userSnap = await db.collection(USERS_COLLECTION).doc(uid).get();
+  const accountId = userSnap.data()?.stripeConnectAccountId;
+  if (typeof accountId !== "string" || !accountId) {
+    return {
+      accountId: "",
+      status: "not_started",
+      payoutsEnabled: false,
+      chargesEnabled: false,
+      transfersCapability: "",
+      requirementsDue: [],
+    };
+  }
+  const {account, status, payoutsEnabled} =
+    await syncConnectAccountStatus(db, uid, accountId);
+  return {
+    accountId: account.id,
+    status,
+    payoutsEnabled,
+    chargesEnabled: account.charges_enabled === true,
+    transfersCapability: account.capabilities?.transfers ?? "",
+    detailsSubmitted: account.details_submitted === true,
+    requirementsDue: account.requirements?.currently_due ?? [],
+    disabledReason: account.requirements?.disabled_reason ?? "",
+  };
+});
+
+async function createStripeLenderTransferIfReady(
+  db: admin.firestore.Firestore,
+  borrowRequestId: string,
+  data: DocumentData,
+  actorId: string,
+): Promise<{
+  transferred: boolean;
+  transferId: string;
+  reason: string;
+}> {
+  const ownerId = typeof data.ownerId === "string" ? data.ownerId : "";
+  const transferAmount = Math.max(0, toMoneyNumber(data.lenderTotalEarning));
+  if (!ownerId || transferAmount <= 0) {
+    return {transferred: false, transferId: "", reason: "no_lender_earning"};
+  }
+  if (typeof data.stripeTransferId === "string" && data.stripeTransferId) {
+    return {
+      transferred: true,
+      transferId: data.stripeTransferId,
+      reason: "already_transferred",
+    };
+  }
+
+  const ownerSnap = await db.collection(USERS_COLLECTION).doc(ownerId).get();
+  const ownerData = ownerSnap.data();
+  const accountId = typeof ownerData?.stripeConnectAccountId === "string" ?
+    ownerData.stripeConnectAccountId :
+    "";
+  if (!accountId) {
+    return {transferred: false, transferId: "", reason: "connect_not_started"};
+  }
+
+  const {payoutsEnabled} = await syncConnectAccountStatus(db, ownerId, accountId);
+  if (!payoutsEnabled) {
+    return {transferred: false, transferId: "", reason: "connect_incomplete"};
+  }
+
+  const itemTitle = typeof data.itemTitle === "string" && data.itemTitle.trim() ?
+    data.itemTitle.trim() :
+    "marketplace item";
+  const paymentIntentId = typeof data.stripePaymentIntentId === "string" ?
+    data.stripePaymentIntentId :
+    "";
+  const sourceTransaction = typeof data.stripeChargeId === "string" ?
+    data.stripeChargeId :
+    "";
+  const transfer = await stripe().transfers.create({
+    amount: moneyToMinorUnits(transferAmount),
+    currency: DEFAULT_CURRENCY,
+    destination: accountId,
+    description: `Jirani lender payout for ${itemTitle}`,
+    transfer_group: `borrow_${borrowRequestId}`,
+    ...(sourceTransaction ? {source_transaction: sourceTransaction} : {}),
+    metadata: {
+      borrowRequestId,
+      ownerId,
+      paymentIntentId,
+      payoutType: "marketplace_lender_earning",
+      actorId,
+    },
+  }, {
+    idempotencyKey: `borrow_${borrowRequestId}_lender_transfer`,
+  });
+
+  await db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId).set({
+    stripeTransferId: transfer.id,
+    stripeTransferDestinationAccountId: accountId,
+    stripeTransferAmount: transferAmount,
+    stripeTransferStatus: STRIPE_TRANSFER_STATUS_PAID,
+    stripeTransferCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    manualPayoutStatus: MANUAL_PAYOUT_PAID,
+    manualPayoutMarkedAt: admin.firestore.FieldValue.serverTimestamp(),
+    manualPayoutMarkedBy: "stripeConnect",
+    manualPayoutReference: transfer.id,
+    manualPayoutNote: "Paid automatically through Stripe Connect.",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+
+  await createInAppNotification(db, {
+    userId: ownerId,
+    actorId,
+    type: NOTIFICATION_TYPE_BORROW_PAYOUT_PAID,
+    title: "Stripe payout sent",
+    body: `Stripe sent your ${moneyLabel(transferAmount)} payout for "${itemTitle}" to your connected account. Reference: ${transfer.id}.`,
+    category: "Marketplace",
+    borrowRequestId,
+    notificationId: notificationIdFor(
+      "borrowPayoutPaidStripe",
+      borrowRequestId,
+      ownerId,
+    ),
+  });
+
+  return {transferred: true, transferId: transfer.id, reason: "transferred"};
 }
 
 function paymentMethodIdFromDefault(
@@ -370,6 +770,8 @@ export const createPaymentIntent = onCall({secrets: [stripeSecret]}, async (requ
     itemId: marketplace.itemId,
     amount: marketplace.amount,
     currency: marketplace.currency,
+    usageFeeAmount: Math.max(0, toMoneyNumber(marketplace.requestData.usageFeeAmount)),
+    depositAmount: Math.max(0, toMoneyNumber(marketplace.requestData.depositAmount)),
     status: PAYMENT_STATUS_PENDING,
     stripeCustomerId: customerId,
     selectedPaymentMethodId: marketplace.selectedPaymentMethodId,
@@ -598,6 +1000,500 @@ export const getPaymentStatus = onCall({secrets: [stripeSecret]}, async (request
   };
 });
 
+function assertDepositResolutionInput(
+  decision: string,
+  depositAmount: number,
+  deductionAmount: number,
+): void {
+  if (decision === RESOLUTION_FULL_REFUND && deductionAmount !== 0) {
+    throw new HttpsError("invalid-argument", "Full refund deduction must be 0.");
+  }
+  if (
+    decision === RESOLUTION_PARTIAL_DEDUCTION &&
+    (deductionAmount <= 0 || deductionAmount >= depositAmount)
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Partial deduction must be more than 0 and less than the deposit.",
+    );
+  }
+  if (
+    decision === RESOLUTION_FULL_DEDUCTION &&
+    deductionAmount !== depositAmount
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Full deduction must equal the full deposit.",
+    );
+  }
+  if (![
+    RESOLUTION_FULL_REFUND,
+    RESOLUTION_PARTIAL_DEDUCTION,
+    RESOLUTION_FULL_DEDUCTION,
+  ].includes(decision)) {
+    throw new HttpsError("invalid-argument", "Invalid deposit decision.");
+  }
+}
+
+function resolutionAllowedForParticipant(
+  requestData: DocumentData,
+  uid: string,
+  decision: string,
+  deductionAmount: number,
+): boolean {
+  const isOwner = requestData.ownerId === uid;
+  const isBorrower = requestData.borrowerId === uid;
+  const depositAmount = Math.max(0, toMoneyNumber(requestData.depositAmount));
+  if (depositAmount <= 0) {
+    return isOwner &&
+      decision === RESOLUTION_FULL_REFUND &&
+      requestData.status === BORROW_STATUS_COMPLETED;
+  }
+  if (decision === RESOLUTION_FULL_REFUND) {
+    return isOwner &&
+      requestData.status === BORROW_STATUS_COMPLETED &&
+      requestData.depositDecision === DEPOSIT_DECISION_RETURN_DEPOSIT;
+  }
+  if (decision === RESOLUTION_PARTIAL_DEDUCTION) {
+    return isBorrower &&
+      requestData.status === BORROW_STATUS_COMPLETED &&
+      requestData.minorIssueBorrowerDecision === MINOR_ISSUE_ACCEPTED &&
+      requestData.depositDecision === DEPOSIT_DECISION_PARTIAL_DEDUCTION &&
+      Math.round(toMoneyNumber(requestData.minorDeductionAmount) * 100) ===
+        Math.round(deductionAmount * 100);
+  }
+  return false;
+}
+
+function damageDecisionFor(decision: string, isAdmin: boolean): string {
+  if (decision === RESOLUTION_FULL_REFUND) {
+    return isAdmin ? DAMAGE_DECISION_ADMIN_FULL_REFUND : DAMAGE_DECISION_NONE;
+  }
+  if (decision === RESOLUTION_PARTIAL_DEDUCTION) {
+    return isAdmin ?
+      DAMAGE_DECISION_ADMIN_PARTIAL_DEDUCTION :
+      DAMAGE_DECISION_BORROWER_ACCEPTED;
+  }
+  return DAMAGE_DECISION_ADMIN_FULL_DEDUCTION;
+}
+
+function depositStatusFor(decision: string): string {
+  if (decision === RESOLUTION_FULL_REFUND) return DEPOSIT_STATUS_REFUNDED;
+  if (decision === RESOLUTION_PARTIAL_DEDUCTION) {
+    return DEPOSIT_STATUS_PARTIALLY_REFUNDED;
+  }
+  return DEPOSIT_STATUS_DEDUCTED;
+}
+
+export const resolveMarketplaceDeposit = onCall(
+  {secrets: [stripeSecret]},
+  async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const borrowRequestId = readString(input, "borrowRequestId");
+  const decision = readString(input, "decision");
+  const reason = readString(input, "reason");
+  const requestedDeductionAmount = readNumber(input, "damageDeductionAmount");
+  const reportId = readString(input, "reportId");
+  if (!borrowRequestId) {
+    throw new HttpsError("invalid-argument", "Missing borrow request id.");
+  }
+
+  const db = admin.firestore();
+  const requestRef = db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+  const requestSnapshot = await requestRef.get();
+  const requestData = requestSnapshot.data();
+  if (!requestData) {
+    throw new HttpsError("not-found", "Borrow request was not found.");
+  }
+
+  const adminCaller = await isAdminUser(db, uid);
+  if (!adminCaller && !resolutionAllowedForParticipant(
+    requestData,
+    uid,
+    decision,
+    requestedDeductionAmount,
+  )) {
+    throw new HttpsError(
+      "permission-denied",
+      "You cannot resolve this marketplace deposit.",
+    );
+  }
+
+  if (requestData.paymentStatus !== BORROW_PAYMENT_STATUS_COMPLETED ||
+      requestData.paymentProvider !== STRIPE_PROVIDER) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Stripe payment must be completed before resolving deposit.",
+    );
+  }
+  const paymentIntentId = typeof requestData.stripePaymentIntentId === "string" ?
+    requestData.stripePaymentIntentId :
+    "";
+  if (!paymentIntentId) {
+    throw new HttpsError("failed-precondition", "Missing Stripe payment intent.");
+  }
+
+  const depositAmount = Math.max(0, toMoneyNumber(requestData.depositAmount));
+  const usageFeeAmount = Math.max(0, toMoneyNumber(requestData.usageFeeAmount));
+  if (depositAmount <= 0) {
+    const noDepositUpdate = {
+      depositStatus: DEPOSIT_STATUS_NOT_REQUIRED,
+      depositHeldAmount: 0,
+      depositRefundAmount: 0,
+      damageDeductionAmount: 0,
+      damageDecision: DAMAGE_DECISION_NONE,
+      damageDecisionReason: "",
+      refundStatus: REFUND_STATUS_NOT_REQUIRED,
+      lenderBaseEarning: usageFeeAmount,
+      lenderDamageEarning: 0,
+      lenderTotalEarning: usageFeeAmount,
+      manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await requestRef.set(noDepositUpdate, {merge: true});
+    let transferResult = {transferred: false, transferId: "", reason: ""};
+    try {
+      transferResult = await createStripeLenderTransferIfReady(
+        db,
+        borrowRequestId,
+        {...requestData, ...noDepositUpdate},
+        uid,
+      );
+    } catch (error) {
+      await requestRef.set({
+        stripeTransferStatus: STRIPE_TRANSFER_STATUS_FAILED,
+        stripeTransferFailureReason: safeErrorMessage(error),
+        manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      transferResult = {
+        transferred: false,
+        transferId: "",
+        reason: "transfer_failed",
+      };
+    }
+    return {
+      success: true,
+      refundAmount: 0,
+      stripeTransferId: transferResult.transferId,
+      stripeTransferStatus: transferResult.transferred ?
+        STRIPE_TRANSFER_STATUS_PAID :
+        STRIPE_TRANSFER_STATUS_PENDING,
+      payoutMode: transferResult.transferred ? "stripe_connect" : "manual",
+    };
+  }
+
+  const currentDepositStatus = typeof requestData.depositStatus === "string" ?
+    requestData.depositStatus :
+    DEPOSIT_STATUS_HELD;
+  if ([
+    DEPOSIT_STATUS_REFUNDED,
+    DEPOSIT_STATUS_PARTIALLY_REFUNDED,
+    DEPOSIT_STATUS_DEDUCTED,
+  ].includes(currentDepositStatus)) {
+    throw new HttpsError("already-exists", "Deposit is already resolved.");
+  }
+
+  const deductionAmount = decision === RESOLUTION_FULL_DEDUCTION ?
+    depositAmount :
+    requestedDeductionAmount;
+  assertDepositResolutionInput(decision, depositAmount, deductionAmount);
+
+  const refundAmount = Math.max(0, depositAmount - deductionAmount);
+  const lenderDamageEarning = deductionAmount;
+  const lenderTotalEarning = usageFeeAmount + lenderDamageEarning;
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  let stripeRefundId = "";
+  let refundStatus = refundAmount > 0 ?
+    REFUND_STATUS_PENDING :
+    REFUND_STATUS_NOT_REQUIRED;
+
+  if (refundAmount > 0) {
+    await requestRef.set({
+      refundStatus: REFUND_STATUS_PENDING,
+      manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+      updatedAt: now,
+    }, {merge: true});
+    try {
+      const refund = await stripe().refunds.create({
+        payment_intent: paymentIntentId,
+        amount: moneyToMinorUnits(refundAmount),
+        metadata: {
+          borrowRequestId,
+          refundType: "marketplace_deposit",
+          decision,
+        },
+      });
+      stripeRefundId = refund.id;
+      if (refund.status === "succeeded") {
+        refundStatus = REFUND_STATUS_SUCCEEDED;
+      }
+    } catch (error) {
+      await requestRef.set({
+        depositStatus: DEPOSIT_STATUS_REFUND_FAILED,
+        refundStatus: REFUND_STATUS_FAILED,
+        refundFailureReason: safeErrorMessage(error),
+        manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      throw new HttpsError(
+        "internal",
+        "Stripe refund failed. The deposit remains blocked for admin review.",
+      );
+    }
+  }
+
+  const update: Record<string, unknown> = {
+    status: BORROW_STATUS_COMPLETED,
+    depositStatus: depositStatusFor(decision),
+    depositHeldAmount: depositAmount,
+    depositRefundAmount: refundAmount,
+    damageDeductionAmount: deductionAmount,
+    damageDecision: damageDecisionFor(decision, adminCaller),
+    damageDecisionReason: reason,
+    damageDecidedAt: now,
+    refundStatus: refundAmount > 0 ?
+      refundStatus :
+      REFUND_STATUS_NOT_REQUIRED,
+    refundFailureReason: "",
+    lenderBaseEarning: usageFeeAmount,
+    lenderDamageEarning,
+    lenderTotalEarning,
+    manualPayoutStatus: refundStatus === REFUND_STATUS_PENDING ?
+      MANUAL_PAYOUT_BLOCKED :
+      MANUAL_PAYOUT_PENDING_MANUAL,
+    updatedAt: now,
+  };
+  if (refundAmount > 0 && refundStatus === REFUND_STATUS_SUCCEEDED) {
+    update.depositRefundedAt = now;
+    update.stripeRefundId = stripeRefundId;
+  } else if (refundAmount > 0) {
+    update.stripeRefundId = stripeRefundId;
+  } else {
+    update.stripeRefundId = "";
+  }
+  if (adminCaller) {
+    update.adminResolvedAt = now;
+    update.adminResolvedBy = uid;
+    update.adminResolutionReason = reason;
+    update.adminResolution = decision === RESOLUTION_FULL_REFUND ?
+      ADMIN_RESOLUTION_FOR_BORROWER :
+      ADMIN_RESOLUTION_FOR_LENDER;
+    update.depositDecision = decision === RESOLUTION_FULL_REFUND ?
+      DEPOSIT_DECISION_RETURN_DEPOSIT :
+      decision === RESOLUTION_PARTIAL_DEDUCTION ?
+        DEPOSIT_DECISION_PARTIAL_DEDUCTION :
+        DEPOSIT_DECISION_WITHHOLD_DEPOSIT;
+    update.depositDecisionReason = reason;
+    update.depositDecidedAt = now;
+    update.returnConfirmedAt = requestData.returnConfirmedAt ?? now;
+    update.completedAt = requestData.completedAt ?? now;
+  }
+
+  const batch = db.batch();
+  batch.set(requestRef, update, {merge: true});
+  if (reportId) {
+    batch.set(db.collection(REPORTS_COLLECTION).doc(reportId), {
+      status: "resolved",
+      adminResolution: update.adminResolution ?? "",
+      adminResolutionReason: reason,
+      adminResolvedAt: now,
+      adminResolvedBy: uid,
+      updatedAt: now,
+    }, {merge: true});
+  }
+  await batch.commit();
+  let transferResult = {transferred: false, transferId: "", reason: ""};
+  if (update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL) {
+    try {
+      transferResult = await createStripeLenderTransferIfReady(
+        db,
+        borrowRequestId,
+        {...requestData, ...update, lenderTotalEarning},
+        uid,
+      );
+    } catch (error) {
+      await requestRef.set({
+        stripeTransferStatus: STRIPE_TRANSFER_STATUS_FAILED,
+        stripeTransferFailureReason: safeErrorMessage(error),
+        manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      transferResult = {
+        transferred: false,
+        transferId: "",
+        reason: "transfer_failed",
+      };
+    }
+  }
+  const itemTitle = typeof requestData.itemTitle === "string" &&
+    requestData.itemTitle.trim() ?
+    requestData.itemTitle.trim() :
+    "your marketplace item";
+  const borrowerId = typeof requestData.borrowerId === "string" ?
+    requestData.borrowerId :
+    "";
+  const ownerId = typeof requestData.ownerId === "string" ?
+    requestData.ownerId :
+    "";
+  const bodies = depositDecisionNotificationBodies(
+    decision,
+    itemTitle,
+    depositAmount,
+    deductionAmount,
+    refundAmount,
+    reason,
+  );
+  await Promise.all([
+    createInAppNotification(db, {
+      userId: borrowerId,
+      actorId: uid,
+      type: NOTIFICATION_TYPE_BORROW_DEPOSIT_RESOLVED,
+      title: "Deposit decision updated",
+      body: bodies.borrower,
+      category: "Marketplace",
+      borrowRequestId,
+      notificationId: notificationIdFor(
+        "borrowDepositResolved",
+        borrowRequestId,
+        borrowerId,
+      ),
+    }),
+    createInAppNotification(db, {
+      userId: ownerId,
+      actorId: uid,
+      type: NOTIFICATION_TYPE_BORROW_DEPOSIT_RESOLVED,
+      title: "Deposit decision updated",
+      body: bodies.lender,
+      category: "Marketplace",
+      borrowRequestId,
+      notificationId: notificationIdFor(
+        "borrowDepositResolved",
+        borrowRequestId,
+        ownerId,
+      ),
+    }),
+    update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL &&
+      !transferResult.transferred ?
+      notifyManualPayoutReady(db, borrowRequestId, {
+        ownerId,
+        itemTitle,
+        lenderTotalEarning,
+      }, uid) :
+      Promise.resolve(),
+  ]);
+  return {
+    success: true,
+    refundAmount,
+    stripeRefundId,
+    stripeTransferId: transferResult.transferId,
+    stripeTransferStatus: transferResult.transferred ?
+      STRIPE_TRANSFER_STATUS_PAID :
+      (update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL ?
+        STRIPE_TRANSFER_STATUS_PENDING :
+        STRIPE_TRANSFER_STATUS_NOT_READY),
+    payoutMode: transferResult.transferred ? "stripe_connect" : "manual",
+  };
+});
+
+export const markManualPayoutPaid = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const borrowRequestId = readString(input, "borrowRequestId");
+  const manualPayoutReference = readString(input, "manualPayoutReference");
+  const manualPayoutNote = readString(input, "manualPayoutNote");
+  if (!borrowRequestId) {
+    throw new HttpsError("invalid-argument", "Missing borrow request id.");
+  }
+  const db = admin.firestore();
+  await requireAdmin(db, uid);
+
+  const requestRef = db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+  const snapshot = await requestRef.get();
+  const data = snapshot.data();
+  if (!data) {
+    throw new HttpsError("not-found", "Borrow request was not found.");
+  }
+  if (data.manualPayoutStatus !== MANUAL_PAYOUT_PENDING_MANUAL) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Manual payout is not ready to be marked paid.",
+    );
+  }
+  if (toMoneyNumber(data.lenderTotalEarning) < 0) {
+    throw new HttpsError("failed-precondition", "Invalid payout amount.");
+  }
+
+  await requestRef.set({
+    manualPayoutStatus: MANUAL_PAYOUT_PAID,
+    manualPayoutMarkedAt: admin.firestore.FieldValue.serverTimestamp(),
+    manualPayoutMarkedBy: uid,
+    manualPayoutReference,
+    manualPayoutNote,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+  const ownerId = typeof data.ownerId === "string" ? data.ownerId : "";
+  const itemTitle = typeof data.itemTitle === "string" && data.itemTitle.trim() ?
+    data.itemTitle.trim() :
+    "your marketplace item";
+  const payoutAmount = moneyLabel(Math.max(0, toMoneyNumber(data.lenderTotalEarning)));
+  const referenceText = manualPayoutReference ?
+    ` Reference: ${manualPayoutReference}.` :
+    "";
+  await createInAppNotification(db, {
+    userId: ownerId,
+    actorId: uid,
+    type: NOTIFICATION_TYPE_BORROW_PAYOUT_PAID,
+    title: "Manual payout marked paid",
+    body: `Admin marked your ${payoutAmount} payout for "${itemTitle}" as paid.${referenceText}`,
+    category: "Marketplace",
+    borrowRequestId,
+    notificationId: notificationIdFor(
+      "borrowPayoutPaid",
+      borrowRequestId,
+      ownerId,
+    ),
+  });
+  return {success: true};
+});
+
+export async function markMarketplaceDepositDisputedIfNeeded(
+  db: admin.firestore.Firestore,
+  borrowRequestId: string,
+  before: DocumentData | undefined,
+  after: DocumentData | undefined,
+): Promise<void> {
+  if (!after || before?.status === BORROW_STATUS_DISPUTED) return;
+  if (after.status !== BORROW_STATUS_DISPUTED) return;
+  if (
+    after.paymentProvider !== STRIPE_PROVIDER ||
+    after.paymentStatus !== BORROW_PAYMENT_STATUS_COMPLETED
+  ) {
+    return;
+  }
+
+  const depositAmount = Math.max(0, toMoneyNumber(after.depositAmount));
+  if (depositAmount <= 0) return;
+  const depositStatus = typeof after.depositStatus === "string" ?
+    after.depositStatus :
+    DEPOSIT_STATUS_HELD;
+  if ([
+    DEPOSIT_STATUS_REFUNDED,
+    DEPOSIT_STATUS_PARTIALLY_REFUNDED,
+    DEPOSIT_STATUS_DEDUCTED,
+  ].includes(depositStatus)) {
+    return;
+  }
+
+  await db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId).set({
+    depositStatus: DEPOSIT_STATUS_DISPUTED,
+    refundStatus: REFUND_STATUS_NOT_STARTED,
+    manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+}
+
 async function updateMarketplaceBorrowRequest(
   payment: DocumentData,
   status: string,
@@ -618,10 +1514,33 @@ async function updateMarketplaceBorrowRequest(
     update.paymentCompletedAt = admin.firestore.FieldValue.serverTimestamp();
     update.paymentId = payment.id;
     update.stripePaymentIntentId = payment.stripePaymentIntentId;
+    if (typeof payment.stripeChargeId === "string" && payment.stripeChargeId) {
+      update.stripeChargeId = payment.stripeChargeId;
+    }
     update.chatId = marketplaceChatId(
       String(payment.payerId ?? ""),
       String(payment.receiverId ?? ""),
     );
+    const depositAmount = Math.max(0, toMoneyNumber(payment.depositAmount));
+    const usageFeeAmount = Math.max(0, toMoneyNumber(payment.usageFeeAmount));
+    const hasDeposit = depositAmount > 0;
+    update.depositStatus = hasDeposit ?
+      DEPOSIT_STATUS_HELD :
+      DEPOSIT_STATUS_NOT_REQUIRED;
+    update.depositHeldAmount = hasDeposit ? depositAmount : 0;
+    update.depositRefundAmount = 0;
+    update.damageDeductionAmount = 0;
+    update.damageDecision = DAMAGE_DECISION_NONE;
+    update.damageDecisionReason = "";
+    update.stripeRefundId = "";
+    update.refundStatus = hasDeposit ?
+      REFUND_STATUS_NOT_STARTED :
+      REFUND_STATUS_NOT_REQUIRED;
+    update.refundFailureReason = "";
+    update.lenderBaseEarning = usageFeeAmount;
+    update.lenderDamageEarning = 0;
+    update.lenderTotalEarning = usageFeeAmount;
+    update.manualPayoutStatus = MANUAL_PAYOUT_NOT_READY;
     update.pendingPaymentId = admin.firestore.FieldValue.delete();
     update.pendingStripePaymentIntentId = admin.firestore.FieldValue.delete();
   } else if (status === PAYMENT_STATUS_FAILED) {
@@ -653,18 +1572,139 @@ async function updatePaymentFromIntent(
   }
 
   const paymentRef = admin.firestore().collection(PAYMENTS_COLLECTION).doc(paymentId);
-  const update = {
+  const latestCharge = intent.latest_charge;
+  const stripeChargeId = typeof latestCharge === "string" ?
+    latestCharge :
+    latestCharge?.id ?? "";
+  const update: Record<string, unknown> = {
     id: paymentId,
     status,
     stripePaymentIntentId: intent.id,
     lastStripeEventAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+  if (stripeChargeId) {
+    update.stripeChargeId = stripeChargeId;
+  }
   await paymentRef.set(update, {merge: true});
   const latest = await paymentRef.get();
   const payment = latest.data();
   if (!payment) return;
   await updateMarketplaceBorrowRequest({...payment, id: paymentId}, status);
+}
+
+async function updateRefundFromStripe(refund: Stripe.Refund): Promise<void> {
+  const borrowRequestId = refund.metadata?.borrowRequestId;
+  if (!borrowRequestId) {
+    logger.warn("Stripe refund missing borrowRequestId metadata", {
+      refundId: refund.id,
+    });
+    return;
+  }
+
+  const update: Record<string, unknown> = {
+    stripeRefundId: refund.id,
+    lastStripeRefundEventAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (refund.status === "succeeded") {
+    update.refundStatus = REFUND_STATUS_SUCCEEDED;
+    update.depositRefundedAt = admin.firestore.FieldValue.serverTimestamp();
+    update.manualPayoutStatus = MANUAL_PAYOUT_PENDING_MANUAL;
+    update.refundFailureReason = "";
+  } else if (refund.status === "failed" || refund.status === "canceled") {
+    update.refundStatus = REFUND_STATUS_FAILED;
+    update.depositStatus = DEPOSIT_STATUS_REFUND_FAILED;
+    update.manualPayoutStatus = MANUAL_PAYOUT_BLOCKED;
+    update.refundFailureReason = refund.failure_reason ??
+      "Stripe refund did not complete.";
+  } else {
+    update.refundStatus = REFUND_STATUS_PENDING;
+    update.manualPayoutStatus = MANUAL_PAYOUT_BLOCKED;
+  }
+
+  const db = admin.firestore();
+  const requestRef = db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+  await requestRef.set(update, {merge: true});
+  if (update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL) {
+    const latest = await requestRef.get();
+    const requestData = latest.data();
+    if (requestData) {
+      let transferResult = {transferred: false, transferId: "", reason: ""};
+      try {
+        transferResult = await createStripeLenderTransferIfReady(
+          db,
+          borrowRequestId,
+          requestData,
+          "stripeWebhook",
+        );
+      } catch (error) {
+        await requestRef.set({
+          stripeTransferStatus: STRIPE_TRANSFER_STATUS_FAILED,
+          stripeTransferFailureReason: safeErrorMessage(error),
+          manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        transferResult = {
+          transferred: false,
+          transferId: "",
+          reason: "transfer_failed",
+        };
+      }
+      if (!transferResult.transferred) {
+        await notifyManualPayoutReady(
+          db,
+          borrowRequestId,
+          requestData,
+          "stripeWebhook",
+        );
+      }
+    }
+  }
+}
+
+async function updateRefundsFromCharge(charge: Stripe.Charge): Promise<void> {
+  const refunds = charge.refunds?.data ?? [];
+  for (const refund of refunds) {
+    if (refund.metadata?.borrowRequestId) {
+      await updateRefundFromStripe(refund);
+    }
+  }
+}
+
+async function updateTransferFromStripe(transfer: Stripe.Transfer): Promise<void> {
+  const borrowRequestId = transfer.metadata?.borrowRequestId;
+  if (!borrowRequestId) {
+    logger.warn("Stripe transfer missing borrowRequestId metadata", {
+      transferId: transfer.id,
+    });
+    return;
+  }
+
+  await admin.firestore()
+    .collection(BORROW_REQUESTS_COLLECTION)
+    .doc(borrowRequestId)
+    .set({
+      stripeTransferId: transfer.id,
+      stripeTransferDestinationAccountId:
+        typeof transfer.destination === "string" ? transfer.destination : "",
+      stripeTransferAmount: transfer.amount / 100,
+      stripeTransferStatus: transfer.reversed ?
+        STRIPE_TRANSFER_STATUS_FAILED :
+        STRIPE_TRANSFER_STATUS_PAID,
+      stripeTransferUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      manualPayoutStatus: transfer.reversed ?
+        MANUAL_PAYOUT_PENDING_MANUAL :
+        MANUAL_PAYOUT_PAID,
+      manualPayoutReference: transfer.id,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+}
+
+async function updateConnectAccountFromStripe(account: Stripe.Account): Promise<void> {
+  const uid = account.metadata?.firebaseUid;
+  if (!uid) return;
+  await syncConnectAccountStatus(admin.firestore(), uid, account.id);
 }
 
 export const stripeWebhook = onRequest(
@@ -720,6 +1760,22 @@ export const stripeWebhook = onRequest(
       logger.info("Stripe setup intent succeeded", {
         setupIntentId: (event.data.object as Stripe.SetupIntent).id,
       });
+      break;
+    case "refund.created":
+    case "refund.updated":
+    case "refund.failed":
+      await updateRefundFromStripe(event.data.object as Stripe.Refund);
+      break;
+    case "charge.refunded":
+      await updateRefundsFromCharge(event.data.object as Stripe.Charge);
+      break;
+    case "transfer.created":
+    case "transfer.updated":
+    case "transfer.reversed":
+      await updateTransferFromStripe(event.data.object as Stripe.Transfer);
+      break;
+    case "account.updated":
+      await updateConnectAccountFromStripe(event.data.object as Stripe.Account);
       break;
     default:
       logger.debug("Unhandled Stripe event", {type: event.type});

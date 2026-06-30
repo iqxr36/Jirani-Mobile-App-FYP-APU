@@ -34,13 +34,18 @@ import {
   recalculateTrustScoreForUser,
   reviewBecamePublished,
 } from "./trust_score";
+import {markMarketplaceDepositDisputedIfNeeded} from "./stripe_payments";
 export {processVerificationRequestOcr} from "./ocr/processVerificationOcr";
 export {
+  createConnectOnboardingLink,
   createPaymentIntent,
   createSetupIntent,
   deletePaymentMethod,
+  getConnectAccountStatus,
   getPaymentStatus,
   listPaymentMethods,
+  markManualPayoutPaid,
+  resolveMarketplaceDeposit,
   setDefaultPaymentMethod,
   stripeWebhook,
 } from "./stripe_payments";
@@ -107,6 +112,8 @@ export const onBorrowRequestOrchestration = onDocumentWritten(
         await applyBorrowCompletionSideEffects(db, requestId, after);
         logger.info("Applied borrow completion side effects", { requestId });
       }
+
+      await markMarketplaceDepositDisputedIfNeeded(db, requestId, before, after);
     } catch (error) {
       logger.error("Failed borrow request orchestration", {
         requestId,

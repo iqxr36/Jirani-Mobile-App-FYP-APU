@@ -144,6 +144,14 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
         });
       }
       await batch.commit();
+      if (accepted && _hasCompletedStripePayment(request)) {
+        await _resolveMarketplaceDeposit(
+          borrowRequestId: requestId,
+          decision: AppConstants.depositResolutionPartialDeduction,
+          damageDeductionAmount: request.minorDeductionAmount ?? 0,
+          reason: request.minorIssueReason,
+        );
+      }
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -333,6 +341,21 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
       }
       if (request.depositDecision != AppConstants.depositDecisionPending) {
         throw Exception('Deposit decision has already been recorded.');
+      }
+
+      if (_hasCompletedStripePayment(request)) {
+        if (d == AppConstants.depositDecisionWithholdDeposit) {
+          throw Exception(
+            'Use the major damage dispute flow so admin can resolve the Stripe deposit.',
+          );
+        }
+        await _resolveMarketplaceDeposit(
+          borrowRequestId: requestId,
+          decision: AppConstants.depositResolutionFullRefund,
+          damageDeductionAmount: 0,
+          reason: reason.trim(),
+        );
+        return;
       }
 
       final ownerDoc = await _users.doc(ownerId).get();

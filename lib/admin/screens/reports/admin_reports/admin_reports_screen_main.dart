@@ -162,11 +162,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 activeReport,
                 selectedRequest,
               );
+              final evidenceItems = _evidenceItems(
+                activeReport,
+                selectedRequest,
+              );
               final detailContent = _AdminReportCaseFile(
                 report: activeReport,
                 row: activeRow,
                 request: selectedRequest,
                 evidenceUrls: evidenceUrls,
+                evidenceItems: evidenceItems,
                 errorMessage: adminProvider.errorMessage,
                 isLoading: adminProvider.isLoading,
                 canResolve: _canResolveDispute(activeReport, selectedRequest),
@@ -284,6 +289,35 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       urls.add(trimmed);
     }
     return urls;
+  }
+
+  List<AdminReportEvidenceItem> _evidenceItems(
+    ReportModel report,
+    BorrowRequest? request,
+  ) {
+    final seen = <String>{};
+    final items = <AdminReportEvidenceItem>[];
+    void add(String label, String url) {
+      final trimmed = url.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) return;
+      items.add(AdminReportEvidenceItem(label: label, imageUrl: trimmed));
+    }
+
+    if (request != null) {
+      add('Before handover', request.handoverProofImageUrl);
+      add('After return proof', request.returnProofImageUrl);
+      add('Dispute proof', request.disputeEvidenceImageUrl);
+      add('Minor damage photo', request.minorIssuePhotoUrl);
+    }
+    add('Report proof', report.evidenceImageUrl);
+    for (final message in report.reportedMessages.where(
+      (message) =>
+          message.type == AppConstants.chatMessageImage &&
+          message.mediaUrl.trim().isNotEmpty,
+    )) {
+      add('Reported chat image', message.mediaUrl);
+    }
+    return items;
   }
 
   String _formatFullDate(DateTime value) {

@@ -98,6 +98,16 @@ class _MarketplaceTransactionViewState
                       _TransactionHeader(request: request),
                       const SizedBox(height: 14),
                       _ProgressPanel(request: request),
+                      if (_FinancialLedgerPanel.shouldShow(
+                        request,
+                        user?.uid ?? '',
+                      )) ...[
+                        const SizedBox(height: 14),
+                        _FinancialLedgerPanel(
+                          request: request,
+                          currentUserId: user?.uid ?? '',
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _TransactionBody(
                         request: request,
@@ -1096,6 +1106,8 @@ class _CompletedCard extends StatelessWidget {
     final depositSettled =
         request.status == AppConstants.borrowStatusCompleted &&
         request.depositDecision != AppConstants.depositDecisionPending;
+    final reviewSubmitted =
+        localReviewSubmitted || request.borrowerReviewSubmitted;
 
     return _GlassPanel(
       child: Column(
@@ -1130,63 +1142,117 @@ class _CompletedCard extends StatelessWidget {
           ),
           if (depositSettled) ...[
             const SizedBox(height: 18),
-            Text(
-              'Rate the Lender',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ink,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+            if (_hasAdminDepositDecision(request)) ...[
+              _AdminDepositDecisionCard(request: request),
+              const SizedBox(height: 18),
+            ],
+            if (reviewSubmitted)
+              const _TrackingStepCard(
+                icon: Icons.rate_review_rounded,
+                title: 'Review Submitted',
+                message:
+                    'Your review is saved and cannot be changed. It stays hidden until both reviews are submitted or the 3-day grace period ends.',
+              )
+            else ...[
+              Text(
+                'Rate the Lender',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Did the item match the description, and was communication easy with ${request.ownerName}?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
+              const SizedBox(height: 6),
+              Text(
+                'Did the item match the description, and was communication easy with ${request.ownerName}?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: RatingBar.builder(
-                initialRating: rating.toDouble(),
-                minRating: 1,
-                itemSize: 34,
-                allowHalfRating: false,
-                itemBuilder: (context, _) =>
-                    const Icon(Icons.star_rounded, color: _kWarmAccent),
-                onRatingUpdate: (value) => onRatingChanged(value.round()),
+              const SizedBox(height: 12),
+              Center(
+                child: RatingBar.builder(
+                  initialRating: rating.toDouble(),
+                  minRating: 1,
+                  itemSize: 34,
+                  allowHalfRating: false,
+                  itemBuilder: (context, _) =>
+                      const Icon(Icons.star_rounded, color: _kWarmAccent),
+                  onRatingUpdate: (value) => onRatingChanged(value.round()),
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: reviewController,
-              minLines: 3,
-              maxLines: 4,
-              decoration: context.residentInputDecoration(
-                label: 'Private until published',
-                hint: 'Optional comment about description and communication',
+              const SizedBox(height: 14),
+              TextField(
+                controller: reviewController,
+                minLines: 3,
+                maxLines: 4,
+                decoration: context.residentInputDecoration(
+                  label: 'Private until published',
+                  hint: 'Optional comment about description and communication',
+                ),
               ),
+              const SizedBox(height: 14),
+              Consumer<ReviewProvider>(
+                builder: (context, provider, _) {
+                  return _PrimaryButton(
+                    icon: Icons.rate_review_rounded,
+                    label: provider.isSubmitting
+                        ? 'Submitting...'
+                        : 'Submit Review',
+                    onTap: provider.isSubmitting ? null : onSubmitReview,
+                  );
+                },
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminDepositDecisionCard extends StatelessWidget {
+  const _AdminDepositDecisionCard({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TrackingStepCard(
+      icon: _adminDecisionIcon(request),
+      title: _adminDecisionTitle(request),
+      message: _depositLedgerMessage(request),
+      child: Column(
+        children: [
+          _SummaryRow(
+            label: 'Deposit held',
+            value: _money(
+              request.depositHeldAmount > 0
+                  ? request.depositHeldAmount
+                  : request.depositAmount,
             ),
-            const SizedBox(height: 14),
-            Consumer<ReviewProvider>(
-              builder: (context, provider, _) {
-                return _PrimaryButton(
-                  icon: Icons.rate_review_rounded,
-                  label: localReviewSubmitted
-                      ? 'Review Submitted'
-                      : provider.isSubmitting
-                      ? 'Submitting...'
-                      : 'Submit Review',
-                  onTap: localReviewSubmitted || provider.isSubmitting
-                      ? null
-                      : onSubmitReview,
-                );
-              },
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: 'Damage deduction',
+            value: _money(request.damageDeductionAmount),
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: 'Refund amount',
+            value: _money(request.depositRefundAmount),
+            emphasized: true,
+          ),
+          if (request.adminResolutionReason.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _SummaryRow(
+              label: 'Admin note',
+              value: request.adminResolutionReason.trim(),
             ),
           ],
         ],
@@ -1319,6 +1385,132 @@ class _ProgressPanel extends StatelessWidget {
                     ? _kBrandTeal
                     : muted.withValues(alpha: 0.20),
               ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FinancialLedgerPanel extends StatelessWidget {
+  const _FinancialLedgerPanel({
+    required this.request,
+    required this.currentUserId,
+  });
+
+  final BorrowRequest request;
+  final String currentUserId;
+
+  static bool shouldShow(BorrowRequest request, String currentUserId) {
+    if (currentUserId.isEmpty) return false;
+    if (request.paymentProvider != AppConstants.paymentProviderStripe) {
+      return false;
+    }
+    return request.paymentStatus == AppConstants.paymentStatusCompleted ||
+        request.depositStatus.isNotEmpty ||
+        request.manualPayoutStatus.isNotEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isOwner = currentUserId == request.ownerId;
+    final title = isOwner ? 'Lender Payout' : 'Deposit Status';
+    final icon = isOwner
+        ? Icons.account_balance_wallet_outlined
+        : Icons.savings_outlined;
+
+    return _GlassPanel(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kBrandTeal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _kBrandTeal, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: context.appInk,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _StatusPill(
+                label: isOwner
+                    ? _manualPayoutStatusLabel(request.manualPayoutStatus)
+                    : _depositStatusLabel(request),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isOwner) ...[
+            _SummaryRow(
+              label: 'Item fee',
+              value: _money(request.lenderBaseEarning),
+            ),
+            const SizedBox(height: 8),
+            _SummaryRow(
+              label: 'Damage deduction',
+              value: _money(request.lenderDamageEarning),
+            ),
+            const Divider(height: 24),
+            _SummaryRow(
+              label: 'Manual payout total',
+              value: _money(request.lenderTotalEarning),
+              emphasized: true,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _manualPayoutMessage(request),
+              style: TextStyle(
+                color: context.appMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ] else ...[
+            _SummaryRow(
+              label: 'Deposit held',
+              value: _money(
+                request.depositHeldAmount > 0
+                    ? request.depositHeldAmount
+                    : request.depositAmount,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _SummaryRow(
+              label: 'Damage deduction',
+              value: _money(request.damageDeductionAmount),
+            ),
+            const SizedBox(height: 8),
+            _SummaryRow(
+              label: 'Refund amount',
+              value: _money(request.depositRefundAmount),
+              emphasized: true,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _depositLedgerMessage(request),
+              style: TextStyle(
+                color: context.appMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
           ],
         ],
       ),

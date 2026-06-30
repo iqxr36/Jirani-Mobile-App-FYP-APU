@@ -4,6 +4,8 @@ import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
+import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:provider/provider.dart';
 
 class AdminTransactionsScreen extends StatelessWidget {
@@ -16,6 +18,16 @@ class AdminTransactionsScreen extends StatelessWidget {
       admin.borrowRequests,
       admin.serviceRequests,
     );
+    final depositQueue = admin.borrowRequests
+        .where(_needsDepositResolution)
+        .toList();
+    final payoutQueue = admin.borrowRequests
+        .where(
+          (request) =>
+              request.manualPayoutStatus ==
+              AppConstants.manualPayoutStatusPendingManual,
+        )
+        .toList();
 
     return AdminPageScroll(
       children: [
@@ -29,6 +41,10 @@ class AdminTransactionsScreen extends StatelessWidget {
             AdminFilterChipButton(label: 'Status'),
           ],
         ),
+        const SizedBox(height: 20),
+        _DepositResolutionPanel(requests: depositQueue),
+        const SizedBox(height: 20),
+        _ManualPayoutPanel(requests: payoutQueue),
         const SizedBox(height: 20),
         AdminPanel(
           title: 'Platform Ledger',
@@ -83,4 +99,492 @@ class AdminTransactionsScreen extends StatelessWidget {
       ],
     );
   }
+
+  static bool _needsDepositResolution(BorrowRequest request) {
+    final resolved = {
+      AppConstants.depositStatusRefunded,
+      AppConstants.depositStatusPartiallyRefunded,
+      AppConstants.depositStatusDeducted,
+      AppConstants.depositStatusNotRequired,
+    };
+    return request.paymentProvider == AppConstants.paymentProviderStripe &&
+        request.paymentStatus == AppConstants.paymentStatusCompleted &&
+        !resolved.contains(request.depositStatus) &&
+        (request.status == AppConstants.borrowStatusDisputed ||
+            request.depositStatus == AppConstants.depositStatusDisputed ||
+            request.depositStatus == AppConstants.depositStatusRefundFailed);
+  }
+}
+
+class _DepositResolutionPanel extends StatelessWidget {
+  const _DepositResolutionPanel({required this.requests});
+
+  final List<BorrowRequest> requests;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminPanel(
+      title: 'Deposit Resolution',
+      action: '${requests.length} open',
+      child: requests.isEmpty
+          ? const AdminEmptyPanelMessage(
+              icon: Icons.verified_user_outlined,
+              title: 'No deposit disputes',
+              body: 'Stripe-paid marketplace disputes will appear here.',
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < requests.length; i++) ...[
+                  _DepositResolutionCard(request: requests[i]),
+                  if (i != requests.length - 1) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _DepositResolutionCard extends StatelessWidget {
+  const _DepositResolutionCard({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = context.watch<AdminProvider>();
+    final deposit = request.depositAmount ?? 0;
+
+    return _AdminPaymentCard(
+      icon: Icons.gpp_maybe_outlined,
+      title: request.itemTitle,
+      subtitle:
+          '${request.borrowerName} -> ${request.ownerName} | Deposit ${_adminMoney(deposit)}',
+      statusLabel: request.depositStatus.isEmpty
+          ? request.status
+          : request.depositStatus,
+      statusColor: request.depositStatus == AppConstants.depositStatusRefundFailed
+          ? AdminColors.danger
+          : AdminColors.warning,
+      children: [
+        _PaymentMetaRow(label: 'Refund status', value: request.refundStatus),
+        _PaymentMetaRow(
+          label: 'Requested deduction',
+          value: _adminMoney(request.minorDeductionAmount ?? 0),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _AdminActionButton(
+              label: 'Full Refund',
+              icon: Icons.reply_rounded,
+              onTap: admin.isLoading
+                  ? null
+                  : () => _showDepositDialog(
+                        context,
+                        request,
+                        AppConstants.depositResolutionFullRefund,
+                      ),
+            ),
+            _AdminActionButton(
+              label: 'Partial Deduction',
+              icon: Icons.price_change_outlined,
+              onTap: admin.isLoading
+                  ? null
+                  : () => _showDepositDialog(
+                        context,
+                        request,
+                        AppConstants.depositResolutionPartialDeduction,
+                      ),
+            ),
+            _AdminActionButton(
+              label: 'Full Deduction',
+              icon: Icons.lock_outline_rounded,
+              danger: true,
+              onTap: admin.isLoading
+                  ? null
+                  : () => _showDepositDialog(
+                        context,
+                        request,
+                        AppConstants.depositResolutionFullDeduction,
+                      ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showDepositDialog(
+    BuildContext context,
+    BorrowRequest request,
+    String decision,
+  ) async {
+    final reasonController = TextEditingController();
+    final deductionController = TextEditingController(
+      text: decision == AppConstants.depositResolutionPartialDeduction
+          ? ((request.minorDeductionAmount ?? 0) > 0
+              ? (request.minorDeductionAmount ?? 0).toStringAsFixed(2)
+              : '')
+          : '',
+    );
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(_resolutionTitle(decision)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (decision == AppConstants.depositResolutionPartialDeduction)
+                  TextField(
+                    controller: deductionController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Damage deduction (RM)',
+                    ),
+                  ),
+                if (decision == AppConstants.depositResolutionPartialDeduction)
+                  const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  minLines: 3,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin reason',
+                    hintText: 'Explain the decision for both residents',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.isEmpty) return;
+                  final deduction = _deductionForDecision(
+                    decision,
+                    request.depositAmount ?? 0,
+                    deductionController.text,
+                  );
+                  await context.read<AdminProvider>().resolveMarketplaceDeposit(
+                        borrowRequest: request,
+                        decision: decision,
+                        damageDeductionAmount: deduction,
+                        reason: reason,
+                        reportId: request.disputeReportId,
+                      );
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+                child: const Text('Resolve'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      reasonController.dispose();
+      deductionController.dispose();
+    }
+  }
+}
+
+class _ManualPayoutPanel extends StatelessWidget {
+  const _ManualPayoutPanel({required this.requests});
+
+  final List<BorrowRequest> requests;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminPanel(
+      title: 'Manual Lender Payouts',
+      action: '${requests.length} ready',
+      child: requests.isEmpty
+          ? const AdminEmptyPanelMessage(
+              icon: Icons.payments_outlined,
+              title: 'No payouts ready',
+              body:
+                  'Completed marketplace transactions will appear here after deposits are settled.',
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < requests.length; i++) ...[
+                  _ManualPayoutCard(request: requests[i]),
+                  if (i != requests.length - 1) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _ManualPayoutCard extends StatelessWidget {
+  const _ManualPayoutCard({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = context.watch<AdminProvider>();
+    return _AdminPaymentCard(
+      icon: Icons.account_balance_wallet_outlined,
+      title: request.ownerName,
+      subtitle:
+          '${request.itemTitle} | Earning ${_adminMoney(request.lenderTotalEarning)}',
+      statusLabel: request.manualPayoutStatus,
+      statusColor: AdminColors.primary,
+      children: [
+        _PaymentMetaRow(
+          label: 'Item fee',
+          value: _adminMoney(request.lenderBaseEarning),
+        ),
+        _PaymentMetaRow(
+          label: 'Damage deduction',
+          value: _adminMoney(request.lenderDamageEarning),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _AdminActionButton(
+            label: 'Mark Paid',
+            icon: Icons.done_all_rounded,
+            onTap: admin.isLoading
+                ? null
+                : () => _showPayoutDialog(context, request),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPayoutDialog(
+    BuildContext context,
+    BorrowRequest request,
+  ) async {
+    final referenceController = TextEditingController();
+    final noteController = TextEditingController();
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Record Manual Payout'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: referenceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reference',
+                    hintText: 'Bank transfer reference',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Note',
+                    hintText: 'Optional internal note',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await context.read<AdminProvider>().markManualPayoutPaid(
+                        borrowRequest: request,
+                        reference: referenceController.text,
+                        note: noteController.text,
+                      );
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+                child: const Text('Mark Paid'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      referenceController.dispose();
+      noteController.dispose();
+    }
+  }
+}
+
+class _AdminPaymentCard extends StatelessWidget {
+  const _AdminPaymentCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.children,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String statusLabel;
+  final Color statusColor;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AdminColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: AdminColors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AdminColors.ink,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(color: AdminColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AdminStatusPill(label: statusLabel, color: statusColor),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentMetaRow extends StatelessWidget {
+  const _PaymentMetaRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: AdminColors.muted),
+            ),
+          ),
+          Text(
+            value.isEmpty ? '-' : value,
+            style: const TextStyle(
+              color: AdminColors.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminActionButton extends StatelessWidget {
+  const _AdminActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? AdminColors.danger : AdminColors.primary;
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+      ),
+    );
+  }
+}
+
+double _deductionForDecision(
+  String decision,
+  double depositAmount,
+  String partialInput,
+) {
+  if (decision == AppConstants.depositResolutionFullRefund) return 0;
+  if (decision == AppConstants.depositResolutionFullDeduction) {
+    return depositAmount;
+  }
+  return double.tryParse(partialInput.trim()) ?? 0;
+}
+
+String _resolutionTitle(String decision) {
+  switch (decision) {
+    case AppConstants.depositResolutionFullRefund:
+      return 'Refund Full Deposit';
+    case AppConstants.depositResolutionPartialDeduction:
+      return 'Apply Partial Deduction';
+    case AppConstants.depositResolutionFullDeduction:
+      return 'Deduct Full Deposit';
+    default:
+      return 'Resolve Deposit';
+  }
+}
+
+String _adminMoney(double? value) {
+  final amount = value ?? 0;
+  final text = amount % 1 == 0
+      ? amount.toStringAsFixed(0)
+      : amount.toStringAsFixed(2);
+  return 'RM $text';
 }

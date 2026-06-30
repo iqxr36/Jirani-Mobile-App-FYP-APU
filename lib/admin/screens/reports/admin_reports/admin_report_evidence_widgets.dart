@@ -37,26 +37,65 @@ class AdminReportDetailSection extends StatelessWidget {
 }
 
 class AdminReportEvidencePreview extends StatelessWidget {
-  const AdminReportEvidencePreview({super.key, required this.imageUrls});
+  const AdminReportEvidencePreview({
+    super.key,
+    this.imageUrls = const <String>[],
+    this.evidenceItems = const <AdminReportEvidenceItem>[],
+  });
 
   final List<String> imageUrls;
+  final List<AdminReportEvidenceItem> evidenceItems;
 
   @override
   Widget build(BuildContext context) {
-    final candidates = imageUrls
-        .map((url) => url.trim())
-        .where((url) => url.isNotEmpty)
-        .toList();
+    final candidates = _candidateItems();
     if (candidates.isEmpty) return const SizedBox.shrink();
+    final hasBeforeAfter = candidates.any(
+          (item) => item.label.toLowerCase().contains('before'),
+        ) &&
+        candidates.any((item) => item.label.toLowerCase().contains('after') ||
+            item.label.toLowerCase().contains('dispute'));
 
     return FilledButton.tonalIcon(
       onPressed: () => showDialog<void>(
         context: context,
-        builder: (context) => _ProofEvidenceDialog(imageUrls: candidates),
+        builder: (context) => _ProofEvidenceDialog(items: candidates),
       ),
       icon: const Icon(Icons.photo_library_rounded),
-      label: Text(candidates.length == 1 ? 'View Proof' : 'View Proofs'),
+      label: Text(
+        hasBeforeAfter
+            ? 'Compare Photos'
+            : candidates.length == 1
+                ? 'View Proof'
+                : 'View Proofs',
+      ),
     );
+  }
+
+  List<AdminReportEvidenceItem> _candidateItems() {
+    final seen = <String>{};
+    final source = evidenceItems.isNotEmpty
+        ? evidenceItems
+        : imageUrls
+            .map(
+              (url) => AdminReportEvidenceItem(
+                label: 'Proof photo',
+                imageUrl: url,
+              ),
+            )
+            .toList();
+    final candidates = <AdminReportEvidenceItem>[];
+    for (final item in source) {
+      final trimmed = item.imageUrl.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) continue;
+      candidates.add(
+        AdminReportEvidenceItem(
+          label: item.label.trim().isEmpty ? 'Proof photo' : item.label.trim(),
+          imageUrl: trimmed,
+        ),
+      );
+    }
+    return candidates;
   }
 
   static Future<String?> _resolveEvidenceUrl(String rawUrl) async {
@@ -85,10 +124,20 @@ class AdminReportEvidencePreview extends StatelessWidget {
   }
 }
 
-class _ProofEvidenceDialog extends StatelessWidget {
-  const _ProofEvidenceDialog({required this.imageUrls});
+class AdminReportEvidenceItem {
+  const AdminReportEvidenceItem({
+    required this.label,
+    required this.imageUrl,
+  });
 
-  final List<String> imageUrls;
+  final String label;
+  final String imageUrl;
+}
+
+class _ProofEvidenceDialog extends StatelessWidget {
+  const _ProofEvidenceDialog({required this.items});
+
+  final List<AdminReportEvidenceItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -126,11 +175,12 @@ class _ProofEvidenceDialog extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.all(18),
-                itemCount: imageUrls.length,
+                itemCount: items.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 16),
                 itemBuilder: (context, index) {
-                  final rawUrl = imageUrls[index];
+                  final item = items[index];
+                  final rawUrl = item.imageUrl;
                   return FutureBuilder<String?>(
                     future: AdminReportEvidencePreview._resolveEvidenceUrl(
                       rawUrl,
@@ -140,6 +190,7 @@ class _ProofEvidenceDialog extends StatelessWidget {
                           snapshot.connectionState != ConnectionState.done;
                       final resolvedUrl = snapshot.data?.trim() ?? '';
                       return _ProofEvidenceTile(
+                        label: item.label,
                         rawUrl: rawUrl,
                         resolvedUrl: resolvedUrl,
                         loading: loading,
@@ -158,11 +209,13 @@ class _ProofEvidenceDialog extends StatelessWidget {
 
 class _ProofEvidenceTile extends StatelessWidget {
   const _ProofEvidenceTile({
+    required this.label,
     required this.rawUrl,
     required this.resolvedUrl,
     required this.loading,
   });
 
+  final String label;
   final String rawUrl;
   final String resolvedUrl;
   final bool loading;
@@ -179,6 +232,26 @@ class _ProofEvidenceTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.image_search_rounded,
+                color: AdminColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: AdminColors.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Container(

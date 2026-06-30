@@ -13,6 +13,7 @@ library;
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
@@ -32,13 +33,16 @@ abstract class _BorrowRequestServiceBase {
   _BorrowRequestServiceBase({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseStorage? storage,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions = functions ?? FirebaseFunctions.instance,
        _storageOverride = storage;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final FirebaseStorage? _storageOverride;
 
   FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
@@ -52,6 +56,28 @@ abstract class _BorrowRequestServiceBase {
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection(AppConstants.reportsCollection);
 
+  Future<void> _resolveMarketplaceDeposit({
+    required String borrowRequestId,
+    required String decision,
+    required double damageDeductionAmount,
+    required String reason,
+    String reportId = '',
+  }) async {
+    final callable = _functions.httpsCallable('resolveMarketplaceDeposit');
+    await callable.call<void>({
+      'borrowRequestId': borrowRequestId,
+      'decision': decision,
+      'damageDeductionAmount': damageDeductionAmount,
+      'reason': reason,
+      'reportId': reportId,
+    });
+  }
+
+  bool _hasCompletedStripePayment(BorrowRequest request) {
+    return request.paymentProvider == AppConstants.paymentProviderStripe &&
+        request.paymentStatus == AppConstants.paymentStatusCompleted;
+  }
+
 }
 
 class BorrowRequestService extends _BorrowRequestServiceBase
@@ -64,6 +90,12 @@ class BorrowRequestService extends _BorrowRequestServiceBase
   BorrowRequestService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseStorage? storage,
-  }) : super(auth: auth, firestore: firestore, storage: storage);
+  }) : super(
+         auth: auth,
+         firestore: firestore,
+         functions: functions,
+         storage: storage,
+       );
 }

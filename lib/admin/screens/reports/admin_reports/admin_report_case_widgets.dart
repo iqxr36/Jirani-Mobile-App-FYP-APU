@@ -6,6 +6,7 @@ class _AdminReportCaseFile extends StatelessWidget {
     required this.row,
     required this.request,
     required this.evidenceUrls,
+    required this.evidenceItems,
     required this.errorMessage,
     required this.isLoading,
     required this.canResolve,
@@ -20,6 +21,7 @@ class _AdminReportCaseFile extends StatelessWidget {
   final AdminReportRow row;
   final BorrowRequest? request;
   final List<String> evidenceUrls;
+  final List<AdminReportEvidenceItem> evidenceItems;
   final String? errorMessage;
   final bool isLoading;
   final bool canResolve;
@@ -89,7 +91,7 @@ class _AdminReportCaseFile extends StatelessWidget {
             deductionLabel: deduction > 0
                 ? 'RM ${deduction.toStringAsFixed(2)} requested'
                 : 'No partial deduction requested',
-            evidenceUrls: evidenceUrls,
+            evidenceItems: evidenceItems,
           ),
         ] else ...[
           _ResidentSubjectCard(
@@ -612,7 +614,7 @@ class _DisputeProblemCard extends StatelessWidget {
     required this.ownerNotes,
     required this.depositLabel,
     required this.deductionLabel,
-    required this.evidenceUrls,
+    required this.evidenceItems,
   });
 
   final String reason;
@@ -622,7 +624,7 @@ class _DisputeProblemCard extends StatelessWidget {
   final String ownerNotes;
   final String depositLabel;
   final String deductionLabel;
-  final List<String> evidenceUrls;
+  final List<AdminReportEvidenceItem> evidenceItems;
 
   @override
   Widget build(BuildContext context) {
@@ -656,14 +658,14 @@ class _DisputeProblemCard extends StatelessWidget {
                 ],
               );
               final proofButton = AdminReportEvidencePreview(
-                imageUrls: evidenceUrls,
+                evidenceItems: evidenceItems,
               );
               if (constraints.maxWidth < 460) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     heading,
-                    if (evidenceUrls.isNotEmpty) ...[
+                    if (evidenceItems.isNotEmpty) ...[
                       const SizedBox(height: 10),
                       proofButton,
                     ],

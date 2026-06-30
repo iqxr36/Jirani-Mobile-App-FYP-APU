@@ -58,7 +58,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
   bool? _hasInternet;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
-  @override
+  @override  
   void initState() {
     super.initState();
     unawaited(_start());

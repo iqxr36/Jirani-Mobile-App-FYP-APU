@@ -97,6 +97,15 @@ class ReviewService {
           reviewerId: reviewerId,
           role: role,
         );
+        final alreadyReviewed =
+            role == AppConstants.reviewRoleBorrowerToOwner
+            ? req.borrowerReviewSubmitted
+            : req.ownerReviewSubmitted;
+        if (alreadyReviewed) {
+          throw Exception(
+            'You already submitted a review for this borrow request.',
+          );
+        }
 
         final existing = await txn.get(reviewRef);
         if (existing.exists) {

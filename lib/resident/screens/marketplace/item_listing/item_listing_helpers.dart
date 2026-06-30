@@ -203,6 +203,79 @@ String _depositSummaryMessage(BorrowRequest request) {
   return 'The return is confirmed. Deposit decision is pending.';
 }
 
+bool _hasLenderAdminDecision(BorrowRequest request) {
+  return request.adminResolvedAt != null ||
+      request.adminResolutionReason.trim().isNotEmpty ||
+      request.manualPayoutStatus != AppConstants.manualPayoutStatusNotReady ||
+      request.damageDecision.startsWith('admin_');
+}
+
+String _lenderAdminDecisionTitle(BorrowRequest request) {
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusPaid) {
+    return 'Manual Payout Paid';
+  }
+  if (request.manualPayoutStatus ==
+      AppConstants.manualPayoutStatusPendingManual) {
+    return 'Manual Payout Ready';
+  }
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked) {
+    return 'Payout Blocked';
+  }
+  if (request.depositStatus == AppConstants.depositStatusRefunded) {
+    return 'Deposit Returned to Borrower';
+  }
+  if (request.depositStatus == AppConstants.depositStatusPartiallyRefunded) {
+    return 'Partial Deduction Approved';
+  }
+  if (request.depositStatus == AppConstants.depositStatusDeducted) {
+    return 'Deposit Awarded to You';
+  }
+  return 'Admin Deposit Decision';
+}
+
+IconData _lenderAdminDecisionIcon(BorrowRequest request) {
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusPaid ||
+      request.manualPayoutStatus ==
+          AppConstants.manualPayoutStatusPendingManual) {
+    return Icons.account_balance_wallet_outlined;
+  }
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked) {
+    return Icons.hourglass_top_rounded;
+  }
+  if (request.depositStatus == AppConstants.depositStatusRefunded) {
+    return Icons.reply_rounded;
+  }
+  return Icons.verified_rounded;
+}
+
+String _lenderAdminDecisionMessage(BorrowRequest request) {
+  final note = request.adminResolutionReason.trim();
+  final suffix = note.isEmpty ? '' : ' Admin note: $note';
+  if (request.depositStatus == AppConstants.depositStatusRefunded) {
+    return 'Admin returned the deposit to the borrower. No deposit payout is due.$suffix';
+  }
+  if (request.depositStatus == AppConstants.depositStatusPartiallyRefunded) {
+    return 'Admin approved ${_money(request.damageDeductionAmount)} for the damage deduction. ${_money(request.depositRefundAmount)} returns to the borrower.$suffix';
+  }
+  if (request.depositStatus == AppConstants.depositStatusDeducted) {
+    return 'Admin awarded the deposit to you. The payout amount is shown below.$suffix';
+  }
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusPaid) {
+    final ref = request.manualPayoutReference.trim();
+    return ref.isEmpty
+        ? 'Admin marked your manual payout as paid.'
+        : 'Admin marked your manual payout as paid. Reference: $ref';
+  }
+  if (request.manualPayoutStatus ==
+      AppConstants.manualPayoutStatusPendingManual) {
+    return 'Your manual payout is ready. Please collect it from admin; admin will record the payout reference after payment.';
+  }
+  if (request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked) {
+    return 'Payout is blocked until the deposit refund or dispute process finishes.';
+  }
+  return 'Admin decision details will appear here once the deposit is resolved.';
+}
+
 bool _isFourDigitCode(String value) {
   return RegExp(r'^\d{4}$').hasMatch(value.trim());
 }

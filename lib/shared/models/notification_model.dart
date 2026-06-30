@@ -148,7 +148,10 @@ class NotificationModel {
       AppConstants.notificationTypeConnectionAccepted => 'Community',
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
-      AppConstants.notificationTypeBorrowRejected => 'Marketplace',
+      AppConstants.notificationTypeBorrowRejected ||
+      AppConstants.notificationTypeBorrowDepositResolved ||
+      AppConstants.notificationTypeBorrowPayoutReady ||
+      AppConstants.notificationTypeBorrowPayoutPaid => 'Marketplace',
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
       AppConstants.notificationTypeServiceRejected => 'Services',
@@ -174,7 +177,10 @@ class NotificationModel {
         Icons.groups_2_outlined,
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
-      AppConstants.notificationTypeBorrowRejected =>
+      AppConstants.notificationTypeBorrowRejected ||
+      AppConstants.notificationTypeBorrowDepositResolved ||
+      AppConstants.notificationTypeBorrowPayoutReady ||
+      AppConstants.notificationTypeBorrowPayoutPaid =>
         Icons.inventory_2_outlined,
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
@@ -208,6 +214,9 @@ class NotificationModel {
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
       AppConstants.notificationTypeBorrowRejected => const Color(0xFFE29578),
+      AppConstants.notificationTypeBorrowDepositResolved ||
+      AppConstants.notificationTypeBorrowPayoutReady ||
+      AppConstants.notificationTypeBorrowPayoutPaid => const Color(0xFF006D77),
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
       AppConstants.notificationTypeServiceRejected =>

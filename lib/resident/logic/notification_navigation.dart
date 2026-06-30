@@ -11,6 +11,7 @@ import 'package:jirani/resident/screens/home/resident_marketplace_view.dart';
 import 'package:jirani/resident/screens/home/resident_services_view.dart';
 import 'package:jirani/resident/screens/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/resident/screens/notifications/resident_notifications_view.dart';
+import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
 
@@ -62,6 +63,9 @@ Future<void> navigateFromNotification(
     case AppConstants.notificationTypeBorrowRequest:
     case AppConstants.notificationTypeBorrowApproved:
     case AppConstants.notificationTypeBorrowRejected:
+    case AppConstants.notificationTypeBorrowDepositResolved:
+    case AppConstants.notificationTypeBorrowPayoutReady:
+    case AppConstants.notificationTypeBorrowPayoutPaid:
       await _openBorrowNotification(context, notification);
       return;
     case AppConstants.notificationTypeServiceRequest:
@@ -144,7 +148,15 @@ Future<void> _openBorrowNotification(
     return;
   }
 
-  if (notification.type == AppConstants.notificationTypeBorrowRequest) {
+  final currentUser = context.read<AuthViewModel>().currentUser;
+  final opensLenderDetail =
+      notification.type == AppConstants.notificationTypeBorrowRequest ||
+      notification.type == AppConstants.notificationTypeBorrowPayoutReady ||
+      notification.type == AppConstants.notificationTypeBorrowPayoutPaid ||
+      (notification.type == AppConstants.notificationTypeBorrowDepositResolved &&
+          currentUser?.uid == request.ownerId);
+
+  if (opensLenderDetail) {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => ResidentLenderRequestDetailView(initialRequest: request),
