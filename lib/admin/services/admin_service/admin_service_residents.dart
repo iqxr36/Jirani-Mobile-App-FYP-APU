@@ -1,6 +1,8 @@
 part of '../admin_service.dart';
 
+// Admin residents feature: mutates resident account/profile status and records activity logs.
 mixin _AdminServiceResidentsMixin on _AdminServiceBase {
+  // Admin residents feature: updates resident profile and community assignment fields.
   Future<void> updateResidentDetails({
     required String residentUid,
     required String adminUid,
@@ -39,6 +41,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: suspends an account and records the suspension reason.
   Future<void> suspendResident({
     required String residentUid,
     required String adminUid,
@@ -67,6 +70,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: reactivates a suspended account and clears suspension fields.
   Future<void> reactivateResident({
     required String residentUid,
     required String adminUid,
@@ -89,6 +93,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: archives an account while keeping historical transactions/reports.
   Future<void> archiveResident({
     required String residentUid,
     required String adminUid,
@@ -117,6 +122,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: restores an archived account to active state.
   Future<void> unarchiveResident({
     required String residentUid,
     required String adminUid,
@@ -139,6 +145,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: resets verification to pending so the resident must submit proof again.
   Future<void> resetResidentVerification({
     required String residentUid,
     required String adminUid,
@@ -166,6 +173,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: manually sets a resident verification status with an audit reason.
   Future<void> overrideResidentVerification({
     required String residentUid,
     required String adminUid,
@@ -201,6 +209,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: creates an admin notice notification for one resident.
   Future<void> sendResidentNotice({
     required String residentUid,
     required String adminUid,
@@ -237,14 +246,17 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     await batch.commit();
   }
 
+  // Admin residents feature: returns users/{uid} reference for resident account updates.
   DocumentReference<Map<String, dynamic>> _residentRef(String residentUid) {
     return _firestore.collection(AppConstants.usersCollection).doc(residentUid);
   }
 
+  // Admin audit feature: creates a new activity log document reference.
   DocumentReference<Map<String, dynamic>> _activityLogRef() {
     return _firestore.collection(AppConstants.activityLogsCollection).doc();
   }
 
+  // Admin residents feature: validates resident/admin IDs before any account mutation.
   void _requireResidentActionIds({
     required String residentUid,
     required String adminUid,
@@ -257,6 +269,7 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     }
   }
 
+  // Admin audit feature: builds the activity log payload for resident account actions.
   Map<String, dynamic> _residentLogData({
     required String type,
     required String adminUid,

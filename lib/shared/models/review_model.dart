@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Reviews DB model: represents reviews/{reviewId} and supports hidden-until-both-submit marketplace review publishing.
 class ReviewModel {
   const ReviewModel({
     required this.id,
@@ -35,6 +36,7 @@ class ReviewModel {
   final DateTime? publishAfter;
   final DateTime? publishedAt;
 
+  /// Reviews DB model: converts Firestore review data into the profile/reputation review model.
   factory ReviewModel.fromMap(String id, Map<String, dynamic> data) {
     return ReviewModel(
       id: id,
@@ -55,12 +57,14 @@ class ReviewModel {
     );
   }
 
+  /// Reviews DB model: clamps stored rating values into the allowed 1-5 star range.
   static int _parseRating(dynamic v) {
     if (v is int) return v.clamp(1, 5);
     if (v is num) return v.toInt().clamp(1, 5);
     return 1;
   }
 
+  /// Reviews DB model: converts stored createdAt values into DateTime.
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
@@ -69,6 +73,7 @@ class ReviewModel {
     return DateTime.now();
   }
 
+  /// Reviews DB model: converts optional publishAfter/publishedAt values into nullable DateTime.
   static DateTime? _parseNullableDate(dynamic value) {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();

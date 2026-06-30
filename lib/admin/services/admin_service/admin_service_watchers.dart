@@ -1,6 +1,8 @@
 part of '../admin_service.dart';
 
+// Admin realtime data feature: provides scoped streams for every collection shown in the portal.
 mixin _AdminServiceWatchersMixin on _AdminServiceBase {
+  // Admin verification feature: streams verification requests filtered by status and admin community scope.
   Stream<List<VerificationRequest>> watchVerificationRequests({
     String? status,
     String? communityId,
@@ -60,6 +62,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
     });
   }
 
+  // Admin verification feature: decides whether OCR/submitted request states still need admin review.
   bool _needsAdminVerificationDecision(VerificationRequest request) {
     if (request.status == AppConstants.verificationRejected ||
         request.status == AppConstants.verificationVerified) {
@@ -78,6 +81,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
     return false;
   }
 
+  // Admin residents feature: streams resident users in the admin's assigned community.
   Stream<List<AppUser>> watchResidents({
     String? communityId,
     String? communityName,
@@ -114,6 +118,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
     });
   }
 
+  // Admin listings feature: streams marketplace items in the admin's assigned community.
   Stream<List<ItemModel>> watchListings({
     String? communityId,
     String? communityName,
@@ -149,6 +154,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
     });
   }
 
+  // Admin reports feature: streams complaint/report documents in the admin's assigned community.
   Stream<List<ReportModel>> watchReports({
     String? communityId,
     bool includeAllCommunities = false,
@@ -174,6 +180,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
     });
   }
 
+  // Admin services feature: streams service listings; AdminProvider applies resident/community visibility.
   Stream<List<ServiceModel>> watchServices() {
     return _firestore
         .collection(AppConstants.servicesCollection)
@@ -187,6 +194,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
         });
   }
 
+  // Admin transactions feature: streams marketplace borrow requests for transaction/deposit review.
   Stream<List<BorrowRequest>> watchBorrowRequests() {
     return _firestore
         .collection(AppConstants.borrowRequestsCollection)
@@ -200,6 +208,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
         });
   }
 
+  // Admin services feature: streams service requests; AdminProvider applies community visibility.
   Stream<List<ServiceRequestModel>> watchServiceRequests() {
     return _firestore
         .collection(AppConstants.serviceRequestsCollection)
@@ -213,6 +222,7 @@ mixin _AdminServiceWatchersMixin on _AdminServiceBase {
         });
   }
 
+  // Admin scoping feature: checks whether a record belongs to the selected admin community.
   bool _isInCommunityScope({
     required String communityId,
     required String communityName,

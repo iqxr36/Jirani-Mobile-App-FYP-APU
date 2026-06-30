@@ -19,6 +19,7 @@ import 'package:jirani/shared/data/repositories/notification_repository.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
 
+// Admin portal UI feature: top-level shell for sidebar navigation, scoped dashboard content, and notification routing.
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({
     super.key,
@@ -178,6 +179,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
     );
   }
 
+  // Admin notification feature: routes admin notification taps to reports, verification, or dashboard sections.
   void _openNotificationTarget(NotificationModel notification) {
     final requestId = notification.verificationRequestId.trim();
     final reportId = notification.reportId.trim();
@@ -444,6 +446,7 @@ class _AdminTopBar extends StatelessWidget {
   }
 }
 
+// Admin notification feature: app-bar bell that previews unread admin notifications.
 class AdminNotificationBell extends StatefulWidget {
   const AdminNotificationBell({
     super.key,
@@ -516,6 +519,7 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
     );
   }
 
+  // Admin notification feature: opens the notification dialog and marks visible notifications as read.
   Future<void> _showNotifications(BuildContext context) async {
     await showDialog<void>(
       context: context,

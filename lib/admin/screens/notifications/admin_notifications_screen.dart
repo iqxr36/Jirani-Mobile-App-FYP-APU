@@ -5,6 +5,7 @@ import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/shared/data/repositories/notification_repository.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 
+// Admin notifications UI feature: lists admin notifications and lets admins review unread/handled items.
 class AdminNotificationsScreen extends StatelessWidget {
   const AdminNotificationsScreen({
     super.key,
@@ -94,6 +95,7 @@ class AdminNotificationsScreen extends StatelessWidget {
   }
 }
 
+// Admin notifications UI feature: renders one notification row with metadata and read state.
 class AdminNotificationListTile extends StatelessWidget {
   const AdminNotificationListTile({
     super.key,

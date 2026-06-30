@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Connections feature constants: mirrors Firestore connection status values used in connection requests.
 class ConnectionStatus {
   const ConnectionStatus._();
 
@@ -9,6 +10,7 @@ class ConnectionStatus {
   static const String declined = AppConstants.connectionDeclined;
 }
 
+/// Connections DB model: represents connections/{connectionId} between two residents in the same community.
 class ConnectionModel {
   const ConnectionModel({
     required this.id,
@@ -34,11 +36,13 @@ class ConnectionModel {
   bool get isAccepted => status == ConnectionStatus.accepted;
   bool get isDeclined => status == ConnectionStatus.declined;
 
+  /// Connections feature: returns the other participant id for neighbor list and chat entry points.
   String otherUserId(String currentUserId) {
     if (currentUserId == fromUserId) return toUserId;
     return fromUserId;
   }
 
+  /// Connections feature: creates an updated connection object while preserving unchanged fields.
   ConnectionModel copyWith({
     String? id,
     String? fromUserId,
@@ -61,6 +65,7 @@ class ConnectionModel {
     );
   }
 
+  /// Connections DB model: serializes a connection request or accepted connection into Firestore.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'fromUserId': fromUserId,
@@ -73,6 +78,7 @@ class ConnectionModel {
     };
   }
 
+  /// Connections DB model: converts Firestore connection data into a ConnectionModel.
   factory ConnectionModel.fromMap(String id, Map<String, dynamic> data) {
     return ConnectionModel(
       id: id,
@@ -86,6 +92,7 @@ class ConnectionModel {
     );
   }
 
+  /// Connections feature: creates deterministic connection ids so duplicate requests cannot be created.
   static String connectionId(String firstUserId, String secondUserId) {
     final ids = <String>[firstUserId, secondUserId]..sort();
     return '${ids[0]}_${ids[1]}';

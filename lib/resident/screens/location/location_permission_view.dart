@@ -14,6 +14,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
 /// Location permission — Figma Group 16: illustration, privacy card, enable / not now.
+// Location permission feature: asks for device location access before community geofence verification.
 class LocationPermissionView extends StatefulWidget {
   const LocationPermissionView({
     super.key,
@@ -51,6 +52,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
   }
 
   @override
+  // Location permission feature: resumes permission checks after the user returns from settings.
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !_waitingForSettings) return;
     _waitingForSettings = false;
@@ -67,17 +69,18 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
   void _showLocationSettingsDialog() {
     showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => JiraniDialog(
-        title: 'Location services',
+        title: 'Turn on Location Services',
         icon: Icons.location_off_rounded,
         content: const Text(
-          'Location services are turned off. Please enable location services to continue.',
+          'Jirani must confirm that you are inside your registered community before you can use resident features. Turn on phone location services to continue.',
           style: TextStyle(height: 1.35),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Stay Here'),
           ),
           TextButton(
             onPressed: () {
@@ -94,17 +97,18 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
   void _showAppSettingsDialog() {
     showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => JiraniDialog(
         title: 'Location Permission Required',
         icon: Icons.my_location_rounded,
         content: const Text(
-          'Please enable location permission from your phone settings to verify your community.',
+          'Location permission is blocked for Jirani. Enable it in app settings so we can verify your community before opening the app.',
           style: TextStyle(height: 1.35),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Stay Here'),
           ),
           TextButton(
             onPressed: () {
@@ -118,6 +122,40 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     );
   }
 
+  // Location permission feature: explains why denial blocks progress and gives a recovery action without advancing into the app.
+  void _showPermissionRequiredDialog({required bool openSettings}) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => JiraniDialog(
+        title: 'Location Permission Needed',
+        icon: Icons.verified_user_rounded,
+        content: const Text(
+          'Jirani uses your location to confirm you are inside your registered community. Because this is required for resident access, you cannot continue until location permission is allowed.',
+          style: TextStyle(height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Stay Here'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (openSettings) {
+                unawaited(_openAppSettings());
+              } else {
+                unawaited(_handleEnableLocation());
+              }
+            },
+            child: Text(openSettings ? 'Open Settings' : 'Allow Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Location permission feature: opens app settings when permission was denied permanently.
   Future<void> _openAppSettings() async {
     _waitingForSettings = true;
     try {
@@ -134,6 +172,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     }
   }
 
+  // Location permission feature: opens OS location settings when GPS/location services are disabled.
   Future<void> _openLocationSettings() async {
     _waitingForSettings = true;
     try {
@@ -150,6 +189,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     }
   }
 
+  // Location permission feature: retries the permission flow after the settings screen returns.
   Future<void> _resumeAfterSettings() async {
     if (_hasOpenedNextScreen || _isLoading) return;
     setState(() => _isLoading = true);
@@ -182,6 +222,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     }
   }
 
+  // Location permission feature: moves the resident to community confirmation/geofence checks once allowed.
   Future<void> _openNextScreen() async {
     if (_hasOpenedNextScreen || !mounted) return;
     _hasOpenedNextScreen = true;
@@ -197,6 +238,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     );
   }
 
+  // Location permission feature: requests foreground location permission and handles denied states.
   Future<void> _requestLocationPermission() async {
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -209,30 +251,19 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     if (!mounted) return;
 
     if (permission == LocationPermission.deniedForever) {
-      if (widget.nextBuilder != null) {
-        _showSnack(
-          'Location access is blocked. You can enable it later from device settings.',
-        );
-        await _openNextScreen();
-        return;
-      }
       _showAppSettingsDialog();
       return;
     }
 
     if (permission == LocationPermission.denied) {
-      _showSnack(
-        'Location permission was denied. Jirani needs location to verify your community.',
-      );
-      if (widget.nextBuilder != null) {
-        await _openNextScreen();
-      }
+      _showPermissionRequiredDialog(openSettings: false);
       return;
     }
 
     await _openNextScreen();
   }
 
+  // Location permission feature: validates service availability and asks for permission when the button is tapped.
   Future<void> _handleEnableLocation() async {
     if (_isLoading || _hasOpenedNextScreen) return;
     setState(() => _isLoading = true);
@@ -258,17 +289,10 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
     }
   }
 
+  // Location permission feature: exits the permission screen when the resident chooses not to continue.
   void _handleNotNow() {
     if (_isLoading || _hasOpenedNextScreen) return;
-    _showSnack('Location access is needed for community verification.');
-    Future<void>.delayed(const Duration(milliseconds: 450), () {
-      if (!mounted) return;
-      if (widget.nextBuilder == null) {
-        Navigator.of(context).pop();
-        return;
-      }
-      unawaited(_openNextScreen());
-    });
+    _showPermissionRequiredDialog(openSettings: false);
   }
 
   Widget _buildIllustration() {

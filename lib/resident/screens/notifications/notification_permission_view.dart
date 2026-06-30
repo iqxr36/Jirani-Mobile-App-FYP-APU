@@ -9,6 +9,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
 /// Notification permission — Figma: illustration, title, info card, allow / maybe later.
+// Notification permission feature: asks the resident to enable push notifications during onboarding.
 class NotificationPermissionView extends StatefulWidget {
   const NotificationPermissionView({super.key});
 
@@ -39,6 +40,7 @@ class _NotificationPermissionViewState
     );
   }
 
+  // Notification permission feature: stores notification permission state and FCM token preference.
   Future<void> _saveNotificationPreference({
     required bool enabled,
     required String status,
@@ -51,6 +53,7 @@ class _NotificationPermissionViewState
     );
   }
 
+  // Notification permission feature: requests OS notification permission and saves the result.
   Future<void> _handleAllowNotifications() async {
     if (_buttonsLocked) return;
     setState(() => _allowing = true);
@@ -100,6 +103,7 @@ class _NotificationPermissionViewState
     }
   }
 
+  // Notification permission feature: records skipped notification permission and continues onboarding.
   Future<void> _handleMaybeLater() async {
     if (_buttonsLocked) return;
     setState(() => _skipping = true);

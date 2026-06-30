@@ -10,6 +10,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
 /// Photos and documents permission step for the verification onboarding flow.
+// Photos/documents permission feature: asks for gallery/document access used by verification uploads.
 class PhotosDocumentsPermissionView extends StatefulWidget {
   const PhotosDocumentsPermissionView({super.key, this.nextBuilder});
 
@@ -50,6 +51,7 @@ class _PhotosDocumentsPermissionViewState
     );
   }
 
+  // Photos/documents permission feature: stores gallery/document permission status on users/{uid}.
   Future<void> _savePreference({
     required bool enabled,
     required String status,
@@ -60,6 +62,7 @@ class _PhotosDocumentsPermissionViewState
     );
   }
 
+  // Photos/documents permission feature: requests file/gallery access and advances the permission flow.
   Future<void> _handleAllowAccess() async {
     if (_buttonsLocked) return;
     setState(() => _allowing = true);
@@ -106,6 +109,7 @@ class _PhotosDocumentsPermissionViewState
     }
   }
 
+  // Photos/documents permission feature: records skipped file access and continues onboarding.
   Future<void> _handleMaybeLater() async {
     if (_buttonsLocked) return;
     setState(() => _skipping = true);
@@ -132,6 +136,10 @@ class _PhotosDocumentsPermissionViewState
       child: Stack(
         alignment: Alignment.center,
         children: [
+          Image.asset(
+            'assets/perm4.png',
+            fit: BoxFit.contain,
+          ),
           Container(
             width: 136,
             height: 158,
@@ -148,18 +156,18 @@ class _PhotosDocumentsPermissionViewState
               ],
             ),
           ),
-          Positioned(
-            top: 48,
-            child: Icon(
-              Icons.photo_library_outlined,
-              size: 54,
-              color: _kBrandTeal,
-            ),
-          ),
-          Positioned(
-            bottom: 48,
-            child: Icon(Icons.description_outlined, size: 42, color: softTeal),
-          ),
+          // Positioned(
+          //   top: 48,
+          //   child: Icon(
+          //     Icons.photo_library_outlined,
+          //     size: 54,
+          //     color: _kBrandTeal,
+          //   ),
+          // ),
+          // Positioned(
+          //   bottom: 48,
+          //   child: Icon(Icons.description_outlined, size: 42, color: softTeal),
+          // ),
         ],
       ),
     );

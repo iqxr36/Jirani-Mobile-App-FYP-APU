@@ -6,6 +6,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 import 'package:jirani/shared/data/repositories/verification_repository.dart';
 
+// Residency verification feature: manages upload state, latest request state, and verification form actions.
 class VerificationViewModel extends ChangeNotifier {
   VerificationViewModel({VerificationRepository? repository})
     : _repository = repository ?? VerificationRepository();
@@ -25,11 +26,13 @@ class VerificationViewModel extends ChangeNotifier {
   double get uploadProgress => _uploadProgress;
   String get selectedDocumentType => _selectedDocumentType;
 
+  // Residency verification feature: updates the document type selected by the resident upload form.
   set selectedDocumentType(String value) {
     _selectedDocumentType = value;
     _notifyIfActive();
   }
 
+  // Residency verification feature: loads the resident's latest verification request for status screens.
   Future<void> loadCurrentRequest() async {
     _isLoading = true;
     _errorMessage = null;
@@ -45,6 +48,7 @@ class VerificationViewModel extends ChangeNotifier {
     }
   }
 
+  // Residency verification feature: uploads a proof document and creates the Firestore request for admin review.
   Future<VerificationRequest?> submitVerificationRequest({
     required String documentType,
     required Uint8List fileBytes,
@@ -87,6 +91,7 @@ class VerificationViewModel extends ChangeNotifier {
     }
   }
 
+  // Residency verification feature: converts upload/storage failures into resident-friendly messages.
   String _mapSubmitError(Object e) {
     if (e is VerificationUnsupportedFileTypeException) {
       return e.message;
@@ -119,6 +124,7 @@ class VerificationViewModel extends ChangeNotifier {
     return 'Upload failed. Please try again or pick a different file.';
   }
 
+  // Residency verification feature: cancels the latest submitted request so the resident can resubmit documents.
   Future<bool> cancelLatestVerificationRequest() async {
     _isLoading = true;
     _errorMessage = null;
@@ -139,11 +145,13 @@ class VerificationViewModel extends ChangeNotifier {
     }
   }
 
+  // Residency verification UI state: clears the latest upload/status error.
   void clearError() {
     _errorMessage = null;
     _notifyIfActive();
   }
 
+  // Residency verification UI state: avoids notifying listeners after the upload screen is disposed.
   void _notifyIfActive() {
     if (_disposed) return;
     notifyListeners();

@@ -19,6 +19,7 @@ Color _outline(BuildContext context, {double alpha = 0.18}) => context.isDarkUi
     ? context.residentScheme.outlineVariant
     : Colors.black.withValues(alpha: alpha);
 
+// Verification status UI feature: shows the resident's latest verification request status.
 class VerificationStatusView extends StatelessWidget {
   const VerificationStatusView({
     super.key,
@@ -43,12 +44,14 @@ class _VerificationStatusContent extends StatelessWidget {
 
   final bool backToProcessReplacement;
 
+  // Verification status UI feature: reloads the latest verification request.
   Future<void> _refresh(BuildContext context) async {
     await context.read<AuthViewModel>().refreshCurrentUser();
     if (!context.mounted) return;
     await context.read<VerificationViewModel>().loadCurrentRequest();
   }
 
+  // Verification status UI feature: returns residents to the verification process screen for resubmission guidance.
   void _backToProcess(BuildContext context) {
     if (!backToProcessReplacement && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -317,6 +320,7 @@ class _RejectedReasonCard extends StatelessWidget {
   }
 }
 
+// Verification status UI feature: carries colors, icons, and copy for each verification state.
 class _StatusPresentation {
   const _StatusPresentation({
     required this.assetPath,

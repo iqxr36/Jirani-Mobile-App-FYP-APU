@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/shared/models/reported_chat_message_snapshot.dart';
 
+/// Reports DB model: represents reports/{reportId} for chat misconduct, trust score flags, and marketplace deposit disputes.
 class ReportModel {
   const ReportModel({
     required this.id,
@@ -44,8 +45,10 @@ class ReportModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Reports feature: identifies reports created from chat messages instead of marketplace disputes.
   bool get isChatReport => chatId.trim().isNotEmpty;
 
+  /// Reports DB model: converts Firestore report data into the admin report inbox model.
   factory ReportModel.fromMap(String id, Map<String, dynamic> data) {
     final description = _firstNonEmpty([
       data['description'] as String?,
@@ -74,6 +77,7 @@ class ReportModel {
     );
   }
 
+  /// Reports DB model: supports both description and legacy reason fields.
   static String _firstNonEmpty(List<String?> values) {
     for (final value in values) {
       final text = value?.trim() ?? '';
@@ -82,6 +86,7 @@ class ReportModel {
     return '';
   }
 
+  /// Chat reports: converts stored reported-message snapshots for admin evidence review.
   static List<ReportedChatMessageSnapshot> _parseReportedMessages(dynamic value) {
     if (value is! List) return const [];
     return value

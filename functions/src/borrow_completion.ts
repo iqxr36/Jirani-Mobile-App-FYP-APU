@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 type Firestore = admin.firestore.Firestore;
 type DocumentData = admin.firestore.DocumentData;
 
+// Marketplace completion feature: detects the first transition of a borrow request into completed status.
 export function borrowBecameCompleted(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -11,6 +12,7 @@ export function borrowBecameCompleted(
   return before?.status !== "completed" && after.status === "completed";
 }
 
+// Marketplace completion feature: releases the item and increments borrower/lender completed counters once.
 export async function applyBorrowCompletionSideEffects(
   db: Firestore,
   requestId: string,

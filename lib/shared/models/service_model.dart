@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Services DB model: represents services/{serviceId} created by residents offering help.
 class ServiceModel {
   const ServiceModel({
     required this.id,
@@ -31,6 +32,7 @@ class ServiceModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Services DB model: converts Firestore service data into a ServiceModel for browse/manage screens.
   factory ServiceModel.fromMap(String id, Map<String, dynamic> data) {
     return ServiceModel(
       id: id,
@@ -49,6 +51,7 @@ class ServiceModel {
     );
   }
 
+  /// Services DB model: safely reads optional service price values.
   static double? _toDouble(dynamic value) {
     if (value == null) return null;
     if (value is num) return value.toDouble();
@@ -56,6 +59,7 @@ class ServiceModel {
     return null;
   }
 
+  /// Services DB model: converts Firestore timestamp-like fields into DateTime.
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;

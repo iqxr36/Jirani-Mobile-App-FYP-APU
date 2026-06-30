@@ -5,6 +5,7 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
 
+/// Services feature service: manages service listings and resident service requests in Firestore.
 class ServiceService {
   ServiceService({
     FirebaseAuth? auth,
@@ -21,6 +22,7 @@ class ServiceService {
   CollectionReference<Map<String, dynamic>> get _requests =>
       _firestore.collection(AppConstants.serviceRequestsCollection);
 
+  /// Services browse: streams all active services shown to residents.
   Stream<List<ServiceModel>> watchActiveServices() {
     return _services
         .where('status', isEqualTo: AppConstants.serviceStatusActive)
@@ -34,6 +36,7 @@ class ServiceService {
         });
   }
 
+  /// Services provider dashboard: streams services created by the current provider.
   Stream<List<ServiceModel>> watchMyServices(String providerId) {
     return _services.where('providerId', isEqualTo: providerId).snapshots().map(
       (snapshot) {
@@ -46,6 +49,7 @@ class ServiceService {
     );
   }
 
+  /// Services feature: loads one service listing by id for detail/request flows.
   Future<ServiceModel?> getService(String serviceId) async {
     final snap = await _services.doc(serviceId).get();
     final data = snap.data();
@@ -53,6 +57,7 @@ class ServiceService {
     return ServiceModel.fromMap(snap.id, data);
   }
 
+  /// Services requester dashboard: streams service requests sent by the current resident.
   Stream<List<ServiceRequestModel>> watchMyServiceRequests(String requesterId) {
     return _requests
         .where('requesterId', isEqualTo: requesterId)
@@ -66,6 +71,7 @@ class ServiceService {
         });
   }
 
+  /// Services provider dashboard: streams requests received by a service provider.
   Stream<List<ServiceRequestModel>> watchIncomingServiceRequests(
     String providerId,
   ) {
@@ -80,6 +86,7 @@ class ServiceService {
     );
   }
 
+  /// Services provider flow: validates and creates a service listing for a verified resident.
   Future<void> createService({
     required AppUser provider,
     required String title,
@@ -163,6 +170,7 @@ class ServiceService {
     }
   }
 
+  /// Services provider flow: activates, deactivates, or archives a provider's own service.
   Future<void> setServiceStatus({
     required String serviceId,
     required String providerId,
@@ -203,6 +211,7 @@ class ServiceService {
     }
   }
 
+  /// Services requester flow: creates a pending request for another resident's active service.
   Future<void> createServiceRequest({
     required ServiceModel service,
     required AppUser requester,
@@ -263,6 +272,7 @@ class ServiceService {
     }
   }
 
+  /// Services provider flow: accepts a pending service request.
   Future<void> acceptServiceRequest({
     required String requestId,
     required String providerId,
@@ -276,6 +286,7 @@ class ServiceService {
     );
   }
 
+  /// Services provider flow: rejects a pending service request.
   Future<void> rejectServiceRequest({
     required String requestId,
     required String providerId,
@@ -289,6 +300,7 @@ class ServiceService {
     );
   }
 
+  /// Services requester flow: cancels a pending service request before provider acceptance.
   Future<void> cancelServiceRequest({
     required String requestId,
     required String requesterId,
@@ -302,6 +314,7 @@ class ServiceService {
     );
   }
 
+  /// Services provider flow: marks an accepted service request as completed.
   Future<void> completeServiceRequest({
     required String requestId,
     required String providerId,
@@ -315,6 +328,7 @@ class ServiceService {
     );
   }
 
+  /// Services request lifecycle: validates actor ownership and transitions request status.
   Future<void> _updateServiceRequestStatus({
     required String requestId,
     required String actingUserId,

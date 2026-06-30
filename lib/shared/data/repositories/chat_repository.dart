@@ -5,15 +5,18 @@ import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 import 'package:jirani/shared/services/chat_service.dart';
 
+// Chat data layer: exposes chat use cases to providers while keeping Firestore/storage details inside ChatService.
 class ChatRepository {
   ChatRepository({ChatService? service}) : _service = service ?? ChatService();
 
   final ChatService _service;
 
+  // Chat feature: streams the current resident's inbox conversations.
   Stream<List<ChatModel>> watchChats(AppUser currentUser) {
     return _service.watchChats(currentUser);
   }
 
+  // Chat feature: streams visible messages for one chat and filters messages deleted for this user.
   Stream<List<ChatMessageModel>> watchMessages(
     String chatId,
     String currentUserId,
@@ -21,6 +24,7 @@ class ChatRepository {
     return _service.watchMessages(chatId, currentUserId);
   }
 
+  // Chat feature: opens an existing one-to-one chat or creates it with a deterministic chat id.
   Future<ChatModel> openOrCreateChat({
     required AppUser currentUser,
     required AppUser neighbor,
@@ -31,6 +35,7 @@ class ChatRepository {
     );
   }
 
+  // Chat feature: sends a plain text chat message.
   Future<void> sendTextMessage({
     required ChatModel chat,
     required AppUser sender,
@@ -45,6 +50,7 @@ class ChatRepository {
     );
   }
 
+  // Chat feature: uploads and sends a chat attachment message.
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
     required AppUser sender,
@@ -67,6 +73,7 @@ class ChatRepository {
     );
   }
 
+  // Chat feature: clears unread count for the current user in a conversation.
   Future<void> markChatRead({
     required ChatModel chat,
     required String currentUserId,
@@ -74,6 +81,7 @@ class ChatRepository {
     return _service.markChatRead(chat: chat, currentUserId: currentUserId);
   }
 
+  // Chat feature: hides a conversation only from the current resident's inbox.
   Future<void> deleteChatForUser({
     required ChatModel chat,
     required String currentUserId,
@@ -81,6 +89,7 @@ class ChatRepository {
     return _service.deleteChatForUser(chat: chat, currentUserId: currentUserId);
   }
 
+  // Geofence/community feature: archives chats that no longer belong to the resident's selected community.
   Future<void> archiveChatsOutsideCommunity({
     required String uid,
     required String communityId,
@@ -91,6 +100,7 @@ class ChatRepository {
     );
   }
 
+  // Report feature: forwards chat report details and message snapshots to the reports collection.
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,
@@ -109,6 +119,7 @@ class ChatRepository {
     );
   }
 
+  // Chat feature: pins a message on a conversation.
   Future<void> pinMessage({
     required ChatModel chat,
     required AppUser user,
@@ -117,6 +128,7 @@ class ChatRepository {
     return _service.pinMessage(chat: chat, user: user, message: message);
   }
 
+  // Chat feature: removes the pinned message from a conversation.
   Future<void> unpinMessage({
     required ChatModel chat,
     required AppUser user,
@@ -124,6 +136,7 @@ class ChatRepository {
     return _service.unpinMessage(chat: chat, user: user);
   }
 
+  // Chat feature: hides one message for one user without deleting the shared message document.
   Future<void> deleteMessageForUser({
     required ChatModel chat,
     required String messageId,

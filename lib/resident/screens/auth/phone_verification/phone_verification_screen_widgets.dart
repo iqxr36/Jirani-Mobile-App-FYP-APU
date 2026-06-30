@@ -30,8 +30,8 @@ class _PhoneVerificationHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _kBrandTeal,
-              fontSize: 25,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

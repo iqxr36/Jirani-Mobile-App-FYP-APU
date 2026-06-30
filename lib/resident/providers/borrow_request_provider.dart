@@ -6,6 +6,7 @@ import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/services/borrow_request_service.dart';
 
+// Marketplace borrow feature: owns borrower/lender request state for resident screens and delegates Firestore changes to BorrowRequestService.
 class BorrowRequestProvider extends ChangeNotifier {
   BorrowRequestProvider({BorrowRequestService? service})
     : _service = service ?? BorrowRequestService();
@@ -26,10 +27,12 @@ class BorrowRequestProvider extends ChangeNotifier {
   List<BorrowRequest> get incomingRequests => _incomingRequests;
   BorrowRequest? get selectedRequest => _selectedRequest;
 
+  // Marketplace borrow feature: loads one request for notification deep links and transaction detail refreshes.
   Future<BorrowRequest?> fetchBorrowRequest(String requestId) {
     return _service.fetchBorrowRequest(requestId);
   }
 
+  // Marketplace borrow feature: streams all requests created by the signed-in borrower.
   void watchMyBorrowRequests(String borrowerId) {
     _mySub?.cancel();
     _isLoading = true;
@@ -51,6 +54,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         );
   }
 
+  // Marketplace borrow feature: streams pending/active requests received by the lender for their listed items.
   void watchIncomingRequests(String ownerId) {
     _incomingSub?.cancel();
     _isLoading = true;
@@ -72,6 +76,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         );
   }
 
+  // Marketplace borrow feature: creates the initial pending request before owner approval and Stripe payment.
   Future<void> createBorrowRequest({
     required ItemModel item,
     required AppUser borrower,
@@ -110,6 +115,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace borrow feature: lets the lender approve the request so the borrower can pay with Stripe.
   Future<void> approveBorrowRequest({
     required String requestId,
     required String ownerId,
@@ -130,6 +136,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace borrow feature: lets the lender reject a request and stores the reason for the borrower.
   Future<void> rejectBorrowRequest({
     required String requestId,
     required String ownerId,
@@ -152,6 +159,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace borrow feature: lets the borrower cancel their own pending request before handover.
   Future<void> cancelBorrowRequest({
     required String requestId,
     required String borrowerId,
@@ -172,6 +180,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace handover feature: borrower enters the handover code to say they are ready for pickup.
   Future<void> confirmPickupReady({
     required String requestId,
     required String borrowerId,
@@ -194,6 +203,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace handover feature: lender confirms pickup and optionally uploads before-handover proof.
   Future<void> confirmHandover({
     required String requestId,
     required String ownerId,
@@ -218,6 +228,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace return feature: borrower submits return notes and optional after-use proof.
   Future<void> submitReturn({
     required String requestId,
     required String borrowerId,
@@ -242,6 +253,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace return feature: lender accepts the returned item and records its final condition.
   Future<void> confirmReturn({
     required String requestId,
     required String ownerId,
@@ -268,6 +280,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace deposit dispute feature: lender reports minor damage and requests a deposit deduction.
   Future<void> reportMinorIssue({
     required String requestId,
     required String ownerId,
@@ -294,6 +307,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace deposit dispute feature: borrower accepts or disputes the lender's minor damage claim.
   Future<void> respondToMinorIssue({
     required String requestId,
     required String borrowerId,
@@ -316,6 +330,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace deposit dispute feature: lender reports major damage that can award the full deposit.
   Future<void> reportMajorDamage({
     required String requestId,
     required String ownerId,
@@ -342,6 +357,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace deposit feature: records the lender's normal-return decision before admin escalation is needed.
   Future<void> setDepositDecision({
     required String requestId,
     required String ownerId,
@@ -366,11 +382,13 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
+  // Marketplace UI state: remembers the currently opened request for detail screens.
   void selectRequest(BorrowRequest? request) {
     _selectedRequest = request;
     notifyListeners();
   }
 
+  // Marketplace UI state: clears the latest request action error shown by resident screens.
   void clearError() {
     _errorMessage = null;
     notifyListeners();

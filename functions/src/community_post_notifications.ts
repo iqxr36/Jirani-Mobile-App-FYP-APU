@@ -15,10 +15,12 @@ const NOTIFICATION_TYPE_MAINTENANCE_NOTICE = "maintenanceNotice";
 
 const FAN_OUT_BATCH_SIZE = 100;
 
+// Community post notification feature: safely reads string fields from post and user documents.
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Community post notification feature: only sends published post notifications to verified residents.
 function isVerifiedResident(data: DocumentData): boolean {
   const status = asString(data.verificationStatus);
   return (
@@ -27,6 +29,7 @@ function isVerifiedResident(data: DocumentData): boolean {
   );
 }
 
+// Community post notification feature: detects the first transition from draft/scheduled to published.
 export function postBecamePublished(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -37,6 +40,7 @@ export function postBecamePublished(
   return beforeStatus !== "published" && afterStatus === "published";
 }
 
+// Community post notification feature: maps post category to the resident notification type.
 export function notificationTypeForPostType(type: string): string {
   switch (type) {
     case "announcement":
@@ -52,6 +56,7 @@ export function notificationTypeForPostType(type: string): string {
   }
 }
 
+// Community post notification feature: maps post type to the display category shown in the notification inbox.
 function categoryForPostType(type: string): string {
   switch (type) {
     case "announcement":
@@ -67,16 +72,19 @@ function categoryForPostType(type: string): string {
   }
 }
 
+// Community post notification feature: shortens long post bodies for notification preview text.
 function excerpt(body: string, maxLength = 120): string {
   const trimmed = body.trim();
   if (trimmed.length <= maxLength) return trimmed;
   return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+// Community post notification feature: prevents duplicate fan-out when a published post is edited again.
 function notificationsAlreadySent(after: DocumentData): boolean {
   return after.notificationsSentAt != null;
 }
 
+// Community post notification feature: creates deterministic notifications in small batches for all recipients.
 async function fanOutNotifications(
   db: Firestore,
   postId: string,
@@ -109,6 +117,7 @@ async function fanOutNotifications(
   }
 }
 
+// Community post notification feature: fans out notifications when an admin publishes a community post.
 export async function handleCommunityPostNotificationChanges(
   db: Firestore,
   postId: string,

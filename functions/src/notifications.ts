@@ -4,6 +4,7 @@ import { getMessaging } from "firebase-admin/messaging";
 type Firestore = admin.firestore.Firestore;
 type DocumentData = admin.firestore.DocumentData;
 
+// Notification feature: common input shape used by all backend notification helpers.
 export type InAppNotificationInput = {
   userId: string;
   actorId: string;
@@ -25,6 +26,7 @@ export type InAppNotificationInput = {
   notificationId?: string;
 };
 
+// Notification feature: resolves the best display name for a resident from publicProfiles or users.
 export async function residentDisplayName(
   db: Firestore,
   uid: string,
@@ -51,6 +53,7 @@ export async function residentDisplayName(
   return combined.length > 0 ? combined : "Resident";
 }
 
+// Community post notification feature: builds deterministic IDs so fan-out retries do not duplicate notifications.
 export function communityPostNotificationId(
   postId: string,
   userId: string,
@@ -58,6 +61,7 @@ export function communityPostNotificationId(
   return `cp_${postId}_${userId}`.replace(/\//g, "_");
 }
 
+// Notification feature: converts a typed notification input into the Firestore notifications payload.
 function buildNotificationPayload(input: InAppNotificationInput): DocumentData {
   const payload: DocumentData = {
     userId: input.userId,
@@ -87,11 +91,13 @@ function buildNotificationPayload(input: InAppNotificationInput): DocumentData {
   return payload;
 }
 
+// Notification feature: detects idempotent-create conflicts from Firestore.
 function isAlreadyExistsError(error: unknown): boolean {
   const code = (error as { code?: number | string }).code;
   return code === 6 || code === "already-exists" || code === "ALREADY_EXISTS";
 }
 
+// Notification feature: creates a notification with a fixed id and treats duplicate retries as success.
 export async function createInAppNotificationIfAbsent(
   db: Firestore,
   notificationId: string,
@@ -115,6 +121,7 @@ export async function createInAppNotificationIfAbsent(
   }
 }
 
+// Notification feature: creates an in-app notification unless it would notify the actor about their own action.
 export async function createInAppNotification(
   db: Firestore,
   input: InAppNotificationInput,
@@ -132,6 +139,7 @@ export async function createInAppNotification(
   return ref.id;
 }
 
+// Push notification feature: sends FCM for a created notification and clears invalid device tokens.
 export async function sendFcmForNotification(
   db: Firestore,
   notification: DocumentData,

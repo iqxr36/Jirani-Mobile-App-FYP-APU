@@ -1,5 +1,6 @@
 part of '../resident_item_listing_view.dart';
 
+/// Marketplace lender screen: lets the owner approve, hand over, inspect return, dispute damage, and review a borrow request.
 class ResidentLenderRequestDetailView extends StatefulWidget {
   const ResidentLenderRequestDetailView({
     super.key,
@@ -38,6 +39,7 @@ class _ResidentLenderRequestDetailViewState
   XFile? _returnIssueProof;
 
   @override
+  /// Marketplace lender screen lifecycle: disposes form controllers used across handover, return, dispute, and review forms.
   void dispose() {
     _returnCodeController.dispose();
     _ownerReturnNotesController.dispose();
@@ -49,6 +51,7 @@ class _ResidentLenderRequestDetailViewState
     super.dispose();
   }
 
+  /// Marketplace lender screen: opens the borrower's public profile from the request detail header.
   void _openBorrowerProfile(BorrowRequest request) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -304,6 +307,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace approval: owner approves the request, then waits for the borrower to complete Stripe payment.
   Future<void> _approveRequestFromDetail(
     BuildContext context,
     BorrowRequest request,
@@ -322,6 +326,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace approval: owner rejects the request with a reason before payment can happen.
   Future<void> _rejectRequestFromDetail(
     BuildContext context,
     BorrowRequest request,
@@ -347,6 +352,7 @@ class _ResidentLenderRequestDetailViewState
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Marketplace chat: opens borrower chat only after Stripe payment has completed.
   Future<void> _openChat(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
@@ -375,6 +381,7 @@ class _ResidentLenderRequestDetailViewState
     }
   }
 
+  /// Marketplace handover proof: lets the lender attach an optional before-handover photo.
   Future<void> _pickHandoverProof() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -463,6 +470,7 @@ class _ResidentLenderRequestDetailViewState
     }
   }
 
+  /// Marketplace return evidence: lets the lender attach a damage/lost-item photo for minor or major disputes.
   Future<void> _pickReturnIssueProof() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -551,6 +559,7 @@ class _ResidentLenderRequestDetailViewState
     }
   }
 
+  /// Marketplace handover: owner confirms item condition and generates the arrival code for the borrower.
   Future<void> _confirmHandover(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final provider = context.read<BorrowRequestProvider>();
@@ -568,6 +577,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace return: owner confirms a clean return and triggers Stripe full deposit refund when applicable.
   Future<void> _confirmReturn(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final code = _returnCodeController.text.trim();
@@ -591,6 +601,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace dispute: owner requests a minor damage deduction from the deposit for borrower approval.
   Future<void> _reportMinorIssue(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final amount = double.tryParse(_minorDeductionController.text.trim());
@@ -619,6 +630,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace dispute: owner escalates major damage/loss to admin with required photo evidence.
   Future<void> _reportMajorDamage(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final reason = _majorDamageReasonController.text.trim();
@@ -648,6 +660,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
+  /// Marketplace deposit: owner records a clean-return refund decision or routes withhold cases to admin.
   Future<void> _submitDepositDecision(
     BorrowRequest request,
     AppUser? user,
@@ -670,6 +683,7 @@ class _ResidentLenderRequestDetailViewState
     _showSnack(context, provider.errorMessage ?? 'Deposit decision saved.');
   }
 
+  /// Marketplace reviews: lender submits their one-time review after the transaction is completed.
   Future<void> _submitReview(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     try {
@@ -695,6 +709,7 @@ class _ResidentLenderRequestDetailViewState
 
 }
 
+/// Marketplace lender UI: chooses the correct owner action card for the current transaction status.
 class _LenderTransactionBody extends StatelessWidget {
   const _LenderTransactionBody({
     required this.request,
@@ -1357,6 +1372,7 @@ class _LenderDisputedCard extends StatelessWidget {
   }
 }
 
+/// Marketplace lender UI: completed-state card showing payout/deposit outcome and one-time borrower review form.
 class _LenderCompletedCard extends StatelessWidget {
   const _LenderCompletedCard({
     required this.request,
@@ -1545,12 +1561,14 @@ class _LenderCompletedCard extends StatelessWidget {
   }
 }
 
+/// Marketplace lender UI: explains the admin deposit decision and whether payout is manual or Stripe Connect.
 class _LenderAdminDecisionPanel extends StatelessWidget {
   const _LenderAdminDecisionPanel({required this.request});
 
   final BorrowRequest request;
 
   @override
+  /// Marketplace lender UI: renders pending approval or the full transaction tracking flow for this owner request.
   Widget build(BuildContext context) {
     return _TrackingStepCard(
       icon: _lenderAdminDecisionIcon(request),

@@ -1,5 +1,6 @@
 part of '../register_view.dart';
 
+// Resident registration UI feature: owns registration form controllers, community picker, and submit action.
 class _RegisterViewState extends State<RegisterView> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
@@ -21,6 +22,7 @@ class _RegisterViewState extends State<RegisterView> {
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
 
+  // Resident registration UI feature: loads active communities for the registration community dropdown.
   Future<void> _loadActiveCommunities() async {
     if (mounted) {
       setState(() {
@@ -46,6 +48,7 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
+  // Resident registration UI feature: opens the community selector and stores the selected community.
   Future<void> _selectCommunity() async {
     final selected = await showJiraniModalBottomSheet<CommunityModel>(
       context: context,
@@ -136,6 +139,7 @@ class _RegisterViewState extends State<RegisterView> {
     super.dispose();
   }
 
+  // Resident registration UI feature: validates the form and creates the Firebase Auth/user profile account.
   Future<void> _submit() async {
     final vm = context.read<AuthViewModel>();
     if (!_acceptedTerms) {

@@ -6,10 +6,12 @@ type DocumentData = admin.firestore.DocumentData;
 
 type ReportNotificationStatus = "open" | "underReview";
 
+// Report notification feature: safely reads trimmed string fields from report/admin documents.
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+// Report notification feature: detects newly open/under-review reports that should alert admins.
 function reportNeedsAdminNotification(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -21,6 +23,7 @@ function reportNeedsAdminNotification(
   return stringValue(before.status) !== status;
 }
 
+// Report notification feature: chooses the best title for the admin report notification.
 function reportTitle(data: DocumentData): string {
   return stringValue(data.title) ||
     stringValue(data.reportCategory) ||
@@ -28,10 +31,12 @@ function reportTitle(data: DocumentData): string {
     "Resident report";
 }
 
+// Report notification feature: chooses the reported resident name for the admin notification body.
 function reportedResidentName(data: DocumentData): string {
   return stringValue(data.reportedUserName) || "a resident";
 }
 
+// Report notification feature: notifies scoped admins when a report enters open or under-review state.
 export async function handleReportNotificationChanges(
   db: Firestore,
   reportId: string,

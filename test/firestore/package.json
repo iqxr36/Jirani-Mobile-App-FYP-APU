@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node ../../scripts/build_firestore_rules.mjs && firebase --config ../../firebase.json emulators:exec --only firestore,storage \"node --test chat_message_rules.test.mjs trust_score_rules.test.mjs user_privacy_rules.test.mjs item_rules.test.mjs service_rules.test.mjs service_request_rules.test.mjs verification_storage_rules.test.mjs review_publish_rules.test.mjs item_image_storage_rules.test.mjs user_verification_status_rules.test.mjs borrow_completion_rules.test.mjs notification_create_rules.test.mjs\""
+    "test": "node ../../scripts/build_firestore_rules.mjs && firebase --config ../../firebase.json emulators:exec --only firestore,storage \"node --test chat_message_rules.test.mjs trust_score_rules.test.mjs user_privacy_rules.test.mjs item_rules.test.mjs service_rules.test.mjs service_request_rules.test.mjs verification_storage_rules.test.mjs review_publish_rules.test.mjs review_submission_rules.test.mjs item_image_storage_rules.test.mjs user_verification_status_rules.test.mjs borrow_completion_rules.test.mjs notification_create_rules.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

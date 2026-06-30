@@ -8,10 +8,12 @@ const NOTIFICATION_TYPE_BORROW_REQUEST = "borrowRequest";
 const NOTIFICATION_TYPE_BORROW_APPROVED = "borrowApproved";
 const NOTIFICATION_TYPE_BORROW_REJECTED = "borrowRejected";
 
+// Borrow notification feature: safely reads string fields from borrow request documents.
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Borrow notification feature: notifies the lender when a borrower creates a new pending request.
 export async function notifyBorrowRequestCreated(
   db: Firestore,
   requestId: string,
@@ -35,6 +37,7 @@ export async function notifyBorrowRequestCreated(
   });
 }
 
+// Borrow notification feature: sends approval/rejection notifications when borrow request status changes.
 export async function handleBorrowRequestNotificationChanges(
   db: Firestore,
   requestId: string,

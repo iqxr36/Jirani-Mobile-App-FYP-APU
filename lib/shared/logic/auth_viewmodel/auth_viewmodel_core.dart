@@ -1,5 +1,6 @@
 part of '../auth_viewmodel.dart';
 
+/// Auth state base: stores shared session/profile state used by all AuthViewModel feature mixins.
 abstract class _AuthViewModelBase extends ChangeNotifier {
   _AuthViewModelBase({
     AuthRepository? repository,
@@ -62,6 +63,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   bool get showPhoneVerificationAfterRegister =>
       _showPhoneVerificationAfterRegister;
 
+  /// Auth/profile feature: reloads resident/admin Firestore profiles while preserving the last good profile on failure.
   Future<void> refreshCurrentUser() async {
     if (_firebaseUser == null) return;
 
@@ -86,26 +88,31 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
     }
   }
 
+  /// Auth UI: clears the current user-facing auth error.
   void clearError({bool notify = true}) {
     _errorMessage = null;
     if (notify) notifyListeners();
   }
 
+  /// Auth validation: stores form validation errors before hitting Firebase.
   void _setValidationError(String message) {
     _errorMessage = message;
     notifyListeners();
   }
 
+  /// Auth UI: clears success messages such as email verification sent.
   void clearSuccessMessage({bool notify = true}) {
     _successMessage = null;
     if (notify) notifyListeners();
   }
 
+  /// Geofence onboarding: determines whether a resident should see location verification after account creation.
   bool _needsLocationVerificationPrompt(AppUser? user) {
     if (user == null || !user.isResident) return false;
     return !user.locationVerified;
   }
 
+  /// Auth bootstrap: reacts to Firebase session changes and loads the matching resident or admin profile.
   Future<void> _onAuthStateChanged(User? user) async {
     authDebugLog(
       '[AuthProvider._onAuthStateChanged] session=${user != null}',
@@ -155,11 +162,13 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
     }
   }
 
+  /// Auth UI: toggles loading state and notifies listeners.
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
   }
 
+  /// Auth/profile feature: loads admin profile on web and resident profile on mobile.
   Future<void> _loadCurrentProfiles() async {
     if (kIsWeb) {
       _currentUser = null;
@@ -180,6 +189,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
     _currentUser = await _repository.getCurrentAppUser();
   }
 
+  /// Auth diagnostics: builds a helpful missing-profile message with the Firebase UID to create in Firestore.
   String _missingProfileMessage() {
     final uid =
         _firebaseUser?.uid ?? _repository.currentFirebaseUser?.uid ?? '';
@@ -192,6 +202,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
         : 'Resident profile not found in Firestore$emailText. Create users/$uidText for this resident account.';
   }
 
+  /// Auth UX: converts Firebase/social sign-in exceptions into readable messages.
   String _mapAuthError(Object e) {
     if (e is FirebaseAuthException) {
       switch (e.code) {

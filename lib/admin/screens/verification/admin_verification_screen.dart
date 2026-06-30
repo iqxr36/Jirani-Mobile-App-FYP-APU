@@ -16,6 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 final _reviewService = AdminVerificationReviewService();
 
+// Admin verification UI feature: shows verification inbox and selected request review details.
 class AdminVerificationScreen extends StatelessWidget {
   const AdminVerificationScreen({
     super.key,
@@ -118,6 +119,7 @@ class AdminVerificationScreen extends StatelessWidget {
   }
 }
 
+// Admin verification UI feature: lists verification requests filtered by selected status.
 class AdminVerificationRequestList extends StatelessWidget {
   const AdminVerificationRequestList({
     super.key,
@@ -220,6 +222,7 @@ class AdminVerificationRequestList extends StatelessWidget {
   }
 }
 
+// Admin verification UI feature: shows OCR fields, document proof, and approve/reject actions.
 class AdminVerificationDetail extends StatelessWidget {
   const AdminVerificationDetail({super.key, required this.request});
 
@@ -320,6 +323,7 @@ class AdminVerificationDetail extends StatelessWidget {
     return false;
   }
 
+  // Admin verification UI feature: approves the selected request using reviewed OCR data if provided.
   Future<void> _approve(
     BuildContext context,
     VerificationRequest request,
@@ -340,6 +344,7 @@ class AdminVerificationDetail extends StatelessWidget {
     ).showSnackBar(SnackBar(content: Text(error ?? 'Verification approved.')));
   }
 
+  // Admin verification OCR UI feature: opens the extracted-field review dialog before approval.
   Future<ExtractedDocumentData?> _reviewOcrData(
     BuildContext context,
     VerificationRequest request,
@@ -351,6 +356,7 @@ class AdminVerificationDetail extends StatelessWidget {
     );
   }
 
+  // Admin verification UI feature: rejects the selected request after collecting a reason.
   Future<void> _reject(
     BuildContext context,
     VerificationRequest request,
@@ -373,6 +379,7 @@ class AdminVerificationDetail extends StatelessWidget {
     ).showSnackBar(SnackBar(content: Text(error ?? 'Verification rejected.')));
   }
 
+  // Admin verification UI feature: opens the uploaded proof document for visual inspection.
   Future<void> _openDocument(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;

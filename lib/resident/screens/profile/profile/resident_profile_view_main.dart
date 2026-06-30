@@ -1,5 +1,6 @@
 part of '../resident_profile_view.dart';
 
+// Resident profile feature: main profile hub for verification, listings, reviews, payment methods, settings, and logout.
 class ResidentProfileView extends StatefulWidget {
   const ResidentProfileView({super.key});
 
@@ -11,7 +12,6 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   final _imagePicker = ImagePicker();
   final _permissionRepository = VerificationPermissionRepository();
   bool _pushNotifications = true;
-  bool _locationAlerts = true;
   bool _profileImageSaving = false;
   bool _loadedNotificationPreference = false;
 
@@ -23,6 +23,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     _loadNotificationPreference();
   }
 
+  // Resident profile feature: reads saved push-notification preference for the profile toggle.
   Future<void> _loadNotificationPreference() async {
     final user = context.read<AuthViewModel>().currentUser;
     if (user == null) return;
@@ -37,6 +38,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     }
   }
 
+  // Resident profile feature: updates push-notification preference and rolls back the toggle on failure.
   Future<void> _setPushNotifications(bool value) async {
     setState(() => _pushNotifications = value);
     try {
@@ -50,12 +52,14 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     }
   }
 
+  // Resident verification feature: opens the residency verification flow from the profile card.
   void _openVerificationProcess() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const VerificationProcessView()),
     );
   }
 
+  // Resident verification feature: opens email verification and returns to profile after success.
   void _openEmailVerification(AppUser user) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -68,6 +72,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  // Resident verification feature: opens phone verification if the resident has a saved phone number.
   void _openPhoneVerification(AppUser user) {
     final phone = user.phoneNumber.trim();
     if (phone.isEmpty) {
@@ -84,6 +89,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  // Resident settings feature: opens settings with callbacks wired back to profile state/providers.
   void _openSettings() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -92,13 +98,9 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
             return ResidentSettingsView(
               darkTheme: themeProvider.isDarkMode,
               pushNotifications: _pushNotifications,
-              locationAlerts: _locationAlerts,
               onDarkThemeChanged: themeProvider.setDarkMode,
               onPushNotificationsChanged: _setPushNotifications,
-              onLocationAlertsChanged: (value) =>
-                  setState(() => _locationAlerts = value),
               onPrivacy: () => _showUnavailable('Privacy'),
-              onLanguage: () => _showUnavailable('Language'),
               onPaymentMethods: _openPaymentMethods,
               onHelp: () => _showUnavailable('Help & Support'),
             );
@@ -108,34 +110,40 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  // Marketplace lender feature: opens the resident's lender dashboard and item listings.
   void _openMyItems() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const ResidentMyItemsView()),
     );
   }
 
+  // Review feature: opens the resident's reviews and Community Trust Score screen.
   void _openRatings() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const ResidentReviewsView()),
     );
   }
 
+  // Stripe payment feature: opens saved cards and Connect payout setup screen.
   void _openPaymentMethods() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const PaymentMethodsView()),
     );
   }
 
+  // Resident profile feature: opens editable personal profile details.
   void _openEditProfile() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const ResidentEditProfileView()),
     );
   }
 
+  // Authentication feature: signs the resident out from the profile menu.
   Future<void> _logout() async {
     await context.read<AuthViewModel>().logout();
   }
 
+  // Resident profile feature: picks, validates, uploads, and saves a new profile photo.
   Future<void> _changeProfileImage() async {
     if (_profileImageSaving) return;
 
@@ -177,6 +185,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  // Resident profile feature: shows a placeholder message for not-yet-built profile destinations.
   void _showUnavailable(String label) {
     ScaffoldMessenger.of(
       context,

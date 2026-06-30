@@ -1,5 +1,6 @@
 part of '../resident_marketplace_view.dart';
 
+// Marketplace borrow feature: bottom sheet for choosing dates/times/mode and submitting a borrow request.
 class _BorrowRequestSheet extends StatefulWidget {
   const _BorrowRequestSheet({required this.item});
 
@@ -244,6 +245,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
     );
   }
 
+  // Marketplace borrow feature: lets the borrower choose start or return date.
   Future<void> _pickDate({required bool isStart}) async {
     final initial = isStart ? _startDate : _endDate;
     final picked = await showDatePicker(
@@ -263,6 +265,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
     });
   }
 
+  // Marketplace borrow feature: lets the borrower choose pickup/return time.
   Future<void> _pickTime({required bool isStart}) async {
     final picked = await showTimePicker(
       context: context,
@@ -278,6 +281,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
     });
   }
 
+  // Marketplace borrow feature: validates borrower access and creates the initial pending borrow request.
   Future<void> _submitRequest() async {
     final user = context.read<AuthViewModel>().currentUser;
     final messenger = ScaffoldMessenger.of(context);

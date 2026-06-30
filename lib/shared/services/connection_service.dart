@@ -4,6 +4,7 @@ import 'package:jirani/shared/data/repositories/public_profile_repository.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
 
+/// Connections service: manages resident connection requests and same-community neighbor streams.
 class ConnectionService {
   ConnectionService({
     FirebaseFirestore? firestore,
@@ -17,6 +18,7 @@ class ConnectionService {
   CollectionReference<Map<String, dynamic>> get _connections =>
       _firestore.collection(AppConstants.connectionsCollection);
 
+  /// Connections feature: creates a pending connection request between two verified residents in the same community.
   Future<void> sendRequest({
     required AppUser fromUser,
     required AppUser toUser,
@@ -48,6 +50,7 @@ class ConnectionService {
     }
   }
 
+  /// Connections feature: recipient accepts a pending request and unlocks connection/chat surfaces.
   Future<void> acceptRequest({
     required String connectionId,
     required String currentUserId,
@@ -60,6 +63,7 @@ class ConnectionService {
     );
   }
 
+  /// Connections feature: recipient declines a pending request.
   Future<void> declineRequest({
     required String connectionId,
     required String currentUserId,
@@ -72,6 +76,7 @@ class ConnectionService {
     );
   }
 
+  /// Connections feature: sender withdraws their own pending request.
   Future<void> withdrawRequest({
     required String connectionId,
     required String currentUserId,
@@ -89,6 +94,7 @@ class ConnectionService {
     await doc.delete();
   }
 
+  /// Connections feature: either connected resident can remove an accepted connection.
   Future<void> removeConnection({
     required String connectionId,
     required String currentUserId,
@@ -107,6 +113,7 @@ class ConnectionService {
     await doc.delete();
   }
 
+  /// Community change cleanup: removes connections that no longer belong to the resident's selected community.
   Future<void> removeConnectionsOutsideCommunity({
     required String uid,
     required String communityId,
@@ -131,10 +138,12 @@ class ConnectionService {
     }
   }
 
+  /// Connections feature: streams verified residents in the current user's community.
   Stream<List<AppUser>> watchCommunityResidents(AppUser currentUser) {
     return _publicProfiles.watchVerifiedCommunityResidents(currentUser);
   }
 
+  /// Connections feature: streams accepted connections for the current resident.
   Stream<List<ConnectionModel>> watchMyConnections(AppUser currentUser) {
     return _watchConnections(
       _connections
@@ -144,6 +153,7 @@ class ConnectionService {
     );
   }
 
+  /// Connections feature: streams pending requests sent to the current resident.
   Stream<List<ConnectionModel>> watchIncomingRequests(AppUser currentUser) {
     return _watchConnections(
       _connections
@@ -153,6 +163,7 @@ class ConnectionService {
     );
   }
 
+  /// Connections feature: streams pending requests sent by the current resident.
   Stream<List<ConnectionModel>> watchOutgoingRequests(AppUser currentUser) {
     return _watchConnections(
       _connections
@@ -162,6 +173,7 @@ class ConnectionService {
     );
   }
 
+  /// Connections feature: applies community filtering and sorting to connection query streams.
   Stream<List<ConnectionModel>> _watchConnections(
     Query<Map<String, dynamic>> query, {
     required String communityId,
@@ -177,6 +189,7 @@ class ConnectionService {
     });
   }
 
+  /// Connections feature: validates recipient ownership before accepting or declining a pending request.
   Future<void> _updatePendingRequest({
     required String connectionId,
     required String currentUserId,
@@ -205,6 +218,7 @@ class ConnectionService {
     // Acceptance notifications are created server-side by Cloud Functions.
   }
 
+  /// Connections security: ensures residents are verified, distinct, and in the same community.
   void _validateParticipants({
     required AppUser fromUser,
     required AppUser toUser,

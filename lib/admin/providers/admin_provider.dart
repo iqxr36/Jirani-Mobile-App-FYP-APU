@@ -13,6 +13,7 @@ import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/admin/services/admin_service.dart';
 
+// Admin portal feature: coordinates dashboard state, scoped realtime streams, verification, reports, residents, and payout actions.
 class AdminProvider extends ChangeNotifier {
   AdminProvider({AdminService? service}) : _service = service ?? AdminService();
 
@@ -61,6 +62,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isConfigured => _isConfigured;
   String? get currentAdminUid => _service.currentAdminUid;
 
+  // Admin portal feature: configures community scope from the signed-in admin before starting streams.
   void configureForAdmin(AdminUser admin) {
     final nextIncludeAll = admin.role == AppConstants.roleSystemAdmin;
     final nextCommunityId = admin.communityId.trim();
@@ -81,6 +83,7 @@ class AdminProvider extends ChangeNotifier {
     loadDashboardStats();
   }
 
+  // Admin verification feature: streams verification requests for the selected status and admin community scope.
   void watchVerificationRequests({String status = 'submitted'}) {
     _selectedStatusFilter = status;
     _requestsSub?.cancel();
@@ -109,6 +112,7 @@ class AdminProvider extends ChangeNotifier {
         );
   }
 
+  // Admin verification feature: loads one request for the review detail screen.
   Future<void> loadVerificationRequestById(String requestId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -123,6 +127,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin dashboard feature: starts all realtime collections used by overview, reports, listings, residents, and transactions.
   void watchAdminCollections() {
     _residentsSub?.cancel();
     _listingsSub?.cancel();
@@ -179,6 +184,7 @@ class AdminProvider extends ChangeNotifier {
     }, onError: _handleStreamError);
   }
 
+  // Admin verification feature: approves a resident proof request and refreshes dashboard counts.
   Future<void> approveRequest({
     required VerificationRequest request,
     required String adminUid,
@@ -214,6 +220,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin verification feature: rejects a resident proof request with an admin reason.
   Future<void> rejectRequest({
     required VerificationRequest request,
     required String adminUid,
@@ -249,6 +256,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin reports feature: resolves a marketplace complaint/dispute for borrower or lender.
   Future<void> resolveMarketplaceDispute({
     required ReportModel report,
     required BorrowRequest borrowRequest,
@@ -284,6 +292,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin reports feature: closes a report without taking further action.
   Future<void> dismissReport({
     required ReportModel report,
     required String adminUid,
@@ -312,6 +321,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin reports feature: sends a warning notification to the reported resident.
   Future<void> issueUserWarningForReport({
     required ReportModel report,
     required String adminUid,
@@ -340,6 +350,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin deposit feature: decides how much of a disputed deposit is refunded or awarded to the lender.
   Future<void> resolveMarketplaceDeposit({
     required BorrowRequest borrowRequest,
     required String decision,
@@ -375,6 +386,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin payout feature: marks a manual lender payout as paid after the lender collects it from admin.
   Future<void> markManualPayoutPaid({
     required BorrowRequest borrowRequest,
     required String reference,
@@ -406,6 +418,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin residents feature: updates resident profile/contact/community fields.
   Future<bool> updateResidentDetails({
     required AppUser resident,
     required String adminUid,
@@ -431,6 +444,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: suspends a resident and blocks normal app access.
   Future<bool> suspendResident({
     required AppUser resident,
     required String adminUid,
@@ -446,6 +460,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: reactivates a previously suspended resident.
   Future<bool> reactivateResident({
     required AppUser resident,
     required String adminUid,
@@ -459,6 +474,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: archives a resident account while preserving history.
   Future<bool> archiveResident({
     required AppUser resident,
     required String adminUid,
@@ -474,6 +490,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: restores an archived resident account.
   Future<bool> unarchiveResident({
     required AppUser resident,
     required String adminUid,
@@ -487,6 +504,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: resets a resident's verification so they must submit proof again.
   Future<bool> resetResidentVerification({
     required AppUser resident,
     required String adminUid,
@@ -502,6 +520,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: manually overrides a resident verification status.
   Future<bool> overrideResidentVerification({
     required AppUser resident,
     required String adminUid,
@@ -519,6 +538,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin residents feature: sends a direct admin notice notification to one resident.
   Future<bool> sendResidentNotice({
     required AppUser resident,
     required String adminUid,
@@ -536,6 +556,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin dashboard feature: fetches aggregate counts from Firestore for dashboard cards.
   Future<void> loadDashboardStats() async {
     try {
       _dashboardStats = await _service.getAdminDashboardStats(
@@ -550,21 +571,25 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin verification feature: changes the verification inbox filter and restarts the request stream.
   void setStatusFilter(String status) {
     _selectedStatusFilter = status;
     watchVerificationRequests(status: status);
   }
 
+  // Admin UI state: clears the latest portal error after it is shown.
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Admin UI state: stores realtime stream failures for SnackBars or inline errors.
   void _handleStreamError(Object e) {
     _errorMessage = e.toString();
     notifyListeners();
   }
 
+  // Admin residents feature: enforces admin community scope and wraps resident mutations with loading/error state.
   Future<bool> _runResidentAction(
     AppUser resident,
     Future<void> Function() action,
@@ -590,6 +615,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // Admin dashboard feature: recomputes visible counts from current realtime lists.
   void _refreshLocalDashboardStats() {
     final visibleReports = _visibleReports;
     final submitted = _verificationRequests
@@ -635,9 +661,11 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Admin scoping feature: caches the resident IDs visible to this admin's community.
   Set<String> get _communityResidentIds =>
       _residents.map((resident) => resident.uid).toSet();
 
+  // Admin scoping feature: checks whether either related resident belongs to the admin's visible community.
   bool _belongsToVisibleResident(String firstId, [String secondId = '']) {
     if (_includeAllCommunities) return true;
     final residentIds = _communityResidentIds;
@@ -646,6 +674,7 @@ class AdminProvider extends ChangeNotifier {
         (secondId.isNotEmpty && residentIds.contains(secondId));
   }
 
+  // Admin scoping feature: filters services to this admin's community unless they are a system admin.
   List<ServiceModel> get _visibleServices {
     if (_includeAllCommunities) return _services;
     return _services
@@ -653,6 +682,7 @@ class AdminProvider extends ChangeNotifier {
         .toList();
   }
 
+  // Admin scoping feature: filters reports to visible residents for community admins.
   List<ReportModel> get _visibleReports {
     if (_includeAllCommunities) return _reports;
     return _reports
@@ -665,6 +695,7 @@ class AdminProvider extends ChangeNotifier {
         .toList();
   }
 
+  // Admin scoping feature: filters marketplace transactions to visible residents for community admins.
   List<BorrowRequest> get _visibleBorrowRequests {
     if (_includeAllCommunities) return _borrowRequests;
     return _borrowRequests
@@ -675,6 +706,7 @@ class AdminProvider extends ChangeNotifier {
         .toList();
   }
 
+  // Admin scoping feature: filters service requests to visible residents for community admins.
   List<ServiceRequestModel> get _visibleServiceRequests {
     if (_includeAllCommunities) return _serviceRequests;
     return _serviceRequests
@@ -687,6 +719,7 @@ class AdminProvider extends ChangeNotifier {
         .toList();
   }
 
+  // Admin scoping feature: verifies a verification request belongs to the admin's community.
   bool _requestIsInAdminScope(VerificationRequest request) {
     if (_includeAllCommunities) return true;
     if (_communityId.isNotEmpty && request.communityId == _communityId) {
@@ -698,11 +731,13 @@ class AdminProvider extends ChangeNotifier {
     return false;
   }
 
+  // Admin scoping feature: verifies a report involves a resident visible to this admin.
   bool _reportIsInAdminScope(ReportModel report) {
     if (_includeAllCommunities) return true;
     return _belongsToVisibleResident(report.reporterId, report.reportedUserId);
   }
 
+  // Admin scoping feature: verifies a resident belongs to the admin's community before mutation.
   bool _residentIsInAdminScope(AppUser resident) {
     if (_includeAllCommunities) return true;
     if (_communityId.isNotEmpty && resident.communityId == _communityId) {

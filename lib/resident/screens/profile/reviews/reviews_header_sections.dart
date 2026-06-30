@@ -7,25 +7,30 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _CircleIconButton(
-          icon: Icons.arrow_back_rounded,
-          tooltip: 'Back',
-          onTap: onBack,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _CircleIconButton(
+              icon: Icons.chevron_left_rounded,
+              tooltip: 'Back',
+              onTap: onBack,
+            ),
+          ),
+          const Text(
             'Ratings & Reviews',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: context.appInk,
+              color: _kBrandTeal,
               fontSize: 26,
               fontWeight: FontWeight.w900,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

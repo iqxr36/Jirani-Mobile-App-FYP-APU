@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:jirani/shared/services/report_service.dart';
 
+// Report feature: submits resident reports to the admin reports inbox.
 class ReportProvider extends ChangeNotifier {
   ReportProvider({ReportService? service})
     : _service = service ?? ReportService();
@@ -10,6 +11,7 @@ class ReportProvider extends ChangeNotifier {
   bool _busy = false;
   bool get isSubmitting => _busy;
 
+  // Report feature: creates a marketplace/report document with the involved users and item/request context.
   Future<void> createReport({
     required String type,
     required String relatedBorrowRequestId,

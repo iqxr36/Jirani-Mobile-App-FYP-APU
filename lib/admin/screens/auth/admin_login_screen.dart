@@ -5,6 +5,7 @@ import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
+// Admin authentication UI feature: separate login screen for community/system admins.
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
 
@@ -26,6 +27,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     super.dispose();
   }
 
+  // Admin authentication UI feature: validates credentials and signs the admin into the portal.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _localError = null);
@@ -288,6 +290,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     );
   }
 
+  // Admin authentication UI feature: sends a password reset email for admin accounts.
   Future<void> _sendResetEmail(AuthProvider auth) async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {

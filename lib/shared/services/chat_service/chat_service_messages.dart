@@ -1,6 +1,7 @@
 part of '../chat_service.dart';
 
 mixin _ChatServiceMessagesMixin on _ChatServiceBase {
+  /// Chat messages: sends a text message and optional reply metadata.
   Future<void> sendTextMessage({
     required ChatModel chat,
     required AppUser sender,
@@ -18,6 +19,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     );
   }
 
+  /// Chat attachments: uploads image/file data to Storage, then sends the attachment message document.
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
     required AppUser sender,
@@ -137,6 +139,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     );
   }
 
+  /// Chat pinning: saves a message snapshot on the chat document so both users see it pinned.
   Future<void> pinMessage({
     required ChatModel chat,
     required AppUser user,
@@ -155,6 +158,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     });
   }
 
+  /// Chat pinning: clears pinned message metadata from the chat document.
   Future<void> unpinMessage({
     required ChatModel chat,
     required AppUser user,
@@ -168,6 +172,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     });
   }
 
+  /// Chat messages: hides one message for one user without deleting it for the other participant.
   Future<void> deleteMessageForUser({
     required ChatModel chat,
     required String messageId,
@@ -204,6 +209,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     }
   }
 
+  /// Chat read receipts: clears unread count and marks recent incoming messages read by the current user.
   Future<void> markChatRead({
     required ChatModel chat,
     required String currentUserId,
@@ -265,6 +271,7 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     await batch.commit();
   }
 
+  /// Chat messages: writes the message and updates chat preview/unread counters in one Firestore batch.
   Future<void> _sendMessage({
     required ChatModel chat,
     required AppUser sender,

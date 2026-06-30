@@ -1,7 +1,9 @@
 part of '../admin_service.dart';
 
+// Admin reports feature: resolves marketplace reports, dismisses reports, and sends warning notifications.
 mixin _AdminServiceReportsMixin
     on _AdminServiceBase, _AdminServicePaymentsMixin {
+  // Admin marketplace dispute feature: resolves a disputed borrow request and delegates Stripe deposit cases to backend.
   Future<void> resolveMarketplaceDispute({
     required String reportId,
     required String borrowRequestId,
@@ -122,6 +124,7 @@ mixin _AdminServiceReportsMixin
     }
   }
 
+  // Admin reports feature: marks a report dismissed with an admin reason.
   Future<void> dismissReport({
     required String reportId,
     required String adminUid,
@@ -159,6 +162,7 @@ mixin _AdminServiceReportsMixin
     }
   }
 
+  // Admin reports feature: sends a warning notification to the reported user and increments warning count.
   Future<void> issueUserWarningForReport({
     required String reportId,
     required String adminUid,

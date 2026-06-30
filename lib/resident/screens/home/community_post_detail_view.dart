@@ -64,7 +64,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   children: [
                     IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      icon: const Icon(Icons.chevron_left_rounded),
                       color: _kBrandTeal,
                     ),
                     const Expanded(

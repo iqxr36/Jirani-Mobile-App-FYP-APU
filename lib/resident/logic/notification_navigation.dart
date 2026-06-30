@@ -15,6 +15,7 @@ import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
 
+/// Notifications feature: converts raw FCM push payload data into the same model used by in-app notification taps.
 Future<void> navigateFromPushData(
   BuildContext context,
   Map<String, dynamic> data,
@@ -44,6 +45,7 @@ Future<void> navigateFromPushData(
   );
 }
 
+/// Notifications feature: routes each notification type to its resident destination screen.
 Future<void> navigateFromNotification(
   BuildContext context,
   NotificationModel notification,
@@ -89,6 +91,7 @@ Future<void> navigateFromNotification(
   }
 }
 
+/// Chat notifications: opens the specific thread when available, otherwise falls back to the messages inbox.
 Future<void> _openChatNotification(
   BuildContext context,
   NotificationModel notification,
@@ -120,6 +123,7 @@ Future<void> _openChatNotification(
   );
 }
 
+/// Marketplace notifications: opens borrower transaction view or lender request detail based on notification type and user role.
 Future<void> _openBorrowNotification(
   BuildContext context,
   NotificationModel notification,
@@ -149,6 +153,7 @@ Future<void> _openBorrowNotification(
   }
 
   final currentUser = context.read<AuthViewModel>().currentUser;
+  // Marketplace deposit notifications: payout events and lender-side deposit decisions must open the lender detail screen.
   final opensLenderDetail =
       notification.type == AppConstants.notificationTypeBorrowRequest ||
       notification.type == AppConstants.notificationTypeBorrowPayoutReady ||
@@ -172,6 +177,7 @@ Future<void> _openBorrowNotification(
   );
 }
 
+/// Community notifications: opens a specific community post when the notification includes a post id.
 Future<void> _openCommunityNotification(
   BuildContext context,
   NotificationModel notification,
@@ -193,6 +199,7 @@ Future<void> _openCommunityNotification(
   );
 }
 
+/// Notifications feature: fallback destination when a notification cannot be deep-linked safely.
 Future<void> _openNotificationsInbox(BuildContext context) {
   return Navigator.of(context).push<void>(
     MaterialPageRoute<void>(

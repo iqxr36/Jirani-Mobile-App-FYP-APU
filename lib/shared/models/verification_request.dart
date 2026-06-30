@@ -64,6 +64,7 @@ class VerificationRequest {
   final DateTime? processedAt;
   final String? errorMessage;
 
+  /// Verification feature: creates an updated request object while preserving unchanged OCR/manual-review fields.
   VerificationRequest copyWith({
     String? id,
     String? userId,
@@ -171,6 +172,7 @@ class VerificationRequest {
     };
   }
 
+  /// Verification DB model: reads Firestore request data, including legacy upload fields and OCR/admin fields.
   factory VerificationRequest.fromMap(Map<String, dynamic> map) {
     final rawUserId = map['userId'] ?? map['residentUid'] ?? map['uid'];
     final rawDocumentUrl =
@@ -212,6 +214,7 @@ class VerificationRequest {
     );
   }
 
+  /// Verification DB model: converts required timestamp-like fields into DateTime.
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
@@ -220,6 +223,7 @@ class VerificationRequest {
     return DateTime.now();
   }
 
+  /// Verification DB model: converts optional reviewed/cancelled/OCR timestamps into nullable DateTime.
   static DateTime? _parseOptionalDate(dynamic value) {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();
@@ -229,6 +233,7 @@ class VerificationRequest {
     return null;
   }
 
+  /// Verification OCR: converts simple OCR field maps into string maps for older OCR data.
   static Map<String, String> _parseStringMap(dynamic value) {
     if (value is! Map) return const {};
     return value.map(
@@ -237,6 +242,7 @@ class VerificationRequest {
     );
   }
 
+  /// Verification OCR: converts structured extracted fields from Document AI/Gemini into typed field objects.
   static Map<String, ExtractedVerificationField> _parseExtractedFields(
     dynamic value,
   ) {
@@ -250,6 +256,7 @@ class VerificationRequest {
   }
 }
 
+/// Verification OCR model: one extracted document field with value, confidence, and source.
 class ExtractedVerificationField {
   const ExtractedVerificationField({
     required this.value,
@@ -269,6 +276,7 @@ class ExtractedVerificationField {
     };
   }
 
+  /// Verification OCR model: reads either structured field data or legacy plain values.
   factory ExtractedVerificationField.fromValue(dynamic value) {
     if (value is Map) {
       final rawConfidence = value['confidence'];
@@ -285,6 +293,7 @@ class ExtractedVerificationField {
   }
 }
 
+/// Verification OCR model: stores whether automatic checks passed or the request needs manual admin review.
 class AutoVerificationResult {
   const AutoVerificationResult({
     required this.eligible,
@@ -298,9 +307,13 @@ class AutoVerificationResult {
   final List<String> reasons;
   final Map<String, AutoVerificationCheck> checks;
 
+  /// Verification OCR: true when automatic matching could not confidently approve the resident.
   bool get requiresManualReview =>
       decision == 'manual_review' || (!eligible && reasons.isNotEmpty);
 
+  /// Verification DB model: serializes the request into verificationRequests/{requestId}.
+  /// Verification OCR model: serializes an extracted field for Firestore storage.
+  /// Verification OCR model: serializes the auto-verification decision and check details.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'eligible': eligible,
@@ -310,6 +323,7 @@ class AutoVerificationResult {
     };
   }
 
+  /// Verification OCR model: reads the auto-verification result saved by Cloud Functions.
   static AutoVerificationResult? fromValue(dynamic value) {
     if (value is! Map) return null;
     final rawReasons = value['reasons'];
@@ -332,6 +346,7 @@ class AutoVerificationResult {
   }
 }
 
+/// Verification OCR model: one automatic comparison between resident profile data and extracted document data.
 class AutoVerificationCheck {
   const AutoVerificationCheck({
     required this.passed,
@@ -347,6 +362,7 @@ class AutoVerificationCheck {
   final String source;
   final bool skipped;
 
+  /// Verification OCR model: serializes one automatic verification check.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'passed': passed,
@@ -357,6 +373,7 @@ class AutoVerificationCheck {
     };
   }
 
+  /// Verification OCR model: reads one automatic verification check from Firestore.
   factory AutoVerificationCheck.fromValue(dynamic value) {
     if (value is! Map) {
       return const AutoVerificationCheck(passed: false);

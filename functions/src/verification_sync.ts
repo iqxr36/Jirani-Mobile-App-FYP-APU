@@ -3,11 +3,13 @@ import * as admin from "firebase-admin";
 type Firestore = admin.firestore.Firestore;
 type DocumentData = admin.firestore.DocumentData;
 
+// Verification sync feature: checks whether a verification request has an uploaded proof document.
 function hasUploadedDocument(data: DocumentData): boolean {
   const documentUrl = data.documentUrl;
   return typeof documentUrl === "string" && documentUrl.trim().length > 0;
 }
 
+// Verification sync feature: returns true once a request is submitted and ready to update users/{uid}.
 export function verificationRequestReadyForUserSync(
   data: DocumentData | undefined,
 ): boolean {
@@ -15,6 +17,7 @@ export function verificationRequestReadyForUserSync(
   return data.status === "submitted" && hasUploadedDocument(data);
 }
 
+// Verification sync feature: detects the first time a verification request becomes submitted with a document.
 export function verificationRequestBecameReady(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -25,6 +28,7 @@ export function verificationRequestBecameReady(
   );
 }
 
+// Verification sync feature: detects when a resident cancels a verification request.
 export function verificationRequestBecameCancelled(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -33,6 +37,7 @@ export function verificationRequestBecameCancelled(
   return before.status !== "cancelled" && after.status === "cancelled";
 }
 
+// Verification sync feature: mirrors submitted request community/unit fields onto users/{uid}.
 export async function syncUserFromSubmittedVerificationRequest(
   db: Firestore,
   data: DocumentData,
@@ -65,6 +70,7 @@ export async function syncUserFromSubmittedVerificationRequest(
   await userRef.update(updates);
 }
 
+// Verification sync feature: resets users/{uid}.verificationStatus back to pending after request cancellation.
 export async function syncUserFromCancelledVerificationRequest(
   db: Firestore,
   data: DocumentData,

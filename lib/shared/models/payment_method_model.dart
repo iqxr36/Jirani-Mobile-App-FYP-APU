@@ -1,3 +1,4 @@
+/// Payments DB/UI model: safe saved-card metadata returned by Stripe, never raw card number, CVV, or full expiry.
 class PaymentMethodModel {
   const PaymentMethodModel({
     required this.id,
@@ -17,6 +18,7 @@ class PaymentMethodModel {
   final int expYear;
   final bool isDefault;
 
+  /// Payments feature: converts callable-function card metadata into the model used by resident screens.
   factory PaymentMethodModel.fromJson(Map<String, dynamic> json) {
     final stripeId = (json['stripePaymentMethodId'] as String?) ??
         (json['id'] as String?) ??
@@ -32,6 +34,7 @@ class PaymentMethodModel {
     );
   }
 
+  /// Payments feature: serializes only safe card metadata for Firestore/UI handoff.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -44,6 +47,7 @@ class PaymentMethodModel {
     };
   }
 
+  /// Payments feature: accepts Stripe/Firebase numeric fields whether they arrive as int, num, or string.
   static int _toInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();

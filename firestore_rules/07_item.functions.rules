@@ -129,6 +129,7 @@
           (isSystemAdmin() || adminCanAccessCommunity(resource.data.communityId))
         ) ||
         itemOwner() ||
+        canReadPublicProfileItem() ||
         (
           hasProfile() &&
           resource.data.communityId is string &&
@@ -136,3 +137,13 @@
         );
     }
 
+    function canReadPublicProfileItem() {
+      return isVerifiedResident() &&
+        resource.data.ownerId is string &&
+        resource.data.status == 'available' &&
+        resource.data.isArchived == false &&
+        exists(/databases/$(database)/documents/publicProfiles/$(resource.data.ownerId)) &&
+        canReadPublicProfile(
+          get(/databases/$(database)/documents/publicProfiles/$(resource.data.ownerId)).data
+        );
+    }

@@ -21,6 +21,7 @@ part 'admin_service/admin_service_stats.dart';
 part 'admin_service/admin_service_residents.dart';
 part 'admin_service/admin_service_payments.dart';
 
+// Admin service base: shares Firebase Auth, Firestore, and Functions clients across admin service mixins.
 abstract class _AdminServiceBase {
   _AdminServiceBase({
     FirebaseAuth? auth,
@@ -36,6 +37,7 @@ abstract class _AdminServiceBase {
   final FirebaseFunctions _functions;
 }
 
+// Admin service facade: combines watcher, verification, report, resident, stats, and payment operations for the portal.
 class AdminService extends _AdminServiceBase
     with
         _AdminServiceWatchersMixin,

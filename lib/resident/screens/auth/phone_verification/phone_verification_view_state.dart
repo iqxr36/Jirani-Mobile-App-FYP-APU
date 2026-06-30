@@ -1,5 +1,6 @@
 part of '../phone_verification_view.dart';
 
+// Phone verification UI feature: manages OTP entry, resend cooldown, and Firebase phone credential linking.
 class _PhoneVerificationViewState extends State<PhoneVerificationView> {
   late final List<TextEditingController> _otpControllers;
   late final List<FocusNode> _focusNodes;
@@ -50,6 +51,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     super.dispose();
   }
 
+  // Phone verification UI feature: starts the SMS resend countdown.
   void _startCountdown() {
     _timer?.cancel();
     setState(() => _secondsRemaining = 60);
@@ -64,6 +66,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     });
   }
 
+  // Phone verification UI feature: asks Firebase to send or resend an SMS verification code.
   Future<void> _requestCode({bool forceResend = false}) async {
     final phone = widget.phoneNumber.trim();
     if (phone.isEmpty) {
@@ -128,6 +131,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     }
   }
 
+  // Phone verification UI feature: handles Android automatic SMS verification and links the credential.
   Future<void> _handleAutoVerifiedCredential(
     PhoneAuthCredential credential,
   ) async {
@@ -165,6 +169,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     }
   }
 
+  // Phone verification UI feature: moves focus and stores digit input across the OTP boxes.
   void _onOtpChanged(int index, String raw) {
     final digitsOnly = raw.replaceAll(RegExp(r'\D'), '');
 
@@ -199,6 +204,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     });
   }
 
+  // Phone verification UI feature: spreads pasted OTP digits across remaining boxes.
   void _distributeFromIndex(int start, String digits) {
     final chars = digits.split('');
     for (var i = 0; i < chars.length && start + i < 6; i++) {
@@ -212,6 +218,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     }
   }
 
+  // Phone verification UI feature: validates OTP digits and links the phone credential to Firebase Auth.
   Future<void> _handleContinue() async {
     final codeError = Validators.validateSixDigitCode(_otpCode);
     if (!_isOtpComplete || codeError != null) {
@@ -265,6 +272,7 @@ class _PhoneVerificationViewState extends State<PhoneVerificationView> {
     }
   }
 
+  // Phone verification UI feature: restarts SMS verification after resend is allowed.
   Future<void> _handleResendCode() async {
     if (_secondsRemaining > 0) {
       setState(() {

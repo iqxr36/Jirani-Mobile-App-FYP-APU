@@ -10,9 +10,11 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 420;
 
+// Chat UI feature: lets a resident choose an accepted neighbor to start or reopen a chat.
 class ResidentNewChatView extends StatelessWidget {
   const ResidentNewChatView({super.key});
 
+  // Chat UI feature: opens or creates the chat with the selected neighbor and navigates to the thread.
   Future<void> _startChat(BuildContext context, AppUser neighbor) async {
     final chatProvider = context.read<ChatProvider>();
     final messenger = ScaffoldMessenger.of(context);

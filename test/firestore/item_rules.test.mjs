@@ -87,6 +87,16 @@ before(async () => {
       communityName: 'Other Place',
       updatedAt: new Date(),
     });
+    await setDoc(doc(db, 'publicProfiles', OWNER_ID), {
+      uid: OWNER_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      fullName: 'Item Owner',
+      totalReviews: 0,
+      updatedAt: new Date(),
+    });
     await setDoc(doc(db, 'items', ITEM_ID), baseItem);
     await setDoc(doc(db, 'items', 'item-locked'), {
       ...baseItem,
@@ -231,8 +241,36 @@ describe('item delete and neighbor access', () => {
     await assertSucceeds(getDoc(doc(db, 'items', ITEM_ID)));
   });
 
+  test('neighbor can list public profile active listings by owner and availability', async () => {
+    const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'items'),
+          where('ownerId', '==', OWNER_ID),
+          where('status', '==', 'available'),
+          where('isArchived', '==', false),
+        ),
+      ),
+    );
+  });
+
   test('resident in another community cannot read marketplace items', async () => {
     const db = testEnv.authenticatedContext(OUTSIDER_ID).firestore();
     await assertFails(getDoc(doc(db, 'items', ITEM_ID)));
+  });
+
+  test('resident in another community cannot list public profile active listings', async () => {
+    const db = testEnv.authenticatedContext(OUTSIDER_ID).firestore();
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'items'),
+          where('ownerId', '==', OWNER_ID),
+          where('status', '==', 'available'),
+          where('isArchived', '==', false),
+        ),
+      ),
+    );
   });
 });

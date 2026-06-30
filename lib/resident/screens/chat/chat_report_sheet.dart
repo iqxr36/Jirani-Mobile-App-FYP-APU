@@ -6,6 +6,7 @@ import 'package:jirani/shared/utils/chat_report_formatters.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
+// Report UI feature: carries the chat report category, note, and message-selection choice back to the thread screen.
 class ChatReportSubmission {
   const ChatReportSubmission({
     required this.category,
@@ -32,6 +33,7 @@ Future<ChatReportSubmission?> showChatReportSheet(
   );
 }
 
+// Report UI feature: dialog used to submit chat/message reports to admin.
 class _ChatReportDialog extends StatefulWidget {
   const _ChatReportDialog({
     required this.title,
@@ -57,6 +59,7 @@ class _ChatReportDialogState extends State<_ChatReportDialog> {
     super.dispose();
   }
 
+  // Report UI feature: validates the report form and returns the report submission data.
   void _submit() {
     final category = _selectedCategory;
     if (category == null) return;

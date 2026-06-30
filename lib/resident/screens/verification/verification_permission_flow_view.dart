@@ -8,6 +8,7 @@ import 'package:jirani/resident/screens/permissions/photos_documents_permission_
 enum VerificationPermissionStage { location, camera, photosDocuments }
 
 /// Routes the once-per-install verification permission sequence.
+// Verification onboarding feature: routes residents through notification, camera, photos, and document upload steps.
 class VerificationPermissionFlowView extends StatefulWidget {
   const VerificationPermissionFlowView({
     super.key,
@@ -29,12 +30,14 @@ class _VerificationPermissionFlowViewState
     WidgetsBinding.instance.addPostFrameCallback((_) => _routeNext());
   }
 
+  // Verification onboarding feature: computes and opens the next required permission/upload screen.
   Future<void> _routeNext() async {
     final route = await _nextRoute();
     if (!mounted) return;
     await Navigator.of(context).pushReplacement<void, void>(route);
   }
 
+  // Verification onboarding feature: chooses which permission screen is next based on saved preferences.
   Future<MaterialPageRoute<void>> _nextRoute() async {
     final shouldStartAtLocation =
         widget.startAt == VerificationPermissionStage.location;

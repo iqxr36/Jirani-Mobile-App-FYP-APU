@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
+// Community selection feature: lets a resident choose their community before geofence and residency verification.
 class CommunityConfirmationView extends StatefulWidget {
   const CommunityConfirmationView({super.key, this.communityReader});
 
@@ -42,6 +43,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     _loadCommunities();
   }
 
+  // Community selection feature: loads active communities from Firestore for the selection list.
   Future<void> _loadCommunities() async {
     try {
       final communities = await _communityReader.fetchActiveCommunities();
@@ -88,6 +90,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     return _communities.isEmpty ? null : _communities.first;
   }
 
+  // Community selection feature: updates the resident's selected community and cancels old verification when needed.
   Future<void> _changeCommunity(AuthViewModel viewModel) async {
     final current = _currentSelection(viewModel);
     final selected = await showJiraniModalBottomSheet<CommunityModel>(
@@ -121,6 +124,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     }
   }
 
+  // Community selection feature: detects whether changing community will reset an existing verification request.
   bool _needsCommunityChangeWarning(
     AuthViewModel viewModel,
     CommunityModel community,
@@ -131,6 +135,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     );
   }
 
+  // Community selection feature: confirms destructive verification reset before changing community.
   Future<bool> _confirmCommunityChange(
     AuthViewModel viewModel,
     CommunityModel community,
@@ -151,6 +156,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     return confirmed ?? false;
   }
 
+  // Community selection feature: saves selected community and advances to location/geofence verification.
   Future<void> _continue(AuthViewModel viewModel) async {
     if (_isContinuing) return;
     final community = _currentSelection(viewModel);
@@ -209,6 +215,7 @@ class _CommunityConfirmationViewState extends State<CommunityConfirmationView> {
     }
   }
 
+  // Geofence feature: starts native background monitoring for the selected community boundary.
   Future<void> _startNativeMonitoring(CommunityModel selectedCommunity) async {
     try {
       final canRunInBackground = await GeofenceManager.instance

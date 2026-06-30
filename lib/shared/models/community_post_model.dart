@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Community news DB model: represents communityPosts/{postId} announcements, warnings, events, maintenance, and news.
 class CommunityPostModel {
   const CommunityPostModel({
     required this.id,
@@ -36,6 +37,7 @@ class CommunityPostModel {
   bool get isPublished => status == AppConstants.communityPostStatusPublished;
   bool get isDraft => status == AppConstants.communityPostStatusDraft;
 
+  /// Community news UI: maps post type constants to readable labels.
   String get displayCategory {
     return switch (type) {
       AppConstants.communityPostTypeAnnouncement => 'Announcement',
@@ -46,6 +48,7 @@ class CommunityPostModel {
     };
   }
 
+  /// Community news UI: maps post type constants to icons.
   IconData get icon {
     return switch (type) {
       AppConstants.communityPostTypeAnnouncement =>
@@ -57,6 +60,7 @@ class CommunityPostModel {
     };
   }
 
+  /// Community news UI: maps post type constants to accent colors.
   Color get accentColor {
     return switch (type) {
       AppConstants.communityPostTypeAnnouncement => const Color(0xFF006D77),
@@ -67,6 +71,7 @@ class CommunityPostModel {
     };
   }
 
+  /// Community notifications: maps post type to the notification type sent when a post is published.
   String get notificationType {
     return switch (type) {
       AppConstants.communityPostTypeAnnouncement =>
@@ -81,6 +86,7 @@ class CommunityPostModel {
     };
   }
 
+  /// Community news DB model: converts Firestore post data into a CommunityPostModel.
   factory CommunityPostModel.fromMap(String id, Map<String, dynamic> data) {
     return CommunityPostModel(
       id: id,
@@ -100,6 +106,7 @@ class CommunityPostModel {
     );
   }
 
+  /// Community news DB model: serializes a post draft/published post for Firestore creation.
   Map<String, dynamic> toCreateMap() {
     return {
       'communityId': communityId,

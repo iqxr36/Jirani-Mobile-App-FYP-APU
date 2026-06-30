@@ -1,6 +1,8 @@
 part of '../admin_service.dart';
 
+// Admin verification feature: writes approval/rejection decisions to verificationRequests and users.
 mixin _AdminServiceVerificationMixin on _AdminServiceBase {
+  // Admin verification feature: reads one verification request for the detail review page.
   Future<VerificationRequest?> getVerificationRequestById(
     String requestId,
   ) async {
@@ -18,6 +20,7 @@ mixin _AdminServiceVerificationMixin on _AdminServiceBase {
     return mapped;
   }
 
+  // Admin verification feature: approves residency proof, marks the user verified, and logs admin activity.
   Future<void> approveVerificationRequest({
     required String requestId,
     required String residentUid,
@@ -91,6 +94,7 @@ mixin _AdminServiceVerificationMixin on _AdminServiceBase {
     }
   }
 
+  // Admin verification feature: rejects residency proof, stores the reason, and logs admin activity.
   Future<void> rejectVerificationRequest({
     required String requestId,
     required String residentUid,
@@ -164,6 +168,7 @@ mixin _AdminServiceVerificationMixin on _AdminServiceBase {
     }
   }
 
+  // Admin verification OCR feature: builds Firestore updates for OCR fields corrected by the admin.
   Map<String, dynamic> _reviewedOcrUpdates(
     ExtractedDocumentData data,
     String adminUid,
@@ -179,6 +184,7 @@ mixin _AdminServiceVerificationMixin on _AdminServiceBase {
     };
   }
 
+  // Admin verification OCR feature: converts typed review form values into extractedFields map entries.
   Map<String, dynamic> _reviewedExtractedFields(ExtractedDocumentData data) {
     final fields = <String, dynamic>{};
     void add(String key, String? value) {

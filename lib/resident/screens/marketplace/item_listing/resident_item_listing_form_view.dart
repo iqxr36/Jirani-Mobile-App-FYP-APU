@@ -86,7 +86,7 @@ class _ResidentItemListingFormViewState
                       child: Row(
                         children: [
                           _CircleIconButton(
-                            icon: Icons.arrow_back_rounded,
+                            icon: Icons.chevron_left_rounded,
                             tooltip: _step == 0 ? 'Back' : 'Item details',
                             onTap: _submitting
                                 ? null

@@ -30,6 +30,7 @@ const geminiLocation = defineString("GEMINI_LOCATION", {
   default: "asia-southeast1",
 });
 
+// Verification OCR feature: processes submitted verification documents with Document AI, Gemini extraction, and admin notification.
 export const processVerificationRequestOcr = onDocumentWritten(
   {
     document: "verificationRequests/{requestId}",
@@ -225,10 +226,12 @@ export const processVerificationRequestOcr = onDocumentWritten(
   },
 );
 
+// Verification OCR feature: safely reads trimmed string values from Firestore data.
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+// Verification OCR feature: extracts a Firebase/GCS bucket name from legacy document URLs.
 function storageBucketFromUrl(value: string): string {
   if (!value) return "";
 
@@ -254,6 +257,7 @@ function storageBucketFromUrl(value: string): string {
   return "";
 }
 
+// Verification OCR feature: builds a resident display name for OCR admin notifications.
 function residentNameFromUser(user: VerificationUserLike | undefined): string {
   if (!user) return "Resident";
   const fullName = stringValue(user.fullName);
@@ -263,6 +267,7 @@ function residentNameFromUser(user: VerificationUserLike | undefined): string {
   return `${firstName} ${lastName}`.trim() || "Resident";
 }
 
+// Verification OCR feature: notifies scoped admins when OCR matched details or requires manual review.
 async function notifyAdminsForOcrResult(
   db: admin.firestore.Firestore,
   params: {

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 
+/// Notifications service: reads in-app notifications and provides client-created notification helpers.
 class NotificationService {
   NotificationService({
     FirebaseAuth? auth,
@@ -20,6 +21,7 @@ class NotificationService {
 
   String? get _currentUid => _auth.currentUser?.uid;
 
+  /// Notifications inbox: streams the latest notifications for one user.
   Stream<List<NotificationModel>> watchNotifications(
     String userId, {
     int limit = defaultLimit,
@@ -36,6 +38,7 @@ class NotificationService {
         );
   }
 
+  /// Notifications badge: streams unread count for the resident/admin header badge.
   Stream<int> watchUnreadCount(String userId) {
     return _notifications
         .where('userId', isEqualTo: userId)
@@ -44,6 +47,7 @@ class NotificationService {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  /// Notifications feature: creates a generic in-app notification, skipping self-notifications.
   Future<void> create({
     required String userId,
     required String type,
@@ -85,6 +89,7 @@ class NotificationService {
     await _notifications.add(notification.toCreateMap(actorId: resolvedActorId));
   }
 
+  /// Chat notifications: creates the resident-facing chat message notification payload.
   Future<void> createChatMessageNotification({
     required String recipientId,
     required String senderId,
@@ -103,10 +108,12 @@ class NotificationService {
     );
   }
 
+  /// Notifications inbox: marks one notification as read.
   Future<void> markRead(String notificationId) async {
     await _notifications.doc(notificationId).update({'read': true});
   }
 
+  /// Notifications inbox: marks all unread notifications for one user as read in a batch.
   Future<void> markAllRead(String userId) async {
     final unread = await _notifications
         .where('userId', isEqualTo: userId)

@@ -15,6 +15,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const double _kCardMaxWidth = 390;
 const double _kFieldRadius = 11;
 
+// Resident authentication UI feature: email/password and social sign-in screen.
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -48,6 +49,7 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
+  // Resident authentication UI feature: validates and submits email/password login.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     authDebugLog('[ResidentLoginView] Login button pressed');
@@ -64,10 +66,12 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  // Resident authentication UI feature: starts Google sign-in and lets AuthWrapper route the authenticated user.
   Future<void> _googleSignIn() async {
     await context.read<AuthViewModel>().signInWithGoogle();
   }
 
+  // Resident authentication UI feature: starts Apple sign-in and lets AuthWrapper route the authenticated user.
   Future<void> _appleSignIn() async {
     await context.read<AuthViewModel>().signInWithApple();
   }

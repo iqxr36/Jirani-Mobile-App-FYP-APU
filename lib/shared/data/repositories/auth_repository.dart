@@ -1,7 +1,7 @@
-/// Data-layer convention: ViewModels and Providers depend on repositories under
-/// `shared/data/repositories/` for Firestore-backed entities. Orchestration lives
-/// in `shared/services/`; some repositories delegate to a service. UI must not
-/// import services directly.
+// Data-layer convention: ViewModels and Providers depend on repositories under
+// `shared/data/repositories/` for Firestore-backed entities. Orchestration lives
+// in `shared/services/`; some repositories delegate to a service. UI must not
+// import services directly.
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -15,6 +15,7 @@ import 'package:jirani/shared/models/admin_user.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/services/firebase_auth_service.dart';
 
+// Authentication data layer: coordinates Firebase Auth sessions with users/{uid} and admins/{uid} profile documents.
 class AuthRepository {
   AuthRepository({
     FirebaseAuthService? authService,
@@ -29,18 +30,22 @@ class AuthRepository {
   final FirebaseStorage _storage;
   static const Duration _networkTimeout = Duration(seconds: 30);
 
+  // Authentication feature: exposes Firebase session changes to AuthViewModel and AuthWrapper.
   Stream<User?> get authStateChanges => _authService.authStateChanges;
 
   User? get currentFirebaseUser => _authService.currentUser;
 
+  // Authentication feature: sends a Firebase password reset email for the login screen.
   Future<void> sendPasswordResetEmail(String email) {
     return _authService.sendPasswordResetEmail(email);
   }
 
+  // Authentication feature: resends Firebase email verification for residents who have not verified email yet.
   Future<void> resendEmailVerification() {
     return _authService.sendEmailVerification();
   }
 
+  // Authentication feature: reloads Firebase Auth and reads/synchronizes the resident users/{uid} profile.
   Future<AppUser?> getCurrentAppUser() async {
     authDebugLog('[AuthRepository.getCurrentAppUser] started');
     final user = _authService.currentUser;
@@ -105,6 +110,7 @@ class AuthRepository {
     return null;
   }
 
+  // Admin authentication feature: reads admins/{uid}, validates active role, and returns the admin profile.
   Future<AdminUser?> getCurrentAdminUser() async {
     authDebugLog('[AuthRepository.getCurrentAdminUser] started');
     final user = _authService.currentUser;
@@ -164,6 +170,7 @@ class AuthRepository {
     );
   }
 
+  // Profile feature: uploads resident/admin avatar bytes to Storage and returns the download URL.
   Future<String> uploadProfileImage({
     required String uid,
     required Uint8List bytes,
@@ -196,6 +203,7 @@ class AuthRepository {
     return ref.getDownloadURL().timeout(_networkTimeout);
   }
 
+  // Admin profile feature: stores the latest admin avatar URL on admins/{uid}.
   Future<void> updateAdminProfileImageUrl({
     required String uid,
     required String profileImageUrl,
@@ -206,6 +214,7 @@ class AuthRepository {
     });
   }
 
+  // Resident profile feature: starts Firebase's verified email-change flow and stores pendingEmail in Firestore.
   Future<void> updateResidentEmail(String newEmail) async {
     final firebaseUser = _authService.currentUser;
     if (firebaseUser == null) {
@@ -231,6 +240,7 @@ class AuthRepository {
     await _authService.reloadCurrentUser();
   }
 
+  // Admin authentication feature: maps and validates admin role/account status before entering the portal.
   AdminUser _mapAdminProfile(Map<String, dynamic> data) {
     final AdminUser admin;
     try {
@@ -253,6 +263,7 @@ class AuthRepository {
     return admin;
   }
 
+  // Resident registration feature: creates Firebase Auth user, sends email verification, and writes users/{uid}.
   Future<AppUser> register({
     required String firstName,
     required String lastName,
@@ -354,6 +365,7 @@ class AuthRepository {
     return AppUser.fromMap(data);
   }
 
+  // Authentication feature: signs in with email/password and reloads the Firebase session.
   Future<void> login({required String email, required String password}) async {
     authDebugLog('[AuthRepository.login] signIn started');
     final credential = await _authService.signInWithEmailAndPassword(
@@ -371,7 +383,7 @@ class AuthRepository {
     authDebugLog('[AuthRepository.login] firebase user reloaded');
   }
 
-  /// Google Sign-In. Returns `null` if the user cancelled the account picker.
+  // Authentication feature: signs in with Google and creates the resident profile if this OAuth user is new.
   Future<AppUser?> signInWithGoogle() async {
     authDebugLog('[AuthRepository.signInWithGoogle] started');
     final credential = await _authService.signInWithGoogle();
@@ -394,7 +406,7 @@ class AuthRepository {
     return appUser;
   }
 
-  /// Apple Sign-In. Returns `null` if the user cancelled.
+  // Authentication feature: signs in with Apple and creates the resident profile if this OAuth user is new.
   Future<AppUser?> signInWithApple() async {
     authDebugLog('[AuthRepository.signInWithApple] started');
     final AppleSignInFlowResult? result = await _authService.signInWithApple();
@@ -431,7 +443,7 @@ class AuthRepository {
     return appUser;
   }
 
-  /// Creates [users/{uid}] for OAuth users if missing; otherwise returns existing profile.
+  // OAuth profile feature: creates users/{uid} for first-time Google/Apple users or returns the existing profile.
   Future<AppUser> _ensureResidentProfileAfterOAuth(
     User firebaseUser, {
     required String preferredFullName,
@@ -491,6 +503,7 @@ class AuthRepository {
     throw Exception('Could not create your profile. Please try again.');
   }
 
+  // OAuth profile feature: splits provider displayName into first and last name fields for users/{uid}.
   (String, String) _splitName(String fullName) {
     final trimmed = fullName.trim();
     if (trimmed.isEmpty) return ('', '');
@@ -500,9 +513,7 @@ class AuthRepository {
     return (parts.first, parts.skip(1).join(' '));
   }
 
-  /// Links SMS credential to the current user (email/password account) and updates Firestore.
-  ///
-  /// Call after [FirebaseAuth.verifyPhoneNumber] provides [verificationId] and the user enters [smsCode].
+  // Phone verification feature: links an SMS code credential to the registered user and marks phoneVerified.
   Future<void> linkRegisteredUserWithPhoneSms({
     required String verificationId,
     required String smsCode,
@@ -540,6 +551,7 @@ class AuthRepository {
     await _authService.reloadCurrentUser();
   }
 
+  // Phone verification feature: links an already-built phone credential and updates the resident phone metadata.
   Future<void> linkRegisteredUserWithPhoneCredential({
     required PhoneAuthCredential credential,
     required String phoneNumber,
@@ -568,10 +580,12 @@ class AuthRepository {
     await _authService.reloadCurrentUser();
   }
 
+  // Authentication feature: signs the current Firebase user out.
   Future<void> logout() {
     return _authService.signOut();
   }
 
+  // Profile feature: normalizes avatar file extension before uploading to Firebase Storage.
   static String _profileImageExtension(String fileName) {
     final trimmed = fileName.trim().toLowerCase();
     final extension = trimmed.contains('.') ? trimmed.split('.').last : 'jpg';
@@ -581,6 +595,7 @@ class AuthRepository {
     };
   }
 
+  // Profile feature: maps avatar extension to Firebase Storage content type.
   static String _profileImageContentType(String extension) {
     return switch (extension) {
       'png' => 'image/png',

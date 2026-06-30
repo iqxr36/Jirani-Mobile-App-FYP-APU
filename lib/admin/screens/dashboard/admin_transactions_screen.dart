@@ -8,6 +8,8 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:provider/provider.dart';
 
+/// Admin payments screen: monitors marketplace deposits, unresolved disputes, manual payouts, and the platform ledger.
+// Admin transactions UI feature: shows marketplace payments, deposit resolutions, and manual lender payouts.
 class AdminTransactionsScreen extends StatelessWidget {
   const AdminTransactionsScreen({super.key});
 
@@ -100,6 +102,7 @@ class AdminTransactionsScreen extends StatelessWidget {
     );
   }
 
+  /// Admin payments: filters Stripe-paid disputed requests that still need a deposit refund/deduction decision.
   static bool _needsDepositResolution(BorrowRequest request) {
     final resolved = {
       AppConstants.depositStatusRefunded,
@@ -116,12 +119,16 @@ class AdminTransactionsScreen extends StatelessWidget {
   }
 }
 
+/// Admin payments UI: lists Stripe deposit disputes that admin must resolve.
+// Admin deposit UI feature: groups disputed deposits that need admin refund/deduction decisions.
 class _DepositResolutionPanel extends StatelessWidget {
   const _DepositResolutionPanel({required this.requests});
 
   final List<BorrowRequest> requests;
 
   @override
+  /// Admin payments UI: builds the deposit resolution queue, manual payout queue, and read-only ledger table.
+  /// Admin payments UI: renders deposit dispute cards or an empty state.
   Widget build(BuildContext context) {
     return AdminPanel(
       title: 'Deposit Resolution',
@@ -144,12 +151,15 @@ class _DepositResolutionPanel extends StatelessWidget {
   }
 }
 
+/// Admin payments UI: one disputed deposit card with full refund, partial deduction, and full deduction actions.
+// Admin deposit UI feature: shows one disputed deposit and opens the resolution dialog.
 class _DepositResolutionCard extends StatelessWidget {
   const _DepositResolutionCard({required this.request});
 
   final BorrowRequest request;
 
   @override
+  /// Admin payments UI: renders deposit facts and resolution buttons for one borrow request.
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
     final deposit = request.depositAmount ?? 0;
@@ -216,6 +226,8 @@ class _DepositResolutionCard extends StatelessWidget {
     );
   }
 
+  /// Admin payments: collects admin reason/deduction, then calls the backend deposit resolver.
+  // Admin deposit UI feature: collects decision, deduction amount, and reason before calling backend resolution.
   Future<void> _showDepositDialog(
     BuildContext context,
     BorrowRequest request,
@@ -299,12 +311,15 @@ class _DepositResolutionCard extends StatelessWidget {
   }
 }
 
+/// Admin payouts UI: lists lender earnings that must be paid manually outside Stripe Connect.
+// Admin payout UI feature: groups lender manual payouts waiting for collection or already paid.
 class _ManualPayoutPanel extends StatelessWidget {
   const _ManualPayoutPanel({required this.requests});
 
   final List<BorrowRequest> requests;
 
   @override
+  /// Admin payouts UI: renders pending manual payout cards or an empty state.
   Widget build(BuildContext context) {
     return AdminPanel(
       title: 'Manual Lender Payouts',
@@ -328,12 +343,15 @@ class _ManualPayoutPanel extends StatelessWidget {
   }
 }
 
+/// Admin payouts UI: one lender payout card showing item fee, damage deduction, and mark-paid action.
+// Admin payout UI feature: shows one lender payout and opens the mark-paid dialog.
 class _ManualPayoutCard extends StatelessWidget {
   const _ManualPayoutCard({required this.request});
 
   final BorrowRequest request;
 
   @override
+  /// Admin payouts UI: renders payout amount details and action button for one lender.
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
     return _AdminPaymentCard(
@@ -367,6 +385,8 @@ class _ManualPayoutCard extends StatelessWidget {
     );
   }
 
+  /// Admin payouts: collects optional reference/note and records that admin paid the lender manually.
+  // Admin payout UI feature: records payout reference/note when admin hands money to the lender.
   Future<void> _showPayoutDialog(
     BuildContext context,
     BorrowRequest request,
@@ -430,6 +450,7 @@ class _ManualPayoutCard extends StatelessWidget {
   }
 }
 
+/// Admin payments UI component: shared card for deposit resolution and manual payout queue rows.
 class _AdminPaymentCard extends StatelessWidget {
   const _AdminPaymentCard({
     required this.icon,

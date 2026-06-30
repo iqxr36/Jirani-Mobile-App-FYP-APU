@@ -240,39 +240,6 @@ class _CardImageStrip extends StatelessWidget {
   }
 }
 
-class _ItemImageGallery extends StatelessWidget {
-  const _ItemImageGallery({required this.item});
-
-  final ItemModel item;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: JiraniResponsive.scaled(context, 220),
-      child: Row(
-        children: [
-          Expanded(flex: 4, child: _ItemImage(url: _imageAt(item, 0))),
-          SizedBox(width: JiraniResponsive.scaled(context, 10)),
-          Expanded(
-            flex: 2,
-            child: Column(
-              children: [
-                Expanded(
-                  child: _ItemImage(url: _imageAt(item, 1), compact: true),
-                ),
-                SizedBox(height: JiraniResponsive.scaled(context, 10)),
-                Expanded(
-                  child: _ItemImage(url: _imageAt(item, 2), compact: true),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ItemImage extends StatelessWidget {
   const _ItemImage({required this.url, this.compact = false});
 

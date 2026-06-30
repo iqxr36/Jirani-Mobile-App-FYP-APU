@@ -12,6 +12,7 @@ const Color _brandTeal = Color(0xFF006D77);
 const double _maxContentWidth = 390;
 
 /// Email verification — Figma Group 19: illustration, card with timer + resend + copy, Continue.
+// Email verification UI feature: prompts the resident to verify their Firebase email address.
 class EmailVerificationView extends StatefulWidget {
   const EmailVerificationView({
     super.key,
@@ -73,6 +74,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     super.dispose();
   }
 
+  // Email verification UI feature: starts resend cooldown timer.
   void _startCountdown() {
     _timer?.cancel();
     setState(() => _secondsRemaining = 60);
@@ -102,6 +104,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     }
   }
 
+  // Email verification UI feature: resends Firebase verification link after cooldown or initial open.
   Future<void> _handleResendLink({bool force = false}) async {
     if ((!force && _secondsRemaining > 0) || _resendLoading) return;
     setState(() {
@@ -131,6 +134,7 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     }
   }
 
+  // Email verification UI feature: reloads auth state and continues only when email is verified.
   Future<void> _handleContinue() async {
     if (_continueLoading) return;
     setState(() {
@@ -182,8 +186,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _brandTeal,
-              fontSize: 25,
-              fontWeight: FontWeight.w600,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

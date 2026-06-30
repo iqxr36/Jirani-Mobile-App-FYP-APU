@@ -6,6 +6,7 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/data/repositories/item_repository.dart';
 
+// Marketplace listing feature: stores resident listing state and calls ItemRepository for item CRUD and image uploads.
 class ItemViewModel extends ChangeNotifier {
   ItemViewModel({ItemRepository? repository})
     : _repository = repository ?? ItemRepository();
@@ -32,6 +33,7 @@ class ItemViewModel extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   String get selectedCategoryFilter => _selectedCategoryFilter;
 
+  // Marketplace listing feature: streams available items using the current search/category/community filters.
   void watchAvailableItems({String? communityId}) {
     _communityIdFilter = communityId;
     _availableItemsSub?.cancel();
@@ -59,6 +61,7 @@ class ItemViewModel extends ChangeNotifier {
         );
   }
 
+  // Marketplace listing feature: streams listings owned by the signed-in lender.
   void watchMyItems() {
     _myItemsSub?.cancel();
     _isLoading = true;
@@ -79,6 +82,7 @@ class ItemViewModel extends ChangeNotifier {
     );
   }
 
+  // Marketplace listing feature: loads one listing for detail, borrow, or edit screens.
   Future<void> loadItemById(String itemId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -93,6 +97,7 @@ class ItemViewModel extends ChangeNotifier {
     }
   }
 
+  // Marketplace listing feature: creates a new lendable item with optional fee, deposit, and images.
   Future<void> addItem({
     required String title,
     required String description,
@@ -131,6 +136,7 @@ class ItemViewModel extends ChangeNotifier {
     }
   }
 
+  // Marketplace listing feature: updates listing details and refreshes the selected item after saving.
   Future<void> updateItem({
     required String itemId,
     required String title,
@@ -169,6 +175,7 @@ class ItemViewModel extends ChangeNotifier {
     }
   }
 
+  // Marketplace listing feature: hides a listing from borrowers without deleting its transaction history.
   Future<void> archiveItem(String itemId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -186,6 +193,7 @@ class ItemViewModel extends ChangeNotifier {
     }
   }
 
+  // Marketplace listing feature: restores an archived listing back to available status.
   Future<void> unarchiveItem(String itemId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -206,26 +214,31 @@ class ItemViewModel extends ChangeNotifier {
     }
   }
 
+  // Marketplace listing feature: updates the search filter and restarts the available-item stream.
   void setSearchQuery(String value) {
     _searchQuery = value;
     watchAvailableItems(communityId: _communityIdFilter);
   }
 
+  // Marketplace listing feature: updates the category filter and restarts the available-item stream.
   void setCategoryFilter(String value) {
     _selectedCategoryFilter = value;
     watchAvailableItems(communityId: _communityIdFilter);
   }
 
+  // Marketplace UI state: remembers the listing currently opened by the resident.
   void selectItem(ItemModel item) {
     _selectedItem = item;
     notifyListeners();
   }
 
+  // Marketplace UI state: clears the latest listing error after the UI shows it.
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Marketplace UI state: clears stale listing detail data when leaving detail/edit flows.
   void clearSelectedItem() {
     _selectedItem = null;
     notifyListeners();

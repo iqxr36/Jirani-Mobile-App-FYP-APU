@@ -14,6 +14,7 @@ export const ADMIN_STATUS_MANUAL_CHECK_REQUIRED = "manual_check_required";
 export const ADMIN_STATUS_CONFIRMED = "confirmed";
 export const ADMIN_STATUS_OCR_MATCHED = "ocr_matched";
 
+// Verification OCR feature: supported proof document categories used by extraction and admin review.
 export type VerificationDocumentType =
   | "tenancyAgreement"
   | "utilityBill"
@@ -21,8 +22,10 @@ export type VerificationDocumentType =
   | "otherProof"
   | "unknown";
 
+// Verification OCR feature: records whether a field came from AI extraction or admin correction.
 export type ExtractedFieldSource = "document_ai" | "gemini" | "admin_review";
 
+// Verification OCR feature: stores one extracted field value, confidence, and source for admin review.
 export interface ExtractedVerificationField {
   value: string;
   confidence: number;
@@ -31,6 +34,7 @@ export interface ExtractedVerificationField {
 
 export type ExtractedVerificationFields = Record<string, ExtractedVerificationField>;
 
+// Verification OCR feature: minimal verificationRequests document shape needed by backend OCR logic.
 export interface VerificationRequestLike {
   userId?: unknown;
   status?: unknown;
@@ -46,6 +50,7 @@ export interface VerificationRequestLike {
   communityName?: unknown;
 }
 
+// Verification OCR feature: minimal users/{uid} shape used to compare OCR output against resident profile data.
 export interface VerificationUserLike {
   firstName?: unknown;
   lastName?: unknown;
@@ -57,11 +62,13 @@ export interface VerificationUserLike {
   verificationStatus?: unknown;
 }
 
+// Verification OCR feature: normalized text/page result returned by Document AI.
 export interface DocumentAiResult {
   text: string;
   pageCount: number;
 }
 
+// Verification OCR feature: context passed to Gemini so it extracts fields for the expected resident/document.
 export interface GeminiExtractionContext {
   documentType: string;
   fullName: string;
@@ -70,6 +77,7 @@ export interface GeminiExtractionContext {
   documentText: string;
 }
 
+// Verification OCR feature: Firestore fields written after OCR and field extraction succeed.
 export interface OcrSuccessPayload {
   ocrStatus: string;
   ocrText: string;
@@ -80,6 +88,7 @@ export interface OcrSuccessPayload {
   documentAiPageCount: number;
 }
 
+// Verification OCR feature: one pass/fail/warning check used in automatic verification recommendation.
 export interface AutoVerificationCheck {
   passed: boolean;
   expected?: string;
@@ -88,6 +97,7 @@ export interface AutoVerificationCheck {
   skipped?: boolean;
 }
 
+// Verification OCR feature: summary decision explaining whether admin can trust the OCR match.
 export interface AutoVerificationDecision {
   eligible: boolean;
   decision: "auto_verified" | "manual_review";
@@ -95,6 +105,7 @@ export interface AutoVerificationDecision {
   checks: Record<string, AutoVerificationCheck>;
 }
 
+// Verification OCR feature: Firestore fields written when OCR or Gemini extraction fails.
 export interface OcrFailurePayload {
   ocrStatus: string;
   adminStatus: string;
@@ -165,6 +176,7 @@ const fieldKeysByDocumentType: Record<VerificationDocumentType, readonly string[
   ],
 };
 
+// Verification OCR feature: normalizes incoming document type strings for extraction logic.
 export function normalizeDocumentType(value: unknown): VerificationDocumentType {
   const normalized = String(value ?? "").trim();
   if (normalized === "tenancyAgreement") return "tenancyAgreement";
@@ -174,10 +186,12 @@ export function normalizeDocumentType(value: unknown): VerificationDocumentType 
   return "unknown";
 }
 
+// Verification OCR feature: returns the expected extraction field keys for the uploaded proof type.
 export function fieldKeysForDocumentType(value: unknown): readonly string[] {
   return fieldKeysByDocumentType[normalizeDocumentType(value)];
 }
 
+// Verification OCR feature: maps a Storage object path to the MIME type Document AI expects.
 export function mimeTypeForPath(storagePath: string): string {
   const lower = storagePath.toLowerCase().split("?")[0];
   if (lower.endsWith(".pdf")) return "application/pdf";
@@ -188,12 +202,14 @@ export function mimeTypeForPath(storagePath: string): string {
   return "image/jpeg";
 }
 
+// Verification OCR feature: checks whether a verification request has enough Storage info to process.
 export function hasDocumentUpload(data: VerificationRequestLike | undefined): boolean {
   if (!data) return false;
   return cleanString(data.storagePath).length > 0 &&
     (cleanString(data.documentUrl).length > 0 || cleanString(data.fileUrl).length > 0);
 }
 
+// Verification OCR feature: decides whether a verification request write should start OCR processing.
 export function shouldStartVerificationOcr(
   before: VerificationRequestLike | undefined,
   after: VerificationRequestLike | undefined,
@@ -211,6 +227,7 @@ export function shouldStartVerificationOcr(
     beforeOcrStatus !== OCR_STATUS_COMPLETED;
 }
 
+// Verification OCR feature: extracts the Google Cloud region from a Document AI processor resource name.
 export function parseProcessorLocation(processorName: string): string {
   const match = processorName.match(/^projects\/[^/]+\/locations\/([^/]+)\/processors\/[^/]+(?:\/processorVersions\/[^/]+)?$/);
   if (!match?.[1]) {
@@ -219,12 +236,14 @@ export function parseProcessorLocation(processorName: string): string {
   return match[1];
 }
 
+// Verification OCR feature: converts raw Document AI response into text and page count.
 export function normalizeDocumentAiDocument(document: DocumentAiDocument | undefined): DocumentAiResult {
   const text = document?.text?.trim() ?? "";
   const pageCount = document?.pages?.length ?? 0;
   return {text, pageCount};
 }
 
+// Verification OCR feature: sends the uploaded proof file to Document AI for OCR text extraction.
 export async function processWithDocumentAi(params: {
   processorName: string;
   fileBuffer: Buffer;
@@ -249,6 +268,7 @@ export async function processWithDocumentAi(params: {
   return normalizeDocumentAiDocument(result.document as DocumentAiDocument | undefined);
 }
 
+// Verification OCR feature: builds the structured Gemini prompt for extracting proof fields from OCR text.
 export function buildGeminiPrompt(context: GeminiExtractionContext): string {
   const documentType = normalizeDocumentType(context.documentType);
   const keys = fieldKeysForDocumentType(documentType);
@@ -282,6 +302,7 @@ export function buildGeminiPrompt(context: GeminiExtractionContext): string {
   ].join("\n");
 }
 
+// Verification OCR feature: calls Gemini and parses extracted fields into normalized confidence records.
 export async function extractFieldsWithGemini(params: {
   projectId: string;
   location: string;
@@ -319,6 +340,7 @@ export async function extractFieldsWithGemini(params: {
   return parseGeminiExtraction(outputText, params.context.documentType);
 }
 
+// Verification OCR feature: parses Gemini JSON output and filters it to expected document fields.
 export function parseGeminiExtraction(
   rawOutput: string,
   documentType: unknown,
@@ -340,6 +362,7 @@ export function parseGeminiExtraction(
   return fields;
 }
 
+// Verification OCR feature: builds Firestore success fields after OCR and Gemini extraction complete.
 export function buildSuccessPayload(params: {
   ocrText: string;
   pageCount: number;
@@ -359,6 +382,7 @@ export function buildSuccessPayload(params: {
   };
 }
 
+// Verification OCR feature: compares OCR extracted fields with resident/request data to recommend admin action.
 export function evaluateAutoVerification(params: {
   request: VerificationRequestLike;
   user: VerificationUserLike | undefined;
@@ -468,6 +492,7 @@ export function evaluateAutoVerification(params: {
   };
 }
 
+// Verification OCR feature: builds Firestore failure fields while preserving any partial OCR text.
 export function buildFailurePayload(error: unknown, ocrText?: string): OcrFailurePayload {
   const message = readableErrorMessage(error);
   return {
@@ -478,6 +503,7 @@ export function buildFailurePayload(error: unknown, ocrText?: string): OcrFailur
   };
 }
 
+// Verification OCR feature: converts thrown OCR/AI errors into admin-readable failure messages.
 export function readableErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -506,6 +532,7 @@ export function readableErrorMessage(error: unknown): string {
   return "Unknown OCR error";
 }
 
+// Verification OCR feature: converts extracted fields into plain value maps for admin review forms.
 export function extractedFieldsToFieldMap(
   fields: ExtractedVerificationFields,
 ): Record<string, string> {
@@ -517,6 +544,7 @@ export function extractedFieldsToFieldMap(
   return result;
 }
 
+// Verification OCR feature: extracts the first JSON object from Gemini output.
 function parseJsonObject(rawOutput: string): Record<string, unknown> {
   const cleaned = rawOutput
     .replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1")
@@ -535,6 +563,7 @@ function parseJsonObject(rawOutput: string): Record<string, unknown> {
   return parsed;
 }
 
+// Verification OCR feature: normalizes one Gemini field result into value/confidence shape.
 function normalizeGeminiField(value: unknown): Omit<ExtractedVerificationField, "source"> | null {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -554,11 +583,13 @@ function normalizeGeminiField(value: unknown): Omit<ExtractedVerificationField, 
   };
 }
 
+// Verification OCR feature: keeps AI confidence values inside the 0..1 range.
 function clampConfidence(value: unknown): number {
   if (typeof value !== "number" || Number.isNaN(value)) return 0.85;
   return Math.min(1, Math.max(0, value));
 }
 
+// Verification OCR feature: returns a human-readable document type for prompts.
 function documentTypeLabel(documentType: VerificationDocumentType): string {
   switch (documentType) {
   case "tenancyAgreement":
@@ -574,6 +605,7 @@ function documentTypeLabel(documentType: VerificationDocumentType): string {
   }
 }
 
+// Verification OCR feature: limits OCR text size before sending it to Gemini.
 function truncateForPrompt(value: string): string {
   const clean = value.trim();
   const maxChars = 60000;
@@ -581,10 +613,12 @@ function truncateForPrompt(value: string): string {
   return `${clean.slice(0, maxChars)}\n\n[Document text truncated after ${maxChars} characters]`;
 }
 
+// Verification OCR feature: safely trims unknown field values for comparisons.
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+// Verification OCR feature: splits full names when first/last fields are unavailable.
 function splitFallbackName(value: string): {firstName: string; lastName: string} {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return {firstName: "", lastName: ""};
@@ -592,6 +626,7 @@ function splitFallbackName(value: string): {firstName: string; lastName: string}
   return {firstName: parts[0], lastName: parts.slice(1).join(" ")};
 }
 
+// Verification OCR feature: picks the best extracted name field based on document type.
 function preferredNameField(
   documentType: VerificationDocumentType,
   fields: ExtractedVerificationFields,
@@ -609,6 +644,7 @@ function preferredNameField(
   return null;
 }
 
+// Verification OCR feature: normalizes text before name/community matching.
 function normalizeTextForMatch(value: string): string {
   return value
     .normalize("NFKD")
@@ -620,6 +656,7 @@ function normalizeTextForMatch(value: string): string {
     .trim();
 }
 
+// Verification OCR feature: checks whether extracted names contain expected first/last name tokens.
 function nameContainsToken(normalizedName: string, expectedValue: string): boolean {
   const tokens = normalizeTextForMatch(expectedValue)
     .split(" ")
@@ -629,10 +666,12 @@ function nameContainsToken(normalizedName: string, expectedValue: string): boole
   return tokens.every((token) => nameTokens.has(token));
 }
 
+// Verification OCR feature: normalizes unit numbers before comparing request data to OCR fields.
 function normalizeUnit(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Verification OCR feature: checks whether OCR unit fields match the resident's submitted unit number.
 function extractedUnitMatches(
   expectedUnit: string,
   documentType: VerificationDocumentType,
@@ -680,6 +719,7 @@ function extractedUnitMatches(
   };
 }
 
+// Verification OCR feature: records whether the resident email appears anywhere in OCR text.
 function emailObservedCheck(expectedEmail: string, ocrText: string): AutoVerificationCheck {
   if (!expectedEmail) return {passed: true, skipped: true};
   const normalizedExpected = expectedEmail.toLowerCase();
@@ -695,6 +735,7 @@ function emailObservedCheck(expectedEmail: string, ocrText: string): AutoVerific
   };
 }
 
+// Verification OCR feature: records whether the resident phone number appears anywhere in OCR text.
 function phoneObservedCheck(expectedPhone: string, ocrText: string): AutoVerificationCheck {
   const expectedDigits = digitsOnly(expectedPhone);
   if (expectedDigits.length < 7) return {passed: true, skipped: true};
@@ -720,6 +761,7 @@ function phoneObservedCheck(expectedPhone: string, ocrText: string): AutoVerific
   };
 }
 
+// Verification OCR feature: records whether the selected community name appears in extracted fields or OCR text.
 function communityObservedCheck(
   expectedCommunity: string,
   fields: ExtractedVerificationFields,
@@ -757,10 +799,12 @@ function communityObservedCheck(
   };
 }
 
+// Verification OCR feature: removes non-digits for phone and unit comparisons.
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+// Verification OCR feature: guards JSON parsing to plain objects before reading Gemini fields.
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

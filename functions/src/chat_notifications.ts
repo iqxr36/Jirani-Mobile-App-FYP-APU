@@ -6,10 +6,12 @@ type DocumentData = admin.firestore.DocumentData;
 
 const NOTIFICATION_TYPE_CHAT_MESSAGE = "chatMessage";
 
+// Chat notification feature: safely reads string fields from chat message documents.
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Chat notification feature: converts text/image/file messages into the push notification preview line.
 function messagePreview(data: DocumentData): string {
   const type = asString(data.type);
   if (type === "image") return "Photo";
@@ -18,6 +20,7 @@ function messagePreview(data: DocumentData): string {
   return text.length > 0 ? text : "New message";
 }
 
+// Chat notification feature: finds the other chat participant who should receive the message notification.
 function chatRecipientId(
   participants: unknown,
   senderId: string,
@@ -31,6 +34,7 @@ function chatRecipientId(
   return null;
 }
 
+// Chat notification feature: creates an in-app notification for the recipient when a new message is written.
 export async function notifyChatMessageCreated(
   db: Firestore,
   chatId: string,

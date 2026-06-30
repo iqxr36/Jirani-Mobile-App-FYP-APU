@@ -1,5 +1,6 @@
 part of '../admin_reports_screen.dart';
 
+// Admin reports UI feature: inbox-style report triage for disputes, chat reports, trust issues, and warnings.
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key, this.selectedReportId});
 
@@ -33,6 +34,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
   }
 
+  // Admin reports UI feature: switches the inbox between priority/open/completed report filters.
   void _setInboxFilter(_ReportInboxFilter filter) {
     if (_inboxFilter == filter) return;
     setState(() {
@@ -328,6 +330,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     return '${value.year}-$month-$day $hour:$minute';
   }
 
+  // Admin reports UI feature: sends borrower/lender dispute resolution decisions to AdminProvider.
   Future<void> _resolveDispute(
     BuildContext context, {
     required ReportModel report,
@@ -365,6 +368,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
+  // Admin reports UI feature: asks admin for a required dispute resolution reason.
   Future<String?> _showResolutionReasonDialog(
     BuildContext context, {
     required bool resolveForBorrower,
@@ -409,6 +413,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     return result;
   }
 
+  // Admin reports UI feature: dismisses a report after collecting an admin reason.
   Future<void> _dismissReport(
     BuildContext context, {
     required ReportModel report,
@@ -438,6 +443,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
+  // Admin reports UI feature: sends an admin warning notification to the reported resident.
   Future<void> _issueWarning(
     BuildContext context, {
     required ReportModel report,
@@ -474,6 +480,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
+  // Admin reports UI feature: shared text dialog for dismissal/warning decisions.
   Future<String?> _showTextDecisionDialog(
     BuildContext context, {
     required String title,

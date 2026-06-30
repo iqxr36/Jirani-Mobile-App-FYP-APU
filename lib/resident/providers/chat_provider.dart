@@ -6,6 +6,7 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/models/chat_model.dart';
 
+// Chat feature: keeps resident chat inbox/message actions in Provider state and calls ChatRepository for Firestore work.
 class ChatProvider extends ChangeNotifier {
   ChatProvider({ChatRepository? repository})
     : _repository = repository ?? ChatRepository();
@@ -24,6 +25,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
+  // Chat feature: totals unread messages across the resident's visible conversations for badges.
   int get totalUnreadCount {
     final uid = _currentUser?.uid;
     if (uid == null) return 0;
@@ -33,6 +35,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: starts or resets the chat inbox stream when the signed-in resident/community changes.
   void watchForUser(AppUser? user, {bool force = false}) {
     final sameUser = user?.uid == _currentUser?.uid;
     final sameCommunity = user?.communityId == _currentUser?.communityId;
@@ -69,11 +72,13 @@ class ChatProvider extends ChangeNotifier {
         );
   }
 
+  // Chat feature: streams messages for the opened thread while hiding messages deleted for this user.
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
     final userId = _currentUser?.uid ?? '';
     return _repository.watchMessages(chatId, userId);
   }
 
+  // Chat feature: finds a chat already loaded in the inbox for notification routing and detail reuse.
   ChatModel? chatById(String chatId) {
     for (final chat in _chats) {
       if (chat.id == chatId) return chat;
@@ -81,6 +86,7 @@ class ChatProvider extends ChangeNotifier {
     return null;
   }
 
+  // Chat feature: creates or reopens the deterministic one-to-one chat with a neighbor.
   Future<ChatModel> openOrCreateChat(AppUser neighbor) async {
     final currentUser = _requireCurrentUser();
     return _runAction(
@@ -91,6 +97,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: sends a text message and optional reply reference to the active conversation.
   Future<void> sendTextMessage({
     required ChatModel chat,
     required String text,
@@ -107,6 +114,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: uploads and sends an image/document attachment through the active conversation.
   Future<void> sendAttachmentMessage({
     required ChatModel chat,
     Uint8List? bytes,
@@ -131,11 +139,13 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: marks the opened conversation as read for the current resident.
   Future<void> markChatRead(ChatModel chat) async {
     final user = _requireCurrentUser();
     await _repository.markChatRead(chat: chat, currentUserId: user.uid);
   }
 
+  // Chat feature: hides a conversation only for the current resident without deleting it for the other participant.
   Future<void> deleteChatForCurrentUser(ChatModel chat) async {
     final user = _requireCurrentUser();
     await _runAction(
@@ -143,6 +153,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Report feature: creates an admin report from a whole chat or selected chat messages.
   Future<void> reportChat({
     required ChatModel chat,
     required String category,
@@ -163,6 +174,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: pins one message at the top of the conversation for both participants.
   Future<void> pinMessage({
     required ChatModel chat,
     required ChatMessageModel message,
@@ -173,6 +185,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: removes the pinned message marker from the conversation.
   Future<void> unpinMessage({required ChatModel chat}) async {
     final user = _requireCurrentUser();
     await _runAction(
@@ -180,6 +193,7 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat feature: hides one message for the current resident while preserving audit history.
   Future<void> deleteMessageForUser({
     required ChatModel chat,
     required String messageId,
@@ -194,11 +208,13 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Chat UI state: clears the latest provider error after a SnackBar or inline error displays it.
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Chat feature: guards chat actions so anonymous/null user state cannot write messages.
   AppUser _requireCurrentUser() {
     final user = _currentUser;
     if (user == null) {
@@ -207,6 +223,7 @@ class ChatProvider extends ChangeNotifier {
     return user;
   }
 
+  // Chat UI state: wraps chat writes with submitting/error flags for buttons and forms.
   Future<T> _runAction<T>(Future<T> Function() action) async {
     _isSubmitting = true;
     _errorMessage = null;

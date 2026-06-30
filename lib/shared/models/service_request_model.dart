@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Services DB model: represents serviceRequests/{requestId} from a resident to a service provider.
 class ServiceRequestModel {
   const ServiceRequestModel({
     required this.id,
@@ -31,6 +32,7 @@ class ServiceRequestModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Services DB model: converts Firestore request data into a ServiceRequestModel for requester/provider screens.
   factory ServiceRequestModel.fromMap(String id, Map<String, dynamic> data) {
     return ServiceRequestModel(
       id: id,
@@ -49,6 +51,7 @@ class ServiceRequestModel {
     );
   }
 
+  /// Services DB model: converts stored date fields into DateTime for scheduling display.
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;

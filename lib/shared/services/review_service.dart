@@ -27,9 +27,11 @@ class ReviewService {
   CollectionReference<Map<String, dynamic>> get _borrowRequests =>
       _firestore.collection(AppConstants.borrowRequestsCollection);
 
+  /// Reviews feature: deterministic id prevents one user from reviewing the same borrow request more than once.
   static String reviewDocId(String borrowRequestId, String reviewerId) =>
       '${borrowRequestId.replaceAll('/', '_')}_$reviewerId';
 
+  /// Reviews feature: checks whether the current resident has already submitted their one-time review.
   Future<bool> hasUserReviewedBorrowRequest({
     required String borrowRequestId,
     required String reviewerId,
@@ -40,6 +42,7 @@ class ReviewService {
     return snap.exists;
   }
 
+  /// Public profile reviews: streams published visible reviews for a resident.
   Stream<List<ReviewModel>> watchReviewsForUser(String userId) {
     return _reviews
         .where('revieweeId', isEqualTo: userId)
@@ -54,6 +57,7 @@ class ReviewService {
         });
   }
 
+  /// Reviews feature: creates a hidden review and marks the borrow request side as reviewed in one transaction.
   Future<void> createReview({
     required BorrowRequest borrowRequest,
     required String reviewerId,
@@ -114,17 +118,6 @@ class ReviewService {
           );
         }
 
-        final revieweeSnap = await txn.get(
-          _firestore
-              .collection(AppConstants.publicProfilesCollection)
-              .doc(reviewee.id),
-        );
-        if (!revieweeSnap.exists) {
-          throw Exception(
-            'Missing user profile for the person being reviewed.',
-          );
-        }
-
         final publishAfter = _publishAfter(req);
         final flagField = role == AppConstants.reviewRoleBorrowerToOwner
             ? 'borrowerReviewSubmitted'
@@ -167,6 +160,7 @@ class ReviewService {
     }
   }
 
+  /// Reviews feature: validates reviewer role and identifies the resident being reviewed.
   _Reviewee _resolveReviewee({
     required BorrowRequest borrowRequest,
     required String reviewerId,
@@ -187,6 +181,7 @@ class ReviewService {
     throw Exception('Invalid review role.');
   }
 
+  /// Reviews feature: calculates the 3-day blind review publish deadline from transaction completion.
   DateTime _publishAfter(BorrowRequest borrowRequest) {
     return (borrowRequest.completedAt ?? borrowRequest.updatedAt).add(
       _reviewGracePeriod,
@@ -194,6 +189,7 @@ class ReviewService {
   }
 }
 
+/// Reviews helper model: stores the review target id/name after role validation.
 class _Reviewee {
   const _Reviewee(this.id, this.name);
 

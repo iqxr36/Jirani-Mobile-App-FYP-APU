@@ -1,6 +1,7 @@
 part of '../chat_service.dart';
 
 mixin _ChatServiceReportsMixin on _ChatServiceBase {
+  /// Chat reports: creates an admin report for a conversation or selected messages with immutable message snapshots.
   Future<void> reportChat({
     required ChatModel chat,
     required AppUser reporter,

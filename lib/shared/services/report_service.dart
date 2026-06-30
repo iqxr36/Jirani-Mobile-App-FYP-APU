@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 
+/// Reports service: lets residents create reports for borrow disputes or user misconduct.
 class ReportService {
   ReportService({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
@@ -20,6 +21,7 @@ class ReportService {
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection(AppConstants.usersCollection);
 
+  /// Reports feature: validates reporter/borrow-request context before creating reports/{reportId}.
   Future<void> createReport({
     required String type,
     required String relatedBorrowRequestId,

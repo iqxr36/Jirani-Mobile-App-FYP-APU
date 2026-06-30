@@ -11,16 +11,19 @@ class GeofenceManager {
 
   bool _initialized = false;
 
+  /// Geofence feature: checks whether the app can read the device location while it is open.
   Future<bool> hasForegroundLocationPermission() async {
     final locationStatus = await Permission.location.status;
     return locationStatus.isGranted || locationStatus.isLimited;
   }
 
+  /// Geofence feature: checks whether native geofence monitoring can continue after the app is backgrounded.
   Future<bool> hasBackgroundLocationPermission() async {
     final alwaysStatus = await Permission.locationAlways.status;
     return alwaysStatus.isGranted || alwaysStatus.isLimited;
   }
 
+  /// Geofence feature: asks for foreground and background location permissions required by native geofence monitoring.
   Future<bool> requestLocationPermissions() async {
     try {
       final locationStatus = await Permission.location.request();
@@ -42,6 +45,7 @@ class GeofenceManager {
     }
   }
 
+  /// Geofence feature: initializes the native geofence plugin once before registering community zones.
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -57,6 +61,7 @@ class GeofenceManager {
     }
   }
 
+  /// Geofence feature: replaces old zones with active Firestore communities so enter/exit callbacks match current data.
   Future<void> startGeofencing(List<CommunityModel> communities) async {
     try {
       await initialize();
@@ -98,6 +103,7 @@ class GeofenceManager {
 }
 
 @pragma('vm:entry-point')
+/// Geofence feature callback: receives native enter/exit events even when invoked by the platform outside normal Dart UI flow.
 Future<void> gatekeeperGeofenceTriggered(GeofenceCallbackParams params) async {
   final communityIds = params.geofences
       .map((geofence) => geofence.id)

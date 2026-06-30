@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 const int _kMaxProfileImageBytes = 5 * 1024 * 1024;
 
+// Admin settings UI feature: manages admin profile image and portal notification preference toggles.
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
 
@@ -22,6 +23,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   bool _reportEscalations = false;
   bool _profileImageSaving = false;
 
+  // Admin settings UI feature: picks, uploads, and saves a new admin profile image.
   Future<void> _changeProfileImage() async {
     if (_profileImageSaving) return;
 
@@ -313,6 +315,7 @@ class _EditableAdminProfilePhoto extends StatelessWidget {
   }
 }
 
+// Admin settings UI feature: reusable settings section used by account, alerts, and system panels.
 class AdminSettingsSection extends StatelessWidget {
   const AdminSettingsSection({
     super.key,

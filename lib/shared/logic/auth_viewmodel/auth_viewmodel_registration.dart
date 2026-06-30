@@ -1,6 +1,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
+  /// Auth registration: validates resident signup input, creates Firebase/Auth profile data, and starts onboarding.
   Future<void> register({
     required String firstName,
     required String lastName,
@@ -56,6 +57,7 @@ mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
     }
   }
 
+  /// Auth onboarding: hides the account-created confirmation after the resident continues.
   void dismissAccountCreatedScreen() {
     _showAccountCreatedScreen = false;
     notifyListeners();

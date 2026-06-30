@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Marketplace listing DB model: represents items/{itemId} with owner, fee, deposit, availability, and community fields.
 class ItemModel {
   const ItemModel({
     required this.id,
@@ -54,6 +55,7 @@ class ItemModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Marketplace listing feature: creates an updated item object while keeping unchanged listing fields.
   ItemModel copyWith({
     String? id,
     String? ownerId,
@@ -108,6 +110,7 @@ class ItemModel {
     );
   }
 
+  /// Marketplace listing DB model: converts Firestore item data into an ItemModel and derives fee/deposit flags.
   factory ItemModel.fromMap(String id, Map<String, dynamic> data) {
     final fee = _toDouble(data['feeAmount']);
     final deposit = _toDouble(data['depositAmount']);
@@ -156,6 +159,7 @@ class ItemModel {
     );
   }
 
+  /// Marketplace listing DB model: serializes an item into the Firestore shape used by listing creation/editing.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'ownerId': ownerId,
@@ -187,6 +191,7 @@ class ItemModel {
     };
   }
 
+  /// Marketplace listing DB model: converts Firestore timestamp-like values into DateTime.
   static DateTime _toDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
@@ -195,6 +200,7 @@ class ItemModel {
     return DateTime.now();
   }
 
+  /// Marketplace listing DB model: safely reads optional money fields such as fee and deposit.
   static double? _toDouble(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -204,6 +210,7 @@ class ItemModel {
     return null;
   }
 
+  /// Marketplace listing DB model: normalizes stored image URL lists.
   static List<String> _toStringList(dynamic value) {
     if (value is List) {
       return value
@@ -214,6 +221,7 @@ class ItemModel {
     return const <String>[];
   }
 
+  /// Marketplace listing feature: derives the visible lending type from fee/deposit booleans.
   static String _deriveLendingType({
     required bool hasUsageFee,
     required bool hasDeposit,

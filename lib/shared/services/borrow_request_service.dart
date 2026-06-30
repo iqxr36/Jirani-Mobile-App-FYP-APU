@@ -56,6 +56,7 @@ abstract class _BorrowRequestServiceBase {
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection(AppConstants.reportsCollection);
 
+  /// Marketplace Stripe deposit: calls the backend resolver so refunds/transfers happen server-side, never directly in Flutter.
   Future<void> _resolveMarketplaceDeposit({
     required String borrowRequestId,
     required String decision,
@@ -73,6 +74,7 @@ abstract class _BorrowRequestServiceBase {
     });
   }
 
+  /// Marketplace Stripe deposit: confirms a borrow request was paid through Stripe before resolving held deposit money.
   bool _hasCompletedStripePayment(BorrowRequest request) {
     return request.paymentProvider == AppConstants.paymentProviderStripe &&
         request.paymentStatus == AppConstants.paymentStatusCompleted;
@@ -80,6 +82,7 @@ abstract class _BorrowRequestServiceBase {
 
 }
 
+/// Marketplace service: combines query, lifecycle, handover, return, and dispute mixins for borrow requests.
 class BorrowRequestService extends _BorrowRequestServiceBase
     with
     _BorrowRequestQueriesMixin,

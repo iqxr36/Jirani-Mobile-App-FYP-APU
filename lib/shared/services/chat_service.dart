@@ -24,6 +24,7 @@ part 'chat_service/chat_service_lifecycle.dart';
 part 'chat_service/chat_service_messages.dart';
 part 'chat_service/chat_service_reports.dart';
 
+/// Chat service: combines chat queries, lifecycle, messages, attachments, pinning, deletion, and reporting.
 class ChatService extends _ChatServiceBase
     with
         _ChatServiceQueriesMixin,

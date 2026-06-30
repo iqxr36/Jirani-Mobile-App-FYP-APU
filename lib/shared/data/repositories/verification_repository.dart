@@ -13,7 +13,7 @@ import 'package:path/path.dart' as path;
 import 'verification_upload_platform_stub.dart'
     if (dart.library.io) 'verification_upload_platform_io.dart';
 
-/// Thrown when the picked filename does not resolve to an allowed extension.
+// Residency verification feature: thrown when the picked filename does not resolve to an allowed extension.
 class VerificationUnsupportedFileTypeException implements Exception {
   VerificationUnsupportedFileTypeException(this.message);
   final String message;
@@ -22,6 +22,7 @@ class VerificationUnsupportedFileTypeException implements Exception {
   String toString() => message;
 }
 
+// Residency verification data layer: uploads proof documents and creates verificationRequests for admin review.
 class VerificationRepository {
   VerificationRepository({
     FirebaseAuth? auth,
@@ -51,12 +52,14 @@ class VerificationRepository {
   static Set<String> get supportedVerificationDocumentExtensions =>
       Set.unmodifiable(_verificationDocumentExtensions);
 
+  // Residency verification feature: checks whether a selected proof filename has an allowed extension.
   static bool isSupportedVerificationFileName(String originalFileName) {
     final extension = _normalizedExtension(originalFileName);
     return extension != null &&
         _verificationDocumentExtensions.contains(extension);
   }
 
+  // Residency verification feature: fetches the latest request for the signed-in resident.
   Future<VerificationRequest?> getCurrentUserLatestRequest() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -85,7 +88,7 @@ class VerificationRepository {
     return VerificationRequest.fromMap({...latest.data(), 'id': latest.id});
   }
 
-  /// Marks the user's latest cancellable request as cancelled and resets user verification to pending.
+  // Residency verification feature: cancels the latest pending/submitted request; Cloud Functions resets user status.
   Future<void> cancelLatestVerificationRequest() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -115,8 +118,7 @@ class VerificationRepository {
     // User verification status is reset server-side by Cloud Functions.
   }
 
-  /// Cancels the latest submitted/pending verification request when the user
-  /// changes community. No-op when there is nothing cancellable.
+  // Residency verification feature: cancels an active request when the resident changes community.
   Future<void> cancelActiveVerificationRequestIfAny() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -140,7 +142,7 @@ class VerificationRepository {
         });
   }
 
-  /// Uploads using [putData] on web; on IO, [localFilePath] allows [putFile] when the path is valid.
+  // Residency verification feature: uploads the proof file and creates the admin-review request document.
   Future<VerificationRequest> submitVerificationRequest({
     required String documentType,
     required Uint8List fileBytes,
@@ -291,6 +293,7 @@ class VerificationRepository {
     return VerificationRequest.fromMap({...data, 'id': saved.id});
   }
 
+  // Residency verification feature: removes uploaded Storage proof if Firestore request creation fails.
   static Future<void> _deleteUploadedVerificationObject(
     Reference ref,
   ) async {
@@ -301,7 +304,7 @@ class VerificationRepository {
     }
   }
 
-  /// `{timestamp}_verification_document.{ext}` - ext from [originalFileName] only, sanitized.
+  // Residency verification feature: creates a safe Storage object name from the original uploaded filename.
   static String _safeVerificationStorageObjectName(
     int timestamp,
     String originalFileName, {
@@ -339,6 +342,7 @@ class VerificationRepository {
     return '${safeStem.isEmpty ? 'tenancy_agreement' : safeStem}.$ext';
   }
 
+  // Residency verification feature: extracts and sanitizes the selected document file extension.
   static String? _normalizedExtension(String fileName) {
     final baseName = path.basename(fileName);
     final dot = baseName.lastIndexOf('.');
@@ -350,14 +354,17 @@ class VerificationRepository {
     return ext.isEmpty ? null : ext;
   }
 
+  // Residency verification feature: returns the accepted proof document extensions.
   static Set<String> _allowedExtensionsForDocumentType() {
     return _verificationDocumentExtensions;
   }
 
+  // Residency verification feature: keeps the unsupported-file message consistent across upload validation.
   static String _unsupportedFileTypeMessage() {
     return 'Only JPG, PNG, WEBP, HEIC, HEIF, or PDF files are supported.';
   }
 
+  // Residency verification feature: normalizes document type for Firebase Storage metadata and OCR functions.
   static String _storageMetadataDocumentType(String documentType) {
     return switch (documentType) {
       AppConstants.documentTypeTenancyAgreement => 'tenancy_agreement',
@@ -366,7 +373,7 @@ class VerificationRepository {
     };
   }
 
-  /// MIME for Firebase Storage metadata (jpg + jpeg both -> image/jpeg).
+  // Residency verification feature: detects MIME type for Firebase Storage metadata.
   static String _mimeTypeForStorageName(
     String safeFileName,
     Uint8List fileBytes,

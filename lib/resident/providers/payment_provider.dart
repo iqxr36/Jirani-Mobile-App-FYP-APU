@@ -5,6 +5,7 @@ import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/payment_method_model.dart';
 import 'package:jirani/shared/services/payment_service.dart';
 
+/// Payments state manager: exposes Stripe payment, saved-card, and lender payout actions to resident screens.
 class PaymentProvider extends ChangeNotifier {
   PaymentProvider({PaymentService? service})
     : _service = service ?? PaymentService();
@@ -21,6 +22,7 @@ class PaymentProvider extends ChangeNotifier {
   List<PaymentMethodModel> get paymentMethods => _paymentMethods;
   ConnectAccountStatus? get connectStatus => _connectStatus;
 
+  /// Marketplace payments: starts PaymentSheet for an approved borrow request using the selected saved card.
   Future<MarketplacePaymentSheetResult?> payMarketplaceBorrowRequest({
     required BorrowRequest request,
     required PaymentMethodModel paymentMethod,
@@ -33,6 +35,7 @@ class PaymentProvider extends ChangeNotifier {
     );
   }
 
+  /// Saved cards: refreshes the resident's safe Stripe card metadata for the Payment Methods screen.
   Future<void> loadPaymentMethods() async {
     final methods = await _run(_service.fetchPaymentMethods);
     if (methods != null) {
@@ -41,6 +44,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
+  /// Stripe Connect payouts: refreshes whether the lender can receive automatic damage deduction transfers.
   Future<void> loadConnectAccountStatus() async {
     final status = await _run(_service.getConnectAccountStatus);
     if (status != null) {
@@ -49,6 +53,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
+  /// Stripe Connect payouts: creates a hosted Stripe onboarding link for lender payout setup.
   Future<ConnectOnboardingLinkResult?> createConnectOnboardingLink({
     required String returnUrl,
     required String refreshUrl,
@@ -61,6 +66,7 @@ class PaymentProvider extends ChangeNotifier {
     );
   }
 
+  /// Saved cards: saves a new payment method through Stripe and reloads the card list on success.
   Future<bool> addPaymentMethod() async {
     final result = await _run(() async {
       await _service.addPaymentMethod();
@@ -73,6 +79,7 @@ class PaymentProvider extends ChangeNotifier {
     return false;
   }
 
+  /// Saved cards: removes a saved card through the backend and refreshes the list on success.
   Future<bool> deletePaymentMethod(String paymentMethodId) async {
     final result = await _run(() async {
       await _service.deletePaymentMethod(paymentMethodId);
@@ -85,6 +92,7 @@ class PaymentProvider extends ChangeNotifier {
     return false;
   }
 
+  /// Saved cards: marks one Stripe payment method as default and reloads the latest metadata.
   Future<bool> setDefaultPaymentMethod(String paymentMethodId) async {
     final result = await _run(() async {
       await _service.setDefaultPaymentMethod(paymentMethodId);
@@ -97,11 +105,13 @@ class PaymentProvider extends ChangeNotifier {
     return false;
   }
 
+  /// Payments UI: clears the current user-facing error before a retry or screen refresh.
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
+  /// Payments state manager: wraps async actions with loading, error capture, and listener notifications.
   Future<T?> _run<T>(Future<T> Function() action) async {
     _isLoading = true;
     _errorMessage = null;
@@ -117,6 +127,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
+  /// Payments UX: converts Firebase Functions and Stripe exceptions into resident-friendly messages.
   static String _friendlyPaymentError(Object error) {
     if (error is StripeException) {
       return _friendlyStripeError(error);
@@ -145,6 +156,7 @@ class PaymentProvider extends ChangeNotifier {
     return firstLine.isEmpty ? 'Payment action failed. Please try again.' : firstLine;
   }
 
+  /// Payments UX: converts Stripe SDK errors, cancellations, and decline codes into readable text.
   static String _friendlyStripeError(StripeException error) {
     final code = _stripeFailureCode(error);
     if (code == FailureCode.Canceled) {
@@ -162,6 +174,7 @@ class PaymentProvider extends ChangeNotifier {
     return 'Payment could not complete. Please try again.';
   }
 
+  /// Payments UX: extracts the Stripe failure code used to detect resident cancellation.
   static FailureCode _stripeFailureCode(StripeException error) {
     return error.error.code;
   }

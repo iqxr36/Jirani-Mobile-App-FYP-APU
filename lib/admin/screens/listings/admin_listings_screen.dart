@@ -6,6 +6,7 @@ import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
+// Admin listings UI feature: shows marketplace and service listings visible to the current admin scope.
 class AdminListingsScreen extends StatefulWidget {
   const AdminListingsScreen({super.key});
 

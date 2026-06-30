@@ -1,9 +1,11 @@
 import 'package:jirani/shared/models/extracted_document_data.dart';
 import 'package:jirani/shared/models/verification_request.dart';
 
+// Admin verification OCR feature: prepares extracted document data for the admin review UI.
 class AdminVerificationReviewService {
   const AdminVerificationReviewService();
 
+  // Admin verification OCR feature: returns structured OCR fields when available or falls back to raw OCR text.
   ExtractedDocumentData initialReviewData(VerificationRequest request) {
     final structuredData = _structuredDataFromRequest(request);
     if (structuredData != null) return structuredData;
@@ -17,6 +19,7 @@ class AdminVerificationReviewService {
     );
   }
 
+  // Admin verification OCR feature: maps stored OCR fields into the typed review form model.
   ExtractedDocumentData? _structuredDataFromRequest(
     VerificationRequest request,
   ) {

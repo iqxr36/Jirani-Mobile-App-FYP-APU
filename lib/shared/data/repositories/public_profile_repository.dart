@@ -3,6 +3,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/public_resident_profile.dart';
 
+// Public profile data layer: reads safe resident profile documents used by neighbor lists and profiles.
 class PublicProfileRepository {
   PublicProfileRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -12,6 +13,7 @@ class PublicProfileRepository {
   CollectionReference<Map<String, dynamic>> get _publicProfiles =>
       _firestore.collection(AppConstants.publicProfilesCollection);
 
+  // Public profile feature: streams one public resident profile for profile detail screens.
   Stream<PublicResidentProfile?> watchProfile(String uid) {
     return _publicProfiles.doc(uid).snapshots().map((snapshot) {
       final data = snapshot.data();
@@ -20,6 +22,7 @@ class PublicProfileRepository {
     });
   }
 
+  // Public profile feature: loads one public resident profile for one-off navigation flows.
   Future<PublicResidentProfile?> getProfile(String uid) async {
     final snapshot = await _publicProfiles.doc(uid).get();
     final data = snapshot.data();
@@ -27,6 +30,7 @@ class PublicProfileRepository {
     return PublicResidentProfile.fromMap({...data, 'uid': data['uid'] ?? uid});
   }
 
+  // Neighbor directory feature: streams verified residents in the current user's community.
   Stream<List<AppUser>> watchVerifiedCommunityResidents(AppUser currentUser) {
     return _publicProfiles
         .where('communityId', isEqualTo: currentUser.communityId)

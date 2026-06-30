@@ -4,29 +4,24 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 420;
 
+// Resident settings feature: presents theme, notification, payment, privacy, and support settings.
 class ResidentSettingsView extends StatelessWidget {
   const ResidentSettingsView({
     super.key,
     required this.darkTheme,
     required this.pushNotifications,
-    required this.locationAlerts,
     required this.onDarkThemeChanged,
     required this.onPushNotificationsChanged,
-    required this.onLocationAlertsChanged,
     required this.onPrivacy,
-    required this.onLanguage,
     required this.onPaymentMethods,
     required this.onHelp,
   });
 
   final bool darkTheme;
   final bool pushNotifications;
-  final bool locationAlerts;
   final ValueChanged<bool> onDarkThemeChanged;
   final ValueChanged<bool> onPushNotificationsChanged;
-  final ValueChanged<bool> onLocationAlertsChanged;
   final VoidCallback onPrivacy;
-  final VoidCallback onLanguage;
   final VoidCallback onPaymentMethods;
   final VoidCallback onHelp;
 
@@ -53,12 +48,9 @@ class ResidentSettingsView extends StatelessWidget {
                     _SettingsCard(
                       darkTheme: darkTheme,
                       pushNotifications: pushNotifications,
-                      locationAlerts: locationAlerts,
                       onDarkThemeChanged: onDarkThemeChanged,
                       onPushNotificationsChanged: onPushNotificationsChanged,
-                      onLocationAlertsChanged: onLocationAlertsChanged,
                       onPrivacy: onPrivacy,
-                      onLanguage: onLanguage,
                       onPaymentMethods: onPaymentMethods,
                       onHelp: onHelp,
                     ),
@@ -82,38 +74,43 @@ class _SettingsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Row(
+    return Column(
       children: [
-        IconButton(
-          onPressed: onBack,
-          icon: const Icon(Icons.chevron_left_rounded, size: 32),
-          color: _kBrandTeal,
-          tooltip: 'Back',
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        SizedBox(
+          height: 48,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Text(
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.chevron_left_rounded, size: 32),
+                  color: _kBrandTeal,
+                  tooltip: 'Back',
+                ),
+              ),
+              const Text(
                 'Settings',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: scheme.onSurface,
+                  color: _kBrandTeal,
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
                   height: 1.1,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Notifications, theme, privacy and support',
-                style: TextStyle(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
             ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Notifications, theme, privacy and support',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -125,24 +122,18 @@ class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
     required this.darkTheme,
     required this.pushNotifications,
-    required this.locationAlerts,
     required this.onDarkThemeChanged,
     required this.onPushNotificationsChanged,
-    required this.onLocationAlertsChanged,
     required this.onPrivacy,
-    required this.onLanguage,
     required this.onPaymentMethods,
     required this.onHelp,
   });
 
   final bool darkTheme;
   final bool pushNotifications;
-  final bool locationAlerts;
   final ValueChanged<bool> onDarkThemeChanged;
   final ValueChanged<bool> onPushNotificationsChanged;
-  final ValueChanged<bool> onLocationAlertsChanged;
   final VoidCallback onPrivacy;
-  final VoidCallback onLanguage;
   final VoidCallback onPaymentMethods;
   final VoidCallback onHelp;
 
@@ -181,12 +172,6 @@ class _SettingsCard extends StatelessWidget {
             onChanged: onPushNotificationsChanged,
           ),
           _SettingsSwitchRow(
-            icon: Icons.location_on_outlined,
-            label: 'Location Alerts',
-            value: locationAlerts,
-            onChanged: onLocationAlertsChanged,
-          ),
-          _SettingsSwitchRow(
             icon: Icons.dark_mode_outlined,
             label: 'Dark Theme',
             value: darkTheme,
@@ -196,12 +181,6 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.lock_outline_rounded,
             label: 'Privacy & Safety',
             onTap: onPrivacy,
-          ),
-          _SettingsActionRow(
-            icon: Icons.language_rounded,
-            label: 'Language',
-            trailing: 'English',
-            onTap: onLanguage,
           ),
           _SettingsActionRow(
             icon: Icons.account_balance_wallet_outlined,
@@ -253,14 +232,12 @@ class _SettingsActionRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.trailing,
     this.showDivider = true,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final String? trailing;
   final bool showDivider;
 
   @override
@@ -275,16 +252,6 @@ class _SettingsActionRow extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (trailing != null)
-            Text(
-              trailing!,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          const SizedBox(width: 8),
           Icon(
             Icons.chevron_right_rounded,
             size: 24,

@@ -1,6 +1,7 @@
 part of '../chat_service.dart';
 
 mixin _ChatServiceQueriesMixin on _ChatServiceBase {
+  /// Chat inbox: streams visible chats for the current resident within their selected community.
   Stream<List<ChatModel>> watchChats(AppUser currentUser) {
     final currentUserId = currentUser.uid;
     final communityId = currentUser.communityId.trim();
@@ -37,6 +38,7 @@ mixin _ChatServiceQueriesMixin on _ChatServiceBase {
         });
   }
 
+  /// Chat thread: streams visible messages for one chat, excluding messages deleted for the current user.
   Stream<List<ChatMessageModel>> watchMessages(
     String chatId,
     String currentUserId,

@@ -18,6 +18,7 @@ class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
+  /// App routing: chooses admin login, resident onboarding/login, verification screens, geofence gate, or dashboards.
   Widget build(BuildContext context) {
     return Consumer<AuthViewModel>(
       builder: (context, vm, _) {
@@ -130,6 +131,7 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
+/// Auth routing UI: shown while Firebase session or Firestore profile bootstrapping is still loading.
 class _AuthLoadingScaffold extends StatelessWidget {
   const _AuthLoadingScaffold();
 
@@ -142,6 +144,7 @@ class _AuthLoadingScaffold extends StatelessWidget {
   }
 }
 
+/// Auth routing UI: blocks admin accounts from using the mobile resident app.
 class _MobileAdminBlockedScaffold extends StatelessWidget {
   const _MobileAdminBlockedScaffold({
     required this.onRetry,
@@ -205,6 +208,7 @@ class _MobileAdminBlockedScaffold extends StatelessWidget {
   }
 }
 
+/// Auth routing UI: explains when Firebase Auth exists but the required Firestore profile is missing.
 class _MissingProfileScaffold extends StatelessWidget {
   const _MissingProfileScaffold({
     required this.message,

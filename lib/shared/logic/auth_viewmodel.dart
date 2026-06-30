@@ -26,6 +26,7 @@ part 'auth_viewmodel/auth_viewmodel_verification.dart';
 part 'auth_viewmodel/auth_viewmodel_profile.dart';
 part 'auth_viewmodel/auth_viewmodel_community.dart';
 
+/// Auth state manager: coordinates Firebase session, resident/admin profiles, registration, verification, and profile updates.
 class AuthViewModel extends _AuthViewModelBase
     with
         _AuthViewModelSignInMixin,
@@ -44,6 +45,7 @@ class AuthViewModel extends _AuthViewModelBase
   });
 
   @visibleForTesting
+  /// Auth tests: injects a Firebase user without listening to real Firebase auth changes.
   void testingSetFirebaseUser(User? user) {
     _firebaseUser = user;
   }

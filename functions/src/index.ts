@@ -50,8 +50,10 @@ export {
   stripeWebhook,
 } from "./stripe_payments";
 
+// Firebase Functions entrypoint: initializes Admin SDK once before all triggers and callables run.
 admin.initializeApp();
 
+// Public profile sync feature: mirrors safe resident fields from users/{uid} into publicProfiles/{uid}.
 export const syncPublicResidentProfile = onDocumentWritten(
   "users/{uid}",
   async (event) => {
@@ -72,6 +74,7 @@ export const syncPublicResidentProfile = onDocumentWritten(
   },
 );
 
+// Push notification feature: sends an FCM push whenever an in-app notification document is created.
 export const onNotificationCreatedSendPush = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
@@ -92,6 +95,7 @@ export const onNotificationCreatedSendPush = onDocumentCreated(
   },
 );
 
+// Marketplace borrow orchestration feature: sends borrow notifications, completion side effects, and deposit dispute flags.
 export const onBorrowRequestOrchestration = onDocumentWritten(
   "borrowRequests/{requestId}",
   async (event) => {
@@ -124,6 +128,7 @@ export const onBorrowRequestOrchestration = onDocumentWritten(
   },
 );
 
+// Neighbor connection notification feature: reacts to connection request/acceptance changes.
 export const onConnectionNotificationOrchestration = onDocumentWritten(
   "connections/{connectionId}",
   async (event) => {
@@ -149,6 +154,7 @@ export const onConnectionNotificationOrchestration = onDocumentWritten(
   },
 );
 
+// Service notification feature: reacts to service request creation/acceptance/rejection.
 export const onServiceRequestNotificationOrchestration = onDocumentWritten(
   "serviceRequests/{requestId}",
   async (event) => {
@@ -174,6 +180,7 @@ export const onServiceRequestNotificationOrchestration = onDocumentWritten(
   },
 );
 
+// Community post notification feature: fans out notifications when community posts are published.
 export const onCommunityPostNotificationOrchestration = onDocumentWritten(
   {
     document: "communityPosts/{postId}",
@@ -203,6 +210,7 @@ export const onCommunityPostNotificationOrchestration = onDocumentWritten(
   },
 );
 
+// Admin report notification feature: alerts scoped admins when a report is opened or needs review.
 export const onReportNotificationOrchestration = onDocumentWritten(
   "reports/{reportId}",
   async (event) => {
@@ -223,6 +231,7 @@ export const onReportNotificationOrchestration = onDocumentWritten(
   },
 );
 
+// Chat notification feature: creates notifications for new chat messages.
 export const onChatMessageNotification = onDocumentCreated(
   "chats/{chatId}/messages/{messageId}",
   async (event) => {
@@ -245,6 +254,7 @@ export const onChatMessageNotification = onDocumentCreated(
   },
 );
 
+// Verification sync feature: mirrors submitted/cancelled verification request state back to users/{uid}.
 export const onVerificationRequestUserSync = onDocumentWritten(
   "verificationRequests/{requestId}",
   async (event) => {
@@ -279,6 +289,7 @@ export const onVerificationRequestUserSync = onDocumentWritten(
   },
 );
 
+// Review publish feature: publishes hidden reviews after both parties review a completed marketplace transaction.
 export const onBorrowRequestReviewActivity = onDocumentUpdated(
   "borrowRequests/{requestId}",
   async (event) => {
@@ -304,6 +315,7 @@ export const onBorrowRequestReviewActivity = onDocumentUpdated(
   },
 );
 
+// Review publish feature: scheduled fallback publishes reviews after the grace period expires.
 export const publishExpiredBorrowReviews = onSchedule(
   "every 1 hours",
   async () => {
@@ -320,6 +332,7 @@ export const publishExpiredBorrowReviews = onSchedule(
   },
 );
 
+// Trust score feature: recalculates trust and creates damage/low-trust reports after a review becomes public.
 export const onReviewPublished = onDocumentUpdated(
   "reviews/{reviewId}",
   async (event) => {

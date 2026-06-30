@@ -1,6 +1,8 @@
 part of '../admin_service.dart';
 
+// Admin dashboard feature: calculates counts shown in overview cards.
 mixin _AdminServiceStatsMixin on _AdminServiceBase {
+  // Admin verification feature: loads users matching one verification status.
   Future<List<AppUser>> getUsersByVerificationStatus(String status) async {
     final snapshot = await _firestore
         .collection(AppConstants.usersCollection)
@@ -11,6 +13,7 @@ mixin _AdminServiceStatsMixin on _AdminServiceBase {
         .toList(growable: false);
   }
 
+  // Admin dashboard feature: computes scoped counts for requests, residents, listings, and open reports.
   Future<Map<String, int>> getAdminDashboardStats({
     String? communityId,
     String? communityName,
@@ -110,5 +113,6 @@ mixin _AdminServiceStatsMixin on _AdminServiceBase {
     };
   }
 
+  // Admin authentication feature: exposes the signed-in admin uid for audit fields.
   String? get currentAdminUid => _auth.currentUser?.uid;
 }

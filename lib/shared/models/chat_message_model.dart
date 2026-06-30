@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Chat DB model: stores a lightweight quoted-message snapshot for replies.
 class ChatMessageReply {
   const ChatMessageReply({
     required this.messageId,
@@ -17,6 +18,7 @@ class ChatMessageReply {
   final String type;
   final String text;
 
+  /// Chat replies: reads reply metadata saved on a chat message document.
   factory ChatMessageReply.fromMap(Map<String, dynamic> data) {
     return ChatMessageReply(
       messageId: (data['messageId'] as String?) ?? '',
@@ -27,6 +29,7 @@ class ChatMessageReply {
     );
   }
 
+  /// Chat replies: serializes reply metadata when sending a message that quotes another message.
   Map<String, dynamic> toMap() {
     return {
       'messageId': messageId,
@@ -38,6 +41,7 @@ class ChatMessageReply {
   }
 }
 
+/// Chat DB model: represents chats/{chatId}/messages/{messageId}, including text, image, file, read, delete, and reply data.
 class ChatMessageModel {
   const ChatMessageModel({
     required this.id,
@@ -77,8 +81,10 @@ class ChatMessageModel {
 
   bool isDeletedFor(String userId) => deletedFor.contains(userId);
 
+  /// Chat feature: returns the inbox preview text for text, image, and file messages.
   String get previewText => previewFor(type: type, text: text, fileName: fileName);
 
+  /// Chat feature: formats a safe preview for notifications, pinned messages, and chat lists.
   static String previewFor({
     required String type,
     required String text,
@@ -94,6 +100,7 @@ class ChatMessageModel {
     return body.isEmpty ? 'Message' : body;
   }
 
+  /// Chat replies: converts reply data into metadata understood by the Flutter chat UI package.
   Map<String, Object?> _replyMetadata() {
     final reply = replyTo;
     if (reply == null) return const {};
@@ -106,6 +113,7 @@ class ChatMessageModel {
     };
   }
 
+  /// Chat UI adapter: converts the Firestore message model into flutter_chat_core message objects.
   chat_core.Message toChatMessage({required String currentUserId}) {
     final seenByOther = readBy.any((id) => id != senderId);
     final status = senderId == currentUserId && seenByOther
@@ -162,6 +170,7 @@ class ChatMessageModel {
     );
   }
 
+  /// Chat DB model: converts a Firestore message document into the app message model.
   factory ChatMessageModel.fromMap(String id, Map<String, dynamic> data) {
     final replyId = (data['replyToMessageId'] as String?) ?? '';
     final reply = replyId.trim().isEmpty

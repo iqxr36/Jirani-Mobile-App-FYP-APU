@@ -78,6 +78,7 @@ const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
 let stripeClient: Stripe | undefined;
 
+// Payments backend: creates the Stripe client for callable functions using the secret stored in Firebase Functions.
 function stripe(): Stripe {
   if (stripeClient) return stripeClient;
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -91,6 +92,7 @@ function stripe(): Stripe {
   return stripeClient;
 }
 
+// Payments backend: creates the Stripe client used by the HTTP webhook handler.
 function webhookStripe(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
@@ -100,6 +102,7 @@ function webhookStripe(): Stripe {
   return stripeClient;
 }
 
+// Security helper: requires Firebase Auth so users cannot call payment functions anonymously.
 function requireUid(auth: {uid?: string} | undefined): string {
   const uid = auth?.uid;
   if (!uid) {
@@ -108,10 +111,12 @@ function requireUid(auth: {uid?: string} | undefined): string {
   return uid;
 }
 
+// Callable helper: normalizes incoming request data into an object before reading fields.
 function asRecord(data: unknown): Record<string, unknown> {
   return data && typeof data === "object" ? data as Record<string, unknown> : {};
 }
 
+// Callable helper: reads and trims string parameters from callable function input.
 function readString(
   data: Record<string, unknown>,
   key: string,
@@ -121,6 +126,7 @@ function readString(
   return typeof value === "string" ? value.trim() : fallback;
 }
 
+// Payments validation: reads Stripe minor-unit amounts and rejects zero, negative, or non-integer values.
 function readPositiveInt(data: Record<string, unknown>, key: string): number {
   const value = data[key];
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
@@ -129,6 +135,7 @@ function readPositiveInt(data: Record<string, unknown>, key: string): number {
   return value;
 }
 
+// Payments validation: reads optional RM amount fields used by deposit resolution decisions.
 function readNumber(data: Record<string, unknown>, key: string): number {
   const value = data[key];
   if (value === undefined || value === null) return 0;
@@ -138,24 +145,29 @@ function readNumber(data: Record<string, unknown>, key: string): number {
   return value;
 }
 
+// Payments helper: safely converts Firestore money fields into numbers.
 function toMoneyNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+// Stripe helper: converts RM values into Stripe minor units (sen).
 function moneyToMinorUnits(value: number): number {
   return Math.max(0, Math.round(value * 100));
 }
 
+// Marketplace payments: calculates the expected Stripe charge amount from usage fee plus deposit.
 function expectedMarketplaceAmount(data: DocumentData): number {
   const usageFee = Math.max(0, toMoneyNumber(data.usageFeeAmount));
   const deposit = Math.max(0, toMoneyNumber(data.depositAmount));
   return Math.round((usageFee + deposit) * 100);
 }
 
+// Marketplace payments: creates the deterministic chat id unlocked after the payment webhook succeeds.
 function marketplaceChatId(borrowerId: string, ownerId: string): string {
   return [borrowerId, ownerId].sort().join("_");
 }
 
+// Admin security: checks both users and admins collections for roles allowed to resolve deposits.
 async function isAdminUser(db: admin.firestore.Firestore, uid: string): Promise<boolean> {
   const [userSnapshot, adminSnapshot] = await Promise.all([
     db.collection(USERS_COLLECTION).doc(uid).get(),
@@ -169,6 +181,7 @@ async function isAdminUser(db: admin.firestore.Firestore, uid: string): Promise<
     adminRole === ROLE_SYSTEM_ADMIN;
 }
 
+// Admin security: blocks non-admins from manual payout and admin-only deposit actions.
 async function requireAdmin(
   db: admin.firestore.Firestore,
   uid: string,
@@ -178,6 +191,7 @@ async function requireAdmin(
   }
 }
 
+// Payments backend: stores a short safe failure reason without leaking full Stripe/internal errors.
 function safeErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim().slice(0, 500);
@@ -185,20 +199,24 @@ function safeErrorMessage(error: unknown): string {
   return "Stripe refund failed.";
 }
 
+// Notifications helper: builds deterministic ids so retried functions do not duplicate resident notifications.
 function notificationIdFor(...parts: string[]): string {
   return parts.join("_").replace(/\//g, "_");
 }
 
+// Payments UI helper: formats RM amounts used in backend-created notification messages.
 function moneyLabel(value: number): string {
   return `RM ${value.toFixed(2)}`;
 }
 
+// Stripe Connect payouts: returns true only when the lender account can receive transfers and payouts.
 function transferCapable(account: Stripe.Account): boolean {
   return account.capabilities?.transfers === "active" &&
     account.charges_enabled === true &&
     account.payouts_enabled === true;
 }
 
+// Stripe Connect payouts: maps Stripe account requirements into app statuses shown to lenders.
 function connectStatusFor(account: Stripe.Account): string {
   if (transferCapable(account)) return "complete";
   if ((account.requirements?.currently_due ?? []).length > 0 ||
@@ -209,12 +227,14 @@ function connectStatusFor(account: Stripe.Account): string {
   return "pending";
 }
 
+// Stripe Connect payouts: accepts only HTTPS return URLs and falls back to the hosted app URL.
 function connectReturnUrl(input: Record<string, unknown>, key: string): string {
   const value = readString(input, key);
   if (value.startsWith("https://")) return value;
   return "https://final-year-project-faisal.web.app/stripe-connect-return";
 }
 
+// Marketplace deposit notifications: builds borrower/lender wording for refund, partial deduction, or full deduction decisions.
 function depositDecisionNotificationBodies(
   decision: string,
   itemTitle: string,
@@ -242,6 +262,7 @@ function depositDecisionNotificationBodies(
   };
 }
 
+// Marketplace deposit payouts: tells the lender to collect from admin when automatic Stripe transfer is not available.
 async function notifyManualPayoutReady(
   db: admin.firestore.Firestore,
   borrowRequestId: string,
@@ -269,6 +290,7 @@ async function notifyManualPayoutReady(
   });
 }
 
+// Stripe Connect payouts: refreshes a lender's Stripe account capabilities into users/{uid}.
 async function syncConnectAccountStatus(
   db: admin.firestore.Firestore,
   uid: string,
@@ -292,6 +314,7 @@ async function syncConnectAccountStatus(
   return {account, status, payoutsEnabled};
 }
 
+// Stripe Connect payouts: creates or reuses the lender's connected account before onboarding or transfers.
 async function ensureConnectAccount(
   db: admin.firestore.Firestore,
   uid: string,
@@ -338,6 +361,7 @@ async function ensureConnectAccount(
   return syncConnectAccountStatus(db, uid, account.id);
 }
 
+// Callable API: starts Stripe Express onboarding or opens the lender dashboard when payout setup is already complete.
 export const createConnectOnboardingLink = onCall(
   {secrets: [stripeSecret]},
   async (request) => {
@@ -372,6 +396,7 @@ export const createConnectOnboardingLink = onCall(
   };
 });
 
+// Callable API: returns the current lender Stripe Connect payout readiness to Flutter.
 export const getConnectAccountStatus = onCall(
   {secrets: [stripeSecret]},
   async (request) => {
@@ -403,6 +428,7 @@ export const getConnectAccountStatus = onCall(
   };
 });
 
+// Stripe Connect payouts: transfers lender earnings after deposit resolution when the lender account is fully onboarded.
 async function createStripeLenderTransferIfReady(
   db: admin.firestore.Firestore,
   borrowRequestId: string,
@@ -499,6 +525,7 @@ async function createStripeLenderTransferIfReady(
   return {transferred: true, transferId: transfer.id, reason: "transferred"};
 }
 
+// Saved cards: extracts the default payment method id whether Stripe returns an id or expanded object.
 function paymentMethodIdFromDefault(
   defaultPaymentMethod: string | Stripe.PaymentMethod | null | undefined,
 ): string {
@@ -508,6 +535,7 @@ function paymentMethodIdFromDefault(
     : defaultPaymentMethod.id;
 }
 
+// Saved cards security: extracts the Stripe customer id attached to a payment method for ownership checks.
 function customerIdFromPaymentMethod(
   customer: string | Stripe.Customer | Stripe.DeletedCustomer | null,
 ): string {
@@ -515,6 +543,7 @@ function customerIdFromPaymentMethod(
   return typeof customer === "string" ? customer : customer.id;
 }
 
+// Saved cards: returns only safe card metadata for Flutter and Firestore, never card number or CVV.
 function safePaymentMethod(
   paymentMethod: Stripe.PaymentMethod,
   defaultPaymentMethodId: string,
@@ -531,6 +560,7 @@ function safePaymentMethod(
   };
 }
 
+// Saved cards: creates or reuses the Stripe customer linked to the Firebase user.
 async function ensureStripeCustomer(
   db: admin.firestore.Firestore,
   uid: string,
@@ -568,6 +598,7 @@ async function ensureStripeCustomer(
   return customer.id;
 }
 
+// Stripe PaymentSheet: creates an ephemeral key so Flutter can access the current customer's PaymentSheet data.
 async function createEphemeralKey(customerId: string): Promise<string> {
   const key = await stripe().ephemeralKeys.create(
     {customer: customerId},
@@ -576,6 +607,7 @@ async function createEphemeralKey(customerId: string): Promise<string> {
   return key.secret ?? "";
 }
 
+// Marketplace payments: verifies borrower, owner, item, approval status, selected card, and exact amount before charging.
 async function validateMarketplacePayment(
   db: admin.firestore.Firestore,
   uid: string,
@@ -655,6 +687,7 @@ async function validateMarketplacePayment(
   };
 }
 
+// Saved cards security: blocks users from paying with or modifying another customer's Stripe payment method.
 async function verifyPaymentMethodBelongsToCustomer(
   paymentMethodId: string,
   customerId: string,
@@ -668,6 +701,7 @@ async function verifyPaymentMethodBelongsToCustomer(
   }
 }
 
+// Marketplace payments: removes stale pending payment markers from the borrow request.
 async function clearPendingMarketplacePayment(
   requestRef: admin.firestore.DocumentReference,
 ): Promise<void> {
@@ -678,6 +712,7 @@ async function clearPendingMarketplacePayment(
   }, {merge: true});
 }
 
+// Marketplace payments: cancels an old pending Stripe intent before creating a replacement payment attempt.
 async function cancelExistingPendingMarketplacePayment(
   db: admin.firestore.Firestore,
   requestRef: admin.firestore.DocumentReference,
@@ -731,6 +766,7 @@ async function cancelExistingPendingMarketplacePayment(
   await clearPendingMarketplacePayment(requestRef);
 }
 
+// Callable API: creates a marketplace PaymentIntent only after Firebase Auth and borrow-request validation pass.
 export const createPaymentIntent = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -828,6 +864,7 @@ export const createPaymentIntent = onCall({secrets: [stripeSecret]}, async (requ
   }
 });
 
+// Callable API: creates a SetupIntent so residents can save cards through Stripe's secure PaymentSheet.
 export const createSetupIntent = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const db = admin.firestore();
@@ -849,6 +886,7 @@ export const createSetupIntent = onCall({secrets: [stripeSecret]}, async (reques
   };
 });
 
+// Callable API: lists saved card metadata for the current Firebase user's Stripe customer.
 export const listPaymentMethods = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const db = admin.firestore();
@@ -889,6 +927,7 @@ export const listPaymentMethods = onCall({secrets: [stripeSecret]}, async (reque
   return {paymentMethods: safeMethods};
 });
 
+// Callable API: detaches a saved card after confirming it belongs to the current user's Stripe customer.
 export const deletePaymentMethod = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -925,6 +964,7 @@ export const deletePaymentMethod = onCall({secrets: [stripeSecret]}, async (requ
   return {success: true};
 });
 
+// Callable API: updates the Stripe customer default payment method and syncs safe card metadata to Firestore.
 export const setDefaultPaymentMethod = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -972,6 +1012,7 @@ export const setDefaultPaymentMethod = onCall({secrets: [stripeSecret]}, async (
   return {success: true};
 });
 
+// Callable API: lets borrower/lender read their payment status after the webhook updates payments/{paymentId}.
 export const getPaymentStatus = onCall({secrets: [stripeSecret]}, async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -1000,6 +1041,7 @@ export const getPaymentStatus = onCall({secrets: [stripeSecret]}, async (request
   };
 });
 
+// Marketplace deposit resolution: validates that refund/deduction amounts match the selected admin decision.
 function assertDepositResolutionInput(
   decision: string,
   depositAmount: number,
@@ -1035,6 +1077,7 @@ function assertDepositResolutionInput(
   }
 }
 
+// Marketplace deposit resolution: allows limited self-service resolutions, while admin decisions use admin role checks.
 function resolutionAllowedForParticipant(
   requestData: DocumentData,
   uid: string,
@@ -1065,6 +1108,7 @@ function resolutionAllowedForParticipant(
   return false;
 }
 
+// Marketplace deposit resolution: stores who made the damage decision and what deduction type was approved.
 function damageDecisionFor(decision: string, isAdmin: boolean): string {
   if (decision === RESOLUTION_FULL_REFUND) {
     return isAdmin ? DAMAGE_DECISION_ADMIN_FULL_REFUND : DAMAGE_DECISION_NONE;
@@ -1077,6 +1121,7 @@ function damageDecisionFor(decision: string, isAdmin: boolean): string {
   return DAMAGE_DECISION_ADMIN_FULL_DEDUCTION;
 }
 
+// Marketplace deposit resolution: converts an admin decision into the borrow request deposit status.
 function depositStatusFor(decision: string): string {
   if (decision === RESOLUTION_FULL_REFUND) return DEPOSIT_STATUS_REFUNDED;
   if (decision === RESOLUTION_PARTIAL_DEDUCTION) {
@@ -1085,6 +1130,7 @@ function depositStatusFor(decision: string): string {
   return DEPOSIT_STATUS_DEDUCTED;
 }
 
+// Callable API: resolves a completed Stripe marketplace deposit by refunding the borrower and/or paying the lender.
 export const resolveMarketplaceDeposit = onCall(
   {secrets: [stripeSecret]},
   async (request) => {
@@ -1209,6 +1255,7 @@ export const resolveMarketplaceDeposit = onCall(
     REFUND_STATUS_PENDING :
     REFUND_STATUS_NOT_REQUIRED;
 
+  // Marketplace deposit resolution: refund the borrower portion first, then unblock lender payout after refund succeeds.
   if (refundAmount > 0) {
     await requestRef.set({
       refundStatus: REFUND_STATUS_PENDING,
@@ -1305,6 +1352,7 @@ export const resolveMarketplaceDeposit = onCall(
   }
   await batch.commit();
   let transferResult = {transferred: false, transferId: "", reason: ""};
+  // Marketplace deposit payout: try automatic Stripe Connect transfer; fall back to manual admin payout if unavailable.
   if (update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL) {
     try {
       transferResult = await createStripeLenderTransferIfReady(
@@ -1345,6 +1393,7 @@ export const resolveMarketplaceDeposit = onCall(
     refundAmount,
     reason,
   );
+  // Marketplace notifications: inform both borrower and lender exactly how admin resolved the deposit.
   await Promise.all([
     createInAppNotification(db, {
       userId: borrowerId,
@@ -1397,6 +1446,7 @@ export const resolveMarketplaceDeposit = onCall(
   };
 });
 
+// Callable API: lets admin mark a manual lender payout as paid when the lender collects it outside Stripe.
 export const markManualPayoutPaid = onCall(async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -1458,6 +1508,7 @@ export const markManualPayoutPaid = onCall(async (request) => {
   return {success: true};
 });
 
+// Marketplace deposit trigger helper: marks held Stripe deposits as disputed when a completed request becomes disputed.
 export async function markMarketplaceDepositDisputedIfNeeded(
   db: admin.firestore.Firestore,
   borrowRequestId: string,
@@ -1494,6 +1545,7 @@ export async function markMarketplaceDepositDisputedIfNeeded(
   }, {merge: true});
 }
 
+// Stripe webhook: updates borrowRequests after payment success, failure, or cancellation.
 async function updateMarketplaceBorrowRequest(
   payment: DocumentData,
   status: string,
@@ -1559,6 +1611,7 @@ async function updateMarketplaceBorrowRequest(
     .set(update, {merge: true});
 }
 
+// Stripe webhook: updates payments/{paymentId} from PaymentIntent events and then syncs the borrow request.
 async function updatePaymentFromIntent(
   intent: Stripe.PaymentIntent,
   status: string,
@@ -1593,6 +1646,7 @@ async function updatePaymentFromIntent(
   await updateMarketplaceBorrowRequest({...payment, id: paymentId}, status);
 }
 
+// Stripe webhook: updates borrower refund status and starts lender payout once the refund is final.
 async function updateRefundFromStripe(refund: Stripe.Refund): Promise<void> {
   const borrowRequestId = refund.metadata?.borrowRequestId;
   if (!borrowRequestId) {
@@ -1663,6 +1717,7 @@ async function updateRefundFromStripe(refund: Stripe.Refund): Promise<void> {
   }
 }
 
+// Stripe webhook: handles charge.refunded by forwarding each marketplace refund into the normal refund updater.
 async function updateRefundsFromCharge(charge: Stripe.Charge): Promise<void> {
   const refunds = charge.refunds?.data ?? [];
   for (const refund of refunds) {
@@ -1672,6 +1727,7 @@ async function updateRefundsFromCharge(charge: Stripe.Charge): Promise<void> {
   }
 }
 
+// Stripe webhook: records automatic lender transfer status on the borrow request.
 async function updateTransferFromStripe(transfer: Stripe.Transfer): Promise<void> {
   const borrowRequestId = transfer.metadata?.borrowRequestId;
   if (!borrowRequestId) {
@@ -1701,12 +1757,14 @@ async function updateTransferFromStripe(transfer: Stripe.Transfer): Promise<void
     }, {merge: true});
 }
 
+// Stripe webhook: keeps users/{uid} Connect capability fields current when Stripe updates an Express account.
 async function updateConnectAccountFromStripe(account: Stripe.Account): Promise<void> {
   const uid = account.metadata?.firebaseUid;
   if (!uid) return;
   await syncConnectAccountStatus(admin.firestore(), uid, account.id);
 }
 
+// HTTP API: verifies Stripe webhook signatures and applies final payment/refund/transfer/account updates server-side.
 export const stripeWebhook = onRequest(
   {secrets: [stripeSecret, stripeWebhookSecret]},
   async (request, response) => {

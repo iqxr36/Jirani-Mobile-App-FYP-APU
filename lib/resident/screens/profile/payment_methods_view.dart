@@ -11,6 +11,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const Color _kWarmAccent = Color(0xFFE29578);
 const double _kMaxContentWidth = 420;
 
+/// Payments feature screen: lets residents save cards and lets lenders set up Stripe Connect payouts.
 class PaymentMethodsView extends StatefulWidget {
   const PaymentMethodsView({super.key});
 
@@ -22,6 +23,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
   bool _loaded = false;
 
   @override
+  /// Payments feature lifecycle: loads saved cards and payout status once the provider is available.
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_loaded) return;
@@ -34,6 +36,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
     });
   }
 
+  /// Stripe Connect payouts: opens Stripe onboarding so lenders can receive damage-deduction earnings automatically.
   Future<void> _setupStripePayouts() async {
     final provider = context.read<PaymentProvider>();
     final result = await provider.createConnectOnboardingLink(
@@ -69,6 +72,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
     await provider.loadConnectAccountStatus();
   }
 
+  /// Saved cards: starts Stripe SetupIntent PaymentSheet and shows a success/error SnackBar afterwards.
   Future<void> _addPaymentMethod() async {
     final provider = context.read<PaymentProvider>();
     final ok = await provider.addPaymentMethod();
@@ -84,6 +88,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
     );
   }
 
+  /// Saved cards: sets one saved Stripe card as the resident's default payment method.
   Future<void> _setDefault(PaymentMethodModel method) async {
     final provider = context.read<PaymentProvider>();
     final ok = await provider.setDefaultPaymentMethod(
@@ -101,6 +106,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
     );
   }
 
+  /// Saved cards: confirms removal, then asks the backend to detach the card from the Stripe customer.
   Future<void> _remove(PaymentMethodModel method) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -138,6 +144,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
   }
 
   @override
+  /// Payments feature UI: renders payout setup, saved cards, empty/error/loading states, and the add-card action.
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
     final scheme = Theme.of(context).colorScheme;
@@ -243,6 +250,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
   }
 }
 
+/// Stripe Connect payouts UI: explains whether the lender can receive automatic damage deduction transfers.
 class _PayoutSetupCard extends StatelessWidget {
   const _PayoutSetupCard({
     required this.status,
@@ -257,6 +265,7 @@ class _PayoutSetupCard extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   @override
+  /// Stripe Connect payouts UI: renders onboarding/manage action plus refresh status control.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final effectiveStatus = status?.status ??
@@ -372,43 +381,51 @@ class _PayoutSetupCard extends StatelessWidget {
   }
 }
 
+/// Payments screen UI: top row with back navigation and screen title.
 class _Header extends StatelessWidget {
   const _Header({required this.onBack});
 
   final VoidCallback onBack;
 
   @override
+  /// Payments screen UI: renders the Payment Methods header.
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        IconButton(
-          onPressed: onBack,
-          icon: const Icon(Icons.chevron_left_rounded, size: 32),
-          color: _kBrandTeal,
-          tooltip: 'Back',
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: onBack,
+              icon: const Icon(Icons.chevron_left_rounded, size: 32),
+              color: _kBrandTeal,
+              tooltip: 'Back',
+            ),
+          ),
+          const Text(
             'Payment Methods',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: scheme.onSurface,
+              color: _kBrandTeal,
               fontSize: 26,
               fontWeight: FontWeight.w900,
               height: 1.1,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
+/// Saved cards UI: empty state shown before the resident has added any payment method.
 class _EmptyPanel extends StatelessWidget {
   const _EmptyPanel();
 
   @override
+  /// Saved cards UI: renders the empty card list message and guidance.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return _Panel(
@@ -446,10 +463,12 @@ class _EmptyPanel extends StatelessWidget {
   }
 }
 
+/// Payments screen UI: loading state while cards or payout status are being fetched.
 class _LoadingPanel extends StatelessWidget {
   const _LoadingPanel();
 
   @override
+  /// Payments screen UI: renders the centered loading indicator.
   Widget build(BuildContext context) {
     return const _Panel(
       child: Center(child: CircularProgressIndicator(color: _kBrandTeal)),
@@ -457,6 +476,7 @@ class _LoadingPanel extends StatelessWidget {
   }
 }
 
+/// Payments screen UI: error state with retry when saved cards cannot be loaded.
 class _ErrorPanel extends StatelessWidget {
   const _ErrorPanel({required this.message, required this.onRetry});
 
@@ -464,6 +484,7 @@ class _ErrorPanel extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
+  /// Payments screen UI: renders the user-facing payment error and retry button.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return _Panel(
@@ -487,12 +508,14 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
+/// Payments screen UI component: shared rounded panel container matching Jirani's resident style.
 class _Panel extends StatelessWidget {
   const _Panel({required this.child});
 
   final Widget child;
 
   @override
+  /// Payments screen UI component: applies responsive surface color, border, and spacing.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -511,6 +534,7 @@ class _Panel extends StatelessWidget {
   }
 }
 
+/// Saved cards UI: displays one safe card record with default and remove actions.
 class _PaymentMethodCard extends StatelessWidget {
   const _PaymentMethodCard({
     required this.method,
@@ -523,6 +547,7 @@ class _PaymentMethodCard extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
+  /// Saved cards UI: renders brand, masked last4, expiry, default badge, and card actions.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -642,6 +667,7 @@ class _PaymentMethodCard extends StatelessWidget {
   }
 }
 
+/// Saved cards UI: formats Stripe card brand text for display.
 String _brandLabel(String brand) {
   final value = brand.trim();
   if (value.isEmpty) return 'Card';
@@ -653,12 +679,14 @@ String _brandLabel(String brand) {
       .join(' ');
 }
 
+/// Saved cards UI: converts expiry month/year metadata into MM/YY without exposing full card details.
 String _expiry(PaymentMethodModel method) {
   final month = method.expMonth.toString().padLeft(2, '0');
   final year = (method.expYear % 100).toString().padLeft(2, '0');
   return '$month/$year';
 }
 
+/// Stripe Connect payouts UI: maps backend account status into a short resident-facing label.
 String _connectStatusLabel(String status) {
   switch (status) {
     case AppConstants.stripeConnectStatusComplete:
@@ -672,6 +700,7 @@ String _connectStatusLabel(String status) {
   }
 }
 
+/// Stripe Connect payouts UI: explains what the current payout status means for lender earnings.
 String _connectStatusMessage(String status) {
   switch (status) {
     case AppConstants.stripeConnectStatusComplete:

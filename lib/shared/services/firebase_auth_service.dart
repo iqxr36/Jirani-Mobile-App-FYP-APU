@@ -24,6 +24,7 @@ class AppleSignInFlowResult {
   final String? appleEmail;
 }
 
+/// Auth service: wraps Firebase Auth, Google sign-in, Apple sign-in, email verification, and password reset.
 class FirebaseAuthService {
   FirebaseAuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
     : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
@@ -41,11 +42,13 @@ class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
 
+  /// Auth feature: exposes Firebase session changes to AuthViewModel.
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
   User? get currentUser => _firebaseAuth.currentUser;
   bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
 
+  /// Auth feature: signs a resident/admin in with Firebase email and password.
   Future<UserCredential> signInWithEmailAndPassword({
     required String email,
     required String password,
@@ -56,6 +59,7 @@ class FirebaseAuthService {
     );
   }
 
+  /// Auth registration: creates the Firebase Auth account before a users/{uid} profile is written.
   Future<UserCredential> createUserWithEmailAndPassword({
     required String email,
     required String password,
@@ -66,6 +70,7 @@ class FirebaseAuthService {
     );
   }
 
+  /// Auth feature: signs out Firebase and any active Google session.
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
@@ -75,10 +80,12 @@ class FirebaseAuthService {
     await _firebaseAuth.signOut();
   }
 
+  /// Auth recovery: sends Firebase's password reset email.
   Future<void> sendPasswordResetEmail(String email) {
     return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
 
+  /// Auth/profile feature: starts Firebase's secure email-change verification flow.
   Future<void> verifyBeforeUpdateEmail(String email) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
@@ -90,10 +97,12 @@ class FirebaseAuthService {
     await user.verifyBeforeUpdateEmail(email.trim());
   }
 
+  /// Auth verification: sends the Firebase email verification message to the current user.
   Future<void> sendEmailVerification() async {
     await _firebaseAuth.currentUser?.sendEmailVerification();
   }
 
+  /// Auth verification: reloads the Firebase user so email/phone verification flags are fresh.
   Future<void> reloadCurrentUser() async {
     await _firebaseAuth.currentUser?.reload();
   }
@@ -207,6 +216,7 @@ class FirebaseAuthService {
     }
   }
 
+  /// Apple sign-in security: generates a random nonce that Firebase validates against Apple's identity token.
   static String generateNonce([int length = 32]) {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
@@ -217,6 +227,7 @@ class FirebaseAuthService {
     ).join();
   }
 
+  /// Apple sign-in security: hashes the nonce before sending it to Apple.
   static String sha256ofString(String input) {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);

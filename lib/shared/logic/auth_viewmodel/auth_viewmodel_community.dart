@@ -1,6 +1,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelCommunityMixin on _AuthViewModelBase {
+  /// Community/geofence feature: changes the resident community and resets verification, connections, chats, and location gate if needed.
   Future<void> updateSelectedCommunity({
     required String communityId,
     required String communityName,
@@ -59,6 +60,7 @@ mixin _AuthViewModelCommunityMixin on _AuthViewModelBase {
     notifyListeners();
   }
 
+  /// Geofence feature: marks the resident as inside their selected community after a successful boundary check.
   Future<void> markLocationVerified() async {
     final uid = _firebaseUser?.uid ?? _currentUser?.uid;
     if (uid == null) {

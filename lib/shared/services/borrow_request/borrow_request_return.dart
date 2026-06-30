@@ -1,6 +1,7 @@
 part of '../borrow_request_service.dart';
 
 mixin _BorrowRequestReturnMixin on _BorrowRequestServiceBase, _BorrowRequestHandoverMixin, _BorrowRequestDisputeMixin {
+  /// Marketplace return flow: borrower submits the item return, optional proof photo, and return code for lender confirmation.
   Future<void> submitReturn({
     required String requestId,
     required String borrowerId,
@@ -59,7 +60,7 @@ mixin _BorrowRequestReturnMixin on _BorrowRequestServiceBase, _BorrowRequestHand
     }
   }
 
-  /// Owner happy path: returnSubmitted -> completed; item -> available.
+  /// Marketplace return flow: lender confirms a clean return, completes the request, and triggers a Stripe full deposit refund.
   Future<void> confirmReturn({
     required String requestId,
     required String ownerId,

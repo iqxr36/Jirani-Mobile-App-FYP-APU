@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
+/// Geofence feature: returns true when the resident's GPS point is farther than the community radius.
 bool isOutsideCommunityBoundary({
   required double userLatitude,
   required double userLongitude,
@@ -36,6 +37,7 @@ class OutsideGeofenceView extends StatefulWidget {
 class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
   bool _returningToLogin = false;
 
+  /// Geofence feature: signs the resident out when they cannot access the app from outside the community.
   Future<void> _returnToLogin() async {
     if (_returningToLogin) return;
     setState(() => _returningToLogin = true);
@@ -60,6 +62,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
+  /// Geofence feature UI: displays the outside-area illustration or a fallback icon.
   Widget _buildIllustration(BuildContext context) {
     return SizedBox(
       height: JiraniResponsive.clamp(context, 220, minFactor: 0.78),
@@ -78,6 +81,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
     );
   }
 
+  /// Geofence feature UI: summarizes the selected community and the current outside-boundary status.
   Widget _buildResultCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -165,6 +169,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
     );
   }
 
+  /// Geofence feature UI: returns to the checking screen so the location can be verified again.
   Widget _buildTryAgainButton() {
     return SizedBox(
       height: 44,
@@ -192,6 +197,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
     );
   }
 
+  /// Geofence feature UI: lets the resident leave the gated flow and go back to login.
   Widget _buildReturnToLoginButton() {
     return SizedBox(
       height: 44,
@@ -222,6 +228,7 @@ class _OutsideGeofenceViewState extends State<OutsideGeofenceView> {
   }
 
   @override
+  /// Geofence feature UI: renders the blocked screen when the resident is outside the allowed community radius.
   Widget build(BuildContext context) {
     final padding = JiraniResponsive.pagePadding(context, top: 16, bottom: 24);
 

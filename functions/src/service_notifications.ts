@@ -8,10 +8,12 @@ const NOTIFICATION_TYPE_SERVICE_REQUEST = "serviceRequest";
 const NOTIFICATION_TYPE_SERVICE_ACCEPTED = "serviceAccepted";
 const NOTIFICATION_TYPE_SERVICE_REJECTED = "serviceRejected";
 
+// Service notification feature: safely reads string fields from service request documents.
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Service notification feature: notifies service providers/requesters when service request state changes.
 export async function handleServiceRequestNotificationChanges(
   db: Firestore,
   requestId: string,

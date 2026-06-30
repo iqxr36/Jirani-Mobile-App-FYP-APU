@@ -347,7 +347,7 @@ class StartupErrorScaffold extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.error_outline_rounded,
-                        color: Color(0xFFE29578),
+                        color: Color.fromARGB(255, 223, 14, 14),
                         size: 42,
                       ),
                       const SizedBox(height: 16),

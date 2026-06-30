@@ -6,6 +6,7 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 380;
 
+// Services UI feature: displays the resident services discovery screen; payment support is prepared but not active here yet.
 class ResidentServicesView extends StatelessWidget {
   const ResidentServicesView({super.key});
 
@@ -30,6 +31,7 @@ class ResidentServicesView extends StatelessWidget {
     ),
   ];
 
+  // Services UI feature: placeholder refresh action for the services list.
   Future<void> _refreshServices() async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
   }
@@ -573,6 +575,7 @@ class _AddButton extends StatelessWidget {
   }
 }
 
+// Services UI feature: temporary display data used by the current static services prototype.
 class _ServiceCardData {
   const _ServiceCardData({
     required this.name,

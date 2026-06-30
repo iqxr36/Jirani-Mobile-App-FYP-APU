@@ -31,6 +31,7 @@ type BorrowRequestData = {
   itemConditionAfter?: string;
 };
 
+// Trust score feature: builds a readable resident name for automated admin reports.
 function displayName(data: DocumentData | undefined): string {
   if (!data) return "Resident";
   const fullName = typeof data.fullName === "string" ? data.fullName.trim() : "";
@@ -41,6 +42,7 @@ function displayName(data: DocumentData | undefined): string {
   return combined || "Resident";
 }
 
+// Trust score feature: reads review creation time for time-weighted score calculation.
 function reviewCreatedAt(review: ReviewData): Date {
   const createdAt = review.createdAt;
   if (createdAt instanceof admin.firestore.Timestamp) {
@@ -49,6 +51,7 @@ function reviewCreatedAt(review: ReviewData): Date {
   return new Date();
 }
 
+// Trust score feature: recalculates a user's weighted Community Trust Score from published reviews.
 export async function recalculateTrustScoreForUser(
   db: Firestore,
   userId: string,
@@ -108,6 +111,7 @@ export async function recalculateTrustScoreForUser(
   }
 }
 
+// Trust score feature: creates an admin damage report when a public 1-star lender review indicates damage.
 export async function createDamageReportIfNeeded(
   db: Firestore,
   reviewId: string,
@@ -147,6 +151,7 @@ export async function createDamageReportIfNeeded(
   });
 }
 
+// Trust score feature: creates an automated admin report when a resident drops below the low-trust threshold.
 async function createLowTrustReportIfNeeded(
   db: Firestore,
   reportedUserId: string,
@@ -174,6 +179,7 @@ async function createLowTrustReportIfNeeded(
   });
 }
 
+// Trust score feature: creates a deterministic automated report if it does not already exist.
 async function createAdminReportIfNeeded(
   db: Firestore,
   input: {
@@ -213,6 +219,7 @@ async function createAdminReportIfNeeded(
   });
 }
 
+// Trust score feature: detects the first time a hidden review becomes public.
 export function reviewBecamePublished(
   before: ReviewData | undefined,
   after: ReviewData | undefined,

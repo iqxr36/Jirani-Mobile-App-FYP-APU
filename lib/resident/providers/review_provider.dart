@@ -3,6 +3,7 @@ import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/review_model.dart';
 import 'package:jirani/shared/services/review_service.dart';
 
+// Review feature: submits one-time marketplace reviews and streams public review lists.
 class ReviewProvider extends ChangeNotifier {
   ReviewProvider({ReviewService? service})
     : _service = service ?? ReviewService();
@@ -12,9 +13,11 @@ class ReviewProvider extends ChangeNotifier {
   bool _busy = false;
   bool get isSubmitting => _busy;
 
+  // Review feature: streams published reviews for a resident profile.
   Stream<List<ReviewModel>> reviewsForUser(String userId) =>
       _service.watchReviewsForUser(userId);
 
+  // Review feature: checks whether this borrow request already has a review from the current user.
   Future<bool> hasUserReviewedBorrowRequest({
     required String borrowRequestId,
     required String reviewerId,
@@ -25,6 +28,7 @@ class ReviewProvider extends ChangeNotifier {
     );
   }
 
+  // Review feature: creates the borrower's or lender's one-time review after transaction completion.
   Future<void> createReview({
     required BorrowRequest borrowRequest,
     required String reviewerId,

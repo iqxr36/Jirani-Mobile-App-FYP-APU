@@ -7,6 +7,7 @@ import 'package:jirani/shared/widgets/auth_feedback_banner.dart';
 import 'package:provider/provider.dart';
 
 /// Forgot password — Figma reset screen: header, card, success/error banners, bottom buttons.
+// Password reset UI feature: lets a resident request a Firebase password reset email.
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
 
@@ -29,6 +30,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     _emailController.addListener(_onEmailChanged);
   }
 
+  // Password reset UI feature: clears the sent-state when the email field changes.
   void _onEmailChanged() {
     if (!mounted) return;
     context.read<AuthViewModel>().clearError();
@@ -42,6 +44,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     super.dispose();
   }
 
+  // Password reset UI feature: validates the email and sends the reset link.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 

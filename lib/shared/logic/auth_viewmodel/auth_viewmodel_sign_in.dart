@@ -1,6 +1,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
+  /// Auth sign-in: validates credentials, signs in through Firebase, and loads resident/admin Firestore profile data.
   Future<void> login({required String email, required String password}) async {
     authDebugLog('[AuthProvider.login] started');
     final validationError =
@@ -85,6 +86,7 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
     }
   }
 
+  /// Auth sign-out: clears Firebase session and local resident/admin state.
   Future<void> logout() async {
     _setLoading(true);
     clearError(notify: false);
@@ -104,6 +106,7 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
     }
   }
 
+  /// Auth recovery: validates email and requests Firebase password reset.
   Future<void> sendPasswordResetEmail(String email) async {
     final emailError = Validators.validateEmail(email);
     if (emailError != null) {

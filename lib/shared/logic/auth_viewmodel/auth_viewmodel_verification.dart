@@ -1,7 +1,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelVerificationMixin on _AuthViewModelBase {
-  /// Returns `null` on success, or an error message string.
+  /// Phone verification: links the SMS code to the just-registered Firebase user and refreshes profile state.
   Future<String?> tryLinkPhoneWithSmsCode({
     required String verificationId,
     required String smsCode,
@@ -20,6 +20,7 @@ mixin _AuthViewModelVerificationMixin on _AuthViewModelBase {
     }
   }
 
+  /// Phone verification: links a Firebase phone credential to the registered user and refreshes profile state.
   Future<String?> tryLinkPhoneWithCredential({
     required PhoneAuthCredential credential,
     required String phoneNumber,
@@ -36,6 +37,7 @@ mixin _AuthViewModelVerificationMixin on _AuthViewModelBase {
     }
   }
 
+  /// Email verification: resends Firebase's email verification message and updates success/error state.
   Future<void> resendEmailVerification() async {
     if (_isEmailVerificationSending) return;
     _isEmailVerificationSending = true;
@@ -54,6 +56,7 @@ mixin _AuthViewModelVerificationMixin on _AuthViewModelBase {
     }
   }
 
+  /// Email verification: reloads Firebase/Auth profile state and returns whether the email is now verified.
   Future<bool> refreshEmailVerificationStatus() async {
     _setLoading(true);
     clearError(notify: false);

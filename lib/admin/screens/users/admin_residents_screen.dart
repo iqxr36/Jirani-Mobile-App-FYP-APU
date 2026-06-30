@@ -9,6 +9,7 @@ import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:provider/provider.dart';
 
+// Admin residents UI feature: manages resident accounts, verification overrides, notices, and exports.
 class AdminResidentsScreen extends StatefulWidget {
   const AdminResidentsScreen({super.key});
 
@@ -248,6 +249,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     );
   }
 
+  // Admin residents UI feature: dispatches edit/suspend/archive/reset/notice actions for one resident.
   Future<void> _handleResidentAction(
     BuildContext context,
     AdminProvider admin,
@@ -394,6 +396,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     }
   }
 
+  // Admin residents UI feature: opens a full resident profile summary dialog.
   Future<void> _showResidentProfile(
     BuildContext context,
     AppUser resident,
@@ -454,6 +457,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     );
   }
 
+  // Admin residents UI feature: asks for required admin reason before account or verification actions.
   Future<String?> _askReason(
     BuildContext context, {
     required String title,
@@ -490,6 +494,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     );
   }
 
+  // Admin residents UI feature: shows confirmation dialogs before sensitive account actions.
   Future<bool> _confirm(
     BuildContext context, {
     required String title,
@@ -516,6 +521,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     return result == true;
   }
 
+  // Admin residents UI feature: exports the currently filtered resident list for admin reporting.
   void _exportResidents(List<AppUser> residents) {
     final csv = [
       'Name,Email,Phone,Community,Unit,Verification,Account',

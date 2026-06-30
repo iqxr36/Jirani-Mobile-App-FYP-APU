@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 
 type DocumentData = admin.firestore.DocumentData;
 
+// Public profile sync feature: normalizes first/last name fields from users/{uid}.
 function parseName(data: DocumentData): { firstName: string; lastName: string } {
   const firstName =
     typeof data.firstName === "string" ? data.firstName.trim() : "";
@@ -18,6 +19,7 @@ function parseName(data: DocumentData): { firstName: string; lastName: string } 
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
+// Public profile sync feature: safely converts numeric profile stats.
 function asNumber(value: unknown, fallback = 0): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -27,15 +29,18 @@ function asNumber(value: unknown, fallback = 0): number {
   return fallback;
 }
 
+// Public profile sync feature: safely converts profile counters to integers.
 function asInt(value: unknown, fallback = 0): number {
   return Math.trunc(asNumber(value, fallback));
 }
 
+// Public profile sync feature: normalizes legacy approved status into verified.
 function normalizeVerificationStatus(status: unknown): string {
   if (typeof status !== "string") return "";
   return status === "approved" ? "verified" : status;
 }
 
+// Public profile sync feature: builds the safe publicProfiles/{uid} payload from private users/{uid}.
 export function buildPublicProfilePayload(
   uid: string,
   data: DocumentData,
@@ -75,6 +80,7 @@ export function buildPublicProfilePayload(
   };
 }
 
+// Public profile sync feature: writes or deletes publicProfiles/{uid} when users/{uid} changes.
 export async function syncPublicProfileFromUser(
   db: admin.firestore.Firestore,
   uid: string,

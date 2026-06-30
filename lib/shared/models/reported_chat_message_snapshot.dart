@@ -1,6 +1,7 @@
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 
+/// Reports DB model: immutable snapshot of a chat message captured when a resident reports chat misconduct.
 class ReportedChatMessageSnapshot {
   const ReportedChatMessageSnapshot({
     required this.messageId,
@@ -22,6 +23,7 @@ class ReportedChatMessageSnapshot {
   final String fileName;
   final DateTime sentAt;
 
+  /// Chat reports: captures a message and sender name before storing it in reports/{reportId}.
   factory ReportedChatMessageSnapshot.fromMessage(
     ChatMessageModel message, {
     required String senderName,
@@ -38,6 +40,7 @@ class ReportedChatMessageSnapshot {
     );
   }
 
+  /// Chat reports: reads a stored reported-message snapshot from Firestore.
   factory ReportedChatMessageSnapshot.fromMap(Map<String, dynamic> data) {
     return ReportedChatMessageSnapshot(
       messageId: (data['messageId'] as String?) ?? '',
@@ -51,6 +54,7 @@ class ReportedChatMessageSnapshot {
     );
   }
 
+  /// Chat reports: serializes the snapshot into report data for admin review.
   Map<String, dynamic> toMap() {
     return {
       'messageId': messageId,
@@ -64,6 +68,7 @@ class ReportedChatMessageSnapshot {
     };
   }
 
+  /// Chat reports UI: renders readable text for reported text, image, or file messages.
   String get displayBody {
     if (type == AppConstants.chatMessageImage) {
       return text.trim().isEmpty ? '[Image attachment]' : text.trim();

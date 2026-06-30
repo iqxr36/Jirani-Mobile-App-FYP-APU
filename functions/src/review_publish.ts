@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 type Firestore = admin.firestore.Firestore;
 type DocumentData = admin.firestore.DocumentData;
 
+// Review feature: builds deterministic review IDs so each user can review a borrow request only once.
 export function buildReviewDocId(
   borrowRequestId: string,
   reviewerId: string,
@@ -10,6 +11,7 @@ export function buildReviewDocId(
   return `${borrowRequestId.replace(/\//g, "_")}_${reviewerId}`;
 }
 
+// Review feature: detects when a completed borrow request has a newly submitted hidden review to publish.
 export function shouldAttemptPublishAfterBorrowUpdate(
   before: DocumentData | undefined,
   after: DocumentData | undefined,
@@ -27,11 +29,13 @@ export function shouldAttemptPublishAfterBorrowUpdate(
   return borrowerJustSubmitted || ownerJustSubmitted;
 }
 
+// Review feature: checks whether the private review waiting period has ended.
 function isGraceExpired(publishAfter: unknown): boolean {
   if (!(publishAfter instanceof admin.firestore.Timestamp)) return false;
   return publishAfter.toMillis() <= Date.now();
 }
 
+// Review feature: publishes hidden reviews when both parties reviewed or the grace period expired.
 export async function publishEligibleReviewsForBorrowRequest(
   db: Firestore,
   borrowRequestId: string,
@@ -98,6 +102,7 @@ export async function publishEligibleReviewsForBorrowRequest(
   });
 }
 
+// Review feature: scheduled job publishes reviews whose grace period expired without both parties reviewing.
 export async function publishGraceExpiredBorrowReviews(
   db: Firestore,
   batchSize = 100,

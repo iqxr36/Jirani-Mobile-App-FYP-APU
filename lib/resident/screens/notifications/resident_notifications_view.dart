@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 420;
 
+// Notification UI feature: lists resident notifications and routes each tapped item to its related feature screen.
 class ResidentNotificationsView extends StatefulWidget {
   const ResidentNotificationsView({super.key});
 
@@ -32,6 +33,7 @@ class _ResidentNotificationsViewState extends State<ResidentNotificationsView> {
     };
   }
 
+  // Notification UI feature: marks a notification as read and opens its marketplace/chat/service/community destination.
   Future<void> _handleTap(NotificationModel notification) async {
     final provider = context.read<NotificationProvider>();
     if (notification.unread) {

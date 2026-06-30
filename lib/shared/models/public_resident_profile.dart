@@ -43,14 +43,17 @@ class PublicResidentProfile {
   final int completedServices;
   final DateTime updatedAt;
 
+  /// Public profile feature: combines public first/last name for cards and profile headers.
   String get fullName => '$firstName $lastName'.trim();
 
+  /// Public profile feature: hides inactive/unverified residents from trusted public surfaces.
   bool get isVerifiedResident =>
       verificationStatus == AppConstants.verificationVerified &&
       accountStatus == AppConstants.accountStatusActive;
 
   bool get isResident => role == AppConstants.roleResident;
 
+  /// Public profile DB model: converts publicProfiles/{uid} data into the safe public resident model.
   factory PublicResidentProfile.fromMap(Map<String, dynamic> map) {
     final rawStatus = (map['verificationStatus'] as String?) ?? '';
     final normalizedStatus = rawStatus == 'approved'
@@ -113,6 +116,7 @@ class PublicResidentProfile {
     );
   }
 
+  /// Public profile DB model: supports both public first/last name fields and legacy fullName data.
   static (String, String) _parseNames(Map<String, dynamic> map) {
     final firstName = (map['firstName'] as String?)?.trim() ?? '';
     final lastName = (map['lastName'] as String?)?.trim() ?? '';

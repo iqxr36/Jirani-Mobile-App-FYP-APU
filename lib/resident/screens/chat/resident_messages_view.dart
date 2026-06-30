@@ -11,15 +11,18 @@ import 'package:timeago/timeago.dart' as timeago;
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 420;
 
+// Chat UI feature: resident inbox showing conversations, unread counts, and entry to new chats.
 class ResidentMessagesView extends StatelessWidget {
   const ResidentMessagesView({super.key});
 
+  // Chat UI feature: opens the connected-neighbor picker for starting a new conversation.
   void _openNewChat(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const ResidentNewChatView()),
     );
   }
 
+  // Chat UI feature: opens the selected one-to-one chat thread.
   void _openThread(BuildContext context, ChatModel chat) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -28,6 +31,7 @@ class ResidentMessagesView extends StatelessWidget {
     );
   }
 
+  // Chat UI feature: forces the provider to restart the inbox stream during pull-to-refresh.
   Future<void> _refreshInbox(BuildContext context) async {
     final provider = context.read<ChatProvider>();
     provider.watchForUser(provider.currentUser, force: true);

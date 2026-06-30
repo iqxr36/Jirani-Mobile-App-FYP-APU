@@ -9,6 +9,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
 /// Camera permission — Figma Group 25: illustration, title, info card, enable / maybe later.
+// Camera permission feature: asks for camera access used by residency document capture.
 class CameraPermissionView extends StatefulWidget {
   const CameraPermissionView({super.key, this.nextBuilder});
 
@@ -45,6 +46,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     );
   }
 
+  // Camera permission feature: stores camera permission status on the resident profile.
   Future<void> _saveCameraPreference({
     required bool enabled,
     required String status,
@@ -55,6 +57,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     );
   }
 
+  // Camera permission feature: requests camera permission and continues the verification onboarding flow.
   Future<void> _handleEnableCamera() async {
     if (_buttonsLocked) return;
     setState(() => _enabling = true);
@@ -92,6 +95,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     }
   }
 
+  // Camera permission feature: records skipped camera permission and continues onboarding.
   Future<void> _handleMaybeLater() async {
     if (_buttonsLocked) return;
     setState(() => _skipping = true);

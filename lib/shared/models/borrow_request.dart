@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Marketplace DB model: represents one borrow transaction, including approval, payment, handover, return, dispute, and payout fields.
 class BorrowRequest {
   const BorrowRequest({
     required this.id,
@@ -119,7 +120,10 @@ class BorrowRequest {
   final DateTime expectedReturnDate;
   final String pickupTime;
   final String message;
+  /// Marketplace lifecycle: current borrow state such as pending, approved, active, returnSubmitted, disputed, or completed.
   final String status;
+
+  /// Marketplace payment: Stripe webhook-controlled status used before chat/handover is unlocked.
   final String paymentStatus;
   final DateTime? paymentCompletedAt;
   final String paymentProvider;
@@ -151,9 +155,11 @@ class BorrowRequest {
   final String itemConditionAfter;
   final String returnNotes;
   final String ownerReturnNotes;
+  /// Marketplace deposit: owner/admin decision that decides refund, partial deduction, or withholding outcome.
   final String depositDecision;
   final String depositDecisionReason;
   final DateTime? depositDecidedAt;
+  /// Marketplace dispute: lender-requested minor deduction that borrower can accept or decline.
   final double? minorDeductionAmount;
   final String minorIssueReason;
   final String minorIssuePhotoUrl;
@@ -164,10 +170,12 @@ class BorrowRequest {
   final String disputeReason;
   final String disputeEvidenceImageUrl;
   final DateTime? disputeReportedAt;
+  /// Marketplace admin dispute: admin's final decision when minor/major damage needs moderation.
   final String adminResolution;
   final String adminResolutionReason;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
+  /// Marketplace Stripe deposit: backend status for held/refunded/deducted/refund_failed deposit money.
   final String depositStatus;
   final double depositHeldAmount;
   final double depositRefundAmount;
@@ -179,14 +187,17 @@ class BorrowRequest {
   final String stripeRefundId;
   final String refundStatus;
   final String refundFailureReason;
+  /// Marketplace payout: usage fee plus any approved damage deduction owed to the lender.
   final double lenderBaseEarning;
   final double lenderDamageEarning;
   final double lenderTotalEarning;
+  /// Marketplace payout: manual collection status used when Stripe Connect automatic transfer is not available.
   final String manualPayoutStatus;
   final DateTime? manualPayoutMarkedAt;
   final String manualPayoutMarkedBy;
   final String manualPayoutReference;
   final String manualPayoutNote;
+  /// Marketplace payout: Stripe Connect transfer metadata when lender earnings are paid automatically.
   final String stripeTransferId;
   final String stripeTransferDestinationAccountId;
   final double stripeTransferAmount;
@@ -194,6 +205,7 @@ class BorrowRequest {
   final String stripeTransferFailureReason;
   final DateTime? stripeTransferCreatedAt;
   final DateTime? stripeTransferUpdatedAt;
+  /// Marketplace reviews: prevents borrower and lender from submitting duplicate post-transaction reviews.
   final bool borrowerReviewSubmitted;
   final DateTime? borrowerReviewSubmittedAt;
   final bool ownerReviewSubmitted;
@@ -425,6 +437,7 @@ class BorrowRequest {
     );
   }
 
+  /// Marketplace DB model: converts a Firestore borrowRequests/{id} document into the app transaction model.
   factory BorrowRequest.fromMap(String id, Map<String, dynamic> data) {
     return BorrowRequest(
       id: id,
@@ -551,6 +564,7 @@ class BorrowRequest {
     );
   }
 
+  /// Marketplace DB model: serializes the borrow request back to Firestore using the same field names as the backend.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'itemId': itemId,

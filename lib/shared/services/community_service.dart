@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/community_model.dart';
 
+/// Community/geofence abstraction: lets geofence flows load active community boundaries without depending on Firestore details.
 abstract class CommunityReader {
   Future<List<CommunityModel>> fetchActiveCommunities();
 }
 
+/// Community/geofence service: reads and writes community boundary records from Firestore.
 class CommunityService implements CommunityReader {
   CommunityService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -16,6 +18,7 @@ class CommunityService implements CommunityReader {
   CollectionReference<Map<String, dynamic>> get _communities =>
       _firestore.collection(AppConstants.communitiesCollection);
 
+  /// Community admin setup: saves a community boundary and metadata record.
   Future<void> addCommunity(CommunityModel community) async {
     try {
       await _communities.doc(community.communityId).set(community.toMap());
@@ -26,6 +29,7 @@ class CommunityService implements CommunityReader {
   }
 
   @override
+  /// Community/geofence feature: loads active communities for resident selection and geofence monitoring.
   Future<List<CommunityModel>> fetchActiveCommunities() async {
     try {
       final snapshot = await _communities.get();
@@ -48,6 +52,7 @@ class CommunityService implements CommunityReader {
     }
   }
 
+  /// Community/geofence feature: loads one active community boundary by id.
   Future<CommunityModel?> fetchCommunity(String communityId) async {
     try {
       final document = await _communities.doc(communityId).get();

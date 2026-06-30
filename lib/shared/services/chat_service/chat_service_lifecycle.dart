@@ -1,6 +1,7 @@
 part of '../chat_service.dart';
 
 mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
+  /// Chat lifecycle: opens an existing one-to-one chat or creates it after validating both residents.
   Future<ChatModel> openOrCreateChat({
     required AppUser currentUser,
     required AppUser neighbor,
@@ -107,6 +108,7 @@ mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
     return ChatModel.fromMap(created.id, created.data() ?? const {});
   }
 
+  /// Chat lifecycle: hides a chat for one user without deleting it for the other participant.
   Future<void> deleteChatForUser({
     required ChatModel chat,
     required String currentUserId,
@@ -118,6 +120,7 @@ mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
     });
   }
 
+  /// Community change cleanup: hides chats that no longer belong to the resident's selected community.
   Future<void> archiveChatsOutsideCommunity({
     required String uid,
     required String communityId,

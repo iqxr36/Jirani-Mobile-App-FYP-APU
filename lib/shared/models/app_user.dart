@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Auth/profile DB model: represents users/{uid}, including resident profile, admin role, verification, trust, geofence, and Stripe customer fields.
 class AppUser {
   const AppUser({
     required this.uid,
@@ -70,6 +71,7 @@ class AppUser {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Verification feature: true when the resident has passed residency verification.
   bool get isVerifiedResident =>
       verificationStatus == AppConstants.verificationVerified;
   bool get isSuspended => accountStatus == AppConstants.accountStatusSuspended;
@@ -82,12 +84,14 @@ class AppUser {
   bool get isAdmin => isCommunityAdmin || isSystemAdmin;
   String get fullName => '$firstName $lastName'.trim();
 
+  /// Auth feature: detects an email-change request waiting for Firebase verification.
   bool get hasPendingEmailChange {
     final pending = pendingEmail.trim();
     return pending.isNotEmpty &&
         pending.toLowerCase() != email.trim().toLowerCase();
   }
 
+  /// Auth/profile feature: creates an updated user object while preserving unchanged Firestore fields.
   AppUser copyWith({
     String? uid,
     String? firstName,
@@ -158,6 +162,7 @@ class AppUser {
     );
   }
 
+  /// Auth/profile DB model: serializes the user into the users/{uid} Firestore shape.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'uid': uid,
@@ -195,6 +200,7 @@ class AppUser {
     };
   }
 
+  /// Auth/profile DB model: converts users/{uid} Firestore data into an AppUser and normalizes legacy values.
   factory AppUser.fromMap(Map<String, dynamic> map) {
     final rawStatus = (map['verificationStatus'] as String?) ?? '';
     // Legacy Firestore value only — never use "approved" elsewhere in the app.
@@ -242,6 +248,7 @@ class AppUser {
     );
   }
 
+  /// Auth/profile DB model: supports both new first/last name fields and legacy fullName records.
   static (String, String) _parseNames(Map<String, dynamic> map) {
     final firstName = (map['firstName'] as String?)?.trim() ?? '';
     final lastName = (map['lastName'] as String?)?.trim() ?? '';
@@ -257,12 +264,14 @@ class AppUser {
     return (parts.first, parts.skip(1).join(' '));
   }
 
+  /// Auth/profile DB model: safely parses integer counters from Firestore.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return 0;
   }
 
+  /// Auth/profile DB model: safely parses score fields from Firestore.
   static double _parseDouble(dynamic value) {
     if (value == null) return 0;
     if (value is double) return value;
@@ -271,6 +280,7 @@ class AppUser {
     return double.tryParse(value.toString()) ?? 0;
   }
 
+  /// Auth/profile DB model: converts Firestore timestamp-like values into DateTime with a safe fallback.
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
@@ -279,6 +289,7 @@ class AppUser {
     return DateTime.now();
   }
 
+  /// Auth/profile DB model: converts optional timestamp-like values into nullable DateTime.
   static DateTime? _parseOptionalDate(dynamic value) {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();

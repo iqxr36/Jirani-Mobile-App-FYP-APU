@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 
+/// Chat DB model: stores the pinned-message snapshot saved on chats/{chatId}.
 class PinnedChatMessage {
   const PinnedChatMessage({
     required this.messageId,
@@ -29,6 +30,7 @@ class PinnedChatMessage {
     fileName: fileName,
   );
 
+  /// Chat pinning: creates a pinned snapshot from the full message at the time it is pinned.
   factory PinnedChatMessage.fromMessage(
     ChatMessageModel message, {
     required String senderName,
@@ -45,6 +47,7 @@ class PinnedChatMessage {
     );
   }
 
+  /// Chat pinning: reads pinned-message metadata from the chat document.
   factory PinnedChatMessage.fromMap(Map<String, dynamic> data) {
     return PinnedChatMessage(
       messageId: (data['messageId'] as String?) ?? '',
@@ -58,6 +61,7 @@ class PinnedChatMessage {
     );
   }
 
+  /// Chat pinning: serializes the pinned snapshot back onto the chat document.
   Map<String, dynamic> toMap() {
     return {
       'messageId': messageId,

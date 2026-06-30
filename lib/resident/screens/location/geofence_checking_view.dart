@@ -12,6 +12,14 @@ import 'outside_geofence_view.dart';
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
 
+/// Geofence feature blocked check reason: chooses the right recovery action after location validation fails.
+enum _LocationCheckIssue {
+  servicesOff,
+  permissionDenied,
+  permissionBlocked,
+  unavailable,
+}
+
 /// Acquires the user's position and verifies it against their community boundary.
 class GeofenceCheckingView extends StatefulWidget {
   const GeofenceCheckingView({super.key, this.communityId, this.communityName});
@@ -26,6 +34,7 @@ class GeofenceCheckingView extends StatefulWidget {
 class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
   final CommunityService _communityService = CommunityService();
   String? _error;
+  _LocationCheckIssue? _issue;
 
   @override
   void initState() {
@@ -33,10 +42,48 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _runCheck());
   }
 
+  /// Geofence feature: gets the current GPS position, compares it to the selected community, and routes to the correct result screen.
   Future<void> _runCheck() async {
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _issue = null;
+    });
 
     try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        setState(() {
+          _issue = _LocationCheckIssue.servicesOff;
+          _error =
+              'Turn on phone location services so Jirani can verify your community.';
+        });
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (!mounted) return;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.unableToDetermine) {
+        setState(() {
+          _issue = _LocationCheckIssue.permissionDenied;
+          _error =
+              'Allow location permission so Jirani can confirm you are inside your registered community.';
+        });
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _issue = _LocationCheckIssue.permissionBlocked;
+          _error =
+              'Location permission is blocked. Enable it in app settings to continue.';
+        });
+        return;
+      }
+
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
@@ -45,6 +92,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       );
       final boundary = await _loadCommunityBoundary();
 
+      // Geofence feature: if the resident is outside the radius, show the outside screen and re-check after they try again.
       if (isOutsideCommunityBoundary(
         userLatitude: position.latitude,
         userLongitude: position.longitude,
@@ -72,10 +120,24 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
       );
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      setState(() {
+        _issue = _LocationCheckIssue.unavailable;
+        _error = error.toString();
+      });
     }
   }
 
+  /// Geofence feature: opens app settings when location permission is permanently blocked.
+  Future<void> _openAppSettings() async {
+    await Geolocator.openAppSettings();
+  }
+
+  /// Geofence feature: opens phone location settings when GPS/location services are off.
+  Future<void> _openLocationSettings() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  /// Geofence feature: fetches the selected community boundary from Firestore before running the distance check.
   Future<_CommunityBoundary> _loadCommunityBoundary() async {
     final user = context.read<AuthViewModel>().currentUser;
     final communityId =
@@ -114,11 +176,13 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     );
   }
 
+  /// Geofence feature: chooses the label shown in checking/outside screens when communityName is missing.
   String get _selectedCommunityName {
     final name = widget.communityName?.trim() ?? '';
     return name.isEmpty ? 'your selected community' : name;
   }
 
+  /// Geofence feature UI: shows the location illustration while the app validates the resident's area.
   Widget _buildMapImage() {
     return SizedBox(
       height: 238,
@@ -139,6 +203,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     );
   }
 
+  /// Geofence feature UI: explains that the app is comparing the device location with the community boundary.
   Widget _buildCheckingStatusCard(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -162,10 +227,23 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
     );
   }
 
+  /// Geofence feature UI: shows permission, GPS, or missing-boundary errors with a retry action.
   Widget _buildErrorCard(BuildContext context) {
     final message =
         _error?.replaceFirst('Exception: ', '') ??
         'Could not check your location.';
+    final issue = _issue;
+    final primaryLabel = switch (issue) {
+      _LocationCheckIssue.servicesOff => 'Open Location Settings',
+      _LocationCheckIssue.permissionBlocked => 'Open App Settings',
+      _LocationCheckIssue.permissionDenied => 'Allow Location',
+      _ => 'Try Again',
+    };
+    final primaryAction = switch (issue) {
+      _LocationCheckIssue.servicesOff => _openLocationSettings,
+      _LocationCheckIssue.permissionBlocked => _openAppSettings,
+      _ => _runCheck,
+    };
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -183,6 +261,17 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, height: 1.3, color: context.appInk),
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Location verification is required before resident features can open.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.3,
+                color: context.appMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 14),
             SizedBox(
               height: 44,
@@ -195,8 +284,8 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: _runCheck,
-                child: const Text('Try Again'),
+                onPressed: primaryAction,
+                child: Text(primaryLabel),
               ),
             ),
             TextButton(
@@ -210,6 +299,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
   }
 
   @override
+  /// Geofence feature UI: renders the checking page that appears before entering resident-only screens.
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -259,6 +349,7 @@ class _GeofenceCheckingViewState extends State<GeofenceCheckingView> {
   }
 }
 
+/// Geofence feature data model: stores the selected community center and allowed radius for this screen.
 class _CommunityBoundary {
   const _CommunityBoundary(this.latitude, this.longitude, this.radiusMeters);
 

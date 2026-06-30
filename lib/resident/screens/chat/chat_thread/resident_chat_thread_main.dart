@@ -1,5 +1,6 @@
 part of '../resident_chat_thread_view.dart';
 
+// Chat UI feature: full conversation screen for messages, attachments, replies, pins, deletes, and reports.
 class ResidentChatThreadView extends StatefulWidget {
   const ResidentChatThreadView({super.key, required this.initialChat});
 
@@ -25,6 +26,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     });
   }
 
+  // Chat UI feature: subscribes to message updates for the opened conversation.
   Future<void> _watchMessages() async {
     await _messagesSub?.cancel();
     if (!mounted) return;
@@ -175,6 +177,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     });
   }
 
+  // Chat UI feature: refreshes the local message list by re-reading the provider stream.
   Future<void> _refreshMessages() async {
     await _watchMessages();
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -187,6 +190,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     super.dispose();
   }
 
+  // Chat UI feature: sends typed text and clears any active reply draft.
   Future<void> _sendText(String text) async {
     final provider = context.read<ChatProvider>();
     final chat = provider.chatById(widget.initialChat.id) ?? widget.initialChat;
@@ -208,6 +212,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
+  // Chat attachment feature: opens the media/file picker sheet for chat attachments.
   Future<void> _pickAttachment() async {
     final action = await showModalBottomSheet<_AttachmentAction>(
       context: context,
@@ -314,6 +319,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     );
   }
 
+  // Chat attachment feature: previews a selected attachment, uploads it, and sends the message.
   Future<void> _previewAndSendAttachment(
     _PickedChatAttachment attachment,
   ) async {
@@ -417,6 +423,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     return extension.startsWith('.') ? extension.substring(1) : extension;
   }
 
+  // Chat attachment feature: opens image/PDF previews for tappable attachment messages.
   Future<void> _openMessage(chat_core.Message message) async {
     if (message is chat_core.ImageMessage) {
       _openImagePreview(message);
@@ -495,6 +502,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
         _extensionFor(fileName) == 'pdf';
   }
 
+  // Chat attachment feature: downloads remote attachments to a temporary file for preview.
   Future<File> _downloadAttachment({
     required String storagePath,
     required String fileName,
@@ -559,6 +567,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     );
   }
 
+  // Chat UI feature: hides this conversation from the current resident after confirmation.
   Future<void> _deleteChat(ChatModel chat) async {
     Navigator.of(context).pop();
     final provider = context.read<ChatProvider>();
@@ -576,6 +585,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
+  // Report feature: submits a whole-chat or single-message report to the admin reports inbox.
   Future<void> _reportChat(ChatModel chat, {ChatMessageModel? message}) async {
     if (message == null) {
       Navigator.of(context).pop();
@@ -616,6 +626,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
+  // Chat UI feature: opens the reply/pin/delete/report action sheet for a message.
   Future<void> _showMessageActionMenu(
     ChatModel chat,
     String currentUserId,
@@ -643,6 +654,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
+  // Chat UI feature: pins or unpins the selected message for the conversation.
   Future<void> _togglePin(
     ChatModel chat,
     ChatMessageModel? message,
@@ -667,6 +679,7 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     }
   }
 
+  // Chat UI feature: confirms and hides one message for the current resident.
   Future<void> _confirmDeleteMessage(
     ChatModel chat,
     ChatMessageModel message,

@@ -8,6 +8,7 @@ import 'package:jirani/core/utils/item_listing_form.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 
+// Marketplace listing data layer: validates listing ownership, stores item documents, and uploads item images.
 class ItemRepository {
   ItemRepository({
     FirebaseAuth? auth,
@@ -30,6 +31,7 @@ class ItemRepository {
     '.heif',
   };
 
+  // Marketplace listing feature: streams available, unarchived items in the selected community and applies local search.
   Stream<List<ItemModel>> watchAvailableItems({
     String? searchQuery,
     String? category,
@@ -72,6 +74,7 @@ class ItemRepository {
     });
   }
 
+  // Marketplace listing feature: streams all listings owned by the signed-in lender.
   Stream<List<ItemModel>> watchMyItems() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -91,6 +94,7 @@ class ItemRepository {
     });
   }
 
+  // Marketplace listing feature: fetches one listing document for details, edits, or borrow flows.
   Future<ItemModel?> getItemById(String itemId) async {
     try {
       final doc = await _firestore
@@ -105,8 +109,7 @@ class ItemRepository {
     }
   }
 
-  /// Creates a marketplace listing. Validates auth, residency, and form fields
-  /// before allocating a document id or uploading images to Storage.
+  // Marketplace listing feature: creates a listing after validating auth, residency, fields, and image files.
   Future<void> addItem({
     required String title,
     required String description,
@@ -193,6 +196,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: updates a lender-owned item and appends newly uploaded images if provided.
   Future<void> updateItem({
     required String itemId,
     required String title,
@@ -281,6 +285,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: archives a lender-owned item so borrowers no longer see it.
   Future<void> archiveItem(String itemId) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -310,6 +315,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: restores an archived lender-owned item to available status.
   Future<void> unarchiveItem(String itemId) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -339,6 +345,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: uploads item images and returns download URLs for listing documents.
   Future<List<String>> uploadItemImages({
     required String uid,
     required String itemId,
@@ -352,6 +359,7 @@ class ItemRepository {
     return upload.urls;
   }
 
+  // Marketplace listing feature: uploads each image to Storage and rolls back partial uploads on failure.
   Future<_ItemImageUploadResult> _uploadItemImages({
     required String uid,
     required String itemId,
@@ -388,6 +396,7 @@ class ItemRepository {
     return _ItemImageUploadResult(urls: urls, refs: refs);
   }
 
+  // Marketplace listing feature: validates selected images exist, use allowed extensions, and fit size limits.
   void _validateImagePaths(List<String> filePaths) {
     for (final filePath in filePaths) {
       final file = File(filePath);
@@ -407,6 +416,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: best-effort cleanup for Storage images when Firestore saving fails.
   Future<void> _deleteUploadedImages(List<Reference> refs) async {
     for (final ref in refs) {
       try {
@@ -417,6 +427,7 @@ class ItemRepository {
     }
   }
 
+  // Marketplace listing feature: maps image extension to Firebase Storage content type.
   static String _itemImageContentType(String fileName) {
     final lower = fileName.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
@@ -426,6 +437,7 @@ class ItemRepository {
     return 'image/jpeg';
   }
 
+  // Marketplace listing feature: derives display/payment category from fee and deposit settings.
   static String _deriveLendingType({
     required bool hasUsageFee,
     required bool hasDeposit,
@@ -437,6 +449,7 @@ class ItemRepository {
   }
 }
 
+// Marketplace listing feature: carries uploaded image URLs and Storage refs for rollback support.
 class _ItemImageUploadResult {
   const _ItemImageUploadResult({required this.urls, required this.refs});
 

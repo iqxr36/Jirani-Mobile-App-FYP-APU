@@ -69,7 +69,7 @@ class _ScreenTitleBar extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: _CircleIconButton(
-              icon: Icons.arrow_back_rounded,
+              icon: Icons.chevron_left_rounded,
               tooltip: 'Back',
               onTap: onBack,
             ),

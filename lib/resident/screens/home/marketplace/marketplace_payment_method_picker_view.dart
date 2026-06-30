@@ -1,5 +1,6 @@
 part of '../resident_marketplace_view.dart';
 
+// Stripe payment UI feature: lets the borrower choose or add a saved card before opening PaymentSheet.
 class _MarketplacePaymentMethodPickerView extends StatefulWidget {
   const _MarketplacePaymentMethodPickerView({
     required this.initialPaymentMethodId,
@@ -28,6 +29,7 @@ class _MarketplacePaymentMethodPickerViewState
     });
   }
 
+  // Stripe saved-card feature: opens SetupIntent flow to add a reusable payment method.
   Future<void> _addPaymentMethod() async {
     final provider = context.read<PaymentProvider>();
     final ok = await provider.addPaymentMethod();
@@ -43,6 +45,7 @@ class _MarketplacePaymentMethodPickerViewState
     );
   }
 
+  // Stripe payment UI feature: returns the chosen saved card to the marketplace checkout screen.
   Future<void> _selectPaymentMethod(PaymentMethodModel method) async {
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<PaymentProvider>();

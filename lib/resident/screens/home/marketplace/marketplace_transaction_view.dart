@@ -1,5 +1,6 @@
 part of '../resident_marketplace_view.dart';
 
+/// Marketplace borrower screen: tracks one approved borrow request from payment through return, deposit decision, and review.
 class MarketplaceTransactionView extends StatefulWidget {
   const MarketplaceTransactionView({super.key, required this.initialRequest});
 
@@ -28,6 +29,7 @@ class _MarketplaceTransactionViewState
     super.dispose();
   }
 
+  /// Marketplace borrower screen: prefers the live provider version of the request over the initial navigation snapshot.
   BorrowRequest _currentRequest(BorrowRequestProvider provider) {
     for (final request in provider.myBorrowRequests) {
       if (request.id == widget.initialRequest.id) return request;
@@ -38,6 +40,7 @@ class _MarketplaceTransactionViewState
   }
 
   @override
+  /// Marketplace payments: loads saved cards once so the borrower can choose a card before Stripe checkout.
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_paymentMethodsRequested) return;
@@ -49,6 +52,7 @@ class _MarketplaceTransactionViewState
     });
   }
 
+  /// Marketplace payments: picks the selected card, otherwise the default saved card, otherwise the first card.
   PaymentMethodModel? _effectivePaymentMethod(
     List<PaymentMethodModel> methods,
   ) {
@@ -142,6 +146,7 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  /// Marketplace payments: starts Stripe PaymentSheet for the approved request after a saved card is selected.
   Future<void> _completePayment(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -166,6 +171,7 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  /// Marketplace payments: maps backend/webhook payment results into borrower-friendly SnackBar messages.
   ({String message, Duration duration}) _paymentFeedback(
     MarketplacePaymentSheetResult? result,
     PaymentProvider provider,
@@ -209,6 +215,7 @@ class _MarketplaceTransactionViewState
     }
   }
 
+  /// Marketplace payments: opens the saved-card picker and stores the chosen method for this checkout attempt.
   Future<void> _choosePaymentMethod() async {
     final selected = await Navigator.of(context).push<PaymentMethodModel>(
       MaterialPageRoute<PaymentMethodModel>(
@@ -221,6 +228,7 @@ class _MarketplaceTransactionViewState
     setState(() => _selectedPaymentMethod = selected);
   }
 
+  /// Marketplace chat: opens lender chat after Stripe payment has unlocked the transaction chat id.
   Future<void> _openChat(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -247,6 +255,7 @@ class _MarketplaceTransactionViewState
     }
   }
 
+  /// Marketplace handover: borrower enters the lender's arrival code to start the active borrow period.
   Future<void> _confirmPickupReady(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final code = _handoverCodeController.text.trim();
@@ -274,6 +283,7 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  /// Marketplace return: borrower submits return notes and receives/shares the return confirmation code.
   Future<void> _submitReturn(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final provider = context.read<BorrowRequestProvider>();
@@ -293,6 +303,7 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  /// Marketplace dispute: borrower accepts a partial deduction or declines and sends the case to admin review.
   Future<void> _respondToMinorIssue(
     BorrowRequest request,
     AppUser? user,
@@ -318,6 +329,7 @@ class _MarketplaceTransactionViewState
     );
   }
 
+  /// Marketplace reviews: borrower submits their one-time review after the transaction is completed.
   Future<void> _submitReview(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -349,6 +361,7 @@ class _MarketplaceTransactionViewState
 
 }
 
+/// Marketplace borrower UI: chooses the correct transaction action card for the current borrow status.
 class _TransactionBody extends StatelessWidget {
   const _TransactionBody({
     required this.request,
@@ -696,6 +709,7 @@ class _CheckoutPaymentMethodSummary extends StatelessWidget {
   final PaymentMethodModel? method;
 
   @override
+  /// Marketplace borrower UI: renders tracking, payment, handover, return, dispute, deposit, and review states.
   Widget build(BuildContext context) {
     final selected = method;
     if (selected == null) {
@@ -1081,6 +1095,7 @@ class _DisputedCard extends StatelessWidget {
   }
 }
 
+/// Marketplace borrower UI: completed-state card showing deposit outcome and one-time lender review form.
 class _CompletedCard extends StatelessWidget {
   const _CompletedCard({
     required this.request,
@@ -1216,6 +1231,7 @@ class _CompletedCard extends StatelessWidget {
   }
 }
 
+/// Marketplace borrower UI: summarizes admin deposit decision, refund amount, deduction, and admin note.
 class _AdminDepositDecisionCard extends StatelessWidget {
   const _AdminDepositDecisionCard({required this.request});
 
@@ -1272,56 +1288,102 @@ class _TransactionHeader extends StatelessWidget {
     final muted = context.appMuted;
 
     return _GlassPanel(
-      padding: const EdgeInsets.all(14),
-      child: Row(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _RequestThumb(imageUrl: request.itemImageUrl, size: 72),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  request.itemTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    height: 1.15,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _RequestThumb(imageUrl: request.itemImageUrl, size: 76),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.itemTitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        height: 1.18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_compactDateFormat.format(request.requestedStartDate)} - ${_compactDateFormat.format(request.expectedReturnDate)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _StatusPill(label: _statusLabel(request)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${_compactDateFormat.format(request.requestedStartDate)} - ${_compactDateFormat.format(request.expectedReturnDate)}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  request.ownerName.isEmpty
+                      ? 'Lender profile'
+                      : request.ownerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: muted,
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 8),
-                _StatusPill(label: _statusLabel(request)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => PublicResidentProfileView(
-                    userId: request.ownerId,
-                    fallbackName: request.ownerName,
+              ),
+              const SizedBox(width: 12),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: _kBrandTeal,
+                  backgroundColor: _kBrandTeal.withValues(alpha: 0.10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              );
-            },
-            child: const Text(
-              'View Profile',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
+                onPressed: () {
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PublicResidentProfileView(
+                        userId: request.ownerId,
+                        fallbackName: request.ownerName,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.person_outline_rounded, size: 18),
+                label: const Text(
+                  'View Profile',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1329,6 +1391,7 @@ class _TransactionHeader extends StatelessWidget {
   }
 }
 
+/// Marketplace borrower UI: shows progress from approval to payment, handover, and return.
 class _ProgressPanel extends StatelessWidget {
   const _ProgressPanel({required this.request});
 
@@ -1392,6 +1455,7 @@ class _ProgressPanel extends StatelessWidget {
   }
 }
 
+/// Marketplace money UI: shows borrower deposit status or lender payout summary depending on current user role.
 class _FinancialLedgerPanel extends StatelessWidget {
   const _FinancialLedgerPanel({
     required this.request,

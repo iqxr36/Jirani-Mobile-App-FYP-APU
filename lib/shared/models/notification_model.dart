@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Notifications DB model: represents notifications/{notificationId} used by in-app inbox, badges, and deep links.
 class NotificationModel {
   const NotificationModel({
     required this.id,
@@ -49,6 +50,7 @@ class NotificationModel {
 
   bool get unread => !read;
 
+  /// Notifications feature: groups community post notifications for inbox presentation.
   bool get isCommunityUpdate {
     return switch (type) {
       AppConstants.notificationTypeCommunityNews ||
@@ -60,6 +62,7 @@ class NotificationModel {
     };
   }
 
+  /// Notifications UI: chooses a visible category from stored data or notification type.
   String get displayCategory {
     final value = category.trim();
     if (value.isNotEmpty) return value;
@@ -70,6 +73,7 @@ class NotificationModel {
 
   Color get accentColor => _accentForType(type);
 
+  /// Notifications UI: formats the timestamp into short relative text for the inbox.
   String get relativeTime {
     final diff = DateTime.now().difference(createdAt);
     if (diff.inMinutes < 1) return 'Now';
@@ -79,6 +83,7 @@ class NotificationModel {
     return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
   }
 
+  /// Notifications DB model: converts Firestore notification data into a NotificationModel.
   factory NotificationModel.fromMap(String id, Map<String, dynamic> data) {
     return NotificationModel(
       id: id,
@@ -105,6 +110,7 @@ class NotificationModel {
     );
   }
 
+  /// Notifications DB model: serializes a notification for Firestore creation with only relevant deep-link ids.
   Map<String, dynamic> toCreateMap({
     required String actorId,
   }) {
@@ -140,6 +146,7 @@ class NotificationModel {
     return DateTime.now();
   }
 
+  /// Notifications UI: maps notification type constants to inbox categories.
   static String _categoryForType(String type) {
     return switch (type) {
       AppConstants.notificationTypeAdminWarning => 'Admin',
@@ -167,6 +174,7 @@ class NotificationModel {
     };
   }
 
+  /// Notifications UI: maps notification type constants to Material icons.
   static IconData _iconForType(String type) {
     return switch (type) {
       AppConstants.notificationTypeAdminWarning => Icons.campaign_rounded,
@@ -204,6 +212,7 @@ class NotificationModel {
     };
   }
 
+  /// Notifications UI: maps notification type constants to accent colors.
   static Color _accentForType(String type) {
     return switch (type) {
       AppConstants.notificationTypeAdminWarning => const Color(0xFFB42318),

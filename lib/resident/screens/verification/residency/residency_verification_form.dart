@@ -1,5 +1,6 @@
 part of '../residency_verification_view.dart';
 
+// Residency verification UI feature: document upload form for proving community residency.
 class ResidencyVerificationView extends StatelessWidget {
   const ResidencyVerificationView({super.key});
 
@@ -12,6 +13,7 @@ class ResidencyVerificationView extends StatelessWidget {
   }
 }
 
+// Residency verification UI feature: stateful form for community, unit, proof document, and notes.
 class _ResidencyVerificationForm extends StatefulWidget {
   const _ResidencyVerificationForm();
 
@@ -75,6 +77,7 @@ class _ResidencyVerificationFormState
     super.dispose();
   }
 
+  // Residency verification UI feature: splits stored unit number into editable building/floor/unit fields.
   void _populateUnitFields(String unitNumber) {
     final parts = unitNumber
         .split(RegExp(r'[\s\-/]+'))
@@ -97,6 +100,7 @@ class _ResidencyVerificationFormState
     _unitOnFloorController.text = unitNumber;
   }
 
+  // Residency verification UI feature: combines unit fields into the stored unit number format.
   String get _formattedUnitNumber {
     final block = _blockController.text.trim().toUpperCase();
     final floor = _floorController.text.trim();
@@ -127,6 +131,7 @@ class _ResidencyVerificationFormState
     return null;
   }
 
+  // Residency verification UI feature: picks an image proof from gallery for allowed document types.
   Future<void> _pickFromGallery() async {
     final documentType = _documentType;
     if (documentType == null) {
@@ -149,6 +154,7 @@ class _ResidencyVerificationFormState
     });
   }
 
+  // Residency verification UI feature: picks an image/PDF proof from the file picker.
   Future<void> _pickFromFiles() async {
     final documentType = _documentType;
     if (documentType == null) {
@@ -188,6 +194,7 @@ class _ResidencyVerificationFormState
     });
   }
 
+  // Residency verification UI feature: opens the proof document type selector.
   Future<void> _selectDocumentType() async {
     final selected = await showJiraniModalBottomSheet<String>(
       context: context,
@@ -225,6 +232,7 @@ class _ResidencyVerificationFormState
     }
   }
 
+  // Residency verification UI feature: validates fields, uploads proof, and submits the verification request.
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 
@@ -290,6 +298,7 @@ class _ResidencyVerificationFormState
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Residency verification UI feature: converts document type value to user-facing label.
   String _documentTypeLabel(String? value) {
     for (final option in _documentTypes) {
       if (option.value == value) return option.label;
@@ -297,29 +306,35 @@ class _ResidencyVerificationFormState
     return 'Select document type';
   }
 
+  // Residency verification UI feature: checks whether the selected proof type can be captured from gallery.
   bool _allowsImageUpload() {
     return true;
   }
 
+  // Residency verification UI feature: returns accepted file extensions for the selected proof type.
   List<String> _allowedExtensionsFor() {
     return _kImageAndPdfDocumentExtensions;
   }
 
+  // Residency verification UI feature: formats accepted file extensions for helper text.
   String _acceptedFormatsLabel(String? documentType) {
     if (documentType == null) return 'Select a document type first.';
     return 'Accepted formats: JPG, PNG, WEBP, HEIC, HEIF, or PDF.';
   }
 
+  // Residency verification UI feature: builds the upload error message for unsupported proof files.
   String _unsupportedFileTypeMessage() {
     return 'Only JPG, PNG, WEBP, HEIC, HEIF, or PDF files are supported.';
   }
 
+  // Residency verification UI feature: verifies the selected proof file still matches the selected document type.
   bool _isCurrentFileAllowedFor() {
     final fileName = _fileName;
     if (fileName == null) return true;
     return _allowedExtensionsFor().contains(_fileExtension(fileName));
   }
 
+  // Residency verification UI feature: extracts a lowercase file extension from the picked proof filename.
   String _fileExtension(String fileName) {
     final dot = fileName.lastIndexOf('.');
     if (dot == -1 || dot == fileName.length - 1) return '';

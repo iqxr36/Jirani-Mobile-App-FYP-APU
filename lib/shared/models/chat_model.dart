@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/pinned_chat_message.dart';
 
+/// Chat DB model: represents chats/{chatId} with participants, unread counts, deleted state, and pinned message metadata.
 class ChatModel {
   const ChatModel({
     required this.id,
@@ -39,6 +40,7 @@ class ChatModel {
   final PinnedChatMessage? pinnedMessage;
   final String pinnedBy;
 
+  /// Chat feature: returns the other resident in a two-person chat for headers and navigation.
   String otherParticipantId(String currentUserId) {
     return participantIds.firstWhere(
       (id) => id != currentUserId,
@@ -46,22 +48,27 @@ class ChatModel {
     );
   }
 
+  /// Chat feature: resolves a stored participant display name with a safe fallback.
   String participantName(String userId) {
     return participantNames[userId]?.trim().isNotEmpty == true
         ? participantNames[userId]!.trim()
         : 'Resident';
   }
 
+  /// Chat feature: resolves the stored participant avatar URL.
   String participantImageUrl(String userId) {
     return participantImageUrls[userId] ?? '';
   }
 
+  /// Chat feature: returns the unread counter for one participant.
   int unreadCountFor(String userId) {
     return unreadCounts[userId] ?? 0;
   }
 
+  /// Chat feature: checks whether this conversation is hidden for the current user only.
   bool isDeletedFor(String userId) => deletedFor.contains(userId);
 
+  /// Chat DB model: converts Firestore chat data into a ChatModel for inbox screens.
   factory ChatModel.fromMap(String id, Map<String, dynamic> data) {
     final pinnedRaw = data['pinnedMessage'];
     final pinnedMessage = pinnedRaw is Map
@@ -91,6 +98,7 @@ class ChatModel {
     );
   }
 
+  /// Chat feature: creates the deterministic one-to-one chat id shared by both residents.
   static String chatId(String firstUserId, String secondUserId) {
     final ids = <String>[firstUserId, secondUserId]..sort();
     return '${ids[0]}_${ids[1]}';

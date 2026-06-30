@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
 
+/// Community news service: manages admin-created news, announcements, warnings, events, and maintenance posts.
 class CommunityPostService {
   CommunityPostService({
     FirebaseAuth? auth,
@@ -22,6 +23,7 @@ class CommunityPostService {
   CollectionReference<Map<String, dynamic>> get _posts =>
       _firestore.collection(AppConstants.communityPostsCollection);
 
+  /// Community news admin/resident feed: streams posts for a community, optionally only published posts.
   Stream<List<CommunityPostModel>> watchCommunityPosts({
     required String communityId,
     bool publishedOnly = false,
@@ -46,12 +48,14 @@ class CommunityPostService {
     });
   }
 
+  /// Community news resident feed: streams published posts visible to residents in one community.
   Stream<List<CommunityPostModel>> watchPublishedPostsForCommunity(
     String communityId,
   ) {
     return watchCommunityPosts(communityId: communityId, publishedOnly: true);
   }
 
+  /// Community news detail: loads one published post for resident deep links.
   Future<CommunityPostModel?> getPublishedPost(String postId) async {
     final id = postId.trim();
     if (id.isEmpty) return null;
@@ -63,6 +67,7 @@ class CommunityPostService {
     return post;
   }
 
+  /// Community news admin flow: creates a draft post before publishing notifications to residents.
   Future<CommunityPostModel> createDraft({
     required String communityId,
     required String authorId,
@@ -107,6 +112,7 @@ class CommunityPostService {
     }
   }
 
+  /// Community news admin flow: uploads a post cover image to Firebase Storage.
   Future<String> uploadCoverImage({
     required String adminId,
     required String postId,
@@ -145,6 +151,7 @@ class CommunityPostService {
     }
   }
 
+  /// Community news admin flow: replaces a draft post cover image after author ownership validation.
   Future<void> replaceCoverImage({
     required String postId,
     required String authorId,
@@ -189,6 +196,7 @@ class CommunityPostService {
     }
   }
 
+  /// Community news storage: detects the safest image extension from MIME type, bytes, or filename.
   static String _coverImageExtension({
     required String fileName,
     required Uint8List bytes,
@@ -226,6 +234,7 @@ class CommunityPostService {
     };
   }
 
+  /// Community news storage: maps supported image extensions to Storage content types.
   static String _coverImageContentType(String extension) {
     return switch (extension) {
       'png' => 'image/png',
@@ -234,6 +243,7 @@ class CommunityPostService {
     };
   }
 
+  /// Community news admin flow: edits draft post content before it is published.
   Future<void> updatePost({
     required String postId,
     required String authorId,
@@ -278,6 +288,7 @@ class CommunityPostService {
     }
   }
 
+  /// Community news admin flow: publishes a draft and lets Cloud Functions fan out resident notifications.
   Future<void> publishPost({
     required String postId,
     required String authorId,
@@ -313,6 +324,7 @@ class CommunityPostService {
     }
   }
 
+  /// Community news admin flow: deletes a post after checking admin identity and community scope.
   Future<void> deletePost({
     required String postId,
     required String adminId,

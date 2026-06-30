@@ -20,6 +20,7 @@ class CommunityModel {
   final String city;
   final Timestamp? createdAt;
 
+  /// Community/geofence DB model: converts communities/{communityId} data into a boundary used by selection and location checks.
   factory CommunityModel.fromMap(Map<String, dynamic> map, String id) {
     final centerLocation = map['centerLocation'];
     if (centerLocation is! GeoPoint) {
@@ -45,6 +46,7 @@ class CommunityModel {
     );
   }
 
+  /// Community/geofence DB model: serializes a community boundary for Firestore.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'communityId': communityId,

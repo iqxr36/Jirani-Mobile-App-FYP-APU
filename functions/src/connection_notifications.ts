@@ -7,10 +7,12 @@ type DocumentData = admin.firestore.DocumentData;
 const NOTIFICATION_TYPE_CONNECTION_REQUEST = "connectionRequest";
 const NOTIFICATION_TYPE_CONNECTION_ACCEPTED = "connectionAccepted";
 
+// Connection notification feature: safely reads string fields from connection documents.
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+// Connection notification feature: notifies residents about new and accepted neighbor connection requests.
 export async function handleConnectionNotificationChanges(
   db: Firestore,
   connectionId: string,

@@ -7,6 +7,7 @@ import 'package:jirani/resident/logic/marketplace_borrow_flow.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/payment_method_model.dart';
 
+/// Marketplace payments result: returned after Stripe PaymentSheet finishes and the webhook status is checked.
 class MarketplacePaymentSheetResult {
   const MarketplacePaymentSheetResult({
     required this.paymentId,
@@ -17,6 +18,7 @@ class MarketplacePaymentSheetResult {
   final String status;
 }
 
+/// Marketplace payments result: contains the backend-created PaymentIntent and customer data needed by PaymentSheet.
 class MarketplacePaymentIntentResult {
   const MarketplacePaymentIntentResult({
     required this.clientSecret,
@@ -31,6 +33,7 @@ class MarketplacePaymentIntentResult {
   final String ephemeralKey;
 }
 
+/// Saved cards result: contains the backend-created SetupIntent used to save a card through Stripe's secure UI.
 class SetupIntentResult {
   const SetupIntentResult({
     required this.setupIntentClientSecret,
@@ -43,6 +46,7 @@ class SetupIntentResult {
   final String ephemeralKey;
 }
 
+/// Stripe Connect model: describes whether a lender can receive automatic damage-deduction payouts.
 class ConnectAccountStatus {
   const ConnectAccountStatus({
     required this.accountId,
@@ -67,6 +71,7 @@ class ConnectAccountStatus {
   bool get isComplete => status == AppConstants.stripeConnectStatusComplete;
   bool get hasStarted => accountId.trim().isNotEmpty;
 
+  /// Stripe Connect feature: maps backend account status into UI-friendly payout setup flags.
   factory ConnectAccountStatus.fromJson(Map<String, dynamic> data) {
     final rawRequirements = data['requirementsDue'];
     return ConnectAccountStatus(
@@ -88,6 +93,7 @@ class ConnectAccountStatus {
   }
 }
 
+/// Stripe Connect feature: safely reads optional string fields from callable function responses.
 String _connectReadString(
   Map<String, dynamic> data,
   String key, {
@@ -97,6 +103,7 @@ String _connectReadString(
   return value is String ? value : fallback;
 }
 
+/// Stripe Connect result: returns the hosted onboarding URL and latest lender payout status.
 class ConnectOnboardingLinkResult {
   const ConnectOnboardingLinkResult({
     required this.url,
@@ -107,12 +114,14 @@ class ConnectOnboardingLinkResult {
   final ConnectAccountStatus status;
 }
 
+/// Payments feature service: wraps Firebase callable functions and Stripe PaymentSheet for marketplace payments and saved cards.
 class PaymentService {
   PaymentService({FirebaseFunctions? functions})
     : _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseFunctions _functions;
 
+  /// Marketplace payments: asks the backend to validate the borrow request and create a Stripe PaymentIntent.
   Future<MarketplacePaymentIntentResult> createMarketplacePaymentIntent({
     required BorrowRequest request,
     required PaymentMethodModel paymentMethod,
@@ -143,6 +152,7 @@ class PaymentService {
     );
   }
 
+  /// Marketplace payments: opens Stripe PaymentSheet for an approved borrow request using the resident's selected card.
   Future<MarketplacePaymentSheetResult> presentMarketplacePaymentSheet({
     required BorrowRequest request,
     required PaymentMethodModel paymentMethod,
@@ -211,10 +221,12 @@ class PaymentService {
     return AppConstants.paymentStatusPending;
   }
 
+  /// Marketplace payments: identifies when the resident closed PaymentSheet without completing payment.
   static bool _isUserCancellation(StripeException e) {
     return e.error.code == FailureCode.Canceled;
   }
 
+  /// Saved cards: asks the backend to create a SetupIntent for the current Firebase user and Stripe customer.
   Future<SetupIntentResult> createSetupIntent() async {
     _ensurePublishableKey();
     final result = await _functions
@@ -228,6 +240,7 @@ class PaymentService {
     );
   }
 
+  /// Saved cards: presents Stripe's secure card-saving sheet so Flutter never handles raw card details.
   Future<void> addPaymentMethod() async {
     final setupIntent = await createSetupIntent();
     await Stripe.instance.initPaymentSheet(
@@ -250,6 +263,7 @@ class PaymentService {
     await Stripe.instance.presentPaymentSheet();
   }
 
+  /// Saved cards: loads safe saved-card metadata from the backend for the Payment Methods screen.
   Future<List<PaymentMethodModel>> fetchPaymentMethods() async {
     final result = await _functions
         .httpsCallable('listPaymentMethods')
@@ -263,18 +277,21 @@ class PaymentService {
         .toList(growable: false);
   }
 
+  /// Saved cards: asks the backend to detach a card after verifying it belongs to this user's Stripe customer.
   Future<void> deletePaymentMethod(String paymentMethodId) async {
     await _functions.httpsCallable('deletePaymentMethod').call<void>({
       'paymentMethodId': paymentMethodId,
     });
   }
 
+  /// Saved cards: asks the backend to make one saved card the Stripe customer default.
   Future<void> setDefaultPaymentMethod(String paymentMethodId) async {
     await _functions.httpsCallable('setDefaultPaymentMethod').call<void>({
       'paymentMethodId': paymentMethodId,
     });
   }
 
+  /// Marketplace payments: reads the backend payment record status after Stripe webhooks update Firestore.
   Future<String> getPaymentStatus(String paymentId) async {
     final result = await _functions.httpsCallable('getPaymentStatus').call({
       'paymentId': paymentId,
@@ -283,6 +300,7 @@ class PaymentService {
     return _readString(data, 'status', fallback: AppConstants.paymentStatusPending);
   }
 
+  /// Stripe Connect payouts: fetches whether the lender has completed onboarding for automatic payouts.
   Future<ConnectAccountStatus> getConnectAccountStatus() async {
     final result = await _functions
         .httpsCallable('getConnectAccountStatus')
@@ -290,6 +308,7 @@ class PaymentService {
     return ConnectAccountStatus.fromJson(_asMap(result.data));
   }
 
+  /// Stripe Connect payouts: creates a hosted onboarding link so a lender can receive damage deduction transfers.
   Future<ConnectOnboardingLinkResult> createConnectOnboardingLink({
     required String returnUrl,
     required String refreshUrl,
@@ -307,6 +326,7 @@ class PaymentService {
     );
   }
 
+  /// Marketplace payments: converts fee plus deposit from RM to Stripe minor units (sen).
   static int marketplaceAmountInMinorUnits(BorrowRequest request) {
     final total = MarketplaceBorrowFlow.totalDue(
       usageFee: request.usageFeeAmount,
@@ -315,12 +335,14 @@ class PaymentService {
     return max(0, (total * 100).round());
   }
 
+  /// Payments feature: normalizes callable function response data into a Dart map.
   static Map<String, dynamic> _asMap(Object? value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return const {};
   }
 
+  /// Payments feature: safely reads string values from backend responses with a fallback.
   static String _readString(
     Map<String, dynamic> data,
     String key, {
@@ -330,11 +352,13 @@ class PaymentService {
     return value is String ? value : fallback;
   }
 
+  /// Marketplace payments UI: formats the PaymentSheet primary button amount from the borrow request total.
   static String _formatAmountForButton(BorrowRequest request) {
     final total = PaymentService.marketplaceAmountInMinorUnits(request) / 100;
     return 'RM ${total.toStringAsFixed(total % 1 == 0 ? 0 : 2)}';
   }
 
+  /// Payments security: confirms Flutter has only the Stripe publishable key, while the secret key stays in Functions.
   static void _ensurePublishableKey() {
     const publishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
     if (publishableKey.trim().isEmpty) {

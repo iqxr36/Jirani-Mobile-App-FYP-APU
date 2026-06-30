@@ -1,5 +1,6 @@
 part of '../verification_process_view.dart';
 
+// Verification process UI feature: explains the steps required to unlock full resident access.
 class VerificationProcessView extends StatelessWidget {
   const VerificationProcessView({super.key});
 

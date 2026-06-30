@@ -8,6 +8,7 @@ import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:provider/provider.dart';
 
+// Admin overview UI feature: shows dashboard metrics and recent activity for the admin scope.
 class AdminOverviewScreen extends StatelessWidget {
   const AdminOverviewScreen({super.key});
 
@@ -114,6 +115,7 @@ class AdminOverviewScreen extends StatelessWidget {
   }
 }
 
+// Admin overview UI feature: shows recent verification, report, resident, and listing activity.
 class AdminRecentActivityList extends StatelessWidget {
   const AdminRecentActivityList({super.key});
 
@@ -208,6 +210,7 @@ class AdminRecentActivityList extends StatelessWidget {
   }
 }
 
+// Admin overview UI feature: paints the small dashboard trend line chart.
 class AdminLineChartPainter extends CustomPainter {
   const AdminLineChartPainter({required this.values});
 

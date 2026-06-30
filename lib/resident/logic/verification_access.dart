@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 
-/// Whether the resident may use marketplace, services, borrowing, etc.
+// Verification access feature: returns whether the resident may use marketplace, services, borrowing, and lending actions.
 bool residentHasFullAppAccess(AppUser? user) =>
     user != null &&
     user.isResident &&
@@ -10,6 +10,7 @@ bool residentHasFullAppAccess(AppUser? user) =>
     user.isVerifiedResident &&
     user.locationVerified;
 
+// Verification access feature: builds the blocked-action message based on account and verification state.
 String residentAccessMessage(AppUser? user) {
   if (user == null) {
     return verificationStatusMessage(AppConstants.verificationPending);
@@ -24,6 +25,7 @@ String residentAccessMessage(AppUser? user) {
   }
 }
 
+// Verification access feature: maps verification status into the explanation shown on locked resident actions.
 String verificationStatusMessage(String status) {
   switch (status) {
     case AppConstants.verificationSubmitted:
@@ -38,6 +40,7 @@ String verificationStatusMessage(String status) {
   }
 }
 
+// Verification access feature: shows a SnackBar when an unverified resident taps a locked feature.
 void showVerificationRequiredSnack(BuildContext context, {AppUser? user}) {
   ScaffoldMessenger.of(
     context,

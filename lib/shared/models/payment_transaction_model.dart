@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Payments DB model: mirrors payments/{paymentId} records created by backend Stripe functions.
 class PaymentTransactionModel {
   const PaymentTransactionModel({
     required this.id,
@@ -29,12 +30,14 @@ class PaymentTransactionModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Payments feature: builds a transaction model from a Firestore payment document snapshot.
   factory PaymentTransactionModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
   ) {
     return PaymentTransactionModel.fromMap(snapshot.id, snapshot.data() ?? {});
   }
 
+  /// Payments feature: maps stored payment fields such as payer, receiver, related borrow request, amount, and status.
   factory PaymentTransactionModel.fromMap(
     String id,
     Map<String, dynamic> data,
@@ -56,6 +59,7 @@ class PaymentTransactionModel {
     );
   }
 
+  /// Payments feature: writes payment metadata back in the same Firestore shape used by backend records.
   Map<String, dynamic> toJson() {
     return {
       'payerId': payerId,
@@ -72,6 +76,7 @@ class PaymentTransactionModel {
     };
   }
 
+  /// Payments feature: normalizes minor-unit amount values from Firestore or callable responses.
   static int _toInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -79,6 +84,7 @@ class PaymentTransactionModel {
     return 0;
   }
 
+  /// Payments feature: converts Firestore timestamps and serialized dates into nullable DateTime values.
   static DateTime? _toDate(dynamic value) {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();

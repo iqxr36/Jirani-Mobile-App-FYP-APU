@@ -4,6 +4,7 @@ import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/shared/services/service_service.dart';
 
+// Services feature: manages service listings and service requests for resident provider/requester screens.
 class ServiceProvider extends ChangeNotifier {
   ServiceProvider({ServiceService? service})
     : _service = service ?? ServiceService();
@@ -18,11 +19,13 @@ class ServiceProvider extends ChangeNotifier {
   final Map<String, Stream<List<ServiceRequestModel>>> _myReqCache = {};
   final Map<String, Stream<List<ServiceRequestModel>>> _incomingCache = {};
 
+  // Services feature: streams active community services and caches the stream for list screens.
   Stream<List<ServiceModel>> activeServicesStream() {
     _activeCache ??= _service.watchActiveServices();
     return _activeCache!;
   }
 
+  // Services feature: streams services created by the current provider.
   Stream<List<ServiceModel>> myServicesStream(String providerId) {
     return _myServicesCache.putIfAbsent(
       providerId,
@@ -30,6 +33,7 @@ class ServiceProvider extends ChangeNotifier {
     );
   }
 
+  // Services feature: streams requests the current resident has sent to service providers.
   Stream<List<ServiceRequestModel>> myRequestsStream(String requesterId) {
     return _myReqCache.putIfAbsent(
       requesterId,
@@ -37,6 +41,7 @@ class ServiceProvider extends ChangeNotifier {
     );
   }
 
+  // Services feature: streams requests received by the current service provider.
   Stream<List<ServiceRequestModel>> incomingRequestsStream(String providerId) {
     return _incomingCache.putIfAbsent(
       providerId,
@@ -44,9 +49,11 @@ class ServiceProvider extends ChangeNotifier {
     );
   }
 
+  // Services feature: loads a single service for detail or notification navigation.
   Future<ServiceModel?> getService(String serviceId) =>
       _service.getService(serviceId);
 
+  // Services feature: creates a provider service listing; Stripe service payments are intentionally not active yet.
   Future<void> createService({
     required AppUser provider,
     required String title,
@@ -74,6 +81,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: lets a provider activate/archive their service listing.
   Future<void> setServiceStatus({
     required String serviceId,
     required String providerId,
@@ -93,6 +101,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: creates a request from a resident to a service provider.
   Future<void> createServiceRequest({
     required ServiceModel service,
     required AppUser requester,
@@ -116,6 +125,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: provider accepts a service request.
   Future<void> acceptServiceRequest({
     required String requestId,
     required String providerId,
@@ -133,6 +143,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: provider rejects a service request.
   Future<void> rejectServiceRequest({
     required String requestId,
     required String providerId,
@@ -150,6 +161,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: requester cancels their own pending service request.
   Future<void> cancelServiceRequest({
     required String requestId,
     required String requesterId,
@@ -167,6 +179,7 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  // Services feature: provider marks an accepted service request as completed.
   Future<void> completeServiceRequest({
     required String requestId,
     required String providerId,

@@ -4,6 +4,7 @@ import 'package:jirani/resident/screens/auth/login_view.dart';
 import 'package:jirani/resident/screens/onboarding/onboarding_screen.dart';
 
 /// Mobile-only: shows onboarding once, then [LoginView].
+// Resident onboarding feature: decides whether to show onboarding before login/register screens.
 class ResidentPreAuthGate extends StatefulWidget {
   const ResidentPreAuthGate({super.key});
 
@@ -21,6 +22,7 @@ class _ResidentPreAuthGateState extends State<ResidentPreAuthGate> {
     _load();
   }
 
+  // Resident onboarding feature: reads local onboarding preference before showing authentication.
   Future<void> _load() async {
     try {
       final done = await ResidentOnboardingPrefs.isComplete();
@@ -38,6 +40,7 @@ class _ResidentPreAuthGateState extends State<ResidentPreAuthGate> {
     }
   }
 
+  // Resident onboarding feature: marks onboarding seen and shows the pre-auth screen.
   Future<void> _finishOnboarding() async {
     try {
       await ResidentOnboardingPrefs.markComplete();

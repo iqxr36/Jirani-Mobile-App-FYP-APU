@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/models/app_user.dart';
@@ -11,6 +12,7 @@ import 'package:provider/provider.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
+/// Geofence feature wrapper: blocks resident app content until the user's selected community boundary is verified.
 class ResidentGeofenceGate extends StatefulWidget {
   const ResidentGeofenceGate({
     super.key,
@@ -32,8 +34,10 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
   bool _checking = true;
   bool _insideBoundary = false;
   String? _message;
+  GeofenceGateBlockReason? _blockReason;
 
   @override
+  /// Geofence feature lifecycle: starts the first boundary check after the widget is mounted.
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -41,12 +45,14 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
   }
 
   @override
+  /// Geofence feature lifecycle: removes the app lifecycle observer used for re-checking on resume.
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
+  /// Geofence feature lifecycle: re-runs the check when the resident changes community or verification state.
   void didUpdateWidget(covariant ResidentGeofenceGate oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.user.communityId != widget.user.communityId ||
@@ -57,12 +63,14 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
   }
 
   @override
+  /// Geofence feature lifecycle: re-checks the resident boundary when the app returns to the foreground.
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_check());
     }
   }
 
+  /// Geofence feature: decides whether to show the protected resident app or the blocked community boundary screen.
   Future<void> _check() async {
     if (!mounted) return;
     if (!widget.user.isResident) {
@@ -70,6 +78,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
         _checking = false;
         _insideBoundary = true;
         _message = null;
+        _blockReason = null;
       });
       return;
     }
@@ -82,6 +91,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
         _checking = false;
         _insideBoundary = false;
         _message = 'Choose your community before entering Jirani.';
+        _blockReason = GeofenceGateBlockReason.missingCommunity;
       });
       return;
     }
@@ -90,11 +100,13 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
     setState(() {
       _checking = !wasInsideBoundary;
       _message = null;
+      _blockReason = null;
     });
 
     final result = await _gateService.checkResidentAccess(widget.user);
 
     if (!mounted) return;
+    // Geofence feature: persist the first successful location verification so the user record reflects the approved location.
     if (result.insideBoundary && !widget.user.locationVerified) {
       try {
         await context.read<AuthViewModel>().markLocationVerified();
@@ -104,6 +116,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
           _checking = false;
           _insideBoundary = false;
           _message = 'Could not save location verification. Try again.';
+          _blockReason = GeofenceGateBlockReason.checkFailed;
         });
         return;
       }
@@ -114,9 +127,21 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
       _checking = false;
       _insideBoundary = result.insideBoundary;
       _message = result.message;
+      _blockReason = result.blockReason;
     });
   }
 
+  /// Geofence feature: opens phone app settings after permission is permanently denied.
+  Future<void> _openAppSettings() async {
+    await Geolocator.openAppSettings();
+  }
+
+  /// Geofence feature: opens phone location settings when GPS/location services are turned off.
+  Future<void> _openLocationSettings() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  /// Geofence feature: opens community selection, then re-checks the new boundary after returning.
   Future<void> _chooseCommunity() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -127,37 +152,133 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
   }
 
   @override
+  /// Geofence feature UI: either renders resident content or a gate screen with retry/community actions.
   Widget build(BuildContext context) {
     if (_insideBoundary) return widget.child;
 
     return _GeofenceBlockScreen(
       checking: _checking,
       message: _message,
+      blockReason: _blockReason,
       hasCommunity:
           widget.user.communityId.trim().isNotEmpty ||
           widget.user.communityName.trim().isNotEmpty,
       onRetry: () => unawaited(_check()),
+      onOpenAppSettings: () => unawaited(_openAppSettings()),
+      onOpenLocationSettings: () => unawaited(_openLocationSettings()),
       onChooseCommunity: () => unawaited(_chooseCommunity()),
     );
   }
 }
 
+/// Geofence feature UI: explains why resident content is blocked and offers retry or community selection.
 class _GeofenceBlockScreen extends StatelessWidget {
   const _GeofenceBlockScreen({
     required this.checking,
     required this.message,
+    required this.blockReason,
     required this.hasCommunity,
     required this.onRetry,
+    required this.onOpenAppSettings,
+    required this.onOpenLocationSettings,
     required this.onChooseCommunity,
   });
 
   final bool checking;
   final String? message;
+  final GeofenceGateBlockReason? blockReason;
   final bool hasCommunity;
   final VoidCallback onRetry;
+  final VoidCallback onOpenAppSettings;
+  final VoidCallback onOpenLocationSettings;
   final VoidCallback onChooseCommunity;
 
+  /// Geofence feature UI: chooses a specific blocked-state title instead of a generic outside-area message.
+  String get _title {
+    if (checking) return 'Checking Your Area';
+    return switch (blockReason) {
+      GeofenceGateBlockReason.locationServicesOff =>
+        'Turn On Location Services',
+      GeofenceGateBlockReason.permissionDenied ||
+      GeofenceGateBlockReason.permissionDeniedForever =>
+        'Location Permission Needed',
+      GeofenceGateBlockReason.missingCommunity => 'Choose Your Community',
+      GeofenceGateBlockReason.outsideBoundary => 'Outside Community Area',
+      _ => 'Location Check Needed',
+    };
+  }
+
+  /// Geofence feature UI: chooses the primary recovery label based on the exact blocked reason.
+  String get _primaryLabel {
+    return switch (blockReason) {
+      GeofenceGateBlockReason.locationServicesOff => 'Open Location Settings',
+      GeofenceGateBlockReason.permissionDenied => 'Allow Location',
+      GeofenceGateBlockReason.permissionDeniedForever => 'Open App Settings',
+      GeofenceGateBlockReason.missingCommunity => hasCommunity
+          ? 'Change Community'
+          : 'Choose Community',
+      _ => 'Try Again',
+    };
+  }
+
+  /// Geofence feature UI: chooses the primary recovery icon based on the exact blocked reason.
+  IconData get _primaryIcon {
+    return switch (blockReason) {
+      GeofenceGateBlockReason.locationServicesOff =>
+        Icons.location_disabled_rounded,
+      GeofenceGateBlockReason.permissionDenied ||
+      GeofenceGateBlockReason.permissionDeniedForever =>
+        Icons.settings_rounded,
+      GeofenceGateBlockReason.missingCommunity => Icons.apartment_rounded,
+      _ => Icons.refresh_rounded,
+    };
+  }
+
+  /// Geofence feature UI: routes the primary action to permission settings, location settings, community selection, or manual retry.
+  VoidCallback get _primaryAction {
+    return switch (blockReason) {
+      GeofenceGateBlockReason.locationServicesOff => onOpenLocationSettings,
+      GeofenceGateBlockReason.permissionDenied => onRetry,
+      GeofenceGateBlockReason.permissionDeniedForever => onOpenAppSettings,
+      GeofenceGateBlockReason.missingCommunity => onChooseCommunity,
+      _ => onRetry,
+    };
+  }
+
+  /// Geofence feature UI: explains why the hard gate exists so denial does not feel like a broken loop.
+  Widget _buildRequirementCard(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.glassFill(),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.residentOutline()),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.verified_user_rounded, color: _kBrandTeal),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Jirani requires location verification before residents can use the app. This confirms you are inside your registered community and keeps community features limited to real nearby residents.',
+                style: TextStyle(
+                  color: context.appInk,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
+  /// Geofence feature UI: builds the responsive blocked-state layout shown before resident access is allowed.
   Widget build(BuildContext context) {
     final padding = JiraniResponsive.pagePadding(context, top: 28, bottom: 24);
 
@@ -200,9 +321,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 28),
                         Text(
-                          checking
-                              ? 'Checking Your Area'
-                              : 'Outside Community Area',
+                          _title,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: _kBrandTeal,
@@ -215,7 +334,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
                           checking
                               ? 'Please wait while Jirani confirms that you are inside your selected community.'
                               : message ??
-                                    'Move back inside your selected community to use Jirani features.',
+                                    'Location verification is required before you can use Jirani.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: context.appInk,
@@ -232,25 +351,30 @@ class _GeofenceBlockScreen extends StatelessWidget {
                             ),
                           )
                         else ...[
+                          _buildRequirementCard(context),
+                          const SizedBox(height: 14),
                           _GateButton(
-                            label: 'Try Again',
-                            icon: Icons.refresh_rounded,
+                            label: _primaryLabel,
+                            icon: _primaryIcon,
                             background: _kBrandTeal,
                             foreground: Colors.white,
-                            onPressed: onRetry,
+                            onPressed: _primaryAction,
                           ),
-                          const SizedBox(height: 10),
-                          _GateButton(
-                            label: hasCommunity
-                                ? 'Change Community'
-                                : 'Choose Community',
-                            icon: Icons.apartment_rounded,
-                            background: const Color(
-                              0xFF787880,
-                            ).withValues(alpha: 0.16),
-                            foreground: _kBrandTeal,
-                            onPressed: onChooseCommunity,
-                          ),
+                          if (blockReason !=
+                              GeofenceGateBlockReason.missingCommunity) ...[
+                            const SizedBox(height: 10),
+                            _GateButton(
+                              label: hasCommunity
+                                  ? 'Change Community'
+                                  : 'Choose Community',
+                              icon: Icons.apartment_rounded,
+                              background: const Color(
+                                0xFF787880,
+                              ).withValues(alpha: 0.16),
+                              foreground: _kBrandTeal,
+                              onPressed: onChooseCommunity,
+                            ),
+                          ],
                         ],
                         const Spacer(),
                       ],
@@ -266,6 +390,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
   }
 }
 
+/// Geofence feature UI component: shared action button for retrying checks or choosing a community.
 class _GateButton extends StatelessWidget {
   const _GateButton({
     required this.label,
@@ -282,6 +407,7 @@ class _GateButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  /// Geofence feature UI component: renders one fixed-height gate action button.
   Widget build(BuildContext context) {
     return SizedBox(
       height: JiraniResponsive.minTouchTarget,

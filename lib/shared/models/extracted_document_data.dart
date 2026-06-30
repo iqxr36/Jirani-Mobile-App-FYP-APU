@@ -1,3 +1,4 @@
+/// Verification OCR feature: supported document categories extracted from residency proof uploads.
 enum DocumentType {
   tenancyAgreement,
   utilityBill,
@@ -6,6 +7,7 @@ enum DocumentType {
   unknown,
 }
 
+/// Verification OCR model: normalized text fields extracted from tenancy agreements, utility bills, access cards, or other proofs.
 class ExtractedDocumentData {
   const ExtractedDocumentData({
     required this.type,
@@ -55,6 +57,7 @@ class ExtractedDocumentData {
   final String? summary;
   final String fullText;
 
+  /// Verification OCR model: serializes all extracted document data for storage/debugging.
   Map<String, dynamic> toMap() {
     return {
       'type': type.name,
@@ -82,6 +85,7 @@ class ExtractedDocumentData {
     };
   }
 
+  /// Verification OCR model: returns only relevant extracted fields for admin review and auto-verification checks.
   Map<String, String> toFieldMap({bool includeFullText = false}) {
     final fields = <String, String>{};
 
@@ -128,6 +132,7 @@ class ExtractedDocumentData {
     return fields;
   }
 
+  /// Verification OCR model: creates an updated extraction result while preserving unchanged fields.
   ExtractedDocumentData copyWith({
     DocumentType? type,
     String? tenantName,
@@ -179,6 +184,7 @@ class ExtractedDocumentData {
   }
 }
 
+/// Verification OCR UI: converts document type enum values into labels shown to admins/residents.
 extension DocumentTypeLabels on DocumentType {
   String get label {
     return switch (this) {
@@ -191,6 +197,7 @@ extension DocumentTypeLabels on DocumentType {
   }
 }
 
+/// Verification OCR feature: parses user/backend document type strings into the supported enum.
 DocumentType documentTypeFromValue(String value) {
   final normalized = value.trim();
   for (final type in DocumentType.values) {

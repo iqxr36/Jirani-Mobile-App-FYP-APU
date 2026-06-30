@@ -1,6 +1,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
+  /// Profile feature: saves editable resident profile fields and resets phone verification when phone changes.
   Future<void> saveProfile({
     required String firstName,
     required String lastName,
@@ -54,6 +55,7 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
     }
   }
 
+  /// Profile feature: updates resident name/email/phone and starts Firebase email-change verification when needed.
   Future<bool> updateResidentProfileBasics({
     required String firstName,
     required String lastName,
@@ -119,6 +121,7 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
     }
   }
 
+  /// Profile feature: uploads a resident avatar and saves the public image URL on users/{uid}.
   Future<bool> updateResidentProfileImage({
     required Uint8List bytes,
     required String originalFileName,
@@ -154,6 +157,7 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
     }
   }
 
+  /// Admin profile feature: uploads an admin avatar and saves the URL on admins/{uid}.
   Future<bool> updateAdminProfileImage({
     required Uint8List bytes,
     required String originalFileName,

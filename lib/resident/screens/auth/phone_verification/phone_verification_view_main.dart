@@ -5,6 +5,7 @@ part of '../phone_verification_view.dart';
 /// When [verificationId] is set, [AuthViewModel.tryLinkPhoneWithSmsCode] runs on Continue.
 /// Otherwise shows a non-crashing placeholder until Firebase Phone Auth is wired
 /// (e.g. call `verifyPhoneNumber` during registration and pass [verificationId] / [resendToken] here).
+// Phone verification UI feature: OTP screen for linking a phone credential to the resident account.
 class PhoneVerificationView extends StatefulWidget {
   const PhoneVerificationView({
     super.key,

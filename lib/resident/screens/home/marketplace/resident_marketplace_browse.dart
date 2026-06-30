@@ -1,5 +1,6 @@
 part of '../resident_marketplace_view.dart';
 
+// Marketplace browse feature: shows available items, resident borrow requests, filters, and add-item entrypoint.
 class ResidentMarketplaceView extends StatefulWidget {
   const ResidentMarketplaceView({super.key});
 
@@ -40,6 +41,7 @@ class _ResidentMarketplaceViewState extends State<ResidentMarketplaceView> {
     super.dispose();
   }
 
+  // Marketplace browse feature: refreshes available listings and borrower request streams for the current resident.
   Future<void> _refresh(AppUser? user) async {
     if (user == null) return;
     context.read<ItemProvider>().watchAvailableItems(
@@ -145,6 +147,7 @@ class _ResidentMarketplaceViewState extends State<ResidentMarketplaceView> {
     );
   }
 
+  // Marketplace lender feature: opens the listing form only for verified residents with marketplace access.
   Future<void> _openAddItemFlow(BuildContext context, AppUser? user) async {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(

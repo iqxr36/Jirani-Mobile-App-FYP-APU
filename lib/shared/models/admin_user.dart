@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 
+/// Admin auth DB model: represents admins/{uid} or admin-shaped user records with role, scope, and permissions.
 class AdminUser {
   const AdminUser({
     required this.uid,
@@ -32,8 +33,10 @@ class AdminUser {
 
   bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
   bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
+  /// Admin authorization: system admins can see/manage all communities, while community admins are scoped.
   bool get canManageAllCommunities => isSystemAdmin;
 
+  /// Admin auth DB model: serializes admin profile and permissions into Firestore.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'uid': uid,
@@ -51,6 +54,7 @@ class AdminUser {
     };
   }
 
+  /// Admin auth DB model: converts Firestore admin data into an AdminUser.
   factory AdminUser.fromMap(Map<String, dynamic> map) {
     return AdminUser(
       uid: (map['uid'] as String?) ?? '',
@@ -68,6 +72,7 @@ class AdminUser {
     );
   }
 
+  /// Admin auth DB model: safely parses permissions arrays.
   static List<String> _parseStringList(dynamic value) {
     if (value is List) {
       return value
@@ -78,6 +83,7 @@ class AdminUser {
     return const <String>[];
   }
 
+  /// Admin auth DB model: supports both boolean isActive and legacy status fields.
   static bool _parseActive(Map<String, dynamic> map) {
     final active = map['isActive'];
     if (active is bool) return active;

@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 
 const int _kMaxCoverImageBytes = 5 * 1024 * 1024;
 
+// Admin community posts UI feature: creates, edits, publishes, and deletes community news/announcement posts.
 class AdminNewsScreen extends StatefulWidget {
   const AdminNewsScreen({super.key});
 
@@ -39,6 +40,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     super.dispose();
   }
 
+  // Admin community posts UI feature: picks and validates a cover image before upload.
   Future<_PickedCoverImage?> _pickCoverImageBytes() async {
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -60,6 +62,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     );
   }
 
+  // Admin community posts UI feature: stores the selected cover image for a new draft.
   Future<void> _pickCoverImage() async {
     if (_submitting) return;
     final picked = await _pickCoverImageBytes();
@@ -71,6 +74,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     });
   }
 
+  // Admin community posts UI feature: clears the selected cover image from the draft form.
   void _removeCoverImage() {
     if (_submitting) return;
     setState(() {
@@ -80,6 +84,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     });
   }
 
+  // Admin community posts UI feature: creates a draft post in Firestore.
   Future<void> _createDraft(AdminProvider admin) async {
     final communityId = admin.communityId.trim();
     final authorId = admin.currentAdminUid;
@@ -134,6 +139,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     }
   }
 
+  // Admin community posts UI feature: replaces the cover image for an existing post.
   Future<void> _replacePostCover(
     CommunityPostModel post,
     AdminProvider admin,
@@ -161,6 +167,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     }
   }
 
+  // Admin community posts UI feature: publishes a post, which triggers resident notification fan-out.
   Future<void> _publish(CommunityPostModel post, AdminProvider admin) async {
     final authorId = admin.currentAdminUid;
     if (authorId == null) return;
@@ -177,6 +184,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     }
   }
 
+  // Admin community posts UI feature: deletes a draft or published community post.
   Future<void> _deletePost(CommunityPostModel post, AdminProvider admin) async {
     final adminId = admin.currentAdminUid;
     if (adminId == null) return;
@@ -398,6 +406,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
   }
 }
 
+// Admin community posts UI feature: carries picked cover image bytes and filename.
 class _PickedCoverImage {
   const _PickedCoverImage({
     required this.bytes,

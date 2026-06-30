@@ -1,6 +1,7 @@
 part of '../borrow_request_service.dart';
 
 mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHandoverMixin {
+  /// Marketplace dispute flow: lender reports minor damage and proposes a deposit deduction for borrower approval.
   Future<void> reportMinorIssue({
     required String requestId,
     required String ownerId,
@@ -72,7 +73,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     }
   }
 
-  /// Borrower accepts or declines the lender's minor deduction request.
+  /// Marketplace dispute flow: borrower accepts minor deduction for Stripe split/refund or declines to open an admin dispute.
   Future<void> respondToMinorIssue({
     required String requestId,
     required String borrowerId,
@@ -144,6 +145,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
         });
       }
       await batch.commit();
+      // Marketplace Stripe deposit: accepted minor damage resolves deposit with partial refund to borrower and deduction to lender.
       if (accepted && _hasCompletedStripePayment(request)) {
         await _resolveMarketplaceDeposit(
           borrowRequestId: requestId,
@@ -162,7 +164,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     }
   }
 
-  /// Owner reports major damage/loss and creates an admin dispute ticket.
+  /// Marketplace dispute flow: lender reports major damage/loss and creates an admin case before deposit money is released.
   Future<void> reportMajorDamage({
     required String requestId,
     required String ownerId,
@@ -250,6 +252,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     }
   }
 
+  /// Marketplace return flow: writes common completed-state fields before deposit resolution or review.
   void _addCompletionUpdates({
     required WriteBatch batch,
     required DocumentReference<Map<String, dynamic>> requestRef,
@@ -265,6 +268,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     // Item availability and completion counters are updated server-side.
   }
 
+  /// Marketplace dispute flow: creates the admin report document linked to a borrow request and evidence photo.
   void _setDisputeReport({
     required WriteBatch batch,
     required DocumentReference<Map<String, dynamic>> reportRef,
@@ -302,7 +306,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     });
   }
 
-  /// Owner sets deposit outcome after borrow completed (Phase 6).
+  /// Marketplace deposit flow: lender records a clean-return decision or routes Stripe withhold cases to admin dispute resolution.
   Future<void> setDepositDecision({
     required String requestId,
     required String ownerId,
