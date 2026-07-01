@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/theme/app_theme.dart';
 import 'package:jirani/core/utils/responsive.dart';
@@ -132,7 +131,6 @@ class _AppBootstrapState extends State<AppBootstrap> {
       if (!kIsWeb) {
         await _activateFirebaseAppCheck();
       }
-      await _configureStripe();
       if (!kIsWeb) {
         await pushNotificationService.initialize(navigatorKey: appNavigatorKey);
       }
@@ -208,7 +206,14 @@ class _BootstrapLoadingScreen extends StatelessWidget {
 enum _BootstrapPhase { initializing, ready, error }
 
 Future<void> _activateFirebaseAppCheck() async {
-  if (kDebugMode) {
+  const useAppCheckDebugProvider = bool.fromEnvironment(
+    'USE_APP_CHECK_DEBUG',
+  );
+
+  if (kDebugMode || useAppCheckDebugProvider) {
+    if (useAppCheckDebugProvider && !kDebugMode) {
+      debugPrint('Firebase App Check debug provider enabled by dart-define.');
+    }
     await FirebaseAppCheck.instance.activate(
       providerAndroid: const AndroidDebugProvider(),
       providerApple: const AppleDebugProvider(),
@@ -220,16 +225,6 @@ Future<void> _activateFirebaseAppCheck() async {
     providerAndroid: const AndroidPlayIntegrityProvider(),
     providerApple: const AppleDeviceCheckProvider(),
   );
-}
-
-Future<void> _configureStripe() async {
-  const publishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
-  if (publishableKey.trim().isEmpty) {
-    debugPrint('Stripe publishable key not configured.');
-    return;
-  }
-  Stripe.publishableKey = publishableKey;
-  await Stripe.instance.applySettings();
 }
 
 class TrustCommunityApp extends StatelessWidget {

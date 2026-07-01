@@ -3,7 +3,7 @@ part of '../admin_service.dart';
 // Admin reports feature: resolves marketplace reports, dismisses reports, and sends warning notifications.
 mixin _AdminServiceReportsMixin
     on _AdminServiceBase, _AdminServicePaymentsMixin {
-  // Admin marketplace dispute feature: resolves a disputed borrow request and delegates Stripe deposit cases to backend.
+  // Admin marketplace dispute feature: resolves a disputed borrow request and delegates managed deposit cases to backend.
   Future<void> resolveMarketplaceDispute({
     required String reportId,
     required String borrowRequestId,
@@ -38,7 +38,7 @@ mixin _AdminServiceReportsMixin
       throw Exception('Only disputed transactions can be resolved by admin.');
     }
 
-    if (request.paymentProvider == AppConstants.paymentProviderStripe &&
+    if (request.paymentProvider == AppConstants.paymentProviderXendit &&
         request.paymentStatus == AppConstants.paymentStatusCompleted) {
       await resolveMarketplaceDeposit(
         borrowRequestId: borrowRequestId.trim(),

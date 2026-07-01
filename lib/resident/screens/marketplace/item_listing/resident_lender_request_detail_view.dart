@@ -307,7 +307,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
-  /// Marketplace approval: owner approves the request, then waits for the borrower to complete Stripe payment.
+  /// Marketplace approval: owner approves the request, then waits for the borrower to complete payment.
   Future<void> _approveRequestFromDetail(
     BuildContext context,
     BorrowRequest request,
@@ -352,7 +352,7 @@ class _ResidentLenderRequestDetailViewState
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Marketplace chat: opens borrower chat only after Stripe payment has completed.
+  /// Marketplace chat: opens borrower chat only after payment has completed.
   Future<void> _openChat(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     if (!MarketplaceBorrowFlow.isPaymentComplete(request)) {
@@ -577,7 +577,7 @@ class _ResidentLenderRequestDetailViewState
     );
   }
 
-  /// Marketplace return: owner confirms a clean return and triggers Stripe full deposit refund when applicable.
+  /// Marketplace return: owner confirms a clean return and triggers full deposit refund when applicable.
   Future<void> _confirmReturn(BorrowRequest request, AppUser? user) async {
     if (user == null) return;
     final code = _returnCodeController.text.trim();
@@ -1561,7 +1561,7 @@ class _LenderCompletedCard extends StatelessWidget {
   }
 }
 
-/// Marketplace lender UI: explains the admin deposit decision and whether payout is manual or Stripe Connect.
+/// Marketplace lender UI: explains the admin deposit decision and manual payout status.
 class _LenderAdminDecisionPanel extends StatelessWidget {
   const _LenderAdminDecisionPanel({required this.request});
 

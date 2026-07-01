@@ -78,7 +78,13 @@ class BorrowRequest {
     this.damageDecision = AppConstants.damageDecisionNone,
     this.damageDecisionReason = '',
     this.damageDecidedAt,
-    this.stripeRefundId = '',
+    this.xenditRefundId = '',
+    this.xenditPaymentRequestId = '',
+    this.xenditPaymentId = '',
+    this.xenditInvoiceId = '',
+    this.xenditReferenceId = '',
+    this.xenditChannelCode = '',
+    this.xenditFailureReason = '',
     this.refundStatus = '',
     this.refundFailureReason = '',
     this.lenderBaseEarning = 0,
@@ -89,13 +95,6 @@ class BorrowRequest {
     this.manualPayoutMarkedBy = '',
     this.manualPayoutReference = '',
     this.manualPayoutNote = '',
-    this.stripeTransferId = '',
-    this.stripeTransferDestinationAccountId = '',
-    this.stripeTransferAmount = 0,
-    this.stripeTransferStatus = '',
-    this.stripeTransferFailureReason = '',
-    this.stripeTransferCreatedAt,
-    this.stripeTransferUpdatedAt,
     this.borrowerReviewSubmitted = false,
     this.borrowerReviewSubmittedAt,
     this.ownerReviewSubmitted = false,
@@ -123,7 +122,7 @@ class BorrowRequest {
   /// Marketplace lifecycle: current borrow state such as pending, approved, active, returnSubmitted, disputed, or completed.
   final String status;
 
-  /// Marketplace payment: Stripe webhook-controlled status used before chat/handover is unlocked.
+  /// Marketplace payment: provider-confirmed status used before chat/handover is unlocked.
   final String paymentStatus;
   final DateTime? paymentCompletedAt;
   final String paymentProvider;
@@ -175,7 +174,7 @@ class BorrowRequest {
   final String adminResolutionReason;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
-  /// Marketplace Stripe deposit: backend status for held/refunded/deducted/refund_failed deposit money.
+  /// Marketplace deposit: backend status for held/refunded/deducted/refund_failed deposit money.
   final String depositStatus;
   final double depositHeldAmount;
   final double depositRefundAmount;
@@ -184,27 +183,25 @@ class BorrowRequest {
   final String damageDecision;
   final String damageDecisionReason;
   final DateTime? damageDecidedAt;
-  final String stripeRefundId;
+  final String xenditRefundId;
+  final String xenditPaymentRequestId;
+  final String xenditPaymentId;
+  final String xenditInvoiceId;
+  final String xenditReferenceId;
+  final String xenditChannelCode;
+  final String xenditFailureReason;
   final String refundStatus;
   final String refundFailureReason;
   /// Marketplace payout: usage fee plus any approved damage deduction owed to the lender.
   final double lenderBaseEarning;
   final double lenderDamageEarning;
   final double lenderTotalEarning;
-  /// Marketplace payout: manual collection status used when Stripe Connect automatic transfer is not available.
+  /// Marketplace payout: manual collection status used for lender earnings.
   final String manualPayoutStatus;
   final DateTime? manualPayoutMarkedAt;
   final String manualPayoutMarkedBy;
   final String manualPayoutReference;
   final String manualPayoutNote;
-  /// Marketplace payout: Stripe Connect transfer metadata when lender earnings are paid automatically.
-  final String stripeTransferId;
-  final String stripeTransferDestinationAccountId;
-  final double stripeTransferAmount;
-  final String stripeTransferStatus;
-  final String stripeTransferFailureReason;
-  final DateTime? stripeTransferCreatedAt;
-  final DateTime? stripeTransferUpdatedAt;
   /// Marketplace reviews: prevents borrower and lender from submitting duplicate post-transaction reviews.
   final bool borrowerReviewSubmitted;
   final DateTime? borrowerReviewSubmittedAt;
@@ -287,7 +284,13 @@ class BorrowRequest {
     String? damageDecision,
     String? damageDecisionReason,
     DateTime? damageDecidedAt,
-    String? stripeRefundId,
+    String? xenditRefundId,
+    String? xenditPaymentRequestId,
+    String? xenditPaymentId,
+    String? xenditInvoiceId,
+    String? xenditReferenceId,
+    String? xenditChannelCode,
+    String? xenditFailureReason,
     String? refundStatus,
     String? refundFailureReason,
     double? lenderBaseEarning,
@@ -298,13 +301,6 @@ class BorrowRequest {
     String? manualPayoutMarkedBy,
     String? manualPayoutReference,
     String? manualPayoutNote,
-    String? stripeTransferId,
-    String? stripeTransferDestinationAccountId,
-    double? stripeTransferAmount,
-    String? stripeTransferStatus,
-    String? stripeTransferFailureReason,
-    DateTime? stripeTransferCreatedAt,
-    DateTime? stripeTransferUpdatedAt,
     bool? borrowerReviewSubmitted,
     DateTime? borrowerReviewSubmittedAt,
     bool? ownerReviewSubmitted,
@@ -398,7 +394,14 @@ class BorrowRequest {
       damageDecisionReason:
           damageDecisionReason ?? this.damageDecisionReason,
       damageDecidedAt: damageDecidedAt ?? this.damageDecidedAt,
-      stripeRefundId: stripeRefundId ?? this.stripeRefundId,
+      xenditRefundId: xenditRefundId ?? this.xenditRefundId,
+      xenditPaymentRequestId:
+          xenditPaymentRequestId ?? this.xenditPaymentRequestId,
+      xenditPaymentId: xenditPaymentId ?? this.xenditPaymentId,
+      xenditInvoiceId: xenditInvoiceId ?? this.xenditInvoiceId,
+      xenditReferenceId: xenditReferenceId ?? this.xenditReferenceId,
+      xenditChannelCode: xenditChannelCode ?? this.xenditChannelCode,
+      xenditFailureReason: xenditFailureReason ?? this.xenditFailureReason,
       refundStatus: refundStatus ?? this.refundStatus,
       refundFailureReason: refundFailureReason ?? this.refundFailureReason,
       lenderBaseEarning: lenderBaseEarning ?? this.lenderBaseEarning,
@@ -412,19 +415,6 @@ class BorrowRequest {
       manualPayoutReference:
           manualPayoutReference ?? this.manualPayoutReference,
       manualPayoutNote: manualPayoutNote ?? this.manualPayoutNote,
-      stripeTransferId: stripeTransferId ?? this.stripeTransferId,
-      stripeTransferDestinationAccountId:
-          stripeTransferDestinationAccountId ??
-          this.stripeTransferDestinationAccountId,
-      stripeTransferAmount:
-          stripeTransferAmount ?? this.stripeTransferAmount,
-      stripeTransferStatus: stripeTransferStatus ?? this.stripeTransferStatus,
-      stripeTransferFailureReason:
-          stripeTransferFailureReason ?? this.stripeTransferFailureReason,
-      stripeTransferCreatedAt:
-          stripeTransferCreatedAt ?? this.stripeTransferCreatedAt,
-      stripeTransferUpdatedAt:
-          stripeTransferUpdatedAt ?? this.stripeTransferUpdatedAt,
       borrowerReviewSubmitted:
           borrowerReviewSubmitted ?? this.borrowerReviewSubmitted,
       borrowerReviewSubmittedAt:
@@ -528,7 +518,14 @@ class BorrowRequest {
           (data['damageDecision'] as String?) ?? AppConstants.damageDecisionNone,
       damageDecisionReason: (data['damageDecisionReason'] as String?) ?? '',
       damageDecidedAt: _toNullableDate(data['damageDecidedAt']),
-      stripeRefundId: (data['stripeRefundId'] as String?) ?? '',
+      xenditRefundId: (data['xenditRefundId'] as String?) ?? '',
+      xenditPaymentRequestId:
+          (data['xenditPaymentRequestId'] as String?) ?? '',
+      xenditPaymentId: (data['xenditPaymentId'] as String?) ?? '',
+      xenditInvoiceId: (data['xenditInvoiceId'] as String?) ?? '',
+      xenditReferenceId: (data['xenditReferenceId'] as String?) ?? '',
+      xenditChannelCode: (data['xenditChannelCode'] as String?) ?? '',
+      xenditFailureReason: (data['xenditFailureReason'] as String?) ?? '',
       refundStatus: _parseRefundStatus(data),
       refundFailureReason: (data['refundFailureReason'] as String?) ?? '',
       lenderBaseEarning: _toDouble(data['lenderBaseEarning']) ?? 0,
@@ -540,17 +537,6 @@ class BorrowRequest {
       manualPayoutReference:
           (data['manualPayoutReference'] as String?) ?? '',
       manualPayoutNote: (data['manualPayoutNote'] as String?) ?? '',
-      stripeTransferId: (data['stripeTransferId'] as String?) ?? '',
-      stripeTransferDestinationAccountId:
-          (data['stripeTransferDestinationAccountId'] as String?) ?? '',
-      stripeTransferAmount: _toDouble(data['stripeTransferAmount']) ?? 0,
-      stripeTransferStatus:
-          (data['stripeTransferStatus'] as String?) ??
-          AppConstants.stripeTransferStatusNotReady,
-      stripeTransferFailureReason:
-          (data['stripeTransferFailureReason'] as String?) ?? '',
-      stripeTransferCreatedAt: _toNullableDate(data['stripeTransferCreatedAt']),
-      stripeTransferUpdatedAt: _toNullableDate(data['stripeTransferUpdatedAt']),
       borrowerReviewSubmitted:
           data['borrowerReviewSubmitted'] as bool? ?? false,
       borrowerReviewSubmittedAt: _toNullableDate(
@@ -687,7 +673,21 @@ class BorrowRequest {
       'damageDecidedAt': damageDecidedAt == null
           ? null
           : Timestamp.fromDate(damageDecidedAt!),
-      'stripeRefundId': stripeRefundId.isEmpty ? null : stripeRefundId,
+      'xenditRefundId': xenditRefundId.isEmpty ? null : xenditRefundId,
+      'xenditPaymentRequestId': xenditPaymentRequestId.isEmpty
+          ? null
+          : xenditPaymentRequestId,
+      'xenditPaymentId': xenditPaymentId.isEmpty ? null : xenditPaymentId,
+      'xenditInvoiceId': xenditInvoiceId.isEmpty ? null : xenditInvoiceId,
+      'xenditReferenceId': xenditReferenceId.isEmpty
+          ? null
+          : xenditReferenceId,
+      'xenditChannelCode': xenditChannelCode.isEmpty
+          ? null
+          : xenditChannelCode,
+      'xenditFailureReason': xenditFailureReason.isEmpty
+          ? null
+          : xenditFailureReason,
       'refundStatus': refundStatus,
       'refundFailureReason':
           refundFailureReason.isEmpty ? null : refundFailureReason,
@@ -703,22 +703,6 @@ class BorrowRequest {
       'manualPayoutReference':
           manualPayoutReference.isEmpty ? null : manualPayoutReference,
       'manualPayoutNote': manualPayoutNote.isEmpty ? null : manualPayoutNote,
-      'stripeTransferId': stripeTransferId.isEmpty ? null : stripeTransferId,
-      'stripeTransferDestinationAccountId':
-          stripeTransferDestinationAccountId.isEmpty
-          ? null
-          : stripeTransferDestinationAccountId,
-      'stripeTransferAmount': stripeTransferAmount,
-      'stripeTransferStatus': stripeTransferStatus,
-      'stripeTransferFailureReason': stripeTransferFailureReason.isEmpty
-          ? null
-          : stripeTransferFailureReason,
-      'stripeTransferCreatedAt': stripeTransferCreatedAt == null
-          ? null
-          : Timestamp.fromDate(stripeTransferCreatedAt!),
-      'stripeTransferUpdatedAt': stripeTransferUpdatedAt == null
-          ? null
-          : Timestamp.fromDate(stripeTransferUpdatedAt!),
       'borrowerReviewSubmitted': borrowerReviewSubmitted,
       'borrowerReviewSubmittedAt': borrowerReviewSubmittedAt == null
           ? null

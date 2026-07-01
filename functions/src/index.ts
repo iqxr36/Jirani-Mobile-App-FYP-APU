@@ -34,21 +34,15 @@ import {
   recalculateTrustScoreForUser,
   reviewBecamePublished,
 } from "./trust_score";
-import {markMarketplaceDepositDisputedIfNeeded} from "./stripe_payments";
+import {markMarketplaceDepositDisputedIfNeeded} from "./payments";
 export {processVerificationRequestOcr} from "./ocr/processVerificationOcr";
 export {
-  createConnectOnboardingLink,
-  createPaymentIntent,
-  createSetupIntent,
-  deletePaymentMethod,
-  getConnectAccountStatus,
+  createXenditMarketplacePayment,
   getPaymentStatus,
-  listPaymentMethods,
   markManualPayoutPaid,
   resolveMarketplaceDeposit,
-  setDefaultPaymentMethod,
-  stripeWebhook,
-} from "./stripe_payments";
+  xenditWebhook,
+} from "./payments";
 
 // Firebase Functions entrypoint: initializes Admin SDK once before all triggers and callables run.
 admin.initializeApp();

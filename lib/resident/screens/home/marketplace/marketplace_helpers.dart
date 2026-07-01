@@ -173,7 +173,7 @@ String _manualPayoutStatusLabel(String status) {
 
 String _depositLedgerMessage(BorrowRequest request) {
   if (request.refundStatus == AppConstants.refundStatusPending) {
-    return 'Stripe is processing the deposit refund. The final result is confirmed by webhook.';
+    return 'The payment provider is processing the deposit refund. The final result is confirmed shortly.';
   }
   if (request.refundStatus == AppConstants.refundStatusFailed) {
     final reason = request.refundFailureReason.trim();
@@ -191,7 +191,7 @@ String _depositLedgerMessage(BorrowRequest request) {
     return 'Admin resolved the deposit for the lender. No deposit refund is due.';
   }
   if (request.depositStatus == AppConstants.depositStatusRefunded) {
-    return 'Your refundable deposit has been released through Stripe.';
+    return 'Your refundable deposit has been released.';
   }
   if (request.depositStatus == AppConstants.depositStatusHeld) {
     return 'Your deposit is held until the return is completed or reviewed.';

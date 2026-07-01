@@ -185,11 +185,10 @@ class AppConstants {
   static const String paymentStatusFailed = 'failed';
   static const String paymentStatusCancelled = 'cancelled';
   static const String paymentStatusRefunded = 'refunded';
-  /// User dismissed the Stripe sheet before completing — no charge made,
-  /// but a pending PaymentIntent may still exist until Stripe auto-expires it.
+  /// User left hosted checkout before provider confirmation.
   static const String paymentStatusFlowCancelled = 'flowCancelled';
   static const String paymentProviderManualV1 = 'manual_v1';
-  static const String paymentProviderStripe = 'stripe';
+  static const String paymentProviderXendit = 'xendit';
   static const String paymentTypeMarketplace = 'marketplace';
   static const String paymentTypeService = 'service';
   static const String defaultPaymentCurrency = 'myr';
@@ -222,16 +221,6 @@ class AppConstants {
   static const String manualPayoutStatusPendingManual = 'pending_manual';
   static const String manualPayoutStatusPaid = 'paid';
   static const String manualPayoutStatusCancelled = 'cancelled';
-
-  static const String stripeConnectStatusNotStarted = 'not_started';
-  static const String stripeConnectStatusNeedsOnboarding = 'needs_onboarding';
-  static const String stripeConnectStatusPending = 'pending';
-  static const String stripeConnectStatusComplete = 'complete';
-
-  static const String stripeTransferStatusNotReady = 'not_ready';
-  static const String stripeTransferStatusPending = 'pending';
-  static const String stripeTransferStatusPaid = 'paid';
-  static const String stripeTransferStatusFailed = 'failed';
 
   static const String depositResolutionFullRefund = 'full_refund';
   static const String depositResolutionPartialDeduction = 'partial_deduction';

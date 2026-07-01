@@ -76,7 +76,7 @@ class BorrowRequestProvider extends ChangeNotifier {
         );
   }
 
-  // Marketplace borrow feature: creates the initial pending request before owner approval and Stripe payment.
+  // Marketplace borrow feature: creates the initial pending request before owner approval and payment.
   Future<void> createBorrowRequest({
     required ItemModel item,
     required AppUser borrower,
@@ -115,7 +115,7 @@ class BorrowRequestProvider extends ChangeNotifier {
     }
   }
 
-  // Marketplace borrow feature: lets the lender approve the request so the borrower can pay with Stripe.
+  // Marketplace borrow feature: lets the lender approve the request so the borrower can pay.
   Future<void> approveBorrowRequest({
     required String requestId,
     required String ownerId,

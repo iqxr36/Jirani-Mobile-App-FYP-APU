@@ -60,7 +60,7 @@ mixin _BorrowRequestReturnMixin on _BorrowRequestServiceBase, _BorrowRequestHand
     }
   }
 
-  /// Marketplace return flow: lender confirms a clean return, completes the request, and triggers a Stripe full deposit refund.
+  /// Marketplace return flow: lender confirms a clean return, completes the request, and triggers a full deposit refund.
   Future<void> confirmReturn({
     required String requestId,
     required String ownerId,
@@ -121,7 +121,7 @@ mixin _BorrowRequestReturnMixin on _BorrowRequestServiceBase, _BorrowRequestHand
         },
       );
       await batch.commit();
-      if (_hasCompletedStripePayment(request)) {
+      if (_hasCompletedManagedPayment(request)) {
         await _resolveMarketplaceDeposit(
           borrowRequestId: requestId,
           decision: AppConstants.depositResolutionFullRefund,

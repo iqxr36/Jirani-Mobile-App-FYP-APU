@@ -1,150 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:jirani/core/constants/app_constants.dart';
-import 'package:jirani/resident/providers/payment_provider.dart';
-import 'package:jirani/shared/models/payment_method_model.dart';
-import 'package:jirani/shared/services/payment_service.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
-const Color _kWarmAccent = Color(0xFFE29578);
 const double _kMaxContentWidth = 420;
 
-/// Payments feature screen: lets residents save cards and lets lenders set up Stripe Connect payouts.
-class PaymentMethodsView extends StatefulWidget {
+/// Payments feature screen: explains the Xendit hosted checkout flow.
+class PaymentMethodsView extends StatelessWidget {
   const PaymentMethodsView({super.key});
 
   @override
-  State<PaymentMethodsView> createState() => _PaymentMethodsViewState();
-}
-
-class _PaymentMethodsViewState extends State<PaymentMethodsView> {
-  bool _loaded = false;
-
-  @override
-  /// Payments feature lifecycle: loads saved cards and payout status once the provider is available.
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_loaded) return;
-    _loaded = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<PaymentProvider>().loadPaymentMethods();
-        context.read<PaymentProvider>().loadConnectAccountStatus();
-      }
-    });
-  }
-
-  /// Stripe Connect payouts: opens Stripe onboarding so lenders can receive damage-deduction earnings automatically.
-  Future<void> _setupStripePayouts() async {
-    final provider = context.read<PaymentProvider>();
-    final result = await provider.createConnectOnboardingLink(
-      returnUrl:
-          'https://final-year-project-faisal.web.app/stripe-connect-return',
-      refreshUrl:
-          'https://final-year-project-faisal.web.app/stripe-connect-refresh',
-    );
-    if (!mounted) return;
-    final url = result?.url.trim() ?? '';
-    if (url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            provider.errorMessage ?? 'Could not start Stripe payout setup.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final launched = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!mounted) return;
-    if (!launched) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Stripe onboarding.')),
-      );
-      return;
-    }
-    await provider.loadConnectAccountStatus();
-  }
-
-  /// Saved cards: starts Stripe SetupIntent PaymentSheet and shows a success/error SnackBar afterwards.
-  Future<void> _addPaymentMethod() async {
-    final provider = context.read<PaymentProvider>();
-    final ok = await provider.addPaymentMethod();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Payment method added.'
-              : provider.errorMessage ?? 'Could not add payment method.',
-        ),
-      ),
-    );
-  }
-
-  /// Saved cards: sets one saved Stripe card as the resident's default payment method.
-  Future<void> _setDefault(PaymentMethodModel method) async {
-    final provider = context.read<PaymentProvider>();
-    final ok = await provider.setDefaultPaymentMethod(
-      method.stripePaymentMethodId,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Default payment method updated.'
-              : provider.errorMessage ?? 'Could not update default card.',
-        ),
-      ),
-    );
-  }
-
-  /// Saved cards: confirms removal, then asks the backend to detach the card from the Stripe customer.
-  Future<void> _remove(PaymentMethodModel method) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Remove card?'),
-          content: Text('Remove ${_brandLabel(method.brand)} ending in ${method.last4}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Remove'),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed != true || !mounted) return;
-
-    final provider = context.read<PaymentProvider>();
-    final ok = await provider.deletePaymentMethod(method.stripePaymentMethodId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Payment method removed.'
-              : provider.errorMessage ?? 'Could not remove payment method.',
-        ),
-      ),
-    );
-  }
-
-  @override
-  /// Payments feature UI: renders payout setup, saved cards, empty/error/loading states, and the add-card action.
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
     final scheme = Theme.of(context).colorScheme;
@@ -154,95 +18,87 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
         backgroundColor: Colors.transparent,
         body: SafeArea(
           bottom: false,
-          child: Consumer<PaymentProvider>(
-            builder: (context, provider, _) {
-              return RefreshIndicator(
-                onRefresh: () async {
-                  await provider.loadPaymentMethods();
-                  await provider.loadConnectAccountStatus();
-                },
-                                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: EdgeInsets.fromLTRB(16, 18, 16, 24 + bottom),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: _kMaxContentWidth,
-                      ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 24 + bottom),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Header(onBack: () => Navigator.of(context).pop()),
+                    const SizedBox(height: 18),
+                    _Panel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _Header(onBack: () => Navigator.of(context).pop()),
-                          const SizedBox(height: 18),
-                          _PayoutSetupCard(
-                            status: provider.connectStatus,
-                            loading: provider.isLoading,
-                            onSetup: _setupStripePayouts,
-                            onRefresh: provider.loadConnectAccountStatus,
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: _kBrandTeal.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.verified_user_rounded,
+                                  color: _kBrandTeal,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Secure Payments',
+                                  style: TextStyle(
+                                    color: scheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 14),
-                          if (provider.isLoading &&
-                              provider.paymentMethods.isEmpty)
-                            const _LoadingPanel()
-                          else if (provider.errorMessage != null &&
-                              provider.paymentMethods.isEmpty)
-                            _ErrorPanel(
-                              message: provider.errorMessage!,
-                              onRetry: provider.loadPaymentMethods,
-                            )
-                          else if (provider.paymentMethods.isEmpty)
-                            const _EmptyPanel()
-                          else
-                            for (final method in provider.paymentMethods) ...[
-                              _PaymentMethodCard(
-                                method: method,
-                                onSetDefault: method.isDefault
-                                    ? null
-                                    : () => _setDefault(method),
-                                onRemove: () => _remove(method),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                          const SizedBox(height: 6),
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _kBrandTeal,
-                              foregroundColor: scheme.onPrimary,
-                              minimumSize: const Size.fromHeight(50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
+                          Text(
+                            'Payments are handled securely by Xendit during checkout. You do not need to save cards in Jirani.',
+                            style: TextStyle(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
                             ),
-                            onPressed: provider.isLoading
-                                ? null
-                                : _addPaymentMethod,
-                            icon: provider.isLoading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.add_card_rounded),
-                            label: Text(
-                              provider.isLoading
-                                  ? 'Please wait...'
-                                  : 'Add Payment Method',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _InfoRow(
+                            icon: Icons.account_balance_wallet_rounded,
+                            title: 'Malaysian payment options',
+                            body:
+                                'Borrowers pay through Xendit hosted checkout using available local payment channels.',
+                          ),
+                          const SizedBox(height: 12),
+                          _InfoRow(
+                            icon: Icons.savings_rounded,
+                            title: 'Deposit handling',
+                            body:
+                                'Refundable deposits are charged upfront and settled after item return or admin review.',
+                          ),
+                          const SizedBox(height: 12),
+                          _InfoRow(
+                            icon: Icons.payments_rounded,
+                            title: 'Lender payouts',
+                            body:
+                                'Lender earnings are prepared after deposit settlement and marked paid by admin.',
                           ),
                         ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ),
@@ -250,145 +106,12 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
   }
 }
 
-/// Stripe Connect payouts UI: explains whether the lender can receive automatic damage deduction transfers.
-class _PayoutSetupCard extends StatelessWidget {
-  const _PayoutSetupCard({
-    required this.status,
-    required this.loading,
-    required this.onSetup,
-    required this.onRefresh,
-  });
-
-  final ConnectAccountStatus? status;
-  final bool loading;
-  final VoidCallback onSetup;
-  final Future<void> Function() onRefresh;
-
-  @override
-  /// Stripe Connect payouts UI: renders onboarding/manage action plus refresh status control.
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final effectiveStatus = status?.status ??
-        AppConstants.stripeConnectStatusNotStarted;
-    final complete =
-        effectiveStatus == AppConstants.stripeConnectStatusComplete;
-
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kBrandTeal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  complete
-                      ? Icons.verified_rounded
-                      : Icons.account_balance_rounded,
-                  color: _kBrandTeal,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Stripe Payouts',
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _connectStatusLabel(effectiveStatus),
-                      style: TextStyle(
-                        color: complete ? _kBrandTeal : scheme.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _connectStatusMessage(effectiveStatus),
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          if ((status?.disabledReason ?? '').isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Stripe note: ${status!.disabledReason}',
-              style: const TextStyle(
-                color: _kWarmAccent,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kBrandTeal,
-                    foregroundColor: scheme.onPrimary,
-                    minimumSize: const Size.fromHeight(46),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: loading ? null : onSetup,
-                  icon: Icon(
-                    complete
-                        ? Icons.manage_accounts_rounded
-                        : Icons.open_in_new_rounded,
-                  ),
-                  label: Text(
-                    complete ? 'Manage Payouts' : 'Set Up Payouts',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.outlined(
-                onPressed: loading ? null : () => onRefresh(),
-                icon: const Icon(Icons.refresh_rounded),
-                tooltip: 'Refresh status',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Payments screen UI: top row with back navigation and screen title.
 class _Header extends StatelessWidget {
   const _Header({required this.onBack});
 
   final VoidCallback onBack;
 
   @override
-  /// Payments screen UI: renders the Payment Methods header.
   Widget build(BuildContext context) {
     return SizedBox(
       height: 48,
@@ -405,7 +128,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           const Text(
-            'Payment Methods',
+            'Payments',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _kBrandTeal,
@@ -420,296 +143,77 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Saved cards UI: empty state shown before the resident has added any payment method.
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel();
-
-  @override
-  /// Saved cards UI: renders the empty card list message and guidance.
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return _Panel(
-      child: Column(
-        children: [
-          const Icon(
-            Icons.account_balance_wallet_outlined,
-            color: _kBrandTeal,
-            size: 38,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No payment methods added yet.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: scheme.onSurface,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Add a card to make marketplace payments faster.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Payments screen UI: loading state while cards or payout status are being fetched.
-class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel();
-
-  @override
-  /// Payments screen UI: renders the centered loading indicator.
-  Widget build(BuildContext context) {
-    return const _Panel(
-      child: Center(child: CircularProgressIndicator(color: _kBrandTeal)),
-    );
-  }
-}
-
-/// Payments screen UI: error state with retry when saved cards cannot be loaded.
-class _ErrorPanel extends StatelessWidget {
-  const _ErrorPanel({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  /// Payments screen UI: renders the user-facing payment error and retry button.
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return _Panel(
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: _kWarmAccent, size: 36),
-          const SizedBox(height: 10),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Try Again')),
-        ],
-      ),
-    );
-  }
-}
-
-/// Payments screen UI component: shared rounded panel container matching Jirani's resident style.
 class _Panel extends StatelessWidget {
   const _Panel({required this.child});
 
   final Widget child;
 
   @override
-  /// Payments screen UI component: applies responsive surface color, border, and spacing.
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      margin: const EdgeInsets.only(bottom: 14),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: isDark
-            ? scheme.surfaceContainerHighest.withValues(alpha: 0.92)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: child,
-    );
-  }
-}
-
-/// Saved cards UI: displays one safe card record with default and remove actions.
-class _PaymentMethodCard extends StatelessWidget {
-  const _PaymentMethodCard({
-    required this.method,
-    required this.onSetDefault,
-    required this.onRemove,
-  });
-
-  final PaymentMethodModel method;
-  final VoidCallback? onSetDefault;
-  final VoidCallback onRemove;
-
-  @override
-  /// Saved cards UI: renders brand, masked last4, expiry, default badge, and card actions.
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark
-            ? scheme.surfaceContainerHighest.withValues(alpha: 0.92)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: method.isDefault ? _kBrandTeal : scheme.outlineVariant,
-          width: method.isDefault ? 1.4 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kBrandTeal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.credit_card_rounded, color: _kBrandTeal),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            _brandLabel(method.brand),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: scheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        if (method.isDefault) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _kBrandTeal.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Default',
-                              style: TextStyle(
-                                color: _kBrandTeal,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '**** **** **** ${method.last4}',
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Expiry ${_expiry(method)}',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onSetDefault,
-                  child: const Text('Set as Default'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                onPressed: onRemove,
-                icon: const Icon(Icons.delete_outline_rounded),
-                color: _kWarmAccent,
-                tooltip: 'Remove',
-              ),
-            ],
+        color: scheme.surface.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
+      child: Padding(padding: const EdgeInsets.all(18), child: child),
     );
   }
 }
 
-/// Saved cards UI: formats Stripe card brand text for display.
-String _brandLabel(String brand) {
-  final value = brand.trim();
-  if (value.isEmpty) return 'Card';
-  return value
-      .split(RegExp(r'\s+'))
-      .map((part) => part.isEmpty
-          ? part
-          : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
-      .join(' ');
-}
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
-/// Saved cards UI: converts expiry month/year metadata into MM/YY without exposing full card details.
-String _expiry(PaymentMethodModel method) {
-  final month = method.expMonth.toString().padLeft(2, '0');
-  final year = (method.expYear % 100).toString().padLeft(2, '0');
-  return '$month/$year';
-}
+  final IconData icon;
+  final String title;
+  final String body;
 
-/// Stripe Connect payouts UI: maps backend account status into a short resident-facing label.
-String _connectStatusLabel(String status) {
-  switch (status) {
-    case AppConstants.stripeConnectStatusComplete:
-      return 'Ready for Stripe payouts';
-    case AppConstants.stripeConnectStatusPending:
-      return 'Stripe is reviewing details';
-    case AppConstants.stripeConnectStatusNeedsOnboarding:
-      return 'Action needed';
-    default:
-      return 'Not set up';
-  }
-}
-
-/// Stripe Connect payouts UI: explains what the current payout status means for lender earnings.
-String _connectStatusMessage(String status) {
-  switch (status) {
-    case AppConstants.stripeConnectStatusComplete:
-      return 'Damage deductions and lender earnings can be paid to your connected Stripe account automatically.';
-    case AppConstants.stripeConnectStatusPending:
-      return 'Stripe has your details and is checking whether payouts can be enabled.';
-    case AppConstants.stripeConnectStatusNeedsOnboarding:
-      return 'Finish Stripe onboarding before damage deductions can be paid to you automatically.';
-    default:
-      return 'Set up Stripe payouts if you lend marketplace items and want damage deductions paid through Stripe.';
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: _kBrandTeal, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                body,
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

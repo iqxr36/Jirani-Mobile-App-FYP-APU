@@ -53,7 +53,7 @@ class ServiceProvider extends ChangeNotifier {
   Future<ServiceModel?> getService(String serviceId) =>
       _service.getService(serviceId);
 
-  // Services feature: creates a provider service listing; Stripe service payments are intentionally not active yet.
+  // Services feature: creates a provider service listing; service payments are intentionally not active yet.
   Future<void> createService({
     required AppUser provider,
     required String title,

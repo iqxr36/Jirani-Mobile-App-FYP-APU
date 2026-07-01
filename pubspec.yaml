@@ -99,7 +99,6 @@ dependencies:
   crypto: ^3.0.6
 
   # Payments
-  flutter_stripe: ^12.6.0
 
   # API requests
   http: ^1.6.0

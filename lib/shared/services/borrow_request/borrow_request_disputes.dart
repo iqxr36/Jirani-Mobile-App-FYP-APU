@@ -73,7 +73,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     }
   }
 
-  /// Marketplace dispute flow: borrower accepts minor deduction for Stripe split/refund or declines to open an admin dispute.
+  /// Marketplace dispute flow: borrower accepts minor deduction/refund or declines to open an admin dispute.
   Future<void> respondToMinorIssue({
     required String requestId,
     required String borrowerId,
@@ -145,8 +145,8 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
         });
       }
       await batch.commit();
-      // Marketplace Stripe deposit: accepted minor damage resolves deposit with partial refund to borrower and deduction to lender.
-      if (accepted && _hasCompletedStripePayment(request)) {
+      // Marketplace deposit: accepted minor damage resolves deposit with partial refund to borrower and deduction to lender.
+      if (accepted && _hasCompletedManagedPayment(request)) {
         await _resolveMarketplaceDeposit(
           borrowRequestId: requestId,
           decision: AppConstants.depositResolutionPartialDeduction,
@@ -306,7 +306,7 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
     });
   }
 
-  /// Marketplace deposit flow: lender records a clean-return decision or routes Stripe withhold cases to admin dispute resolution.
+  /// Marketplace deposit flow: lender records a clean-return decision or routes withhold cases to admin dispute resolution.
   Future<void> setDepositDecision({
     required String requestId,
     required String ownerId,
@@ -347,10 +347,10 @@ mixin _BorrowRequestDisputeMixin on _BorrowRequestServiceBase, _BorrowRequestHan
         throw Exception('Deposit decision has already been recorded.');
       }
 
-      if (_hasCompletedStripePayment(request)) {
+      if (_hasCompletedManagedPayment(request)) {
         if (d == AppConstants.depositDecisionWithholdDeposit) {
           throw Exception(
-            'Use the major damage dispute flow so admin can resolve the Stripe deposit.',
+            'Use the major damage dispute flow so admin can resolve the deposit.',
           );
         }
         await _resolveMarketplaceDeposit(

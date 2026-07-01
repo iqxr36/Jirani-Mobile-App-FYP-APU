@@ -124,7 +124,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
-  // Stripe payment feature: opens saved cards and Connect payout setup screen.
+  // Payments feature: opens the resident payment information screen.
   void _openPaymentMethods() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const PaymentMethodsView()),

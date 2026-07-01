@@ -102,7 +102,7 @@ class AdminTransactionsScreen extends StatelessWidget {
     );
   }
 
-  /// Admin payments: filters Stripe-paid disputed requests that still need a deposit refund/deduction decision.
+  /// Admin payments: filters provider-paid disputed requests that still need a deposit refund/deduction decision.
   static bool _needsDepositResolution(BorrowRequest request) {
     final resolved = {
       AppConstants.depositStatusRefunded,
@@ -110,7 +110,7 @@ class AdminTransactionsScreen extends StatelessWidget {
       AppConstants.depositStatusDeducted,
       AppConstants.depositStatusNotRequired,
     };
-    return request.paymentProvider == AppConstants.paymentProviderStripe &&
+    return request.paymentProvider == AppConstants.paymentProviderXendit &&
         request.paymentStatus == AppConstants.paymentStatusCompleted &&
         !resolved.contains(request.depositStatus) &&
         (request.status == AppConstants.borrowStatusDisputed ||
@@ -119,7 +119,7 @@ class AdminTransactionsScreen extends StatelessWidget {
   }
 }
 
-/// Admin payments UI: lists Stripe deposit disputes that admin must resolve.
+/// Admin payments UI: lists payment-provider deposit disputes that admin must resolve.
 // Admin deposit UI feature: groups disputed deposits that need admin refund/deduction decisions.
 class _DepositResolutionPanel extends StatelessWidget {
   const _DepositResolutionPanel({required this.requests});
@@ -137,7 +137,7 @@ class _DepositResolutionPanel extends StatelessWidget {
           ? const AdminEmptyPanelMessage(
               icon: Icons.verified_user_outlined,
               title: 'No deposit disputes',
-              body: 'Stripe-paid marketplace disputes will appear here.',
+              body: 'Paid marketplace disputes will appear here.',
             )
           : Column(
               children: [
@@ -311,7 +311,7 @@ class _DepositResolutionCard extends StatelessWidget {
   }
 }
 
-/// Admin payouts UI: lists lender earnings that must be paid manually outside Stripe Connect.
+/// Admin payouts UI: lists lender earnings that must be paid manually.
 // Admin payout UI feature: groups lender manual payouts waiting for collection or already paid.
 class _ManualPayoutPanel extends StatelessWidget {
   const _ManualPayoutPanel({required this.requests});
