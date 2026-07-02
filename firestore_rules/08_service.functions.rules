@@ -51,6 +51,7 @@
 
     function providerCanSetServiceStatus() {
       return serviceProvider() &&
+        !('adminModerationReason' in resource.data) &&
         serviceProviderSnapshotUnchanged() &&
         serviceListingFieldsUnchanged() &&
         serviceChangedKeysOnly(['status', 'updatedAt']) &&

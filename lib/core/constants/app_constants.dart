@@ -164,6 +164,8 @@ class AppConstants {
   static const String activityResidentVerificationOverridden =
       'residentVerificationOverridden';
   static const String activityResidentNoticeSent = 'residentNoticeSent';
+  static const String activityListingArchived = 'listingArchived';
+  static const String activityListingRestored = 'listingRestored';
 
   // Borrow request statuses (Phase 4–5)
   static const String borrowStatusPending = 'pending';

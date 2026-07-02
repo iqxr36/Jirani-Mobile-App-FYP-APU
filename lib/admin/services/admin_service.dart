@@ -20,6 +20,7 @@ part 'admin_service/admin_service_reports.dart';
 part 'admin_service/admin_service_stats.dart';
 part 'admin_service/admin_service_residents.dart';
 part 'admin_service/admin_service_payments.dart';
+part 'admin_service/admin_service_listings.dart';
 
 // Admin service base: shares Firebase Auth, Firestore, and Functions clients across admin service mixins.
 abstract class _AdminServiceBase {
@@ -45,6 +46,7 @@ class AdminService extends _AdminServiceBase
         _AdminServicePaymentsMixin,
         _AdminServiceReportsMixin,
         _AdminServiceStatsMixin,
-        _AdminServiceResidentsMixin {
+        _AdminServiceResidentsMixin,
+        _AdminServiceListingsMixin {
   AdminService({super.auth, super.firestore, super.functions});
 }

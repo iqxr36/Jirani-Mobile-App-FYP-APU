@@ -556,6 +556,70 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
+  // Admin listings feature: archives a marketplace item so residents no longer see it.
+  Future<bool> archiveMarketplaceItem({
+    required ItemModel item,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runListingAction(
+      ownerId: item.ownerId,
+      action: () => _service.archiveMarketplaceItem(
+        itemId: item.id,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  // Admin listings feature: restores an archived marketplace item when no active borrow is attached.
+  Future<bool> restoreMarketplaceItem({
+    required ItemModel item,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runListingAction(
+      ownerId: item.ownerId,
+      action: () => _service.restoreMarketplaceItem(
+        itemId: item.id,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  // Admin listings feature: archives a task service so residents no longer see it.
+  Future<bool> archiveTaskService({
+    required ServiceModel service,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runListingAction(
+      ownerId: service.providerId,
+      action: () => _service.archiveTaskService(
+        serviceId: service.id,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
+  // Admin listings feature: restores an archived task service.
+  Future<bool> restoreTaskService({
+    required ServiceModel service,
+    required String adminUid,
+    required String reason,
+  }) {
+    return _runListingAction(
+      ownerId: service.providerId,
+      action: () => _service.restoreTaskService(
+        serviceId: service.id,
+        adminUid: adminUid,
+        reason: reason,
+      ),
+    );
+  }
+
   // Admin dashboard feature: fetches aggregate counts from Firestore for dashboard cards.
   Future<void> loadDashboardStats() async {
     try {
@@ -596,6 +660,32 @@ class AdminProvider extends ChangeNotifier {
   ) async {
     if (!_residentIsInAdminScope(resident)) {
       _errorMessage = 'This resident is outside your assigned community.';
+      notifyListeners();
+      return false;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await action();
+      await loadDashboardStats();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Admin listings feature: enforces community scope and wraps listing moderation mutations.
+  Future<bool> _runListingAction({
+    required String ownerId,
+    required Future<void> Function() action,
+  }) async {
+    if (!_belongsToVisibleResident(ownerId)) {
+      _errorMessage = 'This listing is outside your assigned community.';
       notifyListeners();
       return false;
     }

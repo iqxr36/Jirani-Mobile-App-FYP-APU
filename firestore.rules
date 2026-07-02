@@ -960,9 +960,16 @@ service cloud.firestore {
 
     function ownerSafeItemUpdate() {
       return itemOwner() &&
-        itemIsEditableListing() &&
+        (
+          itemIsEditableListing() ||
+          itemIsAdminArchivedListing()
+        ) &&
         request.resource.data.status == 'available' &&
         request.resource.data.isArchived == false &&
+        !('adminModerationReason' in request.resource.data) &&
+        !('adminModeratedBy' in request.resource.data) &&
+        !('adminModeratedAt' in request.resource.data) &&
+        ownerChangedListingContentKeys() &&
         itemOwnerSnapshotUnchanged() &&
         itemChangedKeysOnly([
           'title',
@@ -976,6 +983,11 @@ service cloud.firestore {
           'depositAmount',
           'pickupInstructions',
           'imageUrls',
+          'isArchived',
+          'status',
+          'adminModerationReason',
+          'adminModeratedBy',
+          'adminModeratedAt',
           'updatedAt',
         ]) &&
         request.resource.data.title is string &&
@@ -1004,8 +1016,30 @@ service cloud.firestore {
         resource.data.isArchived == true;
     }
 
+    function itemIsAdminArchivedListing() {
+      return itemIsArchivedListing() &&
+        ('adminModerationReason' in resource.data);
+    }
+
+    function ownerChangedListingContentKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'title',
+        'description',
+        'category',
+        'condition',
+        'lendingType',
+        'hasUsageFee',
+        'feeAmount',
+        'hasDeposit',
+        'depositAmount',
+        'pickupInstructions',
+        'imageUrls',
+      ]);
+    }
+
     function ownerCanUnarchiveItem() {
       return itemOwner() &&
+        !('adminModerationReason' in resource.data) &&
         itemIsArchivedListing() &&
         request.resource.data.isArchived != true &&
         request.resource.data.status == 'available' &&
@@ -1129,6 +1163,7 @@ service cloud.firestore {
 
     function providerCanSetServiceStatus() {
       return serviceProvider() &&
+        !('adminModerationReason' in resource.data) &&
         serviceProviderSnapshotUnchanged() &&
         serviceListingFieldsUnchanged() &&
         serviceChangedKeysOnly(['status', 'updatedAt']) &&

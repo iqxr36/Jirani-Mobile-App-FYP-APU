@@ -7,6 +7,8 @@ import 'package:jirani/shared/models/report_model.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
 
+enum AdminListingType { marketplaceItem, taskService }
+
 class AdminActivityRow {
   const AdminActivityRow({
     required this.icon,
@@ -23,20 +25,54 @@ class AdminActivityRow {
 
 class AdminListingRow {
   const AdminListingRow({
+    required this.id,
+    required this.type,
     required this.title,
     required this.category,
     required this.owner,
+    required this.ownerId,
     required this.status,
     required this.icon,
     required this.color,
+    required this.description,
+    required this.communityName,
+    required this.createdAt,
+    required this.updatedAt,
+    this.item,
+    this.service,
+    this.imageUrls = const <String>[],
+    this.priceLabel = '',
+    this.depositLabel = '',
+    this.conditionLabel = '',
+    this.availabilityLabel = '',
   });
 
+  final String id;
+  final AdminListingType type;
   final String title;
   final String category;
   final String owner;
+  final String ownerId;
   final String status;
   final IconData icon;
   final Color color;
+  final String description;
+  final String communityName;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final ItemModel? item;
+  final ServiceModel? service;
+  final List<String> imageUrls;
+  final String priceLabel;
+  final String depositLabel;
+  final String conditionLabel;
+  final String availabilityLabel;
+
+  bool get isItem => type == AdminListingType.marketplaceItem;
+  bool get isService => type == AdminListingType.taskService;
+  bool get canRestore =>
+      (isItem && item?.status == AppConstants.itemStatusArchived) ||
+      (isService && service?.status == AppConstants.serviceStatusArchived);
 }
 
 class AdminReportRow {
@@ -87,25 +123,55 @@ class AdminTransactionRow {
 
 AdminListingRow adminListingRowFromItem(ItemModel item) {
   return AdminListingRow(
+    id: item.id,
+    type: AdminListingType.marketplaceItem,
     title: item.title.isEmpty ? 'Untitled listing' : item.title,
     category: adminStatusLabel(item.category),
     owner: item.ownerName.isEmpty ? item.ownerEmail : item.ownerName,
+    ownerId: item.ownerId,
     status: adminStatusLabel(item.status),
     icon: adminCategoryIcon(item.category),
     color: adminStatusColor(item.status),
+    description: item.description,
+    communityName: item.communityName,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    item: item,
+    imageUrls: item.imageUrls,
+    priceLabel: item.hasUsageFee && item.feeAmount != null
+        ? 'RM ${item.feeAmount!.toStringAsFixed(2)}'
+        : 'Free',
+    depositLabel: item.hasDeposit && item.depositAmount != null
+        ? 'RM ${item.depositAmount!.toStringAsFixed(2)}'
+        : 'No deposit',
+    conditionLabel: adminStatusLabel(item.condition),
   );
 }
 
 AdminListingRow adminListingRowFromService(ServiceModel service) {
   return AdminListingRow(
+    id: service.id,
+    type: AdminListingType.taskService,
     title: service.title.isEmpty ? 'Untitled service' : service.title,
     category: 'Task service',
     owner: service.providerName.isEmpty
         ? service.providerEmail
         : service.providerName,
+    ownerId: service.providerId,
     status: adminStatusLabel(service.status),
     icon: adminCategoryIcon(service.category),
     color: adminStatusColor(service.status),
+    description: service.description,
+    communityName: '',
+    createdAt: service.createdAt,
+    updatedAt: service.updatedAt,
+    service: service,
+    priceLabel: service.priceType == AppConstants.servicePriceTypeFree
+        ? 'Free'
+        : service.priceAmount == null
+        ? adminStatusLabel(service.priceType)
+        : 'RM ${service.priceAmount!.toStringAsFixed(2)}',
+    availabilityLabel: service.availability,
   );
 }
 

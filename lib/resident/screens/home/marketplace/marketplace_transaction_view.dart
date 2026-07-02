@@ -639,8 +639,8 @@ class _CheckoutCard extends StatelessWidget {
             return _PrimaryButton(
               icon: Icons.lock_rounded,
               label: provider.isLoading
-                  ? 'Processing...'
-                  : 'Pay Securely with Xendit',
+                  ? 'Processing payment...'
+                  : 'Pay Now',
               onTap: provider.isLoading ? null : onPayment,
             );
           },

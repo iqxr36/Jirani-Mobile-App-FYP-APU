@@ -26,6 +26,8 @@ class ItemModel {
     required this.communityName,
     required this.pickupInstructions,
     required this.isArchived,
+    required this.adminModerationReason,
+    required this.adminModeratedBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -52,6 +54,8 @@ class ItemModel {
   final String communityName;
   final String pickupInstructions;
   final bool isArchived;
+  final String adminModerationReason;
+  final String adminModeratedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -79,6 +83,8 @@ class ItemModel {
     String? communityName,
     String? pickupInstructions,
     bool? isArchived,
+    String? adminModerationReason,
+    String? adminModeratedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -105,6 +111,9 @@ class ItemModel {
       communityName: communityName ?? this.communityName,
       pickupInstructions: pickupInstructions ?? this.pickupInstructions,
       isArchived: isArchived ?? this.isArchived,
+      adminModerationReason:
+          adminModerationReason ?? this.adminModerationReason,
+      adminModeratedBy: adminModeratedBy ?? this.adminModeratedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -154,6 +163,9 @@ class ItemModel {
       communityName: (data['communityName'] as String?) ?? '',
       pickupInstructions: (data['pickupInstructions'] as String?) ?? '',
       isArchived: data['isArchived'] as bool? ?? false,
+      adminModerationReason:
+          (data['adminModerationReason'] as String?) ?? '',
+      adminModeratedBy: (data['adminModeratedBy'] as String?) ?? '',
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
     );

@@ -264,7 +264,7 @@ class ItemRepository {
         hasUsageFee: hasUsageFee,
         hasDeposit: hasDeposit,
       );
-      await docRef.update({
+      final updates = <String, dynamic>{
         'title': title.trim(),
         'description': description.trim(),
         'category': category,
@@ -277,12 +277,28 @@ class ItemRepository {
         'pickupInstructions': pickupInstructions.trim(),
         'imageUrls': imageUrls,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (_isAdminArchived(existing, data)) {
+        updates.addAll({
+          'status': AppConstants.itemStatusAvailable,
+          'isArchived': false,
+          'adminModerationReason': FieldValue.delete(),
+          'adminModeratedBy': FieldValue.delete(),
+          'adminModeratedAt': FieldValue.delete(),
+        });
+      }
+      await docRef.update(updates);
     } catch (e) {
       await _deleteUploadedImages(uploadedRefs);
       if (e is Exception) rethrow;
       throw Exception('Failed to update item.');
     }
+  }
+
+  bool _isAdminArchived(ItemModel item, Map<String, dynamic> data) {
+    return item.status == AppConstants.itemStatusArchived &&
+        item.isArchived &&
+        data.containsKey('adminModerationReason');
   }
 
   // Marketplace listing feature: archives a lender-owned item so borrowers no longer see it.

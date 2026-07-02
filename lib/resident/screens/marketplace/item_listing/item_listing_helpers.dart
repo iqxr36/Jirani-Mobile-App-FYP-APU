@@ -65,6 +65,9 @@ String _depositDecisionLabel(String decision) {
 }
 
 String _statusLabel(ItemModel item) {
+  if (_itemIsAdminArchived(item)) {
+    return 'Action required';
+  }
   if (_itemIsArchived(item)) {
     return 'Archived';
   }
@@ -75,6 +78,9 @@ String _statusLabel(ItemModel item) {
 }
 
 _StatusTone _itemStatusTone(ItemModel item) {
+  if (_itemIsAdminArchived(item)) {
+    return _StatusTone.warning;
+  }
   if (_itemIsArchived(item)) {
     return _StatusTone.neutral;
   }
@@ -93,6 +99,10 @@ bool _listingHasLiveBorrow(ItemModel item) {
 
 bool _itemIsArchived(ItemModel item) {
   return item.isArchived || item.status == AppConstants.itemStatusArchived;
+}
+
+bool _itemIsAdminArchived(ItemModel item) {
+  return _itemIsArchived(item) && item.adminModerationReason.trim().isNotEmpty;
 }
 
 int _pendingRequestCountForItem(String itemId, List<BorrowRequest> requests) {

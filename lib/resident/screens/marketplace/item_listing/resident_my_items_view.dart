@@ -139,19 +139,20 @@ class _ResidentMyItemsViewState extends State<ResidentMyItemsView> {
               requestProvider.incomingRequests,
             );
             final locked = _listingHasLiveBorrow(item);
+            final adminArchived = _itemIsAdminArchived(item);
             return _InsetContent(
               sideInset: sideInset,
               child: _MyItemCard(
                 item: item,
                 pendingRequestCount: pendingCount,
                 locked: locked,
-                onEdit: locked || _itemIsArchived(item)
+                onEdit: locked || (_itemIsArchived(item) && !adminArchived)
                     ? null
                     : () => _openListingForm(context, item: item),
                 onArchive: _itemIsArchived(item) || locked
                     ? null
                     : () => _confirmArchive(context, item),
-                onUnarchive: _itemIsArchived(item) && !locked
+                onUnarchive: _itemIsArchived(item) && !locked && !adminArchived
                     ? () => _confirmUnarchive(context, item)
                     : null,
               ),
@@ -504,6 +505,7 @@ class _MyItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = context.appInk;
     final muted = context.appMuted;
+    final adminArchived = _itemIsAdminArchived(item);
 
     return _GlassPanel(
       padding: const EdgeInsets.all(14),
@@ -587,6 +589,17 @@ class _MyItemCard extends StatelessWidget {
                 height: 1.35,
               ),
             ),
+          ] else if (adminArchived) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Removed by admin. Edit the listing to fix it and make it visible again.',
+              style: TextStyle(
+                color: context.appMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
           ],
           const SizedBox(height: 12),
           Row(
@@ -599,19 +612,20 @@ class _MyItemCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: _itemIsArchived(item)
-                    ? _SecondaryButton(
-                        label: 'Unarchive',
-                        icon: Icons.unarchive_outlined,
-                        onTap: onUnarchive,
-                      )
-                    : _DangerButton(
-                        label: 'Archive',
-                        icon: Icons.archive_outlined,
-                        onTap: onArchive,
-                      ),
-              ),
+              if (!adminArchived)
+                Expanded(
+                  child: _itemIsArchived(item)
+                      ? _SecondaryButton(
+                          label: 'Unarchive',
+                          icon: Icons.unarchive_outlined,
+                          onTap: onUnarchive,
+                        )
+                      : _DangerButton(
+                          label: 'Archive',
+                          icon: Icons.archive_outlined,
+                          onTap: onArchive,
+                        ),
+                ),
             ],
           ),
         ],
