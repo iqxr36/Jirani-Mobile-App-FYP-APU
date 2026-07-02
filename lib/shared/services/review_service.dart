@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/review_model.dart';
@@ -12,12 +14,21 @@ import 'package:jirani/shared/models/review_model.dart';
 /// in `functions/src/review_publish.ts` publishes both reviews when grace ends
 /// or when both sides have submitted — whichever comes first.
 class ReviewService {
-  ReviewService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+  ReviewService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+    bool useCallableSubmission = true,
+  })
     : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
+      _firestore = firestore ?? FirebaseFirestore.instance,
+      _functions = functions,
+      _useCallableSubmission = useCallableSubmission;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions? _functions;
+  final bool _useCallableSubmission;
 
   static const Duration _reviewGracePeriod = Duration(days: 3);
 
@@ -86,9 +97,47 @@ class ReviewService {
     final rid = reviewDocId(borrowRequest.id, reviewerId);
     final reviewRef = _reviews.doc(rid);
     final requestRef = _borrowRequests.doc(borrowRequest.id);
+    var debugStage = 'starting review transaction';
+
+    if (_useCallableSubmission) {
+      try {
+        final callable = (_functions ?? FirebaseFunctions.instance)
+            .httpsCallable('createMarketplaceReview');
+        await callable.call<void>({
+          'borrowRequestId': borrowRequest.id,
+          'reviewerName': reviewerName,
+          'role': role,
+          'rating': rating,
+          'comment': comment.trim(),
+        });
+        return;
+      } on FirebaseFunctionsException catch (e) {
+        debugPrint(
+          'ReviewService.createReview callable failed: '
+          'code=${e.code}, message=${e.message}, '
+          'borrowRequestId=${borrowRequest.id}, reviewId=$rid, '
+          'reviewerId=$reviewerId, role=$role, '
+          'ownerId=${borrowRequest.ownerId}, borrowerId=${borrowRequest.borrowerId}, '
+          'status=${borrowRequest.status}, '
+          'borrowerReviewSubmitted=${borrowRequest.borrowerReviewSubmitted}, '
+          'ownerReviewSubmitted=${borrowRequest.ownerReviewSubmitted}',
+        );
+        if (e.code != 'internal' &&
+            e.code != 'unavailable' &&
+            e.code != 'not-found') {
+          throw Exception(e.message ?? 'Failed to submit review.');
+        }
+      } on FirebaseException catch (e) {
+        debugPrint(
+          'ReviewService.createReview callable unavailable: '
+          'code=${e.code}, message=${e.message}',
+        );
+      }
+    }
 
     try {
       await _firestore.runTransaction((txn) async {
+        debugStage = 'read borrow request';
         final reqSnap = await txn.get(requestRef);
         final reqData = reqSnap.data();
         if (reqData == null) throw Exception('Borrow request not found.');
@@ -111,6 +160,7 @@ class ReviewService {
           );
         }
 
+        debugStage = 'read existing review';
         final existing = await txn.get(reviewRef);
         if (existing.exists) {
           throw Exception(
@@ -126,6 +176,7 @@ class ReviewService {
             ? 'borrowerReviewSubmittedAt'
             : 'ownerReviewSubmittedAt';
 
+        debugStage = 'write hidden review and borrow review flag';
         txn.set(reviewRef, {
           'borrowRequestId': req.id,
           'itemId': req.itemId,
@@ -148,9 +199,20 @@ class ReviewService {
           'reviewGraceEndsAt': Timestamp.fromDate(publishAfter),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        debugStage = 'commit review transaction';
       });
       // Eligible reviews are published server-side when borrow request flags update.
     } on FirebaseException catch (e) {
+      debugPrint(
+        'ReviewService.createReview failed: '
+        'stage=$debugStage, code=${e.code}, message=${e.message}, '
+        'borrowRequestId=${borrowRequest.id}, reviewId=$rid, '
+        'reviewerId=$reviewerId, role=$role, '
+        'ownerId=${borrowRequest.ownerId}, borrowerId=${borrowRequest.borrowerId}, '
+        'status=${borrowRequest.status}, '
+        'borrowerReviewSubmitted=${borrowRequest.borrowerReviewSubmitted}, '
+        'ownerReviewSubmitted=${borrowRequest.ownerReviewSubmitted}',
+      );
       if (e.code == 'permission-denied') {
         throw Exception(
           'Permission denied. Check Firestore rules for reviews.',

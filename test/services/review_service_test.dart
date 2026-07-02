@@ -103,6 +103,7 @@ void main() {
           mockUser: MockUser(uid: borrowerId),
         ),
         firestore: firestore,
+        useCallableSubmission: false,
       );
     });
 

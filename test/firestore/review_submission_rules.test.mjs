@@ -21,6 +21,7 @@ const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
 const PROJECT_ID = 'jirani-review-submission-rules-test';
 const COMMUNITY_ID = 'community-1';
 const BORROW_ID = 'borrow-clean-return';
+const XENDIT_BORROW_ID = 'borrow-xendit-return';
 const BORROWER_ID = 'borrower-user';
 const OWNER_ID = 'owner-user';
 const ITEM_ID = 'item-clean';
@@ -28,7 +29,10 @@ const ITEM_ID = 'item-clean';
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
 let testEnv;
 
-async function seedCompletedBorrow() {
+async function seedCompletedBorrow({
+  borrowId = BORROW_ID,
+  xendit = false,
+} = {}) {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
     const now = Timestamp.now();
@@ -73,15 +77,15 @@ async function seedCompletedBorrow() {
       communityId: COMMUNITY_ID,
       updatedAt: now,
     });
-    await setDoc(doc(db, 'borrowRequests', BORROW_ID), {
-      id: BORROW_ID,
+    const borrowData = {
+      id: borrowId,
       itemId: ITEM_ID,
       borrowerId: BORROWER_ID,
       borrowerName: 'Borrower User',
       ownerId: OWNER_ID,
       ownerName: 'Owner User',
       status: 'completed',
-      paymentProvider: 'stripe',
+      paymentProvider: xendit ? 'xendit' : 'stripe',
       depositDecision: 'returnDeposit',
       depositStatus: 'refunded',
       completedAt: now,
@@ -89,20 +93,42 @@ async function seedCompletedBorrow() {
       borrowerReviewSubmitted: false,
       ownerReviewSubmitted: false,
       updatedAt: now,
-    });
+    };
+    if (xendit) {
+      Object.assign(borrowData, {
+        paymentStatus: 'completed',
+        paymentId: 'payment-xendit-1',
+        paymentCompletedAt: now,
+        depositAmount: 300,
+        depositHeldAmount: 300,
+        depositRefundAmount: 300,
+        depositRefundedAt: now,
+        damageDeductionAmount: 0,
+        refundStatus: 'succeeded',
+        manualPayoutStatus: 'pending_manual',
+        lenderBaseEarning: 50,
+        lenderDamageEarning: 0,
+        lenderTotalEarning: 50,
+        xenditInvoiceId: 'inv-test-1',
+        xenditReferenceId: 'payment-xendit-1',
+        xenditRefundId: 'refund-test-1',
+      });
+    }
+    await setDoc(doc(db, 'borrowRequests', borrowId), borrowData);
   });
 }
 
 async function submitReview({
   db,
+  borrowId = BORROW_ID,
   reviewerId,
   revieweeId,
   role,
   flagField,
   flagAtField,
 }) {
-  const reviewRef = doc(db, 'reviews', `${BORROW_ID}_${reviewerId}`);
-  const requestRef = doc(db, 'borrowRequests', BORROW_ID);
+  const reviewRef = doc(db, 'reviews', `${borrowId}_${reviewerId}`);
+  const requestRef = doc(db, 'borrowRequests', borrowId);
   const profileRef = doc(db, 'publicProfiles', revieweeId);
   const publishAfter = Timestamp.fromMillis(Date.now() + 3 * 86_400_000);
 
@@ -112,7 +138,7 @@ async function submitReview({
     await txn.get(profileRef);
 
     txn.set(reviewRef, {
-      borrowRequestId: BORROW_ID,
+      borrowRequestId: borrowId,
       itemId: ITEM_ID,
       reviewerId,
       reviewerName: reviewerId === BORROWER_ID ? 'Borrower User' : 'Owner User',
@@ -171,6 +197,40 @@ describe('review submission rules', () => {
     await assertSucceeds(
       submitReview({
         db,
+        reviewerId: OWNER_ID,
+        revieweeId: BORROWER_ID,
+        role: 'ownerToBorrower',
+        flagField: 'ownerReviewSubmitted',
+        flagAtField: 'ownerReviewSubmittedAt',
+      }),
+    );
+  });
+
+  test('borrower can submit lender review after completed Xendit return', async () => {
+    await seedCompletedBorrow({ borrowId: XENDIT_BORROW_ID, xendit: true });
+    const db = testEnv.authenticatedContext(BORROWER_ID).firestore();
+
+    await assertSucceeds(
+      submitReview({
+        db,
+        borrowId: XENDIT_BORROW_ID,
+        reviewerId: BORROWER_ID,
+        revieweeId: OWNER_ID,
+        role: 'borrowerToOwner',
+        flagField: 'borrowerReviewSubmitted',
+        flagAtField: 'borrowerReviewSubmittedAt',
+      }),
+    );
+  });
+
+  test('lender can submit borrower review after completed Xendit return', async () => {
+    await seedCompletedBorrow({ borrowId: `${XENDIT_BORROW_ID}-owner`, xendit: true });
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+
+    await assertSucceeds(
+      submitReview({
+        db,
+        borrowId: `${XENDIT_BORROW_ID}-owner`,
         reviewerId: OWNER_ID,
         revieweeId: BORROWER_ID,
         role: 'ownerToBorrower',

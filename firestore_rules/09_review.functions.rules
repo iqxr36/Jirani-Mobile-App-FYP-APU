@@ -16,14 +16,12 @@
 
     function validBorrowerToOwnerReview(data, borrowData) {
       return data.role == 'borrowerToOwner' &&
-        borrowData.borrowerReviewSubmitted != true &&
         data.reviewerId == borrowData.borrowerId &&
         data.revieweeId == borrowData.ownerId;
     }
 
     function validOwnerToBorrowerReview(data, borrowData) {
       return data.role == 'ownerToBorrower' &&
-        borrowData.ownerReviewSubmitted != true &&
         data.reviewerId == borrowData.ownerId &&
         data.revieweeId == borrowData.borrowerId;
     }

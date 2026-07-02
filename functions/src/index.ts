@@ -23,6 +23,7 @@ import {
   publishGraceExpiredBorrowReviews,
   shouldAttemptPublishAfterBorrowUpdate,
 } from "./review_publish";
+export {createMarketplaceReview} from "./reviews";
 import {
   syncUserFromCancelledVerificationRequest,
   syncUserFromSubmittedVerificationRequest,
