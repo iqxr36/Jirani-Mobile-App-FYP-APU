@@ -2,6 +2,7 @@
     match /reviews/{reviewId} {
       allow get: if signedIn() &&
         (
+          !exists(/databases/$(database)/documents/reviews/$(reviewId)) ||
           reviewId.matches('.*_' + request.auth.uid) ||
           isAdmin() ||
           resource.data.visible == true
@@ -12,7 +13,7 @@
           resource.data.visible == true ||
           resource.data.reviewerId == request.auth.uid
         );
-      allow create: if validReviewCreate(request.resource.data);
+      allow create: if validReviewCreate(reviewId, request.resource.data);
       // Publishing is handled server-side by Cloud Functions.
       allow update: if isAdmin();
       allow delete: if isAdmin();

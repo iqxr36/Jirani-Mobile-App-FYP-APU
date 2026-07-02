@@ -38,7 +38,7 @@
         );
     }
 
-    function validReviewCreate(data) {
+    function validReviewCreate(reviewId, data) {
       return signedIn() &&
         data.keys().hasOnly([
           'borrowRequestId',
@@ -56,6 +56,7 @@
           'publishedAt',
           'createdAt',
         ]) &&
+        reviewId == data.borrowRequestId + '_' + request.auth.uid &&
         data.reviewerId == request.auth.uid &&
         data.revieweeId != request.auth.uid &&
         data.reviewerName is string &&
@@ -69,7 +70,8 @@
         data.status == 'hidden' &&
         data.publishAfter is timestamp &&
         data.publishedAt == null &&
-        data.createdAt == request.time &&
+        data.createdAt is timestamp &&
+        data.createdAt <= request.time &&
         validCompletedBorrowReview(data);
     }
 

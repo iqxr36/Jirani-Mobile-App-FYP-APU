@@ -417,6 +417,31 @@ function xenditStatusToPaymentStatus(status: string, event: string): string {
   return PAYMENT_STATUS_PENDING;
 }
 
+function isXenditRefundEvent(eventBody: Record<string, unknown>): boolean {
+  const event = readString(eventBody, "event").toLowerCase();
+  const data = asRecord(eventBody.data ?? eventBody);
+  return event.includes("refund") ||
+    readString(data, "refund_id").trim().length > 0 ||
+    readString(data, "refund_request_id").trim().length > 0 ||
+    readString(data, "refund_status").trim().length > 0;
+}
+
+function xenditStatusToRefundStatus(status: string, event: string): string {
+  const normalizedStatus = status.toUpperCase();
+  const normalizedEvent = event.toLowerCase();
+  if (["SUCCEEDED", "SUCCESSFUL", "COMPLETED", "SUCCESS"].includes(normalizedStatus) ||
+      normalizedEvent.includes("refund.succeeded") ||
+      normalizedEvent.includes("refund.successful") ||
+      normalizedEvent.includes("refund.completed")) {
+    return REFUND_STATUS_SUCCEEDED;
+  }
+  if (["FAILED", "CANCELED", "CANCELLED", "EXPIRED"].includes(normalizedStatus) ||
+      normalizedEvent.includes("refund.failed")) {
+    return REFUND_STATUS_FAILED;
+  }
+  return REFUND_STATUS_PENDING;
+}
+
 async function updateMarketplaceBorrowRequest(
   payment: DocumentData,
   status: string,
@@ -469,6 +494,123 @@ async function updateMarketplaceBorrowRequest(
   }
 
   await admin.firestore().collection(BORROW_REQUESTS_COLLECTION).doc(relatedId).set(update, {merge: true});
+}
+
+function borrowRequestIdFromRefundEvent(eventBody: Record<string, unknown>): string {
+  const data = asRecord(eventBody.data ?? eventBody);
+  const metadata = asRecord(data.metadata ?? eventBody.metadata);
+  const metadataBorrowRequestId = readString(metadata, "borrowRequestId");
+  if (metadataBorrowRequestId) return metadataBorrowRequestId;
+
+  const referenceId = readString(data, "reference_id") ||
+    readString(eventBody, "reference_id") ||
+    readString(data, "external_id") ||
+    readString(eventBody, "external_id");
+  const match = /^borrow_(.+)_(full_refund|partial_deduction|full_deduction)$/.exec(referenceId);
+  return match?.[1] ?? "";
+}
+
+async function borrowRequestRefForRefundEvent(
+  db: admin.firestore.Firestore,
+  eventBody: Record<string, unknown>,
+): Promise<admin.firestore.DocumentReference | null> {
+  const data = asRecord(eventBody.data ?? eventBody);
+  const borrowRequestId = borrowRequestIdFromRefundEvent(eventBody);
+  if (borrowRequestId) {
+    return db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+  }
+
+  const refundId = readString(data, "id") ||
+    readString(data, "refund_id") ||
+    readString(data, "refund_request_id");
+  if (!refundId) return null;
+
+  const snapshot = await db.collection(BORROW_REQUESTS_COLLECTION)
+    .where("xenditRefundId", "==", refundId)
+    .limit(1)
+    .get();
+  return snapshot.empty ? null : snapshot.docs[0].ref;
+}
+
+async function updateMarketplaceRefundFromXenditEvent(
+  eventBody: Record<string, unknown>,
+): Promise<void> {
+  const event = readString(eventBody, "event");
+  const data = asRecord(eventBody.data ?? eventBody);
+  const db = admin.firestore();
+  const requestRef = await borrowRequestRefForRefundEvent(db, eventBody);
+  if (!requestRef) {
+    logger.warn("Xendit refund webhook borrow request not found", {
+      event,
+      referenceId: readString(data, "reference_id"),
+      refundId: readString(data, "id") || readString(data, "refund_id"),
+    });
+    return;
+  }
+
+  const snapshot = await requestRef.get();
+  const requestData = snapshot.data();
+  if (!requestData) {
+    logger.warn("Xendit refund webhook request document missing", {
+      event,
+      borrowRequestId: requestRef.id,
+    });
+    return;
+  }
+
+  const status = xenditStatusToRefundStatus(
+    readString(data, "status") ||
+      readString(data, "refund_status") ||
+      readString(eventBody, "status"),
+    event,
+  );
+  const refundId = readString(data, "id") ||
+    readString(data, "refund_id") ||
+    readString(data, "refund_request_id") ||
+    String(requestData.xenditRefundId ?? "");
+  const failureReason = readString(data, "failure_code") ||
+    readString(data, "failure_reason") ||
+    readString(data, "reason");
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const update: Record<string, unknown> = {
+    refundStatus: status,
+    xenditRefundId: refundId,
+    lastXenditRefundEvent: event,
+    lastXenditRefundEventAt: now,
+    updatedAt: now,
+  };
+
+  if (status === REFUND_STATUS_SUCCEEDED) {
+    update.refundFailureReason = "";
+    update.depositRefundedAt = now;
+    if (requestData.manualPayoutStatus !== MANUAL_PAYOUT_PAID) {
+      update.manualPayoutStatus = MANUAL_PAYOUT_PENDING_MANUAL;
+    }
+  } else if (status === REFUND_STATUS_FAILED) {
+    update.depositStatus = DEPOSIT_STATUS_REFUND_FAILED;
+    update.refundFailureReason = failureReason || "Xendit refund failed.";
+    update.xenditFailureReason = update.refundFailureReason;
+    if (requestData.manualPayoutStatus !== MANUAL_PAYOUT_PAID) {
+      update.manualPayoutStatus = MANUAL_PAYOUT_BLOCKED;
+    }
+  }
+
+  await requestRef.set(update, {merge: true});
+
+  const wasReady = requestData.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL ||
+    requestData.manualPayoutStatus === MANUAL_PAYOUT_PAID;
+  const becomesReady = status === REFUND_STATUS_SUCCEEDED && !wasReady;
+  if (becomesReady) {
+    const ownerId = typeof requestData.ownerId === "string" ? requestData.ownerId : "";
+    const itemTitle = typeof requestData.itemTitle === "string" && requestData.itemTitle.trim() ?
+      requestData.itemTitle.trim() :
+      "your marketplace item";
+    await notifyManualPayoutReady(db, requestRef.id, {
+      ownerId,
+      itemTitle,
+      lenderTotalEarning: Math.max(0, toMoneyNumber(requestData.lenderTotalEarning)),
+    }, "system");
+  }
 }
 
 async function updatePaymentFromXenditEvent(eventBody: Record<string, unknown>): Promise<void> {
@@ -525,7 +667,12 @@ export const xenditWebhook = onRequest(
     return;
   }
   try {
-    await updatePaymentFromXenditEvent(asRecord(request.body));
+    const eventBody = asRecord(request.body);
+    if (isXenditRefundEvent(eventBody)) {
+      await updateMarketplaceRefundFromXenditEvent(eventBody);
+    } else {
+      await updatePaymentFromXenditEvent(eventBody);
+    }
     response.json({received: true});
   } catch (error) {
     logger.error("Failed to process Xendit webhook", {error});

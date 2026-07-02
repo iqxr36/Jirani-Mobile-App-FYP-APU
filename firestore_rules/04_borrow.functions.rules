@@ -251,7 +251,8 @@
             borrowRequestBorrower() &&
             resource.data.borrowerReviewSubmitted != true &&
             request.resource.data.borrowerReviewSubmitted == true &&
-            request.resource.data.borrowerReviewSubmittedAt == request.time &&
+            request.resource.data.borrowerReviewSubmittedAt is timestamp &&
+            request.resource.data.borrowerReviewSubmittedAt <= request.time &&
             borrowChangedKeysOnly([
               'borrowerReviewSubmitted',
               'borrowerReviewSubmittedAt',
@@ -263,7 +264,8 @@
             borrowRequestOwner() &&
             resource.data.ownerReviewSubmitted != true &&
             request.resource.data.ownerReviewSubmitted == true &&
-            request.resource.data.ownerReviewSubmittedAt == request.time &&
+            request.resource.data.ownerReviewSubmittedAt is timestamp &&
+            request.resource.data.ownerReviewSubmittedAt <= request.time &&
             borrowChangedKeysOnly([
               'ownerReviewSubmitted',
               'ownerReviewSubmittedAt',
@@ -273,7 +275,8 @@
           )
         ) &&
         request.resource.data.reviewGraceEndsAt is timestamp &&
-        request.resource.data.updatedAt == request.time;
+        request.resource.data.updatedAt is timestamp &&
+        request.resource.data.updatedAt <= request.time;
     }
 
     function approxEqual(value, expected) {

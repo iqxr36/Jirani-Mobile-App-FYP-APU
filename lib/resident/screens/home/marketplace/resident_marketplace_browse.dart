@@ -59,7 +59,7 @@ class _ResidentMarketplaceViewState extends State<ResidentMarketplaceView> {
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
     final addButtonBottom = keyboardInset > 0
         ? keyboardInset + JiraniResponsive.scaled(context, 16)
-        : bottomSafeArea + JiraniResponsive.scaled(context, 104);
+        : bottomSafeArea + JiraniResponsive.scaled(context, 20);
 
     return JiraniBackground(
       child: SafeArea(

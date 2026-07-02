@@ -24,11 +24,7 @@ class AdminTransactionsScreen extends StatelessWidget {
         .where(_needsDepositResolution)
         .toList();
     final payoutQueue = admin.borrowRequests
-        .where(
-          (request) =>
-              request.manualPayoutStatus ==
-              AppConstants.manualPayoutStatusPendingManual,
-        )
+        .where(_isVisibleManualPayout)
         .toList();
 
     return AdminPageScroll(
@@ -116,6 +112,16 @@ class AdminTransactionsScreen extends StatelessWidget {
         (request.status == AppConstants.borrowStatusDisputed ||
             request.depositStatus == AppConstants.depositStatusDisputed ||
             request.depositStatus == AppConstants.depositStatusRefundFailed);
+  }
+
+  static bool _isVisibleManualPayout(BorrowRequest request) {
+    if (request.manualPayoutStatus ==
+        AppConstants.manualPayoutStatusPendingManual) {
+      return true;
+    }
+    return request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked &&
+        request.lenderTotalEarning > 0 &&
+        request.refundStatus == AppConstants.refundStatusPending;
   }
 }
 
@@ -321,9 +327,20 @@ class _ManualPayoutPanel extends StatelessWidget {
   @override
   /// Admin payouts UI: renders pending manual payout cards or an empty state.
   Widget build(BuildContext context) {
+    final readyCount = requests
+        .where(
+          (request) =>
+              request.manualPayoutStatus ==
+              AppConstants.manualPayoutStatusPendingManual,
+        )
+        .length;
+    final waitingCount = requests.length - readyCount;
+    final actionLabel = waitingCount > 0
+        ? '$readyCount ready, $waitingCount waiting'
+        : '$readyCount ready';
     return AdminPanel(
       title: 'Manual Lender Payouts',
-      action: '${requests.length} ready',
+      action: actionLabel,
       child: requests.isEmpty
           ? const AdminEmptyPanelMessage(
               icon: Icons.payments_outlined,
@@ -354,13 +371,15 @@ class _ManualPayoutCard extends StatelessWidget {
   /// Admin payouts UI: renders payout amount details and action button for one lender.
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
+    final isReady =
+        request.manualPayoutStatus == AppConstants.manualPayoutStatusPendingManual;
     return _AdminPaymentCard(
       icon: Icons.account_balance_wallet_outlined,
       title: request.ownerName,
       subtitle:
           '${request.itemTitle} | Earning ${_adminMoney(request.lenderTotalEarning)}',
       statusLabel: request.manualPayoutStatus,
-      statusColor: AdminColors.primary,
+      statusColor: isReady ? AdminColors.primary : AdminColors.warning,
       children: [
         _PaymentMetaRow(
           label: 'Item fee',
@@ -370,13 +389,23 @@ class _ManualPayoutCard extends StatelessWidget {
           label: 'Damage deduction',
           value: _adminMoney(request.lenderDamageEarning),
         ),
+        if (!isReady) ...[
+          _PaymentMetaRow(
+            label: 'Refund status',
+            value: request.refundStatus,
+          ),
+          const Text(
+            'This payout will become payable after Xendit confirms the borrower refund.',
+            style: TextStyle(color: AdminColors.muted),
+          ),
+        ],
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerLeft,
           child: _AdminActionButton(
-            label: 'Mark Paid',
-            icon: Icons.done_all_rounded,
-            onTap: admin.isLoading
+            label: isReady ? 'Mark Paid' : 'Waiting Refund',
+            icon: isReady ? Icons.done_all_rounded : Icons.hourglass_empty,
+            onTap: admin.isLoading || !isReady
                 ? null
                 : () => _showPayoutDialog(context, request),
           ),
@@ -391,55 +420,85 @@ class _ManualPayoutCard extends StatelessWidget {
     BuildContext context,
     BorrowRequest request,
   ) async {
+    final adminProvider = context.read<AdminProvider>();
     final referenceController = TextEditingController();
     final noteController = TextEditingController();
+    var isSubmitting = false;
     try {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Record Manual Payout'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: referenceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference',
-                    hintText: 'Bank transfer reference',
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                title: const Text('Record Manual Payout'),
+                content: SizedBox(
+                  width: 420,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: referenceController,
+                          enabled: !isSubmitting,
+                          decoration: const InputDecoration(
+                            labelText: 'Reference',
+                            hintText: 'Bank transfer reference',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: noteController,
+                          enabled: !isSubmitting,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Note',
+                            hintText: 'Optional internal note',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  minLines: 2,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Note',
-                    hintText: 'Optional internal note',
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
                   ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  await context.read<AdminProvider>().markManualPayoutPaid(
-                        borrowRequest: request,
-                        reference: referenceController.text,
-                        note: noteController.text,
-                      );
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-                child: const Text('Mark Paid'),
-              ),
-            ],
+                  FilledButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            setDialogState(() => isSubmitting = true);
+                            try {
+                              await adminProvider.markManualPayoutPaid(
+                                borrowRequest: request,
+                                reference: referenceController.text,
+                                note: noteController.text,
+                              );
+                              if (dialogContext.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            } catch (_) {
+                              if (dialogContext.mounted) {
+                                setDialogState(() => isSubmitting = false);
+                              }
+                            }
+                          },
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Mark Paid'),
+                  ),
+                ],
+              );
+            },
           );
         },
       );

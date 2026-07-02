@@ -66,6 +66,7 @@ class _ResidentItemListingFormViewState
     final title = _step == 0
         ? (_isEditing ? 'Edit Item' : 'Add New Item')
         : 'Financial Details';
+    final titleSize = _step == 0 ? 26.0 : 21.0;
 
     return PopScope(
       canPop: !_submitting,
@@ -107,8 +108,10 @@ class _ResidentItemListingFormViewState
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: _kBrandTeal,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
+                                fontSize: titleSize,
+                                fontWeight: _step == 0
+                                    ? FontWeight.w900
+                                    : FontWeight.w800,
                               ),
                             ),
                           ),
