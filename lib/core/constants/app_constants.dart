@@ -131,6 +131,8 @@ class AppConstants {
   static const String notificationTypeVerificationOcrReview =
       'verificationOcrReview';
   static const String notificationTypeAdminReport = 'adminReport';
+  static const String notificationTypeMarketplaceListingArchived = 'marketplaceListingArchived';
+  static const String notificationTypeMarketplaceListingRestored = 'marketplaceListingRestored';
 
   // Community post types and statuses
   static const String communityPostTypeNews = 'news';

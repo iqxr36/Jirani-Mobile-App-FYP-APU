@@ -170,6 +170,8 @@ class NotificationModel {
       AppConstants.notificationTypeVerificationOcrMatched ||
       AppConstants.notificationTypeVerificationOcrReview => 'Verification',
       AppConstants.notificationTypeAdminReport => 'Reports',
+      AppConstants.notificationTypeMarketplaceListingArchived ||
+      AppConstants.notificationTypeMarketplaceListingRestored => 'Marketplace',
       _ => 'Updates',
     };
   }
@@ -208,6 +210,10 @@ class NotificationModel {
         Icons.manage_search_rounded,
       AppConstants.notificationTypeAdminReport =>
         Icons.report_problem_outlined,
+      AppConstants.notificationTypeMarketplaceListingArchived =>
+        Icons.archive_outlined,
+      AppConstants.notificationTypeMarketplaceListingRestored =>
+        Icons.unarchive_outlined,
       _ => Icons.notifications_active_outlined,
     };
   }
@@ -242,6 +248,10 @@ class NotificationModel {
       AppConstants.notificationTypeVerificationOcrReview =>
         const Color(0xFFB7791F),
       AppConstants.notificationTypeAdminReport => const Color(0xFFB42318),
+      AppConstants.notificationTypeMarketplaceListingArchived =>
+        const Color(0xFFD97706),
+      AppConstants.notificationTypeMarketplaceListingRestored =>
+        const Color(0xFF2F855A),
       _ => const Color(0xFF2F855A),
     };
   }

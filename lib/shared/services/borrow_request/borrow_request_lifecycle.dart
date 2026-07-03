@@ -269,8 +269,9 @@ mixin _BorrowRequestLifecycleMixin on _BorrowRequestServiceBase {
       if (request.borrowerId != borrowerId) {
         throw Exception('Only the borrower can cancel this request.');
       }
-      if (request.status != AppConstants.borrowStatusPending) {
-        throw Exception('Only pending requests can be cancelled.');
+      if (request.status != AppConstants.borrowStatusPending && 
+          !(request.status == AppConstants.borrowStatusApproved && request.paymentStatus == AppConstants.paymentStatusPending)) {
+        throw Exception('Only pending or unpaid approved requests can be cancelled.');
       }
       await requestRef.update({
         'status': AppConstants.borrowStatusCancelled,

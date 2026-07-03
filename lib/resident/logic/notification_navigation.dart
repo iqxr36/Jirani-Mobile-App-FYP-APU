@@ -14,6 +14,7 @@ import 'package:jirani/resident/screens/notifications/resident_notifications_vie
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
+import 'package:jirani/resident/screens/notifications/notification_details_sheet.dart';
 
 /// Notifications feature: converts raw FCM push payload data into the same model used by in-app notification taps.
 Future<void> navigateFromPushData(
@@ -85,6 +86,12 @@ Future<void> navigateFromNotification(
     case AppConstants.notificationTypeMaintenanceNotice:
     case AppConstants.notificationTypeCommunityWarning:
       await _openCommunityNotification(context, notification);
+      return;
+    case AppConstants.notificationTypeAdminWarning:
+    case AppConstants.notificationTypeAdminReport:
+    case AppConstants.notificationTypeMarketplaceListingArchived:
+    case AppConstants.notificationTypeMarketplaceListingRestored:
+      await NotificationDetailsSheet.show(context, notification);
       return;
     default:
       await _openNotificationsInbox(context);

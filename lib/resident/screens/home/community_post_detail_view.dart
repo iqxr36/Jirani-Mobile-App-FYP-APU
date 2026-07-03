@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
 import 'package:jirani/shared/services/community_post_service.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
+import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 
@@ -13,7 +14,8 @@ class CommunityPostDetailView extends StatefulWidget {
   final String postId;
 
   @override
-  State<CommunityPostDetailView> createState() => _CommunityPostDetailViewState();
+  State<CommunityPostDetailView> createState() =>
+      _CommunityPostDetailViewState();
 }
 
 class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
@@ -70,13 +72,15 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     const Expanded(
                       child: Text(
                         'Community update',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1F2A2E),
+                          color: _kBrandTeal,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 48),
                   ],
                 ),
               ),
@@ -98,8 +102,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF667085)),
+            textAlign: TextAlign.left,
+            style: TextStyle(color: context.appMuted),
           ),
         ),
       );
@@ -107,10 +111,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
     final post = _post;
     if (post == null) {
-      return const Center(
+      return Center(
         child: Text(
           'This update is no longer available.',
-          style: TextStyle(color: Color(0xFF667085)),
+          style: TextStyle(color: context.appMuted),
         ),
       );
     }
@@ -122,7 +126,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
             ClipRRect(
@@ -132,9 +136,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 child: CachedNetworkImage(
                   imageUrl: post.imageUrl!,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const ColoredBox(
-                    color: Color(0xFFE8F4F5),
-                    child: Icon(Icons.image_not_supported_outlined),
+                  errorWidget: (_, __, ___) => ColoredBox(
+                    color: context.appMuted.withValues(alpha: 0.1),
+                    child: const Icon(Icons.image_not_supported_outlined),
                   ),
                 ),
               ),
@@ -166,19 +170,20 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           const SizedBox(height: 14),
           Text(
             post.title,
-            style: const TextStyle(
-              fontSize: 26,
+            textAlign: TextAlign.justify,
+            style: TextStyle(
+              fontSize: 23,
               fontWeight: FontWeight.w900,
               height: 1.15,
-              color: Color(0xFF1F2A2E),
+              color: context.appInk,
             ),
           ),
           if (publishedLabel.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               publishedLabel,
-              style: const TextStyle(
-                color: Color(0xFF667085),
+              style: TextStyle(
+                color: context.appMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -186,10 +191,11 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           const SizedBox(height: 20),
           Text(
             post.body,
-            style: const TextStyle(
+            textAlign: TextAlign.justify,
+            style: TextStyle(
               fontSize: 15,
               height: 1.55,
-              color: Color(0xFF344054),
+              color: context.appInk,
               fontWeight: FontWeight.w500,
             ),
           ),

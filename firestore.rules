@@ -370,9 +370,28 @@ service cloud.firestore {
 
     function borrowerCanCancelBorrowRequest() {
       return borrowRequestBorrower() &&
-        resource.data.status == 'pending' &&
+        (resource.data.status == 'pending' || 
+         (resource.data.status == 'approved' && resource.data.paymentStatus == 'pending')) &&
         request.resource.data.status == 'cancelled' &&
         borrowChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function borrowerCanCancelAfterPayment() {
+      return borrowRequestBorrower() &&
+        resource.data.status == 'approved' &&
+        resource.data.paymentStatus == 'completed' &&
+        resource.data.paymentProvider == 'xendit' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.paymentStatus == 'refunded' &&
+        request.resource.data.refundStatus == 'succeeded' &&
+        request.resource.data.depositStatus == 'refunded' &&
+        borrowChangedKeysOnly([
+          'status',
+          'paymentStatus',
+          'refundStatus',
+          'depositStatus',
+          'updatedAt',
+        ]);
     }
 
     function borrowerCanConfirmPickupReady() {
@@ -805,6 +824,7 @@ service cloud.firestore {
       return ownerCanApproveBorrowRequest() ||
         ownerCanRejectBorrowRequest() ||
         borrowerCanCancelBorrowRequest() ||
+        borrowerCanCancelAfterPayment() ||
         borrowerCanConfirmPickupReady() ||
         ownerCanConfirmHandover() ||
         borrowerCanSubmitReturn() ||

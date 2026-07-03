@@ -96,6 +96,7 @@ class _MarketplaceTransactionViewState
                         onDeclineMinorIssue: () =>
                             _respondToMinorIssue(request, user, false),
                         onSubmitReview: () => _submitReview(request, user),
+                        onCancelRequest: () => _cancelRequest(request, user),
                       ),
                       const SizedBox(height: 34),
                     ],
@@ -107,6 +108,27 @@ class _MarketplaceTransactionViewState
         ),
       ),
     );
+  }
+
+  /// Marketplace borrower: cancels a pending request before owner approval.
+  Future<void> _cancelRequest(BorrowRequest request, AppUser? user) async {
+    if (user == null) return;
+    final provider = context.read<BorrowRequestProvider>();
+    await provider.cancelBorrowRequest(
+      requestId: request.id,
+      borrowerId: user.uid,
+    );
+    if (!mounted) return;
+    if (provider.errorMessage == null) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Borrow request cancelled.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage!)),
+      );
+    }
   }
 
   /// Marketplace payments: starts Xendit hosted checkout for the approved request.
@@ -347,6 +369,7 @@ class _TransactionBody extends StatelessWidget {
     required this.onAcceptMinorIssue,
     required this.onDeclineMinorIssue,
     required this.onSubmitReview,
+    required this.onCancelRequest,
   });
 
   final BorrowRequest request;
@@ -363,16 +386,22 @@ class _TransactionBody extends StatelessWidget {
   final VoidCallback onAcceptMinorIssue;
   final VoidCallback onDeclineMinorIssue;
   final VoidCallback onSubmitReview;
+  final VoidCallback onCancelRequest;
 
   @override
   Widget build(BuildContext context) {
     switch (request.status) {
       case AppConstants.borrowStatusPending:
-        return const _StateCard(
+        return _StateCard(
           icon: Icons.pending_actions_rounded,
           title: 'Waiting for owner approval',
           message:
               'The owner will review your request. Checkout unlocks once they accept it.',
+          action: _DangerButton(
+            icon: Icons.close_rounded,
+            label: 'Cancel Request',
+            onTap: onCancelRequest,
+          ),
         );
       case AppConstants.borrowStatusRejected:
         return _StateCard(
@@ -393,6 +422,7 @@ class _TransactionBody extends StatelessWidget {
           return _CheckoutCard(
             request: request,
             onPayment: onPayment,
+            onCancelRequest: onCancelRequest,
           );
         }
         return _WaitingForLenderArrivalCard(onOpenChat: onOpenChat);
@@ -555,10 +585,12 @@ class _CheckoutCard extends StatelessWidget {
   const _CheckoutCard({
     required this.request,
     required this.onPayment,
+    required this.onCancelRequest,
   });
 
   final BorrowRequest request;
   final VoidCallback onPayment;
+  final VoidCallback onCancelRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -642,6 +674,16 @@ class _CheckoutCard extends StatelessWidget {
                   ? 'Processing payment...'
                   : 'Pay Now',
               onTap: provider.isLoading ? null : onPayment,
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        Consumer<PaymentProvider>(
+          builder: (context, provider, _) {
+            return _DangerButton(
+              icon: Icons.close_rounded,
+              label: 'Cancel Request',
+              onTap: provider.isLoading ? null : onCancelRequest,
             );
           },
         ),
