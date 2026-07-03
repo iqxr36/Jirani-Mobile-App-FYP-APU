@@ -34,9 +34,27 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       ...admin.listings.map(adminListingRowFromItem),
       ...admin.services.map(adminListingRowFromService),
     ];
-    final listingRows = _filteredRows(allRows);
     final statuses = _uniqueValues(allRows.map((row) => row.status));
     final categories = _uniqueValues(allRows.map((row) => row.category));
+
+    final bool statusInvalid = _statusFilter != 'all' && !statuses.contains(_statusFilter);
+    final bool categoryInvalid = _categoryFilter != 'all' && !categories.contains(_categoryFilter);
+
+    final safeStatusFilter = statusInvalid ? 'all' : _statusFilter;
+    final safeCategoryFilter = categoryInvalid ? 'all' : _categoryFilter;
+    
+    final listingRows = _filteredRows(allRows, safeStatusFilter, safeCategoryFilter);
+
+    if (statusInvalid || categoryInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            if (statusInvalid) _statusFilter = 'all';
+            if (categoryInvalid) _categoryFilter = 'all';
+          });
+        }
+      });
+    }
 
     return AdminPageScroll(
       children: [
@@ -68,12 +86,12 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
               onChanged: (value) => setState(() => _typeFilter = value),
             ),
             _AdminListingDropdown(
-              value: _statusFilter,
+              value: safeStatusFilter,
               values: {'all': 'All statuses', for (final v in statuses) v: v},
               onChanged: (value) => setState(() => _statusFilter = value),
             ),
             _AdminListingDropdown(
-              value: _categoryFilter,
+              value: safeCategoryFilter,
               values: {
                 'all': 'All categories',
                 for (final v in categories) v: v,
@@ -147,16 +165,20 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  List<AdminListingRow> _filteredRows(List<AdminListingRow> rows) {
+  List<AdminListingRow> _filteredRows(
+    List<AdminListingRow> rows,
+    String safeStatusFilter,
+    String safeCategoryFilter,
+  ) {
     final query = _searchController.text.trim().toLowerCase();
     return rows.where((row) {
       final matchesType = _typeFilter == 'all' ||
           (_typeFilter == 'items' && row.isItem) ||
           (_typeFilter == 'services' && row.isService);
       final matchesStatus =
-          _statusFilter == 'all' || row.status == _statusFilter;
+          safeStatusFilter == 'all' || row.status == safeStatusFilter;
       final matchesCategory =
-          _categoryFilter == 'all' || row.category == _categoryFilter;
+          safeCategoryFilter == 'all' || row.category == safeCategoryFilter;
       final matchesSearch = query.isEmpty ||
           row.title.toLowerCase().contains(query) ||
           row.owner.toLowerCase().contains(query) ||
@@ -261,59 +283,10 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     required String title,
     required String message,
   }) async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final result = await showDialog<String>(
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(message),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: controller,
-                  minLines: 3,
-                  maxLines: 5,
-                  keyboardType: TextInputType.multiline,
-                  decoration: const InputDecoration(
-                    labelText: 'Admin reason',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return 'Reason is required.';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() != true) return;
-              Navigator.of(context).pop(controller.text.trim());
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (context) => _ReasonDialog(title: title, message: message),
     );
-    controller.dispose();
-    return result;
   }
 
   void _showSnack(String message) {
@@ -339,7 +312,7 @@ class _AdminListingDropdown extends StatelessWidget {
     return SizedBox(
       width: 170,
       child: DropdownButtonFormField<String>(
-        initialValue: values.containsKey(value) ? value : values.keys.first,
+        value: values.containsKey(value) ? value : values.keys.first,
         isDense: true,
         decoration: const InputDecoration(
           border: OutlineInputBorder(),
@@ -353,6 +326,64 @@ class _AdminListingDropdown extends StatelessWidget {
           if (next != null) onChanged(next);
         },
       ),
+    );
+  }
+}
+
+class _ReasonDialog extends StatefulWidget {
+  const _ReasonDialog({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  State<_ReasonDialog> createState() => _ReasonDialogState();
+}
+
+class _ReasonDialogState extends State<_ReasonDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.message),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              labelText: 'Reason',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+            minLines: 1,
+            autofocus: true,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final text = _controller.text.trim();
+            Navigator.of(context).pop(text.isEmpty ? null : text);
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
     );
   }
 }

@@ -32,11 +32,15 @@ final PushNotificationService pushNotificationService = PushNotificationService(
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorWidget.builder = (details) {
-    return MaterialApp(
-      title: '${AppConstants.appName} render error',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: StartupErrorScaffold(error: details.exceptionAsString()),
+    return Container(
+      color: Colors.red.shade100,
+      padding: const EdgeInsets.all(8.0),
+      child: SingleChildScrollView(
+        child: Text(
+          details.exceptionAsString(),
+          style: const TextStyle(color: Colors.red, fontSize: 12),
+        ),
+      ),
     );
   };
 
