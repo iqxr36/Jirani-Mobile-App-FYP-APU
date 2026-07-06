@@ -25,6 +25,10 @@ class AppUser {
     this.accountFlagged = false,
     this.trustFlagReason = '',
     this.accountStatus = AppConstants.accountStatusActive,
+    this.payoutAccountStatus = AppConstants.payoutAccountStatusMissing,
+    this.xenditPayoutChannel = '',
+    this.payoutAccountName = '',
+    this.payoutAccountMaskedIdentifier = '',
     this.suspendedReason = '',
     this.suspendedAt,
     this.archivedAt,
@@ -58,6 +62,10 @@ class AppUser {
   final bool accountFlagged;
   final String trustFlagReason;
   final String accountStatus;
+  final String payoutAccountStatus;
+  final String xenditPayoutChannel;
+  final String payoutAccountName;
+  final String payoutAccountMaskedIdentifier;
   final String suspendedReason;
   final DateTime? suspendedAt;
   final DateTime? archivedAt;
@@ -80,6 +88,8 @@ class AppUser {
   bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
   bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
   bool get isAdmin => isCommunityAdmin || isSystemAdmin;
+  bool get hasVerifiedPayoutAccount =>
+      payoutAccountStatus == AppConstants.payoutAccountStatusVerified;
   String get fullName => '$firstName $lastName'.trim();
 
   /// Auth feature: detects an email-change request waiting for Firebase verification.
@@ -112,6 +122,10 @@ class AppUser {
     bool? accountFlagged,
     String? trustFlagReason,
     String? accountStatus,
+    String? payoutAccountStatus,
+    String? xenditPayoutChannel,
+    String? payoutAccountName,
+    String? payoutAccountMaskedIdentifier,
     String? suspendedReason,
     DateTime? suspendedAt,
     DateTime? archivedAt,
@@ -145,6 +159,11 @@ class AppUser {
       accountFlagged: accountFlagged ?? this.accountFlagged,
       trustFlagReason: trustFlagReason ?? this.trustFlagReason,
       accountStatus: accountStatus ?? this.accountStatus,
+      payoutAccountStatus: payoutAccountStatus ?? this.payoutAccountStatus,
+      xenditPayoutChannel: xenditPayoutChannel ?? this.xenditPayoutChannel,
+      payoutAccountName: payoutAccountName ?? this.payoutAccountName,
+      payoutAccountMaskedIdentifier:
+          payoutAccountMaskedIdentifier ?? this.payoutAccountMaskedIdentifier,
       suspendedReason: suspendedReason ?? this.suspendedReason,
       suspendedAt: suspendedAt ?? this.suspendedAt,
       archivedAt: archivedAt ?? this.archivedAt,
@@ -182,6 +201,10 @@ class AppUser {
       'accountFlagged': accountFlagged,
       'trustFlagReason': trustFlagReason,
       'accountStatus': accountStatus,
+      'payoutAccountStatus': payoutAccountStatus,
+      'xenditPayoutChannel': xenditPayoutChannel,
+      'payoutAccountName': payoutAccountName,
+      'payoutAccountMaskedIdentifier': payoutAccountMaskedIdentifier,
       'suspendedReason': suspendedReason,
       if (suspendedAt != null) 'suspendedAt': Timestamp.fromDate(suspendedAt!),
       if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
@@ -229,6 +252,13 @@ class AppUser {
       trustFlagReason: (map['trustFlagReason'] as String?) ?? '',
       accountStatus:
           (map['accountStatus'] as String?) ?? AppConstants.accountStatusActive,
+      payoutAccountStatus:
+          (map['payoutAccountStatus'] as String?) ??
+          AppConstants.payoutAccountStatusMissing,
+      xenditPayoutChannel: (map['xenditPayoutChannel'] as String?) ?? '',
+      payoutAccountName: (map['payoutAccountName'] as String?) ?? '',
+      payoutAccountMaskedIdentifier:
+          (map['payoutAccountMaskedIdentifier'] as String?) ?? '',
       suspendedReason: (map['suspendedReason'] as String?) ?? '',
       suspendedAt: _parseOptionalDate(map['suspendedAt']),
       archivedAt: _parseOptionalDate(map['archivedAt']),

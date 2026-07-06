@@ -6,6 +6,7 @@ import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:provider/provider.dart';
 
 /// Admin payments screen: monitors marketplace deposits, unresolved disputes, manual payouts, and the platform ledger.
@@ -26,6 +27,10 @@ class AdminTransactionsScreen extends StatelessWidget {
     final payoutQueue = admin.borrowRequests
         .where(_isVisibleManualPayout)
         .toList();
+    final serviceDisputeQueue = admin.serviceRequests
+        .where((request) =>
+            request.status == AppConstants.serviceRequestStatusDisputed)
+        .toList();
 
     return AdminPageScroll(
       children: [
@@ -43,6 +48,8 @@ class AdminTransactionsScreen extends StatelessWidget {
         _DepositResolutionPanel(requests: depositQueue),
         const SizedBox(height: 20),
         _ManualPayoutPanel(requests: payoutQueue),
+        const SizedBox(height: 20),
+        _ServiceDisputePanel(requests: serviceDisputeQueue),
         const SizedBox(height: 20),
         AdminPanel(
           title: 'Platform Ledger',
@@ -122,6 +129,148 @@ class AdminTransactionsScreen extends StatelessWidget {
     return request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked &&
         request.lenderTotalEarning > 0 &&
         request.refundStatus == AppConstants.refundStatusPending;
+  }
+}
+
+class _ServiceDisputePanel extends StatelessWidget {
+  const _ServiceDisputePanel({required this.requests});
+
+  final List<ServiceRequestModel> requests;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminPanel(
+      title: 'Service Disputes',
+      action: '${requests.length} frozen',
+      child: requests.isEmpty
+          ? const AdminEmptyPanelMessage(
+              icon: Icons.home_repair_service_outlined,
+              title: 'No service disputes',
+              body: 'Disputed paid service requests will appear here.',
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < requests.length; i++) ...[
+                  _ServiceDisputeCard(request: requests[i]),
+                  if (i != requests.length - 1) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _ServiceDisputeCard extends StatelessWidget {
+  const _ServiceDisputeCard({required this.request});
+
+  final ServiceRequestModel request;
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = context.watch<AdminProvider>();
+    final amount = request.amount ?? 0;
+    return _AdminPaymentCard(
+      icon: Icons.handyman_outlined,
+      title: request.serviceTitle,
+      subtitle:
+          '${request.requesterName} -> ${request.providerName} | Held ${_adminMoney(amount)}',
+      statusLabel: request.payoutStatus.isEmpty
+          ? request.status
+          : request.payoutStatus,
+      statusColor: AdminColors.warning,
+      children: [
+        _PaymentMetaRow(label: 'Payment', value: request.paymentStatus),
+        _PaymentMetaRow(label: 'Refund', value: request.refundStatus),
+        _PaymentMetaRow(label: 'Reason', value: request.disputeReason),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _AdminActionButton(
+              label: 'Force Payout',
+              icon: Icons.payments_outlined,
+              onTap: admin.isLoading
+                  ? null
+                  : () => _showServiceResolutionDialog(
+                        context,
+                        request,
+                        refund: false,
+                      ),
+            ),
+            _AdminActionButton(
+              label: 'Refund',
+              icon: Icons.reply_rounded,
+              danger: true,
+              onTap: admin.isLoading
+                  ? null
+                  : () => _showServiceResolutionDialog(
+                        context,
+                        request,
+                        refund: true,
+                      ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showServiceResolutionDialog(
+    BuildContext context,
+    ServiceRequestModel request, {
+    required bool refund,
+  }) async {
+    final reasonController = TextEditingController();
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(refund ? 'Refund Requester' : 'Force Provider Payout'),
+            content: TextField(
+              controller: reasonController,
+              minLines: 3,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Admin reason',
+                hintText: 'Explain the resolution for both residents',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.isEmpty) return;
+                  final admin = context.read<AdminProvider>();
+                  if (refund) {
+                    await admin.refundServicePayment(
+                      serviceRequest: request,
+                      reason: reason,
+                    );
+                  } else {
+                    await admin.forceServicePayout(
+                      serviceRequest: request,
+                      reason: reason,
+                    );
+                  }
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+                child: Text(refund ? 'Refund' : 'Release Payout'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      reasonController.dispose();
+    }
   }
 }
 

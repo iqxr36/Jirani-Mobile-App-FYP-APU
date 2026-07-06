@@ -139,7 +139,7 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
       textAlign: TextAlign.center,
       style: TextStyle(
         color: _kBrandTeal,
-        fontSize: 25,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
         height: 1.15,
       ),

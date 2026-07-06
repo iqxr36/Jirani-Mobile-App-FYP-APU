@@ -104,10 +104,17 @@ IconData adminCategoryIcon(String category) {
     AppConstants.itemCategoryElectronics => Icons.devices_rounded,
     AppConstants.itemCategoryCleaning => Icons.cleaning_services_rounded,
     AppConstants.itemCategoryStudy => Icons.menu_book_rounded,
-    AppConstants.serviceCategoryTutoring => Icons.school_rounded,
-    AppConstants.serviceCategoryRepair => Icons.build_rounded,
-    AppConstants.serviceCategoryDelivery => Icons.local_shipping_rounded,
-    AppConstants.serviceCategoryPetCare => Icons.pets_rounded,
+    AppConstants.serviceCategoryHomeCleaningUpkeep =>
+      Icons.cleaning_services_rounded,
+    AppConstants.serviceCategoryRepairsMaintenance => Icons.build_rounded,
+    AppConstants.serviceCategoryAssemblyLabor => Icons.handyman_rounded,
+    AppConstants.serviceCategoryTutoringEducation => Icons.school_rounded,
+    AppConstants.serviceCategoryAssistanceErrands =>
+      Icons.volunteer_activism_rounded,
+    AppConstants.serviceCategoryItTechSetup => Icons.router_rounded,
+    AppConstants.serviceCategoryHomeCookingMealPrep => Icons.restaurant_rounded,
+    AppConstants.serviceCategoryCreativeDigitalTasks =>
+      Icons.design_services_rounded,
     _ => Icons.inventory_2_rounded,
   };
 }

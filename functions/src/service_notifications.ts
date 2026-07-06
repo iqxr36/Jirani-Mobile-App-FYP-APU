@@ -7,6 +7,7 @@ type DocumentData = admin.firestore.DocumentData;
 const NOTIFICATION_TYPE_SERVICE_REQUEST = "serviceRequest";
 const NOTIFICATION_TYPE_SERVICE_ACCEPTED = "serviceAccepted";
 const NOTIFICATION_TYPE_SERVICE_REJECTED = "serviceRejected";
+const NOTIFICATION_TYPE_SERVICE_DISPUTED = "serviceDisputed";
 
 // Service notification feature: safely reads string fields from service request documents.
 function asString(value: unknown): string {
@@ -44,13 +45,18 @@ export async function handleServiceRequestNotificationChanges(
 
   if (!requesterId || !providerId) return;
 
-  if (beforeStatus === "pending" && afterStatus === "accepted") {
+  if (
+    beforeStatus === "pending" &&
+    (afterStatus === "accepted" || afterStatus === "acceptedAwaitingPayment")
+  ) {
     await createInAppNotification(db, {
       userId: requesterId,
       actorId: providerId,
       type: NOTIFICATION_TYPE_SERVICE_ACCEPTED,
       title: "Service request accepted",
-      body: `Your request for "${serviceTitle}" was accepted.`,
+      body: afterStatus === "acceptedAwaitingPayment" ?
+        `Your request for "${serviceTitle}" was accepted. Complete payment to secure the booking.` :
+        `Your request for "${serviceTitle}" was accepted.`,
       category: "Services",
       serviceRequestId: requestId,
     });
@@ -64,6 +70,19 @@ export async function handleServiceRequestNotificationChanges(
       type: NOTIFICATION_TYPE_SERVICE_REJECTED,
       title: "Service request declined",
       body: `Your request for "${serviceTitle}" was declined.`,
+      category: "Services",
+      serviceRequestId: requestId,
+    });
+    return;
+  }
+
+  if (beforeStatus === "inProgress" && afterStatus === "disputed") {
+    await createInAppNotification(db, {
+      userId: providerId,
+      actorId: requesterId,
+      type: NOTIFICATION_TYPE_SERVICE_DISPUTED,
+      title: "Service disputed",
+      body: `The requester raised a dispute for "${serviceTitle}".`,
       category: "Services",
       serviceRequestId: requestId,
     });

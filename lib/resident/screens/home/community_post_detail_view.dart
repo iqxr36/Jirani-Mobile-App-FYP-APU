@@ -172,7 +172,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             post.title,
             textAlign: TextAlign.justify,
             style: TextStyle(
-              fontSize: 23,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               height: 1.15,
               color: context.appInk,

@@ -122,7 +122,7 @@ class _NewChatHeader extends StatelessWidget {
               'New Chat',
               style: TextStyle(
                 color: _kBrandTeal,
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
             ),

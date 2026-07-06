@@ -249,7 +249,9 @@ List<AdminTransactionRow> adminTransactionRowsFromRequests(
         requester: request.requesterName.isEmpty
             ? 'Requester'
             : request.requesterName,
-        deposit: 'RM 0',
+        deposit: request.amount == null
+            ? 'Free'
+            : 'RM ${request.amount!.toStringAsFixed(0)}',
         status: adminStatusLabel(request.status),
         color: adminStatusColor(request.status),
         createdAt: request.createdAt,

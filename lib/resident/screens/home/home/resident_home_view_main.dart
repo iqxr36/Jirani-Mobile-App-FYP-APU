@@ -328,7 +328,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: _kBrandTeal,
-                            fontSize: 30,
+                            fontSize: 20,
                             fontWeight: FontWeight.w900,
                             height: 1.05,
                           ),
@@ -636,7 +636,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                     child: Text(
                       'Explore Jirani',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: context.appInk,
                         height: 1.1,

@@ -91,7 +91,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               'Choose Borrowing Dates',
               style: TextStyle(
                 color: context.appInk,
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
             ),

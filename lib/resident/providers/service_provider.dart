@@ -14,15 +14,18 @@ class ServiceProvider extends ChangeNotifier {
   bool _busy = false;
   bool get isLoading => _busy;
 
-  Stream<List<ServiceModel>>? _activeCache;
+  final Map<String, Stream<List<ServiceModel>>> _activeCache = {};
   final Map<String, Stream<List<ServiceModel>>> _myServicesCache = {};
   final Map<String, Stream<List<ServiceRequestModel>>> _myReqCache = {};
   final Map<String, Stream<List<ServiceRequestModel>>> _incomingCache = {};
 
   // Services feature: streams active community services and caches the stream for list screens.
-  Stream<List<ServiceModel>> activeServicesStream() {
-    _activeCache ??= _service.watchActiveServices();
-    return _activeCache!;
+  Stream<List<ServiceModel>> activeServicesStream({required String communityId}) {
+    final scopedCommunityId = communityId.trim();
+    return _activeCache.putIfAbsent(
+      scopedCommunityId,
+      () => _service.watchActiveServices(communityId: scopedCommunityId),
+    );
   }
 
   // Services feature: streams services created by the current provider.
@@ -61,7 +64,13 @@ class ServiceProvider extends ChangeNotifier {
     required String category,
     required String priceType,
     double? priceAmount,
+    required String pricingMode,
+    double? hourlyRate,
+    double? fixedJobPrice,
     required String availability,
+    List<String> imagePaths = const <String>[],
+    List<String> certificatePaths = const <String>[],
+    List<String> certificateNames = const <String>[],
   }) async {
     _busy = true;
     notifyListeners();
@@ -73,12 +82,70 @@ class ServiceProvider extends ChangeNotifier {
         category: category,
         priceType: priceType,
         priceAmount: priceAmount,
+        pricingMode: pricingMode,
+        hourlyRate: hourlyRate,
+        fixedJobPrice: fixedJobPrice,
         availability: availability,
+        imagePaths: imagePaths,
+        certificatePaths: certificatePaths,
+        certificateNames: certificateNames,
       );
     } finally {
       _busy = false;
       notifyListeners();
     }
+  }
+
+  // Services feature: updates provider-owned editable service listing fields.
+  Future<void> updateService({
+    required AppUser provider,
+    required ServiceModel service,
+    required String title,
+    required String description,
+    required String category,
+    required String priceType,
+    double? priceAmount,
+    required String pricingMode,
+    double? hourlyRate,
+    double? fixedJobPrice,
+    required String availability,
+    List<String> imagePaths = const <String>[],
+    List<String> certificatePaths = const <String>[],
+    List<String> certificateNames = const <String>[],
+  }) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      await _service.updateService(
+        provider: provider,
+        service: service,
+        title: title,
+        description: description,
+        category: category,
+        priceType: priceType,
+        priceAmount: priceAmount,
+        pricingMode: pricingMode,
+        hourlyRate: hourlyRate,
+        fixedJobPrice: fixedJobPrice,
+        availability: availability,
+        imagePaths: imagePaths,
+        certificatePaths: certificatePaths,
+        certificateNames: certificateNames,
+      );
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> repairMissingServiceCommunityIds({
+    required AppUser provider,
+    required Iterable<String> serviceIds,
+  }) async {
+    await _service.repairMissingServiceCommunityIds(
+      provider: provider,
+      serviceIds: serviceIds,
+    );
   }
 
   // Services feature: lets a provider activate/archive their service listing.
@@ -191,6 +258,94 @@ class ServiceProvider extends ChangeNotifier {
         requestId: requestId,
         providerId: providerId,
       );
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> generateArrivalCode({
+    required String requestId,
+    required String providerId,
+  }) async {
+    return _runWithResult(
+      () => _service.generateArrivalCode(
+        requestId: requestId,
+        providerId: providerId,
+      ),
+    );
+  }
+
+  Future<void> submitArrivalCode({
+    required String requestId,
+    required String requesterId,
+    required String code,
+  }) async {
+    await _runVoid(
+      () => _service.submitArrivalCode(
+        requestId: requestId,
+        requesterId: requesterId,
+        code: code,
+      ),
+    );
+  }
+
+  Future<String?> generateCompletionCode({
+    required String requestId,
+    required String requesterId,
+  }) async {
+    return _runWithResult(
+      () => _service.generateCompletionCode(
+        requestId: requestId,
+        requesterId: requesterId,
+      ),
+    );
+  }
+
+  Future<void> submitCompletionCode({
+    required String requestId,
+    required String providerId,
+    required String code,
+  }) async {
+    await _runVoid(
+      () => _service.submitCompletionCode(
+        requestId: requestId,
+        providerId: providerId,
+        code: code,
+      ),
+    );
+  }
+
+  Future<void> disputeServiceRequest({
+    required String requestId,
+    required String requesterId,
+    required String reason,
+  }) async {
+    await _runVoid(
+      () => _service.disputeServiceRequest(
+        requestId: requestId,
+        requesterId: requesterId,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<T?> _runWithResult<T>(Future<T> Function() action) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      return await action();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _runVoid(Future<void> Function() action) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      await action();
     } finally {
       _busy = false;
       notifyListeners();

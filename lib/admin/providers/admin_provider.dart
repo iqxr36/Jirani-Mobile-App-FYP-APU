@@ -418,6 +418,64 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> forceServicePayout({
+    required ServiceRequestModel serviceRequest,
+    required String reason,
+  }) async {
+    if (!_belongsToVisibleResident(
+      serviceRequest.providerId,
+      serviceRequest.requesterId,
+    )) {
+      _errorMessage = 'This service dispute is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.forceServicePayout(
+        serviceRequestId: serviceRequest.id,
+        reason: reason,
+      );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refundServicePayment({
+    required ServiceRequestModel serviceRequest,
+    required String reason,
+  }) async {
+    if (!_belongsToVisibleResident(
+      serviceRequest.providerId,
+      serviceRequest.requesterId,
+    )) {
+      _errorMessage = 'This service dispute is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.refundServicePayment(
+        serviceRequestId: serviceRequest.id,
+        reason: reason,
+      );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Admin residents feature: updates resident profile/contact/community fields.
   Future<bool> updateResidentDetails({
     required AppUser resident,

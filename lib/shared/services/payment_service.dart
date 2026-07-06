@@ -4,10 +4,24 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/resident/logic/marketplace_borrow_flow.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 
 /// Marketplace payments result: returned after Xendit hosted checkout is opened.
 class MarketplacePaymentResult {
   const MarketplacePaymentResult({
+    required this.paymentId,
+    required this.status,
+    required this.checkoutUrl,
+  });
+
+  final String paymentId;
+  final String status;
+  final String checkoutUrl;
+}
+
+/// Service escrow payment result: returned after Xendit hosted checkout is opened.
+class ServicePaymentResult {
+  const ServicePaymentResult({
     required this.paymentId,
     required this.status,
     required this.checkoutUrl,
@@ -61,6 +75,42 @@ class PaymentService {
     );
   }
 
+  /// Service payments: creates a Xendit checkout for an accepted fixed-price service request.
+  Future<ServicePaymentResult> createXenditServicePayment({
+    required ServiceRequestModel request,
+    required String successRedirectUrl,
+    required String failureRedirectUrl,
+  }) async {
+    final amount = serviceAmountInMinorUnits(request);
+    if (amount <= 0) {
+      throw Exception('No payment is required for this service.');
+    }
+
+    final callable = _functions.httpsCallable('createXenditServicePayment');
+    final result = await callable.call<Map<String, dynamic>>({
+      'amount': amount,
+      'currency': AppConstants.defaultPaymentCurrency,
+      'paymentType': AppConstants.paymentTypeService,
+      'relatedId': request.id,
+      'payerId': request.requesterId,
+      'receiverId': request.providerId,
+      'serviceId': request.serviceId,
+      'description': 'Jirani service payment for ${request.serviceTitle}',
+      'successRedirectUrl': successRedirectUrl,
+      'failureRedirectUrl': failureRedirectUrl,
+    });
+    final data = _asMap(result.data);
+    return ServicePaymentResult(
+      paymentId: _readString(data, 'paymentId'),
+      status: _readString(
+        data,
+        'status',
+        fallback: AppConstants.paymentStatusPending,
+      ),
+      checkoutUrl: _readString(data, 'checkoutUrl'),
+    );
+  }
+
   /// Marketplace payments: reads the backend payment record status after Xendit webhooks update Firestore.
   Future<String> getPaymentStatus(String paymentId) async {
     final result = await _functions.httpsCallable('getPaymentStatus').call({
@@ -99,6 +149,12 @@ class PaymentService {
       deposit: request.depositAmount,
     );
     return max(0, (total * 100).round());
+  }
+
+  /// Service payments: converts the agreed RM amount to Xendit minor units.
+  static int serviceAmountInMinorUnits(ServiceRequestModel request) {
+    final amount = request.amount ?? 0;
+    return max(0, (amount * 100).round());
   }
 
   /// Payments feature: normalizes callable function response data into a Dart map.

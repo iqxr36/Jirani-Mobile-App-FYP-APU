@@ -178,7 +178,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _kBrandTeal,
-                  fontSize: 25,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),

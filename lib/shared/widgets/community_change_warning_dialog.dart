@@ -83,7 +83,7 @@ class CommunityChangeWarningDialog extends StatelessWidget {
                                   'Change community?',
                                   style: theme.textTheme.titleLarge?.copyWith(
                                     color: const Color(0xFF102B2A),
-                                    fontSize: 21,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.w900,
                                     height: 1.12,
                                   ),

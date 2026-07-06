@@ -25,7 +25,7 @@ class _Header extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _kBrandTeal,
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -67,7 +67,7 @@ class _IdentityPanel extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: ink,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               height: 1.15,
             ),

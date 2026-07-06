@@ -95,7 +95,7 @@ class _SettingsHeader extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _kBrandTeal,
-                  fontSize: 26,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                   height: 1.1,
                 ),

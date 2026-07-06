@@ -376,7 +376,7 @@ class _EditProfileHeader extends StatelessWidget {
             'Edit Profile',
             style: TextStyle(
               color: _kBrandTeal,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               height: 1.1,
             ),
@@ -440,7 +440,7 @@ class _EditableAvatar extends StatelessWidget {
                       _initials(user.fullName),
                       style: const TextStyle(
                         color: _kBrandTeal,
-                        fontSize: 26,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                       ),
                     )

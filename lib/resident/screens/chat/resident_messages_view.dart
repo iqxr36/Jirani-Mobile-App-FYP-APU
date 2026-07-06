@@ -140,7 +140,7 @@ class _MessagesHeader extends StatelessWidget {
               'Messages',
               style: TextStyle(
                 color: _kBrandTeal,
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
             ),

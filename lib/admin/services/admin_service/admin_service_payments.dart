@@ -43,4 +43,38 @@ mixin _AdminServicePaymentsMixin on _AdminServiceBase {
       'manualPayoutNote': manualPayoutNote.trim(),
     });
   }
+
+  Future<void> forceServicePayout({
+    required String serviceRequestId,
+    required String reason,
+  }) async {
+    if (serviceRequestId.trim().isEmpty) {
+      throw Exception('Service request ID is missing.');
+    }
+    if (reason.trim().isEmpty) {
+      throw Exception('Resolution reason is required.');
+    }
+    final callable = _functions.httpsCallable('forceServicePayout');
+    await callable.call<void>({
+      'requestId': serviceRequestId.trim(),
+      'reason': reason.trim(),
+    });
+  }
+
+  Future<void> refundServicePayment({
+    required String serviceRequestId,
+    required String reason,
+  }) async {
+    if (serviceRequestId.trim().isEmpty) {
+      throw Exception('Service request ID is missing.');
+    }
+    if (reason.trim().isEmpty) {
+      throw Exception('Resolution reason is required.');
+    }
+    final callable = _functions.httpsCallable('refundServicePayment');
+    await callable.call<void>({
+      'requestId': serviceRequestId.trim(),
+      'reason': reason.trim(),
+    });
+  }
 }

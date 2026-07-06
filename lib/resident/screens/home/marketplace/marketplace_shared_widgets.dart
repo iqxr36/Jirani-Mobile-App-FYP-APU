@@ -28,7 +28,7 @@ class _PageHeader extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: context.appInk,
-                  fontSize: 30,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                   height: 1.05,
                 ),
@@ -83,7 +83,7 @@ class _ScreenTitleBar extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: _kBrandTeal,
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -637,7 +637,7 @@ class _CodeDisplay extends StatelessWidget {
                       char,
                       style: TextStyle(
                         color: context.appInk,
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                       ),
                     ),

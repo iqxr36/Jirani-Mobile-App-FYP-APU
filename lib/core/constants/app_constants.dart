@@ -41,6 +41,7 @@ class AppConstants {
       'verification_documents';
   static const String storageResidentDocumentsPath = 'resident_documents';
   static const String storageItemImagesPath = 'item_images';
+  static const String storageServiceMediaPath = 'service_media';
   static const String storageProfileImagesPath = 'profile_images';
 
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
@@ -120,6 +121,15 @@ class AppConstants {
   static const String notificationTypeServiceRequest = 'serviceRequest';
   static const String notificationTypeServiceAccepted = 'serviceAccepted';
   static const String notificationTypeServiceRejected = 'serviceRejected';
+  static const String notificationTypeServicePaymentReceived = 'servicePaymentReceived';
+  static const String notificationTypeServiceArrivalCode = 'serviceArrivalCode';
+  static const String notificationTypeServiceArrivalVerified = 'serviceArrivalVerified';
+  static const String notificationTypeServiceCompleted = 'serviceCompleted';
+  static const String notificationTypeServiceDisputed = 'serviceDisputed';
+  static const String notificationTypeServicePayoutSent = 'servicePayoutSent';
+  static const String notificationTypeServicePayoutFailed = 'servicePayoutFailed';
+  static const String notificationTypeServiceRefunded = 'serviceRefunded';
+  static const String notificationTypeServiceAdminResolved = 'serviceAdminResolved';
   static const String notificationTypeCommunityNews = 'communityNews';
   static const String notificationTypeCommunityEvent = 'communityEvent';
   static const String notificationTypeMaintenanceNotice = 'maintenanceNotice';
@@ -295,16 +305,25 @@ class AppConstants {
   ];
 
   // Services catalog (Phase 6)
-  static const String serviceCategoryCleaning = 'cleaning';
-  static const String serviceCategoryTutoring = 'tutoring';
-  static const String serviceCategoryRepair = 'repair';
-  static const String serviceCategoryDelivery = 'delivery';
-  static const String serviceCategoryPetCare = 'petCare';
-  static const String serviceCategoryOther = 'other';
+  static const String serviceCategoryHomeCleaningUpkeep =
+      'homeCleaningUpkeep';
+  static const String serviceCategoryRepairsMaintenance =
+      'repairsMaintenance';
+  static const String serviceCategoryAssemblyLabor = 'assemblyLabor';
+  static const String serviceCategoryTutoringEducation = 'tutoringEducation';
+  static const String serviceCategoryAssistanceErrands =
+      'assistanceErrands';
+  static const String serviceCategoryItTechSetup = 'itTechSetup';
+  static const String serviceCategoryHomeCookingMealPrep =
+      'homeCookingMealPrep';
+  static const String serviceCategoryCreativeDigitalTasks =
+      'creativeDigitalTasks';
 
   static const String servicePriceTypeFree = 'free';
   static const String servicePriceTypeFixed = 'fixed';
   static const String servicePriceTypeNegotiable = 'negotiable';
+  static const String servicePricingModeHourly = 'hourly';
+  static const String servicePricingModeFixedJob = 'fixedJob';
 
   static const String serviceStatusActive = 'active';
   static const String serviceStatusInactive = 'inactive';
@@ -312,7 +331,30 @@ class AppConstants {
 
   static const String serviceRequestStatusPending = 'pending';
   static const String serviceRequestStatusAccepted = 'accepted';
+  static const String serviceRequestStatusAcceptedAwaitingPayment =
+      'acceptedAwaitingPayment';
+  static const String serviceRequestStatusPaidHeld = 'paidHeld';
+  static const String serviceRequestStatusInProgress = 'inProgress';
+  static const String serviceRequestStatusCompletedPayoutPending =
+      'completedPayoutPending';
+  static const String serviceRequestStatusCompletedPayoutSent =
+      'completedPayoutSent';
+  static const String serviceRequestStatusDisputed = 'disputed';
+  static const String serviceRequestStatusRefunded = 'refunded';
   static const String serviceRequestStatusRejected = 'rejected';
   static const String serviceRequestStatusCancelled = 'cancelled';
   static const String serviceRequestStatusCompleted = 'completed';
+  static const String serviceRequestStatusPaymentFailed = 'paymentFailed';
+
+  static const String servicePayoutStatusNotStarted = 'notStarted';
+  static const String servicePayoutStatusPending = 'pending';
+  static const String servicePayoutStatusSent = 'sent';
+  static const String servicePayoutStatusFailed = 'failed';
+  static const String servicePayoutStatusBlocked = 'blocked';
+
+  static const String payoutAccountStatusMissing = 'missing';
+  static const String payoutAccountStatusPendingVerification =
+      'pendingVerification';
+  static const String payoutAccountStatusVerified = 'verified';
+  static const String payoutAccountStatusRejected = 'rejected';
 }

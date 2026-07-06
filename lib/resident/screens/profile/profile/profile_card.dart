@@ -93,7 +93,7 @@ class _ProfileCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: scheme.onSurface,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
               height: 1.2,
             ),

@@ -325,7 +325,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: _kBrandTeal,
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),

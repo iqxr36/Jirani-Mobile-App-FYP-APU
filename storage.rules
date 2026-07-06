@@ -121,6 +121,18 @@ service firebase.storage {
         ];
     }
 
+    function isAllowedServiceMediaUpload() {
+      return request.resource.size < 25 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+          'image/heif'
+        ];
+    }
+
     // Verification documents: owner read/write; admins read within their community.
     match /verification_documents/{userId}/{allPaths=**} {
       allow read: if canReadVerificationDocumentsForUser(userId);
@@ -145,6 +157,15 @@ service firebase.storage {
       allow create, update: if request.auth != null &&
         request.auth.uid == userId &&
         isAllowedItemImageUpload();
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Service listing media: providers upload job photos and self-provided credentials.
+    match /service_media/{userId}/{serviceId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isAllowedServiceMediaUpload();
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 

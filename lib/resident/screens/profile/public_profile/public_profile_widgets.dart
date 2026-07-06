@@ -31,7 +31,7 @@ class _PublicAvatar extends StatelessWidget {
         style: const TextStyle(
           color: _kBrandTeal,
           fontWeight: FontWeight.w900,
-          fontSize: 22,
+          fontSize: 20,
         ),
       ),
     );

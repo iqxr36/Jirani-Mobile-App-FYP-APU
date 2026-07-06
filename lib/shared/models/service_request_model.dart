@@ -14,6 +14,30 @@ class ServiceRequestModel {
     required this.preferredDate,
     required this.preferredTime,
     required this.status,
+    this.paymentStatus = '',
+    this.paymentId = '',
+    this.paymentProvider = '',
+    this.amount,
+    this.currency = '',
+    this.platformFeeAmount = 0,
+    this.providerPayoutAmount = 0,
+    this.arrivalCodeExpiresAt,
+    this.arrivalVerifiedAt,
+    this.startedAt,
+    this.completionCodeExpiresAt,
+    this.completionVerifiedAt,
+    this.completedAt,
+    this.payoutStatus = '',
+    this.xenditPayoutId = '',
+    this.payoutFailureReason = '',
+    this.refundStatus = '',
+    this.xenditRefundId = '',
+    this.refundFailureReason = '',
+    this.disputeReason = '',
+    this.disputedAt,
+    this.adminResolvedAt,
+    this.adminResolvedBy = '',
+    this.adminResolution = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,6 +53,30 @@ class ServiceRequestModel {
   final DateTime preferredDate;
   final String preferredTime;
   final String status;
+  final String paymentStatus;
+  final String paymentId;
+  final String paymentProvider;
+  final double? amount;
+  final String currency;
+  final double platformFeeAmount;
+  final double providerPayoutAmount;
+  final DateTime? arrivalCodeExpiresAt;
+  final DateTime? arrivalVerifiedAt;
+  final DateTime? startedAt;
+  final DateTime? completionCodeExpiresAt;
+  final DateTime? completionVerifiedAt;
+  final DateTime? completedAt;
+  final String payoutStatus;
+  final String xenditPayoutId;
+  final String payoutFailureReason;
+  final String refundStatus;
+  final String xenditRefundId;
+  final String refundFailureReason;
+  final String disputeReason;
+  final DateTime? disputedAt;
+  final DateTime? adminResolvedAt;
+  final String adminResolvedBy;
+  final String adminResolution;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -46,9 +94,53 @@ class ServiceRequestModel {
       preferredDate: _parseDate(data['preferredDate']),
       preferredTime: (data['preferredTime'] as String?) ?? '',
       status: (data['status'] as String?) ?? '',
+      paymentStatus: (data['paymentStatus'] as String?) ?? '',
+      paymentId: (data['paymentId'] as String?) ?? '',
+      paymentProvider: (data['paymentProvider'] as String?) ?? '',
+      amount: _toDouble(data['amount']),
+      currency: (data['currency'] as String?) ?? '',
+      platformFeeAmount: _toDouble(data['platformFeeAmount']) ?? 0,
+      providerPayoutAmount: _toDouble(data['providerPayoutAmount']) ?? 0,
+      arrivalCodeExpiresAt: _parseOptionalDate(data['arrivalCodeExpiresAt']),
+      arrivalVerifiedAt: _parseOptionalDate(data['arrivalVerifiedAt']),
+      startedAt: _parseOptionalDate(data['startedAt']),
+      completionCodeExpiresAt: _parseOptionalDate(
+        data['completionCodeExpiresAt'],
+      ),
+      completionVerifiedAt: _parseOptionalDate(data['completionVerifiedAt']),
+      completedAt: _parseOptionalDate(data['completedAt']),
+      payoutStatus: (data['payoutStatus'] as String?) ?? '',
+      xenditPayoutId: (data['xenditPayoutId'] as String?) ?? '',
+      payoutFailureReason: (data['payoutFailureReason'] as String?) ?? '',
+      refundStatus: (data['refundStatus'] as String?) ?? '',
+      xenditRefundId: (data['xenditRefundId'] as String?) ?? '',
+      refundFailureReason: (data['refundFailureReason'] as String?) ?? '',
+      disputeReason: (data['disputeReason'] as String?) ?? '',
+      disputedAt: _parseOptionalDate(data['disputedAt']),
+      adminResolvedAt: _parseOptionalDate(data['adminResolvedAt']),
+      adminResolvedBy: (data['adminResolvedBy'] as String?) ?? '',
+      adminResolution: (data['adminResolution'] as String?) ?? '',
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
     );
+  }
+
+  bool get isPaidService => amount != null && amount! > 0;
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static DateTime? _parseOptionalDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   /// Services DB model: converts stored date fields into DateTime for scheduling display.

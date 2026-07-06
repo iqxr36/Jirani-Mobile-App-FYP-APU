@@ -12,6 +12,7 @@
         request.resource.data.providerId == resource.data.providerId &&
         request.resource.data.providerName == resource.data.providerName &&
         request.resource.data.providerEmail == resource.data.providerEmail &&
+        request.resource.data.providerPhotoUrl == resource.data.providerPhotoUrl &&
         request.resource.data.createdAt == resource.data.createdAt;
     }
 
@@ -21,11 +22,82 @@
         request.resource.data.category == resource.data.category &&
         request.resource.data.priceType == resource.data.priceType &&
         request.resource.data.priceAmount == resource.data.priceAmount &&
+        request.resource.data.communityId == resource.data.communityId &&
+        request.resource.data.communityName == resource.data.communityName &&
+        request.resource.data.pricingMode == resource.data.pricingMode &&
+        request.resource.data.hourlyRate == resource.data.hourlyRate &&
+        request.resource.data.fixedJobPrice == resource.data.fixedJobPrice &&
+        request.resource.data.imageUrls == resource.data.imageUrls &&
+        request.resource.data.certificateUrls == resource.data.certificateUrls &&
+        request.resource.data.certificateNames == resource.data.certificateNames &&
         request.resource.data.availability == resource.data.availability;
+    }
+
+    function validServiceListingKeys(data) {
+      return data.keys().hasOnly([
+        'id',
+        'providerId',
+        'providerName',
+        'providerEmail',
+        'communityId',
+        'communityName',
+        'providerPhotoUrl',
+        'title',
+        'description',
+        'category',
+        'priceType',
+        'priceAmount',
+        'pricingMode',
+        'hourlyRate',
+        'fixedJobPrice',
+        'imageUrls',
+        'certificateUrls',
+        'certificateNames',
+        'availability',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ]);
+    }
+
+    function validServicePricing(data) {
+      return (
+          data.pricingMode == 'hourly' &&
+          data.hourlyRate is number &&
+          data.hourlyRate > 0 &&
+          data.fixedJobPrice == null &&
+          data.priceAmount == data.hourlyRate
+        ) ||
+        (
+          data.pricingMode == 'fixedJob' &&
+          data.fixedJobPrice is number &&
+          data.fixedJobPrice > 0 &&
+          data.hourlyRate == null &&
+          data.priceAmount == data.fixedJobPrice
+        );
+    }
+
+    function validServiceCategory(category) {
+      return category in [
+        'homeCleaningUpkeep',
+        'repairsMaintenance',
+        'assemblyLabor',
+        'tutoringEducation',
+        'assistanceErrands',
+        'itTechSetup',
+        'homeCookingMealPrep',
+        'creativeDigitalTasks',
+      ];
     }
 
     function serviceIsEditableListing() {
       return resource.data.status == 'active';
+    }
+
+    function validServiceCommunityId(data) {
+      return data.communityId is string &&
+        data.communityId != '' &&
+        data.communityId == myUserDoc().data.communityId;
     }
 
     function providerSafeServiceUpdate() {
@@ -37,8 +109,16 @@
           'title',
           'description',
           'category',
+          'communityId',
+          'communityName',
           'priceType',
           'priceAmount',
+          'pricingMode',
+          'hourlyRate',
+          'fixedJobPrice',
+          'imageUrls',
+          'certificateUrls',
+          'certificateNames',
           'availability',
           'updatedAt',
         ]) &&
@@ -46,7 +126,18 @@
         request.resource.data.description is string &&
         request.resource.data.category is string &&
         request.resource.data.priceType is string &&
-        request.resource.data.availability is string;
+        request.resource.data.availability is string &&
+        request.resource.data.communityName is string &&
+        validServiceCommunityId(request.resource.data) &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.description.size() > 0 &&
+        request.resource.data.availability.size() > 0 &&
+        validServiceCategory(request.resource.data.category) &&
+        request.resource.data.imageUrls is list &&
+        request.resource.data.certificateUrls is list &&
+        request.resource.data.certificateNames is list &&
+        request.resource.data.certificateUrls.size() == request.resource.data.certificateNames.size() &&
+        validServicePricing(request.resource.data);
     }
 
     function providerCanSetServiceStatus() {
@@ -61,34 +152,43 @@
     function validServiceCreate(serviceId) {
       let data = request.resource.data;
       return isVerifiedResident() &&
+        validServiceListingKeys(data) &&
         data.providerId == request.auth.uid &&
         data.status == 'active' &&
         data.id == serviceId &&
         data.title is string &&
         data.description is string &&
         data.category is string &&
+        validServiceCategory(data.category) &&
         data.priceType is string &&
+        data.priceAmount is number &&
+        data.providerPhotoUrl is string &&
+        data.imageUrls is list &&
+        data.certificateUrls is list &&
+        data.certificateNames is list &&
+        data.certificateUrls.size() == data.certificateNames.size() &&
+        validServicePricing(data) &&
         data.availability is string &&
         data.providerName is string &&
         data.providerEmail is string &&
+        data.communityName is string &&
+        validServiceCommunityId(data) &&
         data.createdAt == request.time &&
         data.updatedAt == request.time;
     }
 
     function serviceListingProviderCommunityId() {
-      return userDoc(resource.data.providerId).data.communityId;
+      return resource.data.communityId;
     }
 
     function canReadServiceListing() {
       return (
           isAdmin() &&
-          exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
           (isSystemAdmin() || adminCanAccessCommunity(serviceListingProviderCommunityId()))
         ) ||
         serviceProvider() ||
         (
           hasProfile() &&
-          exists(/databases/$(database)/documents/users/$(resource.data.providerId)) &&
           serviceListingProviderCommunityId() == myUserDoc().data.communityId
         );
     }

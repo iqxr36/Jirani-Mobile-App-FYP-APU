@@ -343,7 +343,7 @@ class _LocationPermissionViewState extends State<LocationPermissionView>
       textAlign: TextAlign.center,
       style: TextStyle(
         color: _kBrandTeal,
-        fontSize: 25,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
       ),
     );

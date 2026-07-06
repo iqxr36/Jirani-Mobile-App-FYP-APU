@@ -429,7 +429,7 @@ class _GoogleSignInIcon extends StatelessWidget {
         child: Text(
           'G',
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 20,
             fontWeight: FontWeight.w500,
             color: const Color(0xFF4285F4),
             height: 1,

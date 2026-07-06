@@ -484,7 +484,7 @@ class _CheckoutTitleBar extends StatelessWidget {
           title,
           style: const TextStyle(
             color: _kBrandTeal,
-            fontSize: 26,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -777,7 +777,7 @@ class _ConfirmPickupCodeCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.appInk,
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0,
               ),
@@ -1081,7 +1081,7 @@ class _CompletedCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: ink,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1273,59 +1273,122 @@ class _TransactionHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          const _SectionLabel('Lender'),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  request.ownerName.isEmpty
-                      ? 'Lender profile'
-                      : request.ownerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
+              _RequestOwnerAvatar(request: request, radius: 28),
               const SizedBox(width: 12),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  foregroundColor: _kBrandTeal,
-                  backgroundColor: _kBrandTeal.withValues(alpha: 0.10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PublicResidentProfileView(
-                        userId: request.ownerId,
-                        fallbackName: request.ownerName,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.person_outline_rounded, size: 18),
-                label: const Text(
-                  'View Profile',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
+              Expanded(child: _OwnerSummary(request: request)),
             ],
           ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: _kBrandTeal,
+                backgroundColor: _kBrandTeal.withValues(alpha: 0.10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PublicResidentProfileView(
+                      userId: request.ownerId,
+                      fallbackName: request.ownerName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.person_search_rounded, size: 18),
+              label: const Text(
+                'View Profile',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _OwnerSummary extends StatelessWidget {
+  const _OwnerSummary({required this.request});
+
+  final BorrowRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          request.ownerName.isEmpty ? 'Resident' : request.ownerName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.appInk,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Icon(
+              Icons.home_repair_service_outlined,
+              color: context.appMuted,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                'Item owner',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.appMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestOwnerAvatar extends StatelessWidget {
+  const _RequestOwnerAvatar({required this.request, this.radius = 24});
+
+  final BorrowRequest request;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = request.ownerName.trim();
+    final initial = name.isEmpty ? 'L' : name[0].toUpperCase();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: _kBrandTeal.withValues(alpha: 0.12),
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: _kBrandTeal,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }

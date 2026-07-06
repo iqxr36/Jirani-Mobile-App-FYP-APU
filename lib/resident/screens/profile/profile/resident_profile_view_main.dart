@@ -117,6 +117,13 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  // Services provider feature: opens the resident's provider dashboard and service listings.
+  void _openMyServices() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ResidentMyServicesView()),
+    );
+  }
+
   // Review feature: opens the resident's reviews and Community Trust Score screen.
   void _openRatings() {
     Navigator.of(context).push<void>(
@@ -229,7 +236,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                             : () => _openPhoneVerification(user),
                         onMyItems: _openMyItems,
                         onRatings: _openRatings,
-                        onMyServices: () => _showUnavailable('My Services'),
+                        onMyServices: _openMyServices,
                         onSettings: _openSettings,
                         onLogout: _logout,
                       );

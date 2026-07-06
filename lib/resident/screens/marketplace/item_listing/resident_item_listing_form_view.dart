@@ -66,7 +66,7 @@ class _ResidentItemListingFormViewState
     final title = _step == 0
         ? (_isEditing ? 'Edit Item' : 'Add New Item')
         : 'Financial Details';
-    final titleSize = _step == 0 ? 26.0 : 21.0;
+    const titleSize = 20.0;
 
     return PopScope(
       canPop: !_submitting,

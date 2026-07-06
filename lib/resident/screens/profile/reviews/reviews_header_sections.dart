@@ -25,7 +25,7 @@ class _Header extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _kBrandTeal,
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -82,7 +82,7 @@ class _ScorePanel extends StatelessWidget {
                       score <= 0 ? '-' : score.toStringAsFixed(1),
                       style: TextStyle(
                         color: context.appInk,
-                        fontSize: 30,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         height: 1,
                       ),

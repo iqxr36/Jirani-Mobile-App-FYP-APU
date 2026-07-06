@@ -38,10 +38,23 @@ import {
 import {markMarketplaceDepositDisputedIfNeeded} from "./payments";
 export {processVerificationRequestOcr} from "./ocr/processVerificationOcr";
 export {
+  backfillServiceCommunityIds,
+  repairOwnServiceCommunityIds,
+} from "./service_visibility";
+export {
+  createXenditServicePayment,
   createXenditMarketplacePayment,
+  disputeServiceRequest,
+  forceServicePayout,
+  generateServiceArrivalCode,
+  generateServiceCompletionCode,
   getPaymentStatus,
   markManualPayoutPaid,
+  refundServicePayment,
   resolveMarketplaceDeposit,
+  saveTestPayoutAccount,
+  submitServiceArrivalCode,
+  submitServiceCompletionCode,
   xenditWebhook,
 } from "./payments";
 

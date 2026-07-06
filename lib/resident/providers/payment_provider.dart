@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/shared/services/payment_service.dart';
 
 /// Payments state manager: exposes Xendit hosted checkout actions to resident screens.
@@ -24,6 +25,21 @@ class PaymentProvider extends ChangeNotifier {
   }) {
     return _run(
       () => _service.createXenditMarketplacePayment(
+        request: request,
+        successRedirectUrl: successRedirectUrl,
+        failureRedirectUrl: failureRedirectUrl,
+      ),
+    );
+  }
+
+  /// Service payments: creates a Xendit hosted checkout for an accepted service request.
+  Future<ServicePaymentResult?> createXenditServicePayment({
+    required ServiceRequestModel request,
+    required String successRedirectUrl,
+    required String failureRedirectUrl,
+  }) {
+    return _run(
+      () => _service.createXenditServicePayment(
         request: request,
         successRedirectUrl: successRedirectUrl,
         failureRedirectUrl: failureRedirectUrl,

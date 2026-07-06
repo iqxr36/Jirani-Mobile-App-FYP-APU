@@ -47,7 +47,7 @@ class MarketplaceItemDetailView extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: context.appInk,
-                                      fontSize: 21,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w900,
                                       height: 1.16,
                                     ),
@@ -166,35 +166,13 @@ class MarketplaceItemDetailView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SecondaryButton(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              label: 'Message Owner',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Chat with the owner unlocks after approval and payment are completed.',
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _PrimaryButton(
-                              icon: Icons.calendar_month_rounded,
-                              label: 'Request',
-                              onTap: () => _showBorrowRequestSheet(
-                                context: context,
-                                item: item,
-                              ),
-                            ),
-                          ),
-                        ],
+                      _PrimaryButton(
+                        icon: Icons.calendar_month_rounded,
+                        label: 'Request',
+                        onTap: () => _showBorrowRequestSheet(
+                          context: context,
+                          item: item,
+                        ),
                       ),
                       const SizedBox(height: 34),
                     ],

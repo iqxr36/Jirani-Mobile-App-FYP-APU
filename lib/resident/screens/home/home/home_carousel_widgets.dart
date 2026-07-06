@@ -117,7 +117,7 @@ class _CarouselCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
-                      fontSize: 24,
+                      fontSize: 20,
                       height: 1.06,
                     ),
                   ),

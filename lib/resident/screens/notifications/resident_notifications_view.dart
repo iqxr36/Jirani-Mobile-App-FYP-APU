@@ -230,7 +230,7 @@ class _NotificationsHeader extends StatelessWidget {
             'Notifications',
             style: TextStyle(
               color: _kBrandTeal,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               height: 1.1,
             ),

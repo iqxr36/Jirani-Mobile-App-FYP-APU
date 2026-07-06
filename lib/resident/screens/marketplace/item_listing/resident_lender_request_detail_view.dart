@@ -1032,7 +1032,7 @@ class _LenderCodeDisplay extends StatelessWidget {
                       char,
                       style: TextStyle(
                         color: context.appInk,
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1780,7 +1780,7 @@ class _CodeTextField extends StatelessWidget {
       textAlign: TextAlign.center,
       style: TextStyle(
         color: context.appInk,
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: FontWeight.w900,
         letterSpacing: 0,
       ),
