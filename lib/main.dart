@@ -17,6 +17,7 @@ import 'package:jirani/resident/providers/network_status_provider.dart';
 import 'package:jirani/resident/providers/payment_provider.dart';
 import 'package:jirani/resident/providers/review_provider.dart';
 import 'package:jirani/resident/providers/service_provider.dart';
+import 'package:jirani/admin/providers/admin_theme_provider.dart';
 import 'package:jirani/resident/providers/theme_provider.dart';
 import 'package:jirani/shared/logic/auth_wrapper.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -251,6 +252,9 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => PaymentProvider(),
         ),
         ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider<AdminThemeProvider>(
+          create: (_) => AdminThemeProvider(),
+        ),
         if (!kIsWeb)
           ChangeNotifierProvider<NetworkStatusProvider>(
             create: (_) => NetworkStatusProvider(),

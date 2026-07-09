@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/models/admin_notification_preferences.dart';
 
 /// Admin auth DB model: represents admins/{uid} or admin-shaped user records with role, scope, and permissions.
 class AdminUser {
@@ -13,6 +14,7 @@ class AdminUser {
     required this.communityName,
     required this.profileImageUrl,
     required this.permissions,
+    required this.notificationPreferences,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -27,6 +29,7 @@ class AdminUser {
   final String communityName;
   final String profileImageUrl;
   final List<String> permissions;
+  final AdminNotificationPreferences notificationPreferences;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -48,6 +51,7 @@ class AdminUser {
       'communityName': communityName,
       'profileImageUrl': profileImageUrl,
       'permissions': permissions,
+      'notificationPreferences': notificationPreferences.toMap(),
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -66,6 +70,9 @@ class AdminUser {
       communityName: (map['communityName'] as String?) ?? '',
       profileImageUrl: (map['profileImageUrl'] as String?) ?? '',
       permissions: _parseStringList(map['permissions']),
+      notificationPreferences: AdminNotificationPreferences.fromMap(
+        map['notificationPreferences'],
+      ),
       isActive: _parseActive(map),
       createdAt: _parseDate(map['createdAt']),
       updatedAt: _parseDate(map['updatedAt']),
@@ -98,5 +105,42 @@ class AdminUser {
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
     return DateTime.now();
+  }
+
+  AdminUser copyWith({
+    String? fullName,
+    String? phoneNumber,
+    String? profileImageUrl,
+    AdminNotificationPreferences? notificationPreferences,
+  }) {
+    return AdminUser(
+      uid: uid,
+      fullName: fullName ?? this.fullName,
+      email: email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      role: role,
+      communityId: communityId,
+      communityName: communityName,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      permissions: permissions,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
+      isActive: isActive,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
+  String get roleLabel {
+    if (isSystemAdmin) return 'System Admin';
+    if (isCommunityAdmin) return 'Community Admin';
+    return role;
+  }
+
+  String get assignedCommunityLabel {
+    if (isSystemAdmin) return 'All communities';
+    final name = communityName.trim();
+    if (name.isNotEmpty) return name;
+    return communityId;
   }
 }

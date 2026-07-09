@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/admin/logic/theme/admin_theme_preset.dart';
 
 class AdminColors {
   const AdminColors._();
 
-  static const primary = Color(0xFF006D77);
-  static const secondary = Color(0xFF83C5BE);
+  static AdminThemePreset _preset = AdminThemePreset.teal;
+
+  static void applyPreset(AdminThemePreset preset) {
+    _preset = preset;
+  }
+
+  static Color get primary => _preset.primary;
+  static Color get secondary => _preset.secondary;
+
   static const accent = Color(0xFFE29578);
   static const background = Color(0xFFF8F9FA);
   static const surface = Color(0xFFFFFFFF);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jirani/admin/logic/theme/admin_button_styles.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
@@ -153,7 +154,12 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     final accountLabel = _accountStatusLabel(resident.accountStatus);
     return DataRow(
       cells: [
-        DataCell(AdminIdentityCell(name: resident.fullName)),
+        DataCell(
+          AdminIdentityCell(
+            name: resident.fullName,
+            imageUrl: resident.profileImageUrl,
+          ),
+        ),
         DataCell(Text(resident.email)),
         DataCell(Text(resident.phoneNumber.isEmpty ? '-' : resident.phoneNumber)),
         DataCell(Text(resident.communityName)),
@@ -624,6 +630,7 @@ class _ResidentFilterMenu extends StatelessWidget {
           .toList(),
       child: OutlinedButton.icon(
         onPressed: null,
+        style: AdminButtonStyles.primaryOutlined(context),
         icon: Icon(icon),
         label: Text(label),
       ),

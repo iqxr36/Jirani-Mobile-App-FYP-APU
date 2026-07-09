@@ -12,6 +12,7 @@ import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/data/repositories/connection_repository.dart';
 import 'package:jirani/shared/models/admin_user.dart';
+import 'package:jirani/shared/models/admin_notification_preferences.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/shared/data/repositories/auth_repository.dart';
@@ -42,6 +43,8 @@ class AuthViewModel extends _AuthViewModelBase
     super.chatRepository,
     super.listenToAuthChanges,
     super.initialCurrentUser,
+    super.initialCurrentAdmin,
+    super.surfaceAdminProfileImageHydrationErrors,
   });
 
   @visibleForTesting
@@ -51,13 +54,24 @@ class AuthViewModel extends _AuthViewModelBase
   }
 
   @visibleForTesting
+  Future<bool> testingHydrateAdminProfileImage() {
+    return _hydrateAdminProfileImageIfNeeded();
+  }
+
+  void reportAdminProfileImageRenderFailure(Object error) {
+    _reportAdminProfileImageRenderFailure(error);
+  }
+
+  @visibleForTesting
   factory AuthViewModel.forTesting({
     AppUser? currentUser,
+    AdminUser? currentAdmin,
     AuthRepository? repository,
     UserRepository? userRepository,
     ConnectionRepository? connectionRepository,
     VerificationRepository? verificationRepository,
     ChatRepository? chatRepository,
+    bool? surfaceAdminProfileImageHydrationErrors,
   }) {
     return AuthViewModel(
       repository: repository,
@@ -67,6 +81,9 @@ class AuthViewModel extends _AuthViewModelBase
       chatRepository: chatRepository,
       listenToAuthChanges: false,
       initialCurrentUser: currentUser,
+      initialCurrentAdmin: currentAdmin,
+      surfaceAdminProfileImageHydrationErrors:
+          surfaceAdminProfileImageHydrationErrors,
     );
   }
 }

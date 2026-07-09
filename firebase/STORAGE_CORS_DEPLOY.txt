@@ -1,0 +1,12 @@
+# Apply Firebase Storage CORS for Flutter web image loads.
+#
+# Requires Google Cloud SDK (gsutil). Run from the project root:
+#
+#   gsutil cors set firebase/storage-cors.json gs://final-year-project-faisal.firebasestorage.app
+#
+# Verify:
+#
+#   gsutil cors get gs://final-year-project-faisal.firebasestorage.app
+#
+# Add your custom hosting domain to firebase/storage-cors.json before deploying
+# if you serve the web app from another origin.

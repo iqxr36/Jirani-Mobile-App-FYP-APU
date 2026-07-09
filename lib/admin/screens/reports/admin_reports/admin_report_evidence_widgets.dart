@@ -19,7 +19,7 @@ class AdminReportDetailSection extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AdminColors.primary,
               fontWeight: FontWeight.w800,
             ),
@@ -234,7 +234,7 @@ class _ProofEvidenceTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.image_search_rounded,
                 color: AdminColors.primary,
                 size: 20,

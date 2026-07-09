@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/admin/logic/theme/admin_button_styles.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/services/admin_verification_review_service.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
@@ -283,10 +284,7 @@ class AdminVerificationDetail extends StatelessWidget {
                   label: const Text('Approve Verification'),
                 ),
                 FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 253, 69, 2),
-                    foregroundColor: Colors.white,
-                  ),
+                  style: AdminButtonStyles.dangerFilled(context),
                   onPressed: canReview ? () => _reject(context, r) : null,
                   icon: const Icon(Icons.cancel_rounded),
                   label: const Text('Reject Request'),
@@ -426,10 +424,7 @@ class _AdminRejectDialogState extends State<AdminRejectDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: AdminColors.accent,
-            foregroundColor: Colors.white,
-          ),
+          style: AdminButtonStyles.dangerFilled(context),
           onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
           child: const Text('Reject Request'),
         ),

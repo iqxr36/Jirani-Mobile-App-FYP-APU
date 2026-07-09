@@ -182,7 +182,7 @@ class AdminNotificationListTile extends StatelessWidget {
                           color: notification.accentColor,
                         ),
                         if (notification.unread)
-                          const _NotificationMetaChip(
+                          _NotificationMetaChip(
                             label: 'Unread',
                             color: AdminColors.primary,
                           ),

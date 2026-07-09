@@ -27,7 +27,7 @@ class AdminExtractedTextPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.text_snippet_rounded,
                 color: AdminColors.primary,
               ),
@@ -41,7 +41,7 @@ class AdminExtractedTextPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const AdminStatusPill(
+              AdminStatusPill(
                 label: 'Text extraction',
                 color: AdminColors.primary,
               ),

@@ -518,7 +518,7 @@ class _NewsQueueCard extends StatelessWidget {
                           icon: const Icon(Icons.delete_outline_rounded),
                           label: const Text('Remove'),
                           style: TextButton.styleFrom(
-                            foregroundColor: AdminColors.accent,
+                            foregroundColor: AdminColors.danger,
                           ),
                         ),
                     ],

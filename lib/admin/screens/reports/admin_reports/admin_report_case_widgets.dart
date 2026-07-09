@@ -566,7 +566,7 @@ class _ConductIssueCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final heading = Row(
-                children: const [
+                children: [
                   Icon(Icons.report_rounded, color: AdminColors.primary),
                   SizedBox(width: 10),
                   Expanded(
@@ -738,7 +738,7 @@ class _DisputeProblemCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final heading = Row(
-                children: const [
+                children: [
                   Icon(Icons.balance_rounded, color: AdminColors.primary),
                   SizedBox(width: 10),
                   Expanded(
@@ -843,7 +843,7 @@ class _ServiceDisputeProblemCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final heading = Row(
-                children: const [
+                children: [
                   Icon(Icons.handyman_outlined, color: AdminColors.primary),
                   SizedBox(width: 10),
                   Expanded(
@@ -933,7 +933,7 @@ class _TransactionFactsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Case Details',
             style: TextStyle(
               color: AdminColors.primary,
@@ -1262,7 +1262,7 @@ class _NotesBlock extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AdminColors.primary,
               fontWeight: FontWeight.w900,
             ),

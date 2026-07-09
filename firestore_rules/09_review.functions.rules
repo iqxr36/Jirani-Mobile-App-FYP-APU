@@ -1,11 +1,62 @@
     // --- Review and profile image helpers ---
-    function ownProfileImageUpdate() {
+    function validAdminNotificationPreferences(prefs) {
+      return prefs is map &&
+        prefs.keys().hasOnly([
+          'verificationAlerts',
+          'reportEscalations',
+          'serviceDisputeAlerts',
+          'weeklyDigest',
+        ]) &&
+        prefs.verificationAlerts is bool &&
+        prefs.reportEscalations is bool &&
+        prefs.serviceDisputeAlerts is bool &&
+        prefs.weeklyDigest is bool;
+    }
+
+    function adminImmutableFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'email',
+        'role',
+        'communityId',
+        'communityName',
+        'permissions',
+        'isActive',
+        'createdAt',
+      ]);
+    }
+
+    function ownAdminSelfProfileUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
-      return changed.hasOnly([
-        'profileImageUrl',
-        'updatedAt',
-      ]) &&
-      request.resource.data.profileImageUrl is string;
+      return hasAdminProfile() &&
+        isValidAdminDoc(myAdminDoc().data) &&
+        changed.hasOnly([
+          'fullName',
+          'phoneNumber',
+          'notificationPreferences',
+          'profileImageUrl',
+          'updatedAt',
+        ]) &&
+        request.resource.data.fullName is string &&
+        request.resource.data.phoneNumber is string &&
+        (
+          !changed.hasAny(['profileImageUrl']) ||
+          request.resource.data.profileImageUrl is string
+        ) &&
+        (
+          !changed.hasAny(['notificationPreferences']) ||
+          validAdminNotificationPreferences(
+            request.resource.data.notificationPreferences
+          )
+        ) &&
+        adminImmutableFieldsUnchanged();
+    }
+
+    function ownProfileImageUpdate() {
+      return ownAdminSelfProfileUpdate() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'profileImageUrl',
+          'updatedAt',
+        ]);
     }
 
     function completedBorrowRequestForReview(data) {

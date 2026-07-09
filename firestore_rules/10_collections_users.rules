@@ -32,7 +32,7 @@
       allow list: if isSystemAdmin();
       allow create, delete: if isSystemAdmin();
       allow update: if isSystemAdmin() ||
-        (isOwner(uid) && ownProfileImageUpdate());
+        (isOwner(uid) && ownAdminSelfProfileUpdate());
     }
 
     match /communities/{communityId} {

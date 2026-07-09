@@ -169,7 +169,6 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
       return false;
     }
 
-    _setLoading(true);
     clearError(notify: false);
 
     try {
@@ -183,7 +182,64 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
         uid: uid,
         profileImageUrl: url,
       );
-      _currentAdmin = await _repository.getCurrentAdminUser();
+      final refreshed = await _repository.getCurrentAdminUser(
+        reloadAuthUser: false,
+        preferServer: true,
+      );
+      final savedUrl = refreshed?.profileImageUrl.trim() ?? '';
+      if (savedUrl.isEmpty || savedUrl != url.trim()) {
+        throw Exception(
+          'Profile photo uploaded, but could not be saved to your admin profile. Please try again.',
+        );
+      }
+
+      _setAdminProfileImageBytes(bytes, savedUrl);
+      _adminProfileImageErrorMessage = null;
+      _currentAdmin = refreshed;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Admin settings feature: saves display name, optional phone, and notification prefs.
+  Future<bool> updateAdminProfileSettings({
+    required String fullName,
+    required String phoneNumber,
+    required AdminNotificationPreferences notificationPreferences,
+  }) async {
+    final uid = _firebaseUser?.uid ?? _currentAdmin?.uid;
+    if (uid == null) {
+      _errorMessage = 'You must be signed in to update your profile.';
+      notifyListeners();
+      return false;
+    }
+
+    final trimmedPhone = phoneNumber.trim();
+    final validationError =
+        Validators.validateFullName(fullName) ??
+        (trimmedPhone.isEmpty ? null : Validators.validatePhone(phoneNumber));
+    if (validationError != null) {
+      _setValidationError(validationError);
+      return false;
+    }
+
+    _setLoading(true);
+    clearError(notify: false);
+
+    try {
+      await _repository.updateAdminProfile(
+        uid: uid,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        notificationPreferences: notificationPreferences,
+      );
+      _currentAdmin = await _repository.getCurrentAdminUser(
+        reloadAuthUser: false,
+      );
       return true;
     } catch (e) {
       _errorMessage = _mapAuthError(e);

@@ -1,4 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:jirani/admin/logic/theme/admin_button_styles.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 
@@ -224,27 +227,99 @@ class AdminAvatar extends StatelessWidget {
     super.key,
     required this.name,
     this.imageUrl = '',
+    this.previewBytes,
     this.large = false,
+    this.onImageError,
   });
 
   final String name;
   final String imageUrl;
+  final Uint8List? previewBytes;
   final bool large;
+  final void Function(Object error)? onImageError;
 
   @override
   Widget build(BuildContext context) {
     final initial = name.trim().isEmpty ? 'A' : name.trim()[0].toUpperCase();
     final trimmedImageUrl = imageUrl.trim();
+    final radius = large ? 34.0 : 18.0;
+    final size = radius * 2;
+    final hasPreview = previewBytes != null && previewBytes!.isNotEmpty;
+    final hasRemoteImage = trimmedImageUrl.isNotEmpty;
+
+    if (hasPreview) {
+      return _avatarShell(
+        radius: radius,
+        child: Image.memory(
+          previewBytes!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    if (hasRemoteImage) {
+      if (kIsWeb) {
+        return _avatarShell(
+          radius: radius,
+          child: Image.network(
+            trimmedImageUrl,
+            key: ValueKey<String>(trimmedImageUrl),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+            errorBuilder: (context, error, stackTrace) {
+              _notifyImageError(error);
+              return _initialsFallback(radius, initial);
+            },
+          ),
+        );
+      }
+
+      return _avatarShell(
+        radius: radius,
+        child: CachedNetworkImage(
+          key: ValueKey<String>(trimmedImageUrl),
+          imageUrl: trimmedImageUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          fadeInDuration: const Duration(milliseconds: 180),
+          placeholder: (context, url) => _initialsFallback(radius, initial),
+          errorWidget: (context, url, error) {
+            _notifyImageError(error);
+            return _initialsFallback(radius, initial);
+          },
+        ),
+      );
+    }
+
+    return _initialsFallback(radius, initial);
+  }
+
+  void _notifyImageError(Object error) {
+    final callback = onImageError;
+    if (callback == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => callback(error));
+  }
+
+  Widget _avatarShell({required double radius, required Widget child}) {
+    return ClipOval(
+      child: SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: child,
+      ),
+    );
+  }
+
+  Widget _initialsFallback(double radius, String initial) {
     return CircleAvatar(
-      radius: large ? 34 : 18,
+      radius: radius,
       backgroundColor: AdminColors.primary,
       foregroundColor: Colors.white,
-      foregroundImage: trimmedImageUrl.isEmpty
-          ? null
-          : NetworkImage(trimmedImageUrl),
-      onForegroundImageError: trimmedImageUrl.isEmpty
-          ? null
-          : (exception, stackTrace) {},
       child: Text(
         initial,
         style: TextStyle(
@@ -257,15 +332,20 @@ class AdminAvatar extends StatelessWidget {
 }
 
 class AdminIdentityCell extends StatelessWidget {
-  const AdminIdentityCell({super.key, required this.name});
+  const AdminIdentityCell({
+    super.key,
+    required this.name,
+    this.imageUrl = '',
+  });
 
   final String name;
+  final String imageUrl;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        AdminAvatar(name: name),
+        AdminAvatar(name: name, imageUrl: imageUrl),
         const SizedBox(width: 10),
         Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
       ],
@@ -336,6 +416,7 @@ class AdminFilterChipButton extends StatelessWidget {
     }
     return OutlinedButton.icon(
       onPressed: onPressed ?? () {},
+      style: AdminButtonStyles.primaryOutlined(context),
       icon: icon,
       label: Text(label),
     );
@@ -356,6 +437,7 @@ class AdminTonalActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton.tonalIcon(
       onPressed: () {},
+      style: AdminButtonStyles.primaryTonal(context),
       icon: Icon(icon),
       label: Text(label),
     );

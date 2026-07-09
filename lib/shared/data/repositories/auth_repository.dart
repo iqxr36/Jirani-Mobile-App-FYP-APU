@@ -8,10 +8,13 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:jirani/core/utils/auth_debug_log.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/firebase_storage_url.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/admin_user.dart';
+import 'package:jirani/shared/models/admin_notification_preferences.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/services/firebase_auth_service.dart';
 
@@ -111,14 +114,19 @@ class AuthRepository {
   }
 
   // Admin authentication feature: reads admins/{uid}, validates active role, and returns the admin profile.
-  Future<AdminUser?> getCurrentAdminUser() async {
+  Future<AdminUser?> getCurrentAdminUser({
+    bool reloadAuthUser = true,
+    bool preferServer = false,
+  }) async {
     authDebugLog('[AuthRepository.getCurrentAdminUser] started');
     final user = _authService.currentUser;
     authDebugLog(
       '[AuthRepository.getCurrentAdminUser] firebase session=${user != null}',
     );
     if (user == null) return null;
-    await _authService.reloadCurrentUser();
+    if (reloadAuthUser) {
+      await _authService.reloadCurrentUser();
+    }
     final refreshedUser = _authService.currentUser;
     authDebugLog(
       '[AuthRepository.getCurrentAdminUser] firebase session refreshed',
@@ -135,7 +143,9 @@ class AuthRepository {
       );
       final DocumentSnapshot<Map<String, dynamic>> doc;
       try {
-        doc = await docRef.get();
+        doc = preferServer
+            ? await docRef.get(const GetOptions(source: Source.server))
+            : await docRef.get();
       } on FirebaseException catch (e) {
         authDebugLog(
           '[AuthRepository.getCurrentAdminUser] Firestore read failed code=${e.code}',
@@ -182,16 +192,17 @@ class AuthRepository {
     }
 
     final extension = _profileImageExtension(originalFileName);
+    final detected = _detectProfileImageFormat(bytes, extension);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage
         .ref()
         .child(AppConstants.storageProfileImagesPath)
         .child(accountFolder)
         .child(uid)
-        .child('avatar_$timestamp.$extension');
+        .child('avatar_$timestamp.${detected.extension}');
 
     final metadata = SettableMetadata(
-      contentType: _profileImageContentType(extension),
+      contentType: detected.contentType,
       customMetadata: {
         'ownerUid': uid,
         'accountType': accountFolder,
@@ -203,6 +214,40 @@ class AuthRepository {
     return ref.getDownloadURL().timeout(_networkTimeout);
   }
 
+  // Profile feature: downloads avatar bytes via authenticated Storage path reads.
+  Future<Uint8List?> downloadProfileImageBytes(String downloadUrl) async {
+    final trimmed = downloadUrl.trim();
+    if (trimmed.isEmpty) return null;
+
+    const maxBytes = 5 * 1024 * 1024;
+    final objectPath = firebaseStorageObjectPathFromProfileImageReference(
+      trimmed,
+    );
+    if (objectPath != null) {
+      try {
+        final ref = _storage.ref(objectPath);
+        return ref.getData(maxBytes).timeout(_networkTimeout);
+      } catch (e) {
+        if (_isHttpUrl(trimmed)) {
+          authDebugLogError(
+            '[AuthRepository.downloadProfileImageBytes] Storage SDK read failed; falling back to HTTP download',
+            e,
+          );
+          return _downloadProfileImageBytesOverHttp(trimmed, maxBytes);
+        }
+        throw Exception(_profileImageDownloadFailureMessage(e));
+      }
+    }
+
+    if (_isHttpUrl(trimmed)) {
+      return _downloadProfileImageBytesOverHttp(trimmed, maxBytes);
+    }
+
+    throw Exception(
+      'Saved profile photo reference is not a supported Firebase Storage path or download URL.',
+    );
+  }
+
   // Admin profile feature: stores the latest admin avatar URL on admins/{uid}.
   Future<void> updateAdminProfileImageUrl({
     required String uid,
@@ -210,6 +255,24 @@ class AuthRepository {
   }) async {
     await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
       'profileImageUrl': profileImageUrl.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Admin settings feature: saves editable admin profile fields and notification prefs.
+  Future<void> updateAdminProfile({
+    required String uid,
+    required String fullName,
+    required String phoneNumber,
+    required AdminNotificationPreferences notificationPreferences,
+  }) async {
+    final trimmedPhone = phoneNumber.trim();
+    await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
+      'fullName': fullName.trim(),
+      'phoneNumber': trimmedPhone.isEmpty
+          ? ''
+          : Validators.normalizePhoneNumber(trimmedPhone),
+      'notificationPreferences': notificationPreferences.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -608,5 +671,89 @@ class AuthRepository {
       'webp' => 'image/webp',
       _ => 'image/jpeg',
     };
+  }
+
+  static ({String extension, String contentType}) _detectProfileImageFormat(
+    Uint8List bytes,
+    String fallbackExtension,
+  ) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return (extension: 'jpg', contentType: 'image/jpeg');
+    }
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return (extension: 'png', contentType: 'image/png');
+    }
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50) {
+      return (extension: 'webp', contentType: 'image/webp');
+    }
+    final extension = _profileImageExtension(fallbackExtension);
+    return (
+      extension: extension,
+      contentType: _profileImageContentType(extension),
+    );
+  }
+
+  static bool _isHttpUrl(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  static String _profileImageDownloadFailureMessage(Object error) {
+    if (error is TimeoutException) {
+      return 'Profile photo download timed out.';
+    }
+    if (error is FirebaseException) {
+      return switch (error.code) {
+        'object-not-found' =>
+          'Profile photo file was not found in Firebase Storage.',
+        'unauthorized' || 'permission-denied' =>
+          'Firebase Storage denied access to the saved profile photo. Check the deployed Storage read rules.',
+        'canceled' => 'Profile photo download was canceled.',
+        'retry-limit-exceeded' =>
+          'Profile photo download failed after too many retries.',
+        _ =>
+          'Firebase Storage could not read the saved profile photo (${error.code}).',
+      };
+    }
+    return 'Could not read the saved profile photo from Firebase Storage.';
+  }
+
+  static Future<Uint8List?> _downloadProfileImageBytesOverHttp(
+    String url,
+    int maxBytes,
+  ) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw Exception(
+        'Saved profile photo reference is not a valid download URL.',
+      );
+    }
+
+    final response = await http.get(uri).timeout(_networkTimeout);
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Profile photo HTTP download failed with status ${response.statusCode}.',
+      );
+    }
+    final bytes = response.bodyBytes;
+    if (bytes.lengthInBytes > maxBytes) {
+      throw Exception('Saved profile photo is larger than 5 MB.');
+    }
+    return bytes;
   }
 }

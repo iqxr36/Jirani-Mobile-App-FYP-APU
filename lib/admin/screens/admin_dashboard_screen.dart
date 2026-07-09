@@ -10,9 +10,11 @@ import 'package:jirani/admin/screens/settings/admin_settings_screen.dart';
 import 'package:jirani/admin/screens/users/admin_residents_screen.dart';
 import 'package:jirani/admin/screens/verification/admin_verification_screen.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
+import 'package:jirani/admin/logic/theme/admin_theme_data.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/admin/providers/admin_theme_provider.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/data/repositories/notification_repository.dart';
@@ -88,94 +90,108 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
       onNotificationSelected: _openNotificationTarget,
     );
 
-    if (wide) {
-      return Scaffold(
-        backgroundColor: AdminColors.background,
-        body: Row(
-          children: [
-            _AdminSidebar(
-              section: _section,
-              onChanged: (section) => setState(() => _section = section),
-            ),
-            Expanded(
-              child: Column(
+    return Consumer<AdminThemeProvider>(
+      builder: (context, adminTheme, _) {
+        final adminThemeData = buildAdminTheme(
+          primary: adminTheme.preset.primary,
+          secondary: adminTheme.preset.secondary,
+        );
+        if (wide) {
+          return Theme(
+            data: adminThemeData,
+            child: Scaffold(
+              backgroundColor: AdminColors.background,
+              body: Row(
                 children: [
-                  _AdminTopBar(
+                  _AdminSidebar(
                     section: _section,
-                    onLogout: widget.onLogout,
-                    isLoggingOut: widget.isLoggingOut,
-                    onNotificationSelected: _openNotificationTarget,
+                    onChanged: (section) => setState(() => _section = section),
                   ),
-                  Expanded(child: content),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _AdminTopBar(
+                          section: _section,
+                          onLogout: widget.onLogout,
+                          isLoggingOut: widget.isLoggingOut,
+                          onNotificationSelected: _openNotificationTarget,
+                        ),
+                        Expanded(child: content),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      );
-    }
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: AdminColors.background,
-      drawer: Drawer(
-        child: SafeArea(
-          child: _AdminSidebar(
-            section: _section,
-            onChanged: (section) {
-              setState(() => _section = section);
-              Navigator.of(context).pop();
-            },
-            compact: true,
+        return Theme(
+          data: adminThemeData,
+          child: Scaffold(
+            backgroundColor: AdminColors.background,
+            drawer: Drawer(
+              child: SafeArea(
+                child: _AdminSidebar(
+                  section: _section,
+                  onChanged: (section) {
+                    setState(() => _section = section);
+                    Navigator.of(context).pop();
+                  },
+                  compact: true,
+                ),
+              ),
+            ),
+            appBar: AppBar(
+              title: Text(_section.title),
+              actions: [
+                AdminNotificationBell(
+                  adminUid: currentAdmin?.uid ?? '',
+                  onNotificationSelected: _openNotificationTarget,
+                ),
+                IconButton(
+                  tooltip: 'Sign out',
+                  onPressed: widget.isLoggingOut ? null : widget.onLogout,
+                  icon: widget.isLoggingOut
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.logout_rounded),
+                ),
+              ],
+            ),
+            body: content,
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _bottomIndexFor(_section),
+              onDestinationSelected: (index) {
+                setState(() => _section = _sectionForBottomIndex(index));
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.space_dashboard_outlined),
+                  selectedIcon: Icon(Icons.space_dashboard_rounded),
+                  label: 'Overview',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.verified_user_outlined),
+                  selectedIcon: Icon(Icons.verified_user_rounded),
+                  label: 'Verify',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.groups_2_outlined),
+                  selectedIcon: Icon(Icons.groups_2_rounded),
+                  label: 'People',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.more_horiz_rounded),
+                  label: 'More',
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-      appBar: AppBar(
-        title: Text(_section.title),
-        actions: [
-          AdminNotificationBell(
-            adminUid: currentAdmin?.uid ?? '',
-            onNotificationSelected: _openNotificationTarget,
-          ),
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: widget.isLoggingOut ? null : widget.onLogout,
-            icon: widget.isLoggingOut
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.logout_rounded),
-          ),
-        ],
-      ),
-      body: content,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _bottomIndexFor(_section),
-        onDestinationSelected: (index) {
-          setState(() => _section = _sectionForBottomIndex(index));
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.space_dashboard_outlined),
-            selectedIcon: Icon(Icons.space_dashboard_rounded),
-            label: 'Overview',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.verified_user_outlined),
-            selectedIcon: Icon(Icons.verified_user_rounded),
-            label: 'Verify',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.groups_2_outlined),
-            selectedIcon: Icon(Icons.groups_2_rounded),
-            label: 'People',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz_rounded),
-            label: 'More',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -255,7 +271,7 @@ class _AdminSidebar extends StatelessWidget {
                     child: Image.asset(
                       'assets/In-app-logo-Jirani.png',
                       fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => const Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.apartment_rounded,
                         color: AdminColors.primary,
                       ),
@@ -370,7 +386,8 @@ class _AdminTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final admin = context.watch<AuthViewModel>().currentAdmin;
+    final auth = context.watch<AuthViewModel>();
+    final admin = auth.currentAdmin;
     return Container(
       height: 88,
       padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -428,6 +445,7 @@ class _AdminTopBar extends StatelessWidget {
           AdminAvatar(
             name: admin?.fullName ?? 'Admin',
             imageUrl: admin?.profileImageUrl ?? '',
+            previewBytes: auth.adminProfileImageBytes,
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -471,6 +489,10 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
       return IconButton.filledTonal(
         tooltip: 'Notifications',
         onPressed: null,
+        style: IconButton.styleFrom(
+          backgroundColor: AdminColors.primary.withValues(alpha: 0.12),
+          foregroundColor: AdminColors.primary,
+        ),
         icon: const Icon(Icons.notifications_none_rounded),
       );
     }
@@ -485,6 +507,10 @@ class _AdminNotificationBellState extends State<AdminNotificationBell> {
             IconButton.filledTonal(
               tooltip: 'Notifications',
               onPressed: () => _showNotifications(context),
+              style: IconButton.styleFrom(
+                backgroundColor: AdminColors.primary.withValues(alpha: 0.12),
+                foregroundColor: AdminColors.primary,
+              ),
               icon: const Icon(Icons.notifications_none_rounded),
             ),
             if (count > 0)
