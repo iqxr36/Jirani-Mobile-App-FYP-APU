@@ -21,7 +21,7 @@ const Map<String, String> _serviceRequestStatusLabels = {
   AppConstants.serviceRequestStatusPending: 'Pending',
   AppConstants.serviceRequestStatusAccepted: 'Accepted',
   AppConstants.serviceRequestStatusAcceptedAwaitingPayment: 'Awaiting Payment',
-  AppConstants.serviceRequestStatusPaidHeld: 'Paid (Held)',
+  AppConstants.serviceRequestStatusPaidHeld: 'Paid',
   AppConstants.serviceRequestStatusInProgress: 'In Progress',
   AppConstants.serviceRequestStatusCompletedPayoutPending: 'Payout Pending',
   AppConstants.serviceRequestStatusCompletedPayoutSent: 'Completed',
@@ -135,6 +135,7 @@ const Map<String, String> _reportTypeLabels = {
   AppConstants.reportTypeDamagedItem: 'Damaged Item',
   AppConstants.reportTypeLostItem: 'Lost Item',
   AppConstants.reportTypeDepositDispute: 'Deposit Dispute',
+  AppConstants.reportTypeServiceDispute: 'Service Dispute',
   AppConstants.reportTypeUserMisconduct: 'User Misconduct',
   AppConstants.reportTypeOther: 'Other',
 };

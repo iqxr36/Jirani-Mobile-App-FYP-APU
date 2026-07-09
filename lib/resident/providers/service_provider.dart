@@ -327,15 +327,43 @@ class ServiceProvider extends ChangeNotifier {
     required String requesterId,
     required String disputeType,
     required String details,
+    List<String> localProofPaths = const <String>[],
   }) async {
-    await _runVoid(
-      () => _service.disputeServiceRequest(
+    await _runVoid(() async {
+      final evidenceUrls = localProofPaths.isEmpty
+          ? const <String>[]
+          : await _service.uploadServiceDisputeProofs(
+              requestId: requestId,
+              localPaths: localProofPaths,
+            );
+      await _service.disputeServiceRequest(
         requestId: requestId,
         requesterId: requesterId,
         disputeType: disputeType,
         details: details,
-      ),
-    );
+        evidenceUrls: evidenceUrls,
+      );
+    });
+  }
+
+  Future<void> submitServiceDisputeEvidence({
+    required String requestId,
+    List<String> localProofPaths = const <String>[],
+    String statement = '',
+  }) async {
+    await _runVoid(() async {
+      final evidenceUrls = localProofPaths.isEmpty
+          ? const <String>[]
+          : await _service.uploadServiceDisputeProofs(
+              requestId: requestId,
+              localPaths: localProofPaths,
+            );
+      await _service.submitServiceDisputeEvidence(
+        requestId: requestId,
+        evidenceUrls: evidenceUrls,
+        statement: statement,
+      );
+    });
   }
 
   Future<T?> _runWithResult<T>(Future<T> Function() action) async {

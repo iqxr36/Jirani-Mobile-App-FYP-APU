@@ -577,8 +577,8 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                 ),
                 child: Text(
                   _isHourly
-                      ? 'Hourly services use escrow based on the duration selected by the requester.'
-                      : 'Paid services enter escrow after you accept a request.',
+                      ? 'Hourly services are paid based on the duration selected by the requester.'
+                      : 'Payment is collected after you accept a request.',
                   style: TextStyle(
                     color: context.appMuted,
                     fontSize: 12,

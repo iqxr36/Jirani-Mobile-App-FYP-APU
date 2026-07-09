@@ -81,6 +81,10 @@ const NOTIFICATION_TYPE_SERVICE_PAYMENT_RECEIVED = "servicePaymentReceived";
 const NOTIFICATION_TYPE_SERVICE_ARRIVAL_VERIFIED = "serviceArrivalVerified";
 const NOTIFICATION_TYPE_SERVICE_COMPLETED = "serviceCompleted";
 const NOTIFICATION_TYPE_SERVICE_DISPUTED = "serviceDisputed";
+const REPORT_TYPE_SERVICE_DISPUTE = "serviceDispute";
+const REPORT_STATUS_OPEN = "open";
+const REPORT_STATUS_UNDER_REVIEW = "underReview";
+const REPORT_STATUS_RESOLVED = "resolved";
 const NOTIFICATION_TYPE_SERVICE_PAYOUT_SENT = "servicePayoutSent";
 const NOTIFICATION_TYPE_SERVICE_PAYOUT_FAILED = "servicePayoutFailed";
 const NOTIFICATION_TYPE_SERVICE_REFUNDED = "serviceRefunded";
@@ -160,6 +164,16 @@ function asRecord(data: unknown): Record<string, unknown> {
 function readString(data: Record<string, unknown>, key: string, fallback = ""): string {
   const value = data[key];
   return typeof value === "string" ? value.trim() : fallback;
+}
+
+function readStringList(data: Record<string, unknown>, key: string): string[] {
+  const value = data[key];
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .slice(0, 5);
 }
 
 function readNumber(data: Record<string, unknown>, key: string): number {
@@ -255,6 +269,65 @@ function serviceDisputeNotificationBody(disputeType: string, details: string): s
   const label = labels[disputeType] ?? "Service dispute";
   const trimmed = details.trim();
   return trimmed ? `${label}: ${trimmed}` : label;
+}
+
+async function getServiceDisputeReport(
+  db: admin.firestore.Firestore,
+  reportId: string,
+): Promise<{ref: admin.firestore.DocumentReference; data: DocumentData}> {
+  const ref = db.collection(REPORTS_COLLECTION).doc(reportId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Dispute report not found.");
+  }
+  return {ref, data: snap.data() ?? {}};
+}
+
+async function assertServiceDisputeReadyForAdminResolution(
+  db: admin.firestore.Firestore,
+  data: DocumentData,
+): Promise<void> {
+  const reportId = typeof data.disputeReportId === "string" ? data.disputeReportId.trim() : "";
+  if (!reportId) return;
+  const {data: reportData} = await getServiceDisputeReport(db, reportId);
+  const status = String(reportData.status ?? "");
+  if (status !== REPORT_STATUS_UNDER_REVIEW) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Open the dispute in Reports and mark it under review before refunding or paying out.",
+    );
+  }
+}
+
+async function resolveServiceDisputeReport(
+  db: admin.firestore.Firestore,
+  reportId: string,
+  adminUid: string,
+  resolution: string,
+  reason: string,
+): Promise<void> {
+  const trimmedReportId = reportId.trim();
+  if (!trimmedReportId) return;
+  await db.collection(REPORTS_COLLECTION).doc(trimmedReportId).set({
+    status: REPORT_STATUS_RESOLVED,
+    adminResolution: resolution,
+    adminResolutionReason: reason.trim(),
+    adminResolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+    adminResolvedBy: adminUid,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+}
+
+async function loadResidentCommunity(
+  db: admin.firestore.Firestore,
+  userId: string,
+): Promise<{communityId: string; communityName: string}> {
+  const snap = await db.collection(USERS_COLLECTION).doc(userId).get();
+  const data = snap.data() ?? {};
+  return {
+    communityId: typeof data.communityId === "string" ? data.communityId : "",
+    communityName: typeof data.communityName === "string" ? data.communityName : "",
+  };
 }
 
 function safeErrorMessage(error: unknown): string {
@@ -510,7 +583,7 @@ async function validateXenditServicePayment(
       throw new HttpsError("invalid-argument", "Hourly service amount does not match duration.");
     }
   } else if (pricingMode !== "fixedJob" && serviceData.priceType !== "fixed") {
-    throw new HttpsError("failed-precondition", "Only priced services can use escrow checkout.");
+    throw new HttpsError("failed-precondition", "Only priced services can use payment checkout.");
   }
   if (!providerData || providerData.payoutAccountStatus !== PAYOUT_ACCOUNT_VERIFIED) {
     throw new HttpsError("failed-precondition", "The provider must verify payout details before paid bookings.");
@@ -1535,21 +1608,55 @@ export const disputeServiceRequest = onCall(async (request) => {
   const details = readString(input, "details");
   const legacyReason = readString(input, "reason");
   const resolvedDetails = details || legacyReason;
+  const evidenceUrls = readStringList(input, "evidenceUrls");
   assertServiceDisputeInput(disputeType, resolvedDetails);
   if (uid !== requesterId) throw new HttpsError("permission-denied", "Only the requester can dispute this service.");
   const db = admin.firestore();
   const {ref, data} = await getServiceRequestForActor(db, requestId);
   if (data.requesterId !== uid) throw new HttpsError("permission-denied", "Only the requester can dispute this service.");
   if (data.status !== SERVICE_STATUS_IN_PROGRESS) throw new HttpsError("failed-precondition", "Only in-progress services can be disputed.");
+  const community = await loadResidentCommunity(db, uid);
+  const serviceTitle = String(data.serviceTitle ?? "Service booking");
+  const reportRef = db.collection(REPORTS_COLLECTION).doc();
   const notificationBody = serviceDisputeNotificationBody(disputeType, resolvedDetails);
-  await ref.set({
+  const batch = db.batch();
+  batch.set(reportRef, {
+    type: REPORT_TYPE_SERVICE_DISPUTE,
+    relatedServiceRequestId: requestId,
+    relatedBorrowRequestId: "",
+    serviceId: String(data.serviceId ?? ""),
+    itemId: "",
+    communityId: community.communityId,
+    communityName: community.communityName,
+    reporterId: uid,
+    reporterName: String(data.requesterName ?? ""),
+    reportedUserId: String(data.providerId ?? ""),
+    reportedUserName: String(data.providerName ?? ""),
+    title: `Service dispute: ${serviceTitle}`,
+    description: resolvedDetails.trim(),
+    disputeType,
+    serviceAmount: toMoneyNumber(data.amount),
+    evidenceImageUrl: evidenceUrls[0] ?? null,
+    requesterEvidenceUrls: evidenceUrls,
+    providerEvidenceUrls: [],
+    providerStatement: "",
+    status: REPORT_STATUS_OPEN,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  batch.set(ref, {
     status: SERVICE_STATUS_DISPUTED,
     disputeType,
     disputeReason: resolvedDetails.trim(),
+    disputeReportId: reportRef.id,
+    requesterDisputeEvidenceUrls: evidenceUrls,
+    providerDisputeEvidenceUrls: [],
+    providerDisputeStatement: "",
     disputedAt: admin.firestore.FieldValue.serverTimestamp(),
     payoutStatus: SERVICE_PAYOUT_BLOCKED,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
+  await batch.commit();
   await createInAppNotification(db, {
     userId: String(data.providerId ?? ""),
     actorId: uid,
@@ -1558,8 +1665,66 @@ export const disputeServiceRequest = onCall(async (request) => {
     body: notificationBody,
     category: "Services",
     serviceRequestId: requestId,
+    reportId: reportRef.id,
     notificationId: notificationIdFor("serviceDisputed", requestId, String(data.providerId ?? "")),
   });
+  return {success: true, reportId: reportRef.id};
+});
+
+export const submitServiceDisputeEvidence = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const requestId = readString(input, "requestId");
+  const statement = readString(input, "statement");
+  const evidenceUrls = readStringList(input, "evidenceUrls");
+  if (!requestId) throw new HttpsError("invalid-argument", "requestId is required.");
+  if (evidenceUrls.length === 0 && !statement) {
+    throw new HttpsError("invalid-argument", "Add proof photos or a short statement.");
+  }
+  const db = admin.firestore();
+  const {ref, data} = await getServiceRequestForActor(db, requestId);
+  if (data.status !== SERVICE_STATUS_DISPUTED) {
+    throw new HttpsError("failed-precondition", "This service is not under dispute.");
+  }
+  const isRequester = data.requesterId === uid;
+  const isProvider = data.providerId === uid;
+  if (!isRequester && !isProvider) {
+    throw new HttpsError("permission-denied", "Only the requester or provider can submit dispute proof.");
+  }
+  const reportId = typeof data.disputeReportId === "string" ? data.disputeReportId.trim() : "";
+  const requestUpdate: Record<string, unknown> = {
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  const reportUpdate: Record<string, unknown> = {
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (isRequester) {
+    const existing = Array.isArray(data.requesterDisputeEvidenceUrls) ?
+      data.requesterDisputeEvidenceUrls.filter((entry): entry is string => typeof entry === "string") :
+      [];
+    const merged = [...existing, ...evidenceUrls].slice(0, 5);
+    requestUpdate.requesterDisputeEvidenceUrls = merged;
+    reportUpdate.requesterEvidenceUrls = merged;
+    if (merged.length > 0) reportUpdate.evidenceImageUrl = merged[0];
+  } else {
+    const existing = Array.isArray(data.providerDisputeEvidenceUrls) ?
+      data.providerDisputeEvidenceUrls.filter((entry): entry is string => typeof entry === "string") :
+      [];
+    const merged = [...existing, ...evidenceUrls].slice(0, 5);
+    requestUpdate.providerDisputeEvidenceUrls = merged;
+    reportUpdate.providerEvidenceUrls = merged;
+    const nextStatement = statement || String(data.providerDisputeStatement ?? "");
+    if (nextStatement.trim()) {
+      requestUpdate.providerDisputeStatement = nextStatement.trim();
+      reportUpdate.providerStatement = nextStatement.trim();
+    }
+  }
+  const batch = db.batch();
+  batch.set(ref, requestUpdate, {merge: true});
+  if (reportId) {
+    batch.set(db.collection(REPORTS_COLLECTION).doc(reportId), reportUpdate, {merge: true});
+  }
+  await batch.commit();
   return {success: true};
 });
 
@@ -1574,6 +1739,7 @@ export const forceServicePayout = onCall(
   await requireAdmin(db, uid);
   const {ref, data} = await getServiceRequestForActor(db, requestId);
   if (data.status !== SERVICE_STATUS_DISPUTED) throw new HttpsError("failed-precondition", "Only disputed services can be force-paid.");
+  await assertServiceDisputeReadyForAdminResolution(db, data);
   await ref.set({
     status: SERVICE_STATUS_COMPLETED_PAYOUT_PENDING,
     payoutStatus: SERVICE_PAYOUT_PENDING,
@@ -1583,6 +1749,13 @@ export const forceServicePayout = onCall(
     adminResolutionReason: reason,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
+  await resolveServiceDisputeReport(
+    db,
+    String(data.disputeReportId ?? ""),
+    uid,
+    "forcePayout",
+    reason,
+  );
   await createServicePayout(db, requestId, {...data, adminResolutionReason: reason}, uid);
   await createInAppNotification(db, {
     userId: String(data.requesterId ?? ""),
@@ -1608,6 +1781,7 @@ export const refundServicePayment = onCall(
   await requireAdmin(db, uid);
   const {ref, data} = await getServiceRequestForActor(db, requestId);
   if (data.status !== SERVICE_STATUS_DISPUTED) throw new HttpsError("failed-precondition", "Only disputed services can be refunded.");
+  await assertServiceDisputeReadyForAdminResolution(db, data);
   const invoiceId = typeof data.xenditInvoiceId === "string" ? data.xenditInvoiceId : "";
   const amount = Math.max(0, toMoneyNumber(data.amount));
   if (!invoiceId || amount <= 0) throw new HttpsError("failed-precondition", "Missing service payment details.");
@@ -1626,6 +1800,13 @@ export const refundServicePayment = onCall(
       adminResolutionReason: reason,
       updatedAt: now,
     }, {merge: true});
+    await resolveServiceDisputeReport(
+      db,
+      String(data.disputeReportId ?? ""),
+      uid,
+      "refund",
+      reason,
+    );
     await createInAppNotification(db, {
       userId: String(data.requesterId ?? ""),
       actorId: uid,
@@ -1670,6 +1851,13 @@ export const refundServicePayment = onCall(
       refundUpdate.refundCompletedAt = admin.firestore.FieldValue.serverTimestamp();
     }
     await ref.set(refundUpdate, {merge: true});
+    await resolveServiceDisputeReport(
+      db,
+      String(data.disputeReportId ?? ""),
+      uid,
+      "refund",
+      reason,
+    );
     await createInAppNotification(db, {
       userId: String(data.requesterId ?? ""),
       actorId: uid,

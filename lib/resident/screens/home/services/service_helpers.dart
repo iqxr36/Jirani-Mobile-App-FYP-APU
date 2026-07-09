@@ -386,7 +386,7 @@ String _paymentStatusLabel(ServiceRequestModel request) {
   }
   return switch (request.status) {
     AppConstants.serviceRequestStatusAcceptedAwaitingPayment => 'Unpaid',
-    AppConstants.serviceRequestStatusPaidHeld => 'Held',
+    AppConstants.serviceRequestStatusPaidHeld => 'Paid',
     AppConstants.serviceRequestStatusPaymentFailed => 'Failed',
     AppConstants.serviceRequestStatusRefunded => 'Refunded',
     _ => 'Pending',
@@ -407,10 +407,10 @@ String _payoutStatusLabel(ServiceRequestModel request) {
 
 String _ledgerMessage(ServiceRequestModel request, bool requesterView) {
   if (!request.isPaidService) {
-    return 'This is a free service request, so no escrow payment is required.';
+    return 'This is a free service request, so no payment is required.';
   }
   if (request.status == AppConstants.serviceRequestStatusDisputed) {
-    return 'Escrow is frozen while admin reviews the dispute.';
+    return 'Held payment is paused while admin reviews the dispute.';
   }
   if (request.status == AppConstants.serviceRequestStatusCompletedPayoutSent) {
     if (request.settlementMode == AppConstants.settlementModeSimulated) {

@@ -45,12 +45,16 @@ void main() {
   });
 
   group('serviceRequestStatusLabel', () {
-    test('maps escrow lifecycle statuses', () {
+    test('maps paid service lifecycle statuses', () {
       expect(
         serviceRequestStatusLabel(
           AppConstants.serviceRequestStatusAcceptedAwaitingPayment,
         ),
         'Awaiting Payment',
+      );
+      expect(
+        serviceRequestStatusLabel(AppConstants.serviceRequestStatusPaidHeld),
+        'Paid',
       );
       expect(
         serviceRequestStatusLabel(AppConstants.serviceRequestStatusInProgress),

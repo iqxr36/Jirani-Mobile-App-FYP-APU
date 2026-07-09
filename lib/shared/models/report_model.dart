@@ -15,6 +15,13 @@ class ReportModel {
     required this.title,
     required this.description,
     required this.evidenceImageUrl,
+    this.relatedServiceRequestId = '',
+    this.serviceId = '',
+    this.serviceAmount,
+    this.disputeType = '',
+    this.requesterEvidenceUrls = const <String>[],
+    this.providerEvidenceUrls = const <String>[],
+    this.providerStatement = '',
     required this.depositAmount,
     required this.minorDeductionAmount,
     required this.status,
@@ -36,6 +43,13 @@ class ReportModel {
   final String title;
   final String description;
   final String evidenceImageUrl;
+  final String relatedServiceRequestId;
+  final String serviceId;
+  final double? serviceAmount;
+  final String disputeType;
+  final List<String> requesterEvidenceUrls;
+  final List<String> providerEvidenceUrls;
+  final String providerStatement;
   final double? depositAmount;
   final double? minorDeductionAmount;
   final String status;
@@ -66,6 +80,14 @@ class ReportModel {
       title: (data['title'] as String?) ?? '',
       description: description,
       evidenceImageUrl: (data['evidenceImageUrl'] as String?) ?? '',
+      relatedServiceRequestId:
+          (data['relatedServiceRequestId'] as String?) ?? '',
+      serviceId: (data['serviceId'] as String?) ?? '',
+      serviceAmount: _toDouble(data['serviceAmount']),
+      disputeType: (data['disputeType'] as String?) ?? '',
+      requesterEvidenceUrls: _toStringList(data['requesterEvidenceUrls']),
+      providerEvidenceUrls: _toStringList(data['providerEvidenceUrls']),
+      providerStatement: (data['providerStatement'] as String?) ?? '',
       depositAmount: _toDouble(data['depositAmount']),
       minorDeductionAmount: _toDouble(data['minorDeductionAmount']),
       status: (data['status'] as String?) ?? '',
@@ -104,6 +126,13 @@ class ReportModel {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
+  }
+
+  static List<String> _toStringList(dynamic value) {
+    if (value is Iterable) {
+      return value.whereType<String>().toList(growable: false);
+    }
+    return const <String>[];
   }
 
   static DateTime _parseDate(dynamic value) {

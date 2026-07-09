@@ -504,7 +504,7 @@ class _ServiceLedgerPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  requesterView ? 'Escrow Payment' : 'Provider Payout',
+                  requesterView ? 'Payment' : 'Provider Payout',
                   style: TextStyle(
                     color: context.appInk,
                     fontSize: 15,
@@ -740,7 +740,7 @@ class _ServiceActionPanel extends StatelessWidget {
           icon: Icons.task_alt_rounded,
           title: 'Complete free service',
           message:
-              'This request does not require escrow. Mark it complete once the work is done.',
+              'This request does not require payment. Mark it complete once the work is done.',
           action: ResidentPrimaryButton(
             icon: Icons.check_rounded,
             label: busy ? 'Completing...' : 'Complete Free Service',
@@ -759,7 +759,11 @@ class _ServiceActionPanel extends StatelessWidget {
     }
 
     if (request.status == AppConstants.serviceRequestStatusDisputed) {
-      return _DisputedPanel(request: request);
+      return _DisputedPanel(
+        request: request,
+        user: user,
+        requesterView: requesterView,
+      );
     }
 
     if (request.status == AppConstants.serviceRequestStatusRejected) {
@@ -1185,9 +1189,15 @@ class _CheckoutPanel extends StatelessWidget {
 }
 
 class _DisputedPanel extends StatelessWidget {
-  const _DisputedPanel({required this.request});
+  const _DisputedPanel({
+    required this.request,
+    required this.user,
+    required this.requesterView,
+  });
 
   final ServiceRequestModel request;
+  final AppUser user;
+  final bool requesterView;
 
   @override
   Widget build(BuildContext context) {
@@ -1196,6 +1206,12 @@ class _DisputedPanel extends StatelessWidget {
         ? 'Not specified'
         : serviceDisputeTypeLabel(request.disputeType);
     final details = request.disputeReason.trim();
+    final isRequester = user.uid == request.requesterId;
+    final isProvider = user.uid == request.providerId;
+    final evidenceUrls = [
+      ...request.requesterDisputeEvidenceUrls,
+      ...request.providerDisputeEvidenceUrls,
+    ];
     return ResidentGlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1204,7 +1220,7 @@ class _DisputedPanel extends StatelessWidget {
           const SizedBox(height: 12),
           ResidentTrackingStepCard(
             icon: Icons.gavel_rounded,
-            title: 'Escrow Frozen',
+            title: 'Held Payment Paused',
             message:
                 'This service is paused while admin reviews the dispute. Funds remain held until admin decides payout or refund.',
             child: Column(
@@ -1220,6 +1236,13 @@ class _DisputedPanel extends StatelessWidget {
                     value: details,
                   ),
                 ],
+                if (request.providerDisputeStatement.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ResidentSummaryRow(
+                    label: 'Provider response',
+                    value: request.providerDisputeStatement,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 ResidentSummaryRow(
                   label: 'Summary',
@@ -1228,6 +1251,44 @@ class _DisputedPanel extends StatelessWidget {
               ],
             ),
           ),
+          if (evidenceUrls.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const _PanelLabel('Submitted Proof'),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 88,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: evidenceUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final url = evidenceUrls[index];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          if (isRequester || isProvider) ...[
+            const SizedBox(height: 14),
+            ResidentPrimaryButton(
+              icon: Icons.add_photo_alternate_outlined,
+              label: requesterView ? 'Add proof' : 'Respond with proof',
+              onTap: () => _showServiceDisputeEvidenceDialog(
+                context,
+                requestId: request.id,
+                isProvider: isProvider,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1454,7 +1515,9 @@ Future<void> _showDisputeDialog(
 ) async {
   final pageContext = context;
   final detailsController = TextEditingController();
+  final imagePicker = ImagePicker();
   var selectedType = '';
+  final proofPaths = <String>[];
   try {
     final confirmed = await showDialog<bool>(
       context: pageContext,
@@ -1470,6 +1533,22 @@ Future<void> _showDisputeDialog(
             final dialogWidth = screenWidth - 48 < maxDialogWidth
                 ? screenWidth - 48
                 : maxDialogWidth;
+            Future<void> pickProofPhotos() async {
+              final remaining = 5 - proofPaths.length;
+              if (remaining <= 0) return;
+              final picked = await imagePicker.pickMultiImage(imageQuality: 82);
+              if (picked.isEmpty) return;
+              setDialogState(() {
+                proofPaths.addAll(
+                  picked
+                      .map((file) => file.path)
+                      .whereType<String>()
+                      .where((path) => path.isNotEmpty)
+                      .take(remaining),
+                );
+              });
+            }
+
             return AlertDialog(
               title: const Text('Raise Dispute'),
               content: SizedBox(
@@ -1540,6 +1619,63 @@ Future<void> _showDisputeDialog(
                               : 'Add more context if helpful',
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: proofPaths.length >= 5 ? null : pickProofPhotos,
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        label: Text(
+                          proofPaths.isEmpty
+                              ? 'Add proof photos (optional)'
+                              : 'Add more proof (${proofPaths.length}/5)',
+                        ),
+                      ),
+                      if (proofPaths.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 72,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: proofPaths.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      File(proofPaths[index]),
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 28,
+                                        minHeight: 28,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          proofPaths.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1569,10 +1705,157 @@ Future<void> _showDisputeDialog(
             requesterId: requesterId,
             disputeType: selectedType,
             details: detailsController.text.trim(),
+            localProofPaths: proofPaths,
           );
     });
   } finally {
     detailsController.dispose();
+  }
+}
+
+Future<void> _showServiceDisputeEvidenceDialog(
+  BuildContext context, {
+  required String requestId,
+  required bool isProvider,
+}) async {
+  final pageContext = context;
+  final statementController = TextEditingController();
+  final imagePicker = ImagePicker();
+  final proofPaths = <String>[];
+  try {
+    final confirmed = await showDialog<bool>(
+      context: pageContext,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final statement = statementController.text.trim();
+            final canSubmit = proofPaths.isNotEmpty ||
+                (isProvider && statement.isNotEmpty);
+            Future<void> pickProofPhotos() async {
+              final remaining = 5 - proofPaths.length;
+              if (remaining <= 0) return;
+              final picked = await imagePicker.pickMultiImage(imageQuality: 82);
+              if (picked.isEmpty) return;
+              setDialogState(() {
+                proofPaths.addAll(
+                  picked
+                      .map((file) => file.path)
+                      .whereType<String>()
+                      .where((path) => path.isNotEmpty)
+                      .take(remaining),
+                );
+              });
+            }
+
+            return AlertDialog(
+              title: Text(isProvider ? 'Respond to dispute' : 'Add proof'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (isProvider) ...[
+                      TextField(
+                        controller: statementController,
+                        minLines: 3,
+                        maxLines: 5,
+                        onChanged: (_) => setDialogState(() {}),
+                        decoration: context.residentInputDecoration(
+                          label: 'Your response (optional)',
+                          hint: 'Explain your side for admin review',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    OutlinedButton.icon(
+                      onPressed: proofPaths.length >= 5 ? null : pickProofPhotos,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        proofPaths.isEmpty
+                            ? 'Add proof photos (optional)'
+                            : 'Add more proof (${proofPaths.length}/5)',
+                      ),
+                    ),
+                    if (proofPaths.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 72,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: proofPaths.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    File(proofPaths[index]),
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 2,
+                                  right: 2,
+                                  child: IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        proofPaths.removeAt(index);
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: !canSubmit
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (confirmed != true || !pageContext.mounted) return;
+
+    await _guard(pageContext, () async {
+      await pageContext
+          .read<services.ServiceProvider>()
+          .submitServiceDisputeEvidence(
+            requestId: requestId,
+            localProofPaths: proofPaths,
+            statement: isProvider ? statementController.text.trim() : '',
+          );
+    });
+  } finally {
+    statementController.dispose();
   }
 }
 

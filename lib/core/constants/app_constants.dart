@@ -42,6 +42,7 @@ class AppConstants {
   static const String storageResidentDocumentsPath = 'resident_documents';
   static const String storageItemImagesPath = 'item_images';
   static const String storageServiceMediaPath = 'service_media';
+  static const String storageServiceDisputeProofsPath = 'service_dispute_proofs';
   static const String storageProfileImagesPath = 'profile_images';
 
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
@@ -285,6 +286,7 @@ class AppConstants {
   static const String reportTypeDamagedItem = 'damagedItem';
   static const String reportTypeLostItem = 'lostItem';
   static const String reportTypeDepositDispute = 'depositDispute';
+  static const String reportTypeServiceDispute = 'serviceDispute';
   static const String reportTypeUserMisconduct = 'userMisconduct';
   static const String reportTypeOther = 'other';
 

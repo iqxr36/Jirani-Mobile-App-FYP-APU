@@ -30,6 +30,27 @@ service firebase.storage {
       return isBorrowProofParticipant(requestId) || isStorageAdmin();
     }
 
+    function serviceRequestData(requestId) {
+      return firestore.get(/databases/(default)/documents/serviceRequests/$(requestId)).data;
+    }
+
+    function serviceRequestExists(requestId) {
+      return firestore.exists(/databases/(default)/documents/serviceRequests/$(requestId));
+    }
+
+    function isServiceDisputeProofParticipant(requestId) {
+      return request.auth != null &&
+        serviceRequestExists(requestId) &&
+        (
+          request.auth.uid == serviceRequestData(requestId).requesterId ||
+          request.auth.uid == serviceRequestData(requestId).providerId
+        );
+    }
+
+    function canReadServiceDisputeProof(requestId) {
+      return isServiceDisputeProofParticipant(requestId) || isStorageAdmin();
+    }
+
     function isAllowedProofImageUpload() {
       return request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType in [
@@ -195,6 +216,19 @@ service firebase.storage {
       allow delete: if request.auth != null &&
         request.auth.uid == userId &&
         isBorrowProofParticipant(requestId);
+    }
+
+    // Service dispute proof images: readable by requester, provider, or admin;
+    // writable only by the uploader into their own folder with image limits.
+    match /service_dispute_proofs/{requestId}/{userId}/{allPaths=**} {
+      allow read: if canReadServiceDisputeProof(requestId);
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        isServiceDisputeProofParticipant(requestId) &&
+        isAllowedProofImageUpload();
+      allow delete: if request.auth != null &&
+        request.auth.uid == userId &&
+        isServiceDisputeProofParticipant(requestId);
     }
 
     // Chat attachments: senders upload their own files; signed-in residents

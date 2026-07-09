@@ -717,13 +717,59 @@ class ServiceService {
     required String requesterId,
     required String disputeType,
     required String details,
+    List<String> evidenceUrls = const <String>[],
   }) async {
     await _call('disputeServiceRequest', {
       'requestId': requestId,
       'requesterId': requesterId,
       'disputeType': disputeType,
       'details': details,
+      'evidenceUrls': evidenceUrls,
     });
+  }
+
+  Future<void> submitServiceDisputeEvidence({
+    required String requestId,
+    List<String> evidenceUrls = const <String>[],
+    String statement = '',
+  }) async {
+    await _call('submitServiceDisputeEvidence', {
+      'requestId': requestId,
+      'evidenceUrls': evidenceUrls,
+      'statement': statement,
+    });
+  }
+
+  Future<List<String>> uploadServiceDisputeProofs({
+    required String requestId,
+    required List<String> localPaths,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing user profile. Please sign in again.');
+    }
+    if (localPaths.isEmpty) return const <String>[];
+    if (localPaths.length > 5) {
+      throw Exception('Add up to 5 proof photos.');
+    }
+    final urls = <String>[];
+    for (var i = 0; i < localPaths.length; i += 1) {
+      final file = File(localPaths[i]);
+      if (!file.existsSync()) {
+        throw Exception('Selected proof photo is no longer available.');
+      }
+      final contentType = _serviceFileContentType(file.path, allowPdf: false);
+      final fileName = file.uri.pathSegments.isNotEmpty
+          ? file.uri.pathSegments.last
+          : 'proof_$i.jpg';
+      final safeName = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final ref = _storage.ref().child(
+        '${AppConstants.storageServiceDisputeProofsPath}/$requestId/$uid/${DateTime.now().microsecondsSinceEpoch}_$safeName',
+      );
+      await ref.putFile(file, SettableMetadata(contentType: contentType));
+      urls.add(await ref.getDownloadURL());
+    }
+    return urls;
   }
 
   Future<void> forceServicePayout({

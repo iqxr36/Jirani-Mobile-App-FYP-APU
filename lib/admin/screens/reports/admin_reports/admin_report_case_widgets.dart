@@ -5,14 +5,20 @@ class _AdminReportCaseFile extends StatelessWidget {
     required this.report,
     required this.row,
     required this.request,
+    required this.serviceRequest,
     required this.evidenceUrls,
     required this.evidenceItems,
     required this.errorMessage,
     required this.isLoading,
     required this.canResolve,
+    required this.canStartServiceDisputeReview,
+    required this.serviceDisputeReopenReview,
+    required this.canDismissServiceDisputeReport,
+    required this.serviceDisputeUnderReview,
     required this.formatDate,
     required this.onResolveBorrower,
     required this.onResolveLender,
+    required this.onStartServiceDisputeReview,
     required this.onDismissReport,
     required this.onIssueWarning,
   });
@@ -20,30 +26,49 @@ class _AdminReportCaseFile extends StatelessWidget {
   final ReportModel report;
   final AdminReportRow row;
   final BorrowRequest? request;
+  final ServiceRequestModel? serviceRequest;
   final List<String> evidenceUrls;
   final List<AdminReportEvidenceItem> evidenceItems;
   final String? errorMessage;
   final bool isLoading;
   final bool canResolve;
+  final bool canStartServiceDisputeReview;
+  final bool serviceDisputeReopenReview;
+  final bool canDismissServiceDisputeReport;
+  final bool serviceDisputeUnderReview;
   final String Function(DateTime value) formatDate;
   final VoidCallback? onResolveBorrower;
   final VoidCallback? onResolveLender;
+  final VoidCallback? onStartServiceDisputeReview;
   final VoidCallback onDismissReport;
   final VoidCallback onIssueWarning;
 
   @override
   Widget build(BuildContext context) {
     final disputeRequest = request;
+    final serviceDispute = serviceRequest;
     final isMarketplaceDispute = disputeRequest != null;
+    final isServiceDispute =
+        serviceDispute != null ||
+        report.type == AppConstants.reportTypeServiceDispute;
     final disputeReason = _bestText(
-      [request?.disputeReason, request?.minorIssueReason, row.description],
+      [
+        request?.disputeReason,
+        request?.minorIssueReason,
+        serviceDispute?.disputeReason,
+        report.description,
+        row.description,
+      ],
       fallback: 'No dispute reason was provided.',
     );
     final conductReason = _bestText(
       [row.description],
       fallback: 'No issue details were provided.',
     );
-    final deposit = request?.depositAmount ?? 0;
+    final deposit = request?.depositAmount ??
+        serviceDispute?.amount ??
+        report.serviceAmount ??
+        0;
     final deduction = request?.minorDeductionAmount ?? 0;
     final resident = _residentById(
       context.watch<AdminProvider>().residents,
@@ -53,6 +78,9 @@ class _AdminReportCaseFile extends StatelessWidget {
         report.reporterId.trim().isNotEmpty &&
         report.reportedUserId.trim().isNotEmpty &&
         report.reporterId != report.reportedUserId;
+    final serviceDisputeType = serviceDisputeTypeLabel(
+      serviceDispute?.disputeType ?? report.disputeType,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,12 +88,19 @@ class _AdminReportCaseFile extends StatelessWidget {
         _CaseSummaryBanner(
           title: row.title,
           priority: row.priority,
-          status: request?.status ?? report.status,
+          status: isServiceDispute
+              ? serviceDispute != null
+                  ? serviceRequestStatusLabel(serviceDispute.status)
+                  : reportStatusLabel(report.status)
+              : (request?.status ?? report.status),
           depositLabel: 'RM ${deposit.toStringAsFixed(2)}',
           itemTitle: isMarketplaceDispute
               ? disputeRequest.itemTitle
+              : isServiceDispute
+              ? (serviceDispute?.serviceTitle ?? row.title)
               : adminStatusLabel(report.type),
-          showDeposit: isMarketplaceDispute,
+          showDeposit: isMarketplaceDispute || isServiceDispute,
+          depositMetricLabel: isServiceDispute ? 'Payment held' : 'Deposit held',
         ),
         const SizedBox(height: 16),
         if (disputeRequest != null) ...[
@@ -93,6 +128,50 @@ class _AdminReportCaseFile extends StatelessWidget {
                 : 'No partial deduction requested',
             evidenceItems: evidenceItems,
           ),
+        ] else if (isServiceDispute) ...[
+          if (serviceDispute != null)
+            _PartyComparison(
+              borrowerName: serviceDispute.requesterName,
+              borrowerEmail: '',
+              borrowerId: serviceDispute.requesterId,
+              borrowerPhone: '',
+              borrowerReputationScore: null,
+              borrowerVerified: null,
+              lenderName: serviceDispute.providerName,
+              lenderEmail: '',
+              lenderId: serviceDispute.providerId,
+              borrowerRole: 'Requester',
+              lenderRole: 'Provider',
+            )
+          else
+            _ResidentSubjectCard(
+              name: row.target,
+              userId: report.reportedUserId,
+              email: resident?.email ?? '',
+              phone: resident?.phoneNumber ?? '',
+              trustScore: resident?.communityTrustScore,
+              totalReviews: resident?.totalReviews,
+              verified: resident?.isVerifiedResident,
+              accountFlagged: resident?.accountFlagged,
+            ),
+          const SizedBox(height: 16),
+          _ServiceDisputeProblemCard(
+            reason: disputeReason,
+            reportedBy: row.reporter,
+            reportedAgainst: row.target,
+            disputeTypeLabel: serviceDisputeType,
+            amountLabel: deposit > 0
+                ? 'RM ${deposit.toStringAsFixed(2)}'
+                : 'Not available',
+            providerStatement: _bestText(
+              [
+                serviceDispute?.providerDisputeStatement,
+                report.providerStatement,
+              ],
+              fallback: '',
+            ),
+            evidenceItems: evidenceItems,
+          ),
         ] else ...[
           _ResidentSubjectCard(
             name: row.target,
@@ -118,6 +197,7 @@ class _AdminReportCaseFile extends StatelessWidget {
         _TransactionFactsCard(
           report: report,
           request: request,
+          serviceRequest: serviceRequest,
           formatDate: formatDate,
         ),
         const SizedBox(height: 20),
@@ -126,6 +206,16 @@ class _AdminReportCaseFile extends StatelessWidget {
             isLoading: isLoading,
             onResolveBorrower: onResolveBorrower,
             onResolveLender: onResolveLender,
+          )
+        else if (isServiceDispute)
+          _ServiceDisputeActions(
+            isLoading: isLoading,
+            canStartReview: canStartServiceDisputeReview,
+            reopenReview: serviceDisputeReopenReview,
+            underReview: serviceDisputeUnderReview,
+            canDismissReport: canDismissServiceDisputeReport,
+            onStartReview: onStartServiceDisputeReview,
+            onDismissReport: onDismissReport,
           )
         else
           _GeneralReportActions(
@@ -158,6 +248,7 @@ class _CaseSummaryBanner extends StatelessWidget {
     required this.depositLabel,
     required this.itemTitle,
     this.showDeposit = true,
+    this.depositMetricLabel = 'Deposit held',
   });
 
   final String title;
@@ -166,6 +257,7 @@ class _CaseSummaryBanner extends StatelessWidget {
   final String depositLabel;
   final String itemTitle;
   final bool showDeposit;
+  final String depositMetricLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +306,7 @@ class _CaseSummaryBanner extends StatelessWidget {
               AdminStatusPill(label: priority, color: AdminColors.danger),
               AdminStatusPill(label: status, color: AdminColors.primary),
               if (showDeposit)
-                _MiniMetric(label: 'Deposit held', value: depositLabel),
+                _MiniMetric(label: depositMetricLabel, value: depositLabel),
             ],
           ),
         ],
@@ -234,6 +326,8 @@ class _PartyComparison extends StatelessWidget {
     required this.lenderName,
     required this.lenderEmail,
     required this.lenderId,
+    this.borrowerRole = 'Borrower',
+    this.lenderRole = 'Lender',
   });
 
   final String borrowerName;
@@ -245,6 +339,8 @@ class _PartyComparison extends StatelessWidget {
   final String lenderName;
   final String lenderEmail;
   final String lenderId;
+  final String borrowerRole;
+  final String lenderRole;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +349,7 @@ class _PartyComparison extends StatelessWidget {
         final stacked = constraints.maxWidth < 720;
         final cards = [
           _PartyCard(
-            role: 'Borrower',
+            role: borrowerRole,
             name: borrowerName,
             email: borrowerEmail,
             id: borrowerId,
@@ -264,7 +360,7 @@ class _PartyComparison extends StatelessWidget {
             accent: AdminColors.primary,
           ),
           _PartyCard(
-            role: 'Lender',
+            role: lenderRole,
             name: lenderName,
             email: lenderEmail,
             id: lenderId,
@@ -712,15 +808,120 @@ class _DisputeProblemCard extends StatelessWidget {
   }
 }
 
+class _ServiceDisputeProblemCard extends StatelessWidget {
+  const _ServiceDisputeProblemCard({
+    required this.reason,
+    required this.reportedBy,
+    required this.reportedAgainst,
+    required this.disputeTypeLabel,
+    required this.amountLabel,
+    required this.providerStatement,
+    required this.evidenceItems,
+  });
+
+  final String reason;
+  final String reportedBy;
+  final String reportedAgainst;
+  final String disputeTypeLabel;
+  final String amountLabel;
+  final String providerStatement;
+  final List<AdminReportEvidenceItem> evidenceItems;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final heading = Row(
+                children: const [
+                  Icon(Icons.handyman_outlined, color: AdminColors.primary),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Service Dispute',
+                      style: TextStyle(
+                        color: AdminColors.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+              final proofButton = AdminReportEvidencePreview(
+                evidenceItems: evidenceItems,
+              );
+              if (constraints.maxWidth < 460) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    heading,
+                    if (evidenceItems.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      proofButton,
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: heading),
+                  proofButton,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          Text(
+            reason,
+            style: const TextStyle(
+              color: AdminColors.ink,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MiniMetric(label: 'Reported by', value: reportedBy),
+              _MiniMetric(label: 'Against', value: reportedAgainst),
+              _MiniMetric(label: 'Dispute type', value: disputeTypeLabel),
+              _MiniMetric(label: 'Payment held', value: amountLabel),
+            ],
+          ),
+          if (providerStatement.trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _NotesBlock(title: 'Provider response', body: providerStatement),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _TransactionFactsCard extends StatelessWidget {
   const _TransactionFactsCard({
     required this.report,
     required this.request,
+    required this.serviceRequest,
     required this.formatDate,
   });
 
   final ReportModel report;
   final BorrowRequest? request;
+  final ServiceRequestModel? serviceRequest;
   final String Function(DateTime value) formatDate;
 
   @override
@@ -756,6 +957,24 @@ class _TransactionFactsCard extends StatelessWidget {
               _CompactFact(
                 label: 'Admin resolution',
                 value: adminResolutionLabel(request!.adminResolution),
+              ),
+          ],
+          if (serviceRequest != null) ...[
+            _CompactFact(label: 'Service request ID', value: serviceRequest!.id),
+            _CompactFact(label: 'Service ID', value: serviceRequest!.serviceId),
+            _CompactFact(label: 'Service', value: serviceRequest!.serviceTitle),
+            _CompactFact(
+              label: 'Request status',
+              value: serviceRequestStatusLabel(serviceRequest!.status),
+            ),
+            _CompactFact(
+              label: 'Payment status',
+              value: paymentStatusLabel(serviceRequest!.paymentStatus),
+            ),
+            if (serviceRequest!.amount != null)
+              _CompactFact(
+                label: 'Amount held',
+                value: 'RM ${serviceRequest!.amount!.toStringAsFixed(2)}',
               ),
           ],
           _CompactFact(label: 'Report ID', value: report.id),
@@ -821,6 +1040,92 @@ class _ResolutionActions extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ServiceDisputeActions extends StatelessWidget {
+  const _ServiceDisputeActions({
+    required this.isLoading,
+    required this.canStartReview,
+    required this.reopenReview,
+    required this.underReview,
+    required this.canDismissReport,
+    required this.onStartReview,
+    required this.onDismissReport,
+  });
+
+  final bool isLoading;
+  final bool canStartReview;
+  final bool reopenReview;
+  final bool underReview;
+  final bool canDismissReport;
+  final VoidCallback? onStartReview;
+  final VoidCallback onDismissReport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (underReview)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AdminColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AdminColors.primary.withValues(alpha: 0.18)),
+            ),
+            child: const Text(
+              'This dispute is under review. Use Transactions to force payout or refund once you have reviewed the evidence.',
+              style: TextStyle(
+                color: AdminColors.ink,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        if (!canDismissReport) ...[
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AdminColors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AdminColors.warning.withValues(alpha: 0.2)),
+            ),
+            child: const Text(
+              'Payment is still held on this service. Dismissing the report does not release funds. Start review, then resolve payout or refund in Transactions.',
+              style: TextStyle(
+                color: AdminColors.ink,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            if (canStartReview)
+              FilledButton.icon(
+                onPressed: isLoading ? null : onStartReview,
+                icon: const Icon(Icons.fact_check_rounded),
+                label: Text(reopenReview ? 'Reopen Review' : 'Start Review'),
+              ),
+            if (canDismissReport)
+              OutlinedButton.icon(
+                onPressed: isLoading ? null : onDismissReport,
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Dismiss Report'),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

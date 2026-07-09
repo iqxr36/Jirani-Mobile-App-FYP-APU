@@ -84,6 +84,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final selectedRequest = selectedReport == null
         ? null
         : _relatedBorrowRequest(adminProvider.borrowRequests, selectedReport);
+    final selectedServiceRequest = selectedReport == null
+        ? null
+        : _relatedServiceRequest(adminProvider.serviceRequests, selectedReport);
     return AdminPageScroll(
       children: [
         AdminControlBar(
@@ -163,20 +166,41 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               final evidenceUrls = _evidenceImageUrls(
                 activeReport,
                 selectedRequest,
+                selectedServiceRequest,
               );
               final evidenceItems = _evidenceItems(
                 activeReport,
                 selectedRequest,
+                selectedServiceRequest,
               );
               final detailContent = _AdminReportCaseFile(
                 report: activeReport,
                 row: activeRow,
                 request: selectedRequest,
+                serviceRequest: selectedServiceRequest,
                 evidenceUrls: evidenceUrls,
                 evidenceItems: evidenceItems,
                 errorMessage: adminProvider.errorMessage,
                 isLoading: adminProvider.isLoading,
                 canResolve: _canResolveDispute(activeReport, selectedRequest),
+                canStartServiceDisputeReview: _canStartServiceDisputeReview(
+                  activeReport,
+                  adminProvider,
+                  selectedServiceRequest,
+                ),
+                serviceDisputeReopenReview: _isServiceDisputeReopenReview(
+                  activeReport,
+                  adminProvider,
+                  selectedServiceRequest,
+                ),
+                canDismissServiceDisputeReport:
+                    adminProvider.canDismissServiceDisputeReport(
+                  selectedServiceRequest,
+                ),
+                serviceDisputeUnderReview: _isServiceDisputeUnderReview(
+                  activeReport,
+                  adminProvider,
+                ),
                 formatDate: _formatFullDate,
                 onResolveBorrower: selectedRequest == null
                     ? null
@@ -194,6 +218,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                           request: selectedRequest,
                           resolveForBorrower: false,
                         ),
+                onStartServiceDisputeReview: _canStartServiceDisputeReview(
+                      activeReport,
+                      adminProvider,
+                      selectedServiceRequest,
+                    )
+                    ? () => _startServiceDisputeReview(
+                          context,
+                          report: activeReport,
+                        )
+                    : null,
                 onDismissReport: () => _dismissReport(
                   context,
                   report: activeReport,
@@ -264,13 +298,66 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     return null;
   }
 
+  ServiceRequestModel? _relatedServiceRequest(
+    List<ServiceRequestModel> requests,
+    ReportModel report,
+  ) {
+    final id = report.relatedServiceRequestId.trim();
+    if (id.isEmpty) return null;
+    for (final request in requests) {
+      if (request.id == id) return request;
+    }
+    return null;
+  }
+
   bool _canResolveDispute(ReportModel report, BorrowRequest? request) {
     return report.type == AppConstants.reportTypeDepositDispute &&
         report.status != AppConstants.reportStatusResolved &&
         request?.status == AppConstants.borrowStatusDisputed;
   }
 
-  List<String> _evidenceImageUrls(ReportModel report, BorrowRequest? request) {
+  bool _canStartServiceDisputeReview(
+    ReportModel report,
+    AdminProvider adminProvider,
+    ServiceRequestModel? serviceRequest,
+  ) {
+    if (report.type != AppConstants.reportTypeServiceDispute) return false;
+    if (serviceRequest != null) {
+      return adminProvider.canStartServiceDisputeReviewFor(serviceRequest);
+    }
+    final status = adminProvider.effectiveReportStatus(report);
+    return status.isEmpty ||
+        status == AppConstants.reportStatusOpen ||
+        status == AppConstants.reportStatusDismissed;
+  }
+
+  bool _isServiceDisputeReopenReview(
+    ReportModel report,
+    AdminProvider adminProvider,
+    ServiceRequestModel? serviceRequest,
+  ) {
+    if (report.type != AppConstants.reportTypeServiceDispute) return false;
+    if (serviceRequest != null) {
+      return adminProvider.isServiceDisputeReportReopen(serviceRequest);
+    }
+    return adminProvider.effectiveReportStatus(report) ==
+        AppConstants.reportStatusDismissed;
+  }
+
+  bool _isServiceDisputeUnderReview(
+    ReportModel report,
+    AdminProvider adminProvider,
+  ) {
+    return report.type == AppConstants.reportTypeServiceDispute &&
+        adminProvider.effectiveReportStatus(report) ==
+            AppConstants.reportStatusUnderReview;
+  }
+
+  List<String> _evidenceImageUrls(
+    ReportModel report,
+    BorrowRequest? request,
+    ServiceRequestModel? serviceRequest,
+  ) {
     final seen = <String>{};
     final urls = <String>[];
     for (final url in [
@@ -278,6 +365,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       request?.disputeEvidenceImageUrl ?? '',
       request?.minorIssuePhotoUrl ?? '',
       request?.returnProofImageUrl ?? '',
+      ...report.requesterEvidenceUrls,
+      ...report.providerEvidenceUrls,
+      ...serviceRequest?.requesterDisputeEvidenceUrls ?? const <String>[],
+      ...serviceRequest?.providerDisputeEvidenceUrls ?? const <String>[],
       ...report.reportedMessages
           .where(
             (message) =>
@@ -296,6 +387,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   List<AdminReportEvidenceItem> _evidenceItems(
     ReportModel report,
     BorrowRequest? request,
+    ServiceRequestModel? serviceRequest,
   ) {
     final seen = <String>{};
     final items = <AdminReportEvidenceItem>[];
@@ -310,6 +402,20 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       add('After return proof', request.returnProofImageUrl);
       add('Dispute proof', request.disputeEvidenceImageUrl);
       add('Minor damage photo', request.minorIssuePhotoUrl);
+    }
+    if (serviceRequest != null) {
+      for (final url in serviceRequest.requesterDisputeEvidenceUrls) {
+        add('Requester proof', url);
+      }
+      for (final url in serviceRequest.providerDisputeEvidenceUrls) {
+        add('Provider proof', url);
+      }
+    }
+    for (final url in report.requesterEvidenceUrls) {
+      add('Requester proof', url);
+    }
+    for (final url in report.providerEvidenceUrls) {
+      add('Provider proof', url);
     }
     add('Report proof', report.evidenceImageUrl);
     for (final message in report.reportedMessages.where(
@@ -411,6 +517,28 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
     controller.dispose();
     return result;
+  }
+
+  Future<void> _startServiceDisputeReview(
+    BuildContext context, {
+    required ReportModel report,
+  }) async {
+    final provider = context.read<AdminProvider>();
+    final adminUid = provider.currentAdminUid;
+    if (adminUid == null || adminUid.isEmpty) return;
+    await provider.markServiceDisputeUnderReview(
+      report: report,
+      adminUid: adminUid,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          provider.errorMessage ??
+              'Service dispute marked under review. Resolve payout or refund in Transactions.',
+        ),
+      ),
+    );
   }
 
   // Admin reports UI feature: dismisses a report after collecting an admin reason.

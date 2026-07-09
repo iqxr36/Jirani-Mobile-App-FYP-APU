@@ -43,6 +43,7 @@ class AdminProvider extends ChangeNotifier {
   String _communityName = '';
   bool _includeAllCommunities = false;
   bool _isConfigured = false;
+  final Map<String, String> _reportStatusOverrides = <String, String>{};
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -170,6 +171,15 @@ class AdminProvider extends ChangeNotifier {
         )
         .listen((reports) {
           _reports = reports;
+          _reportStatusOverrides.removeWhere((reportId, overrideStatus) {
+            for (final report in reports) {
+              if (report.id == reportId &&
+                  report.status.trim() == overrideStatus.trim()) {
+                return true;
+              }
+            }
+            return false;
+          });
           _refreshLocalDashboardStats();
         }, onError: _handleStreamError);
 
@@ -321,7 +331,6 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  // Admin reports feature: sends a warning notification to the reported resident.
   Future<void> issueUserWarningForReport({
     required ReportModel report,
     required String adminUid,
@@ -341,6 +350,92 @@ class AdminProvider extends ChangeNotifier {
         adminUid: adminUid,
         message: message,
       );
+      await loadDashboardStats();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  ReportModel? serviceDisputeReportFor(ServiceRequestModel request) {
+    final reportId = request.disputeReportId.trim();
+    if (reportId.isEmpty) return null;
+    for (final report in _reports) {
+      if (report.id == reportId) return report;
+    }
+    for (final report in _visibleReports) {
+      if (report.id == reportId) return report;
+    }
+    return null;
+  }
+
+  String effectiveReportStatus(ReportModel report) {
+    final override = _reportStatusOverrides[report.id]?.trim();
+    if (override != null && override.isNotEmpty) return override;
+    return report.status.trim();
+  }
+
+  String effectiveReportStatusForRequest(ServiceRequestModel request) {
+    final reportId = request.disputeReportId.trim();
+    if (reportId.isEmpty) return '';
+    final override = _reportStatusOverrides[reportId]?.trim();
+    if (override != null && override.isNotEmpty) return override;
+    final report = serviceDisputeReportFor(request);
+    return report?.status.trim() ?? '';
+  }
+
+  bool canStartServiceDisputeReviewFor(ServiceRequestModel request) {
+    final report = serviceDisputeReportFor(request);
+    if (report == null) return false;
+    final status = effectiveReportStatus(report);
+    return status.isEmpty ||
+        status == AppConstants.reportStatusOpen ||
+        status == AppConstants.reportStatusDismissed;
+  }
+
+  bool isServiceDisputeReportReopen(ServiceRequestModel request) {
+    final report = serviceDisputeReportFor(request);
+    if (report == null) return false;
+    return effectiveReportStatus(report) == AppConstants.reportStatusDismissed;
+  }
+
+  bool canDismissServiceDisputeReport(ServiceRequestModel? serviceRequest) {
+    if (serviceRequest == null) return true;
+    return serviceRequest.status != AppConstants.serviceRequestStatusDisputed;
+  }
+
+  bool canResolveServiceDispute(ServiceRequestModel request) {
+    final reportId = request.disputeReportId.trim();
+    if (reportId.isEmpty) return true;
+    final report = serviceDisputeReportFor(request);
+    if (report != null) {
+      return effectiveReportStatus(report) ==
+          AppConstants.reportStatusUnderReview;
+    }
+    final override = _reportStatusOverrides[reportId]?.trim();
+    return override == AppConstants.reportStatusUnderReview;
+  }
+
+  Future<void> markServiceDisputeUnderReview({
+    required ReportModel report,
+    required String adminUid,
+  }) async {
+    if (!_reportIsInAdminScope(report)) {
+      _errorMessage = 'This report is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.markServiceDisputeUnderReview(
+        reportId: report.id,
+        adminUid: adminUid,
+      );
+      _reportStatusOverrides[report.id] = AppConstants.reportStatusUnderReview;
       await loadDashboardStats();
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

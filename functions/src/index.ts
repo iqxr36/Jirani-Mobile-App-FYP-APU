@@ -60,6 +60,7 @@ export {
   saveTestPayoutAccount,
   submitServiceArrivalCode,
   submitServiceCompletionCode,
+  submitServiceDisputeEvidence,
   xenditWebhook,
 } from "./payments";
 

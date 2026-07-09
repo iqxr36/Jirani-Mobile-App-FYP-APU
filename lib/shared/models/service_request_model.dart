@@ -38,6 +38,10 @@ class ServiceRequestModel {
     this.disputeType = '',
     this.disputeReason = '',
     this.disputedAt,
+    this.disputeReportId = '',
+    this.requesterDisputeEvidenceUrls = const <String>[],
+    this.providerDisputeEvidenceUrls = const <String>[],
+    this.providerDisputeStatement = '',
     this.adminResolvedAt,
     this.adminResolvedBy = '',
     this.adminResolution = '',
@@ -81,6 +85,10 @@ class ServiceRequestModel {
   final String disputeType;
   final String disputeReason;
   final DateTime? disputedAt;
+  final String disputeReportId;
+  final List<String> requesterDisputeEvidenceUrls;
+  final List<String> providerDisputeEvidenceUrls;
+  final String providerDisputeStatement;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
   final String adminResolution;
@@ -128,6 +136,10 @@ class ServiceRequestModel {
       disputeType: (data['disputeType'] as String?) ?? '',
       disputeReason: (data['disputeReason'] as String?) ?? '',
       disputedAt: _parseOptionalDate(data['disputedAt']),
+      disputeReportId: (data['disputeReportId'] as String?) ?? '',
+      requesterDisputeEvidenceUrls: _toStringList(data['requesterDisputeEvidenceUrls']),
+      providerDisputeEvidenceUrls: _toStringList(data['providerDisputeEvidenceUrls']),
+      providerDisputeStatement: (data['providerDisputeStatement'] as String?) ?? '',
       adminResolvedAt: _parseOptionalDate(data['adminResolvedAt']),
       adminResolvedBy: (data['adminResolvedBy'] as String?) ?? '',
       adminResolution: (data['adminResolution'] as String?) ?? '',
@@ -140,6 +152,13 @@ class ServiceRequestModel {
   bool get isPaidService => amount != null && amount! > 0;
   bool get isHourlyService =>
       durationHours != null && durationHours! > 0 && hourlyRate != null;
+
+  static List<String> _toStringList(dynamic value) {
+    if (value is Iterable) {
+      return value.whereType<String>().toList(growable: false);
+    }
+    return const <String>[];
+  }
 
   static double? _toDouble(dynamic value) {
     if (value == null) return null;

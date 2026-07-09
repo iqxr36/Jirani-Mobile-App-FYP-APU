@@ -162,6 +162,62 @@ mixin _AdminServiceReportsMixin
     }
   }
 
+  // Admin service dispute feature: marks a linked report under review before payout/refund.
+  Future<void> markServiceDisputeUnderReview({
+    required String reportId,
+    required String adminUid,
+  }) async {
+    if (reportId.trim().isEmpty) {
+      throw Exception('Report ID is missing.');
+    }
+    if (adminUid.trim().isEmpty) {
+      throw Exception('Admin user ID is missing.');
+    }
+
+    final reportRef = _firestore
+        .collection(AppConstants.reportsCollection)
+        .doc(reportId.trim());
+    final reportSnap = await reportRef.get();
+    final reportData = reportSnap.data();
+    if (reportData == null) {
+      throw Exception('Report not found.');
+    }
+    if (reportData['type'] != AppConstants.reportTypeServiceDispute) {
+      throw Exception('Only service dispute reports can be marked under review.');
+    }
+    final status = ((reportData['status'] as String?) ?? '').trim();
+    if (status == AppConstants.reportStatusResolved) {
+      throw Exception('This report is already resolved.');
+    }
+    if (status == AppConstants.reportStatusUnderReview) {
+      return;
+    }
+
+    final reopeningDismissed = status == AppConstants.reportStatusDismissed;
+    final update = <String, dynamic>{
+      'status': AppConstants.reportStatusUnderReview,
+      'reviewStartedAt': FieldValue.serverTimestamp(),
+      'reviewStartedBy': adminUid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (reopeningDismissed) {
+      update['dismissalReason'] = FieldValue.delete();
+      update['dismissedAt'] = FieldValue.delete();
+      update['dismissedBy'] = FieldValue.delete();
+    }
+
+    try {
+      await reportRef.update(update);
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Permission denied. Check Firestore security rules for report review.',
+        );
+      }
+      throw Exception(e.message ?? e.code);
+    }
+  }
+
   // Admin reports feature: sends a warning notification to the reported user and increments warning count.
   Future<void> issueUserWarningForReport({
     required String reportId,

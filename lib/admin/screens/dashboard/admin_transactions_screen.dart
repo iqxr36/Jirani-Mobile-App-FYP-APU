@@ -6,6 +6,7 @@ import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
+import 'package:jirani/shared/models/report_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/shared/utils/display_labels.dart';
 import 'package:provider/provider.dart';
@@ -183,6 +184,13 @@ class _ServiceDisputeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
     final amount = request.amount ?? 0;
+    final canResolve = admin.canResolveServiceDispute(request);
+    final linkedReport = admin.serviceDisputeReportFor(request);
+    final reportStatus = linkedReport == null
+        ? admin.effectiveReportStatusForRequest(request)
+        : admin.effectiveReportStatus(linkedReport);
+    final canStartReview = admin.canStartServiceDisputeReviewFor(request);
+    final isReopenReview = admin.isServiceDisputeReportReopen(request);
     return _AdminPaymentCard(
       icon: Icons.handyman_outlined,
       title: request.serviceTitle,
@@ -209,15 +217,52 @@ class _ServiceDisputeCard extends StatelessWidget {
         ),
         if (request.disputeReason.trim().isNotEmpty)
           _PaymentMetaRow(label: 'Details', value: request.disputeReason),
+        if (request.disputeReportId.trim().isNotEmpty) ...[
+          _PaymentMetaRow(
+            label: 'Report status',
+            value: reportStatus.isEmpty
+                ? 'Not loaded'
+                : reportStatusLabel(reportStatus),
+          ),
+          if (!canResolve) ...[
+            const SizedBox(height: 8),
+            Text(
+              linkedReport == null
+                  ? 'Linked report not found in this admin view. Open Reports to review the case first.'
+                  : reportStatus == AppConstants.reportStatusDismissed
+                  ? 'This report was dismissed but payment is still held. Reopen review to enable payout or refund.'
+                  : reportStatus == AppConstants.reportStatusUnderReview
+                  ? 'Report is under review. Payout and refund should be available now.'
+                  : 'Start review on this dispute before forcing payout or refund.',
+              style: const TextStyle(
+                color: AdminColors.muted,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
         const SizedBox(height: 12),
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
+            if (canStartReview && linkedReport != null)
+              _AdminActionButton(
+                label: isReopenReview ? 'Reopen Review' : 'Start Review',
+                icon: Icons.fact_check_rounded,
+                onTap: admin.isLoading
+                    ? null
+                    : () => _startServiceDisputeReview(
+                          context,
+                          report: linkedReport,
+                          reopening: isReopenReview,
+                        ),
+              ),
             _AdminActionButton(
               label: 'Force Payout',
               icon: Icons.payments_outlined,
-              onTap: admin.isLoading
+              onTap: admin.isLoading || !canResolve
                   ? null
                   : () => _showServiceResolutionDialog(
                         context,
@@ -229,7 +274,7 @@ class _ServiceDisputeCard extends StatelessWidget {
               label: 'Refund',
               icon: Icons.reply_rounded,
               danger: true,
-              onTap: admin.isLoading
+              onTap: admin.isLoading || !canResolve
                   ? null
                   : () => _showServiceResolutionDialog(
                         context,
@@ -240,6 +285,31 @@ class _ServiceDisputeCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Future<void> _startServiceDisputeReview(
+    BuildContext context, {
+    required ReportModel report,
+    bool reopening = false,
+  }) async {
+    final admin = context.read<AdminProvider>();
+    final adminUid = admin.currentAdminUid;
+    if (adminUid == null || adminUid.isEmpty) return;
+    await admin.markServiceDisputeUnderReview(
+      report: report,
+      adminUid: adminUid,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          admin.errorMessage ??
+              (reopening
+                  ? 'Dispute review reopened. You can now force payout or refund.'
+                  : 'Dispute marked under review. You can now force payout or refund.'),
+        ),
+      ),
     );
   }
 

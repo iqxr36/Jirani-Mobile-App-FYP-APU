@@ -179,7 +179,8 @@ AdminReportRow adminReportRowFromReport(ReportModel report) {
   final priority = switch (report.type) {
     AppConstants.reportTypeDamagedItem ||
     AppConstants.reportTypeLostItem ||
-    AppConstants.reportTypeDepositDispute =>
+    AppConstants.reportTypeDepositDispute ||
+    AppConstants.reportTypeServiceDispute =>
       'High',
     AppConstants.reportTypeUserMisconduct => 'Med',
     _ => 'Low',
@@ -194,8 +195,9 @@ AdminReportRow adminReportRowFromReport(ReportModel report) {
       ? 'No description provided.'
       : report.description;
   final isMarketplaceDispute = report.relatedBorrowRequestId.trim().isNotEmpty;
+  final isServiceDispute = report.type == AppConstants.reportTypeServiceDispute;
   final isChatReport = report.chatId.trim().isNotEmpty;
-  final inboxSubtitle = isMarketplaceDispute
+  final inboxSubtitle = isMarketplaceDispute || isServiceDispute
       ? '$reporter - $description'
       : report.reporterId == report.reportedUserId ||
             report.title == 'Low Community Trust Score'
@@ -209,9 +211,11 @@ AdminReportRow adminReportRowFromReport(ReportModel report) {
     reporter: reporter,
     reporterEmail: report.reporterId,
     target: target,
-    content: report.itemId.isEmpty
-        ? report.relatedBorrowRequestId
-        : 'Item ${report.itemId}',
+    content: report.itemId.isNotEmpty
+        ? 'Item ${report.itemId}'
+        : report.relatedServiceRequestId.trim().isNotEmpty
+        ? 'Service ${report.relatedServiceRequestId}'
+        : report.relatedBorrowRequestId,
     description: description,
     inboxSubtitle: inboxSubtitle,
   );
