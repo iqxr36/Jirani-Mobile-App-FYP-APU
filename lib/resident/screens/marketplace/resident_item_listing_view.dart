@@ -22,6 +22,7 @@ import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
+import 'package:jirani/shared/utils/display_labels.dart';
 import 'package:jirani/resident/screens/chat/resident_chat_thread_view.dart';
 import 'package:jirani/resident/screens/profile/public_resident_profile_view.dart';
 import 'package:provider/provider.dart';

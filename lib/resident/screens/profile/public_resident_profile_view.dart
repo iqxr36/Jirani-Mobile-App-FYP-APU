@@ -11,6 +11,7 @@ import 'package:jirani/shared/data/repositories/public_profile_repository.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/public_resident_profile.dart';
 import 'package:jirani/shared/models/review_model.dart';
+import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
 

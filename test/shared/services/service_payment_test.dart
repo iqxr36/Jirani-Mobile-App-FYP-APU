@@ -38,6 +38,33 @@ void main() {
       expect(request.isPaidService, isTrue);
     });
 
+    test('parses dispute type and reason from Firestore data', () {
+      final now = Timestamp.fromDate(DateTime(2026, 7, 5, 12));
+      final request = ServiceRequestModel.fromMap('request-disputed', {
+        'serviceId': 'service-1',
+        'serviceTitle': 'Math tutoring',
+        'providerId': 'provider-1',
+        'providerName': 'Provider',
+        'requesterId': 'requester-1',
+        'requesterName': 'Requester',
+        'message': 'Need help',
+        'preferredDate': now,
+        'preferredTime': '10:00 AM',
+        'status': AppConstants.serviceRequestStatusDisputed,
+        'disputeType': AppConstants.serviceDisputeTypePoorQuality,
+        'disputeReason': 'Lessons were rushed and incomplete',
+        'createdAt': now,
+        'updatedAt': now,
+      });
+
+      expect(request.disputeType, AppConstants.serviceDisputeTypePoorQuality);
+      expect(request.disputeReason, 'Lessons were rushed and incomplete');
+      expect(
+        AppConstants.serviceDisputeTypeLabel(request.disputeType),
+        'Poor quality or unsatisfactory work',
+      );
+    });
+
     test('converts agreed service amount to minor units', () {
       final now = Timestamp.fromDate(DateTime(2026, 7, 5, 12));
       final request = ServiceRequestModel.fromMap('request-2', {

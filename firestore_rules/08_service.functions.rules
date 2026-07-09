@@ -30,7 +30,47 @@
         request.resource.data.imageUrls == resource.data.imageUrls &&
         request.resource.data.certificateUrls == resource.data.certificateUrls &&
         request.resource.data.certificateNames == resource.data.certificateNames &&
-        request.resource.data.availability == resource.data.availability;
+        request.resource.data.availability == resource.data.availability &&
+        request.resource.data.get('availableWeekdays', []) == resource.data.get('availableWeekdays', []) &&
+        request.resource.data.get('availabilityStartMinutes', 0) == resource.data.get('availabilityStartMinutes', 0) &&
+        request.resource.data.get('availabilityEndMinutes', 0) == resource.data.get('availabilityEndMinutes', 0);
+    }
+
+    function validServiceAvailabilityFields(data) {
+      return data.availableWeekdays is list &&
+        data.availableWeekdays.size() > 0 &&
+        data.availabilityStartMinutes is int &&
+        data.availabilityEndMinutes is int &&
+        data.availabilityStartMinutes >= 0 &&
+        data.availabilityEndMinutes > data.availabilityStartMinutes &&
+        data.availabilityEndMinutes <= 1440;
+    }
+
+    function hasValidServiceAvailability(data) {
+      return !('availableWeekdays' in data) || validServiceAvailabilityFields(data);
+    }
+
+    function hasStructuredServiceAvailability(serviceData) {
+      return serviceData.keys().hasAll([
+          'availableWeekdays',
+          'availabilityStartMinutes',
+          'availabilityEndMinutes',
+        ]) &&
+        serviceData.availableWeekdays is list &&
+        serviceData.availableWeekdays.size() > 0 &&
+        serviceData.availabilityStartMinutes is int &&
+        serviceData.availabilityEndMinutes is int &&
+        serviceData.availabilityEndMinutes > serviceData.availabilityStartMinutes;
+    }
+
+    function validServiceAvailabilityMatch(serviceData, data) {
+      return !hasStructuredServiceAvailability(serviceData) || (
+        data.preferredWeekday is int &&
+        data.preferredTimeMinutes is int &&
+        serviceData.availableWeekdays.hasAny([data.preferredWeekday]) &&
+        data.preferredTimeMinutes >= serviceData.availabilityStartMinutes &&
+        data.preferredTimeMinutes < serviceData.availabilityEndMinutes
+      );
     }
 
     function validServiceListingKeys(data) {
@@ -54,6 +94,9 @@
         'certificateUrls',
         'certificateNames',
         'availability',
+        'availableWeekdays',
+        'availabilityStartMinutes',
+        'availabilityEndMinutes',
         'status',
         'createdAt',
         'updatedAt',
@@ -90,6 +133,19 @@
       ];
     }
 
+    // Dispute fields (disputeType, disputeReason, disputedAt) are written by
+    // Cloud Functions only — clients cannot open disputes via validServiceRequestUpdate.
+    function validServiceDisputeType(disputeType) {
+      return disputeType in [
+        'incomplete',
+        'poorQuality',
+        'noShow',
+        'scopeMismatch',
+        'safetyConcern',
+        'other',
+      ];
+    }
+
     function serviceIsEditableListing() {
       return resource.data.status == 'active';
     }
@@ -120,6 +176,9 @@
           'certificateUrls',
           'certificateNames',
           'availability',
+          'availableWeekdays',
+          'availabilityStartMinutes',
+          'availabilityEndMinutes',
           'updatedAt',
         ]) &&
         request.resource.data.title is string &&
@@ -137,7 +196,8 @@
         request.resource.data.certificateUrls is list &&
         request.resource.data.certificateNames is list &&
         request.resource.data.certificateUrls.size() == request.resource.data.certificateNames.size() &&
-        validServicePricing(request.resource.data);
+        validServicePricing(request.resource.data) &&
+        hasValidServiceAvailability(request.resource.data);
     }
 
     function providerCanSetServiceStatus() {
@@ -169,6 +229,7 @@
         data.certificateUrls.size() == data.certificateNames.size() &&
         validServicePricing(data) &&
         data.availability is string &&
+        validServiceAvailabilityFields(data) &&
         data.providerName is string &&
         data.providerEmail is string &&
         data.communityName is string &&
@@ -208,6 +269,11 @@
         request.resource.data.message == resource.data.message &&
         request.resource.data.preferredDate == resource.data.preferredDate &&
         request.resource.data.preferredTime == resource.data.preferredTime &&
+        request.resource.data.get('preferredWeekday', null) == resource.data.get('preferredWeekday', null) &&
+        request.resource.data.get('preferredTimeMinutes', null) == resource.data.get('preferredTimeMinutes', null) &&
+        request.resource.data.get('amount', null) == resource.data.get('amount', null) &&
+        request.resource.data.get('durationHours', null) == resource.data.get('durationHours', null) &&
+        request.resource.data.get('hourlyRate', null) == resource.data.get('hourlyRate', null) &&
         request.resource.data.createdAt == resource.data.createdAt;
     }
 
@@ -219,11 +285,23 @@
       return signedIn() && resource.data.requesterId == request.auth.uid;
     }
 
+    function serviceRequestUpdatedAtIsNow() {
+      return request.resource.data.updatedAt == request.time;
+    }
+
     function providerCanAcceptServiceRequest() {
       return serviceRequestProvider() &&
         resource.data.status == 'pending' &&
-        request.resource.data.status == 'accepted' &&
+        request.resource.data.status in ['accepted', 'acceptedAwaitingPayment'] &&
+        (
+          (resource.data.get('amount', 0) is number &&
+            resource.data.get('amount', 0) > 0 &&
+            request.resource.data.status == 'acceptedAwaitingPayment') ||
+          ((!(resource.data.get('amount', 0) is number) || resource.data.get('amount', 0) <= 0) &&
+            request.resource.data.status == 'accepted')
+        ) &&
         serviceRequestSnapshotUnchanged() &&
+        serviceRequestUpdatedAtIsNow() &&
         serviceRequestChangedKeysOnly(['status', 'updatedAt']);
     }
 
@@ -232,6 +310,7 @@
         resource.data.status == 'pending' &&
         request.resource.data.status == 'rejected' &&
         serviceRequestSnapshotUnchanged() &&
+        serviceRequestUpdatedAtIsNow() &&
         serviceRequestChangedKeysOnly(['status', 'updatedAt']);
     }
 
@@ -240,6 +319,7 @@
         resource.data.status == 'accepted' &&
         request.resource.data.status == 'completed' &&
         serviceRequestSnapshotUnchanged() &&
+        serviceRequestUpdatedAtIsNow() &&
         serviceRequestChangedKeysOnly(['status', 'updatedAt']);
     }
 
@@ -248,6 +328,16 @@
         resource.data.status == 'pending' &&
         request.resource.data.status == 'cancelled' &&
         serviceRequestSnapshotUnchanged() &&
+        serviceRequestUpdatedAtIsNow() &&
+        serviceRequestChangedKeysOnly(['status', 'updatedAt']);
+    }
+
+    function requesterCanCancelAwaitingPaymentServiceRequest() {
+      return serviceRequestRequester() &&
+        resource.data.status == 'acceptedAwaitingPayment' &&
+        request.resource.data.status == 'cancelled' &&
+        serviceRequestSnapshotUnchanged() &&
+        serviceRequestUpdatedAtIsNow() &&
         serviceRequestChangedKeysOnly(['status', 'updatedAt']);
     }
 
@@ -255,29 +345,95 @@
       return providerCanAcceptServiceRequest() ||
         providerCanRejectServiceRequest() ||
         providerCanCompleteServiceRequest() ||
-        requesterCanCancelServiceRequest();
+        requesterCanCancelServiceRequest() ||
+        requesterCanCancelAwaitingPaymentServiceRequest();
+    }
+
+    function validServiceRequestCreateKeys(data) {
+      return data.keys().hasOnly([
+        'id',
+        'serviceId',
+        'serviceTitle',
+        'providerId',
+        'providerName',
+        'requesterId',
+        'requesterName',
+        'message',
+        'preferredDate',
+        'preferredTime',
+        'preferredWeekday',
+        'preferredTimeMinutes',
+        'amount',
+        'durationHours',
+        'hourlyRate',
+        'currency',
+        'paymentStatus',
+        'paymentId',
+        'paymentProvider',
+        'platformFeeAmount',
+        'providerPayoutAmount',
+        'payoutStatus',
+        'refundStatus',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ]);
     }
 
     function validServiceRequestCreate(requestId) {
       let data = request.resource.data;
+      let serviceData = get(/databases/$(database)/documents/services/$(data.serviceId)).data;
       return isVerifiedResident() &&
+        validServiceRequestCreateKeys(data) &&
         data.id == requestId &&
         data.requesterId == request.auth.uid &&
         data.serviceId is string &&
         exists(/databases/$(database)/documents/services/$(data.serviceId)) &&
-        exists(/databases/$(database)/documents/users/$(get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId)) &&
-        get(/databases/$(database)/documents/services/$(data.serviceId)).data.status == 'active' &&
-        get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId != request.auth.uid &&
-        data.providerId == get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerId &&
-        data.serviceTitle == get(/databases/$(database)/documents/services/$(data.serviceId)).data.title &&
-        data.providerName == get(/databases/$(database)/documents/services/$(data.serviceId)).data.providerName &&
+        exists(/databases/$(database)/documents/users/$(serviceData.providerId)) &&
+        serviceData.status == 'active' &&
+        serviceData.providerId != request.auth.uid &&
+        data.providerId == serviceData.providerId &&
+        data.serviceTitle == serviceData.title &&
+        data.providerName == serviceData.providerName &&
         userDoc(data.providerId).data.communityId == myUserDoc().data.communityId &&
         data.requesterName is string &&
         data.message is string &&
         data.preferredDate is timestamp &&
         data.preferredTime is string &&
+        data.preferredWeekday is int &&
+        data.preferredTimeMinutes is int &&
+        data.preferredWeekday >= 1 &&
+        data.preferredWeekday <= 7 &&
+        data.preferredTimeMinutes >= 0 &&
+        data.preferredTimeMinutes < 1440 &&
+        validServiceAvailabilityMatch(serviceData, data) &&
+        data.amount is number &&
+        data.amount > 0 &&
+        data.currency == 'myr' &&
+        data.paymentStatus == 'pending' &&
+        data.paymentId == '' &&
+        data.paymentProvider == '' &&
+        data.platformFeeAmount == 0 &&
+        data.providerPayoutAmount == data.amount &&
+        data.payoutStatus == 'notStarted' &&
+        data.refundStatus == 'not_started' &&
+        (
+          (
+            serviceData.pricingMode == 'hourly' &&
+            data.durationHours is int &&
+            data.durationHours >= 1 &&
+            data.durationHours <= 12 &&
+            data.hourlyRate == serviceData.hourlyRate &&
+            data.amount == serviceData.hourlyRate * data.durationHours
+          ) ||
+          (
+            serviceData.pricingMode == 'fixedJob' &&
+            data.durationHours == null &&
+            data.hourlyRate == null &&
+            data.amount == serviceData.fixedJobPrice
+          )
+        ) &&
         data.status == 'pending' &&
         data.createdAt == request.time &&
         data.updatedAt == request.time;
     }
-

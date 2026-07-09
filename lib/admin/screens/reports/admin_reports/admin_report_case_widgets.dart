@@ -744,15 +744,18 @@ class _TransactionFactsCard extends StatelessWidget {
             _CompactFact(label: 'Transaction ID', value: request!.id),
             _CompactFact(label: 'Item ID', value: request!.itemId),
             _CompactFact(label: 'Item', value: request!.itemTitle),
-            _CompactFact(label: 'Request status', value: request!.status),
+            _CompactFact(
+              label: 'Request status',
+              value: borrowRequestStatusLabel(request!.status),
+            ),
             _CompactFact(
               label: 'Deposit decision',
-              value: request!.depositDecision,
+              value: depositDecisionLabel(request!.depositDecision),
             ),
             if (request!.adminResolution.trim().isNotEmpty)
               _CompactFact(
                 label: 'Admin resolution',
-                value: request!.adminResolution,
+                value: adminResolutionLabel(request!.adminResolution),
               ),
           ],
           _CompactFact(label: 'Report ID', value: report.id),
@@ -763,8 +766,11 @@ class _TransactionFactsCard extends StatelessWidget {
               label: 'Report category',
               value: chatReportCategoryLabel(report.reportCategory),
             ),
-          _CompactFact(label: 'Report type', value: report.type),
-          _CompactFact(label: 'Report status', value: report.status),
+          _CompactFact(label: 'Report type', value: reportTypeLabel(report.type)),
+          _CompactFact(
+            label: 'Report status',
+            value: reportStatusLabel(report.status),
+          ),
           _CompactFact(label: 'Created', value: formatDate(report.createdAt)),
           _CompactFact(label: 'Updated', value: formatDate(report.updatedAt)),
         ],

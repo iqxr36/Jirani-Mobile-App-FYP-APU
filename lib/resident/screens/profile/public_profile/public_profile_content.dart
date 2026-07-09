@@ -38,6 +38,11 @@ class _PublicProfileContent extends StatelessWidget {
             const SizedBox(height: 14),
             _PublicListingsSection(ownerId: user.uid),
             const SizedBox(height: 14),
+            _PublicServicesSection(
+              providerId: user.uid,
+              communityId: user.communityId,
+            ),
+            const SizedBox(height: 14),
             _AnonymousReviewsSection(
               reviews: reviews.take(4).toList(),
               isLoading:

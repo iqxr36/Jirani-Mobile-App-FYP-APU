@@ -44,6 +44,21 @@ mixin _AdminServicePaymentsMixin on _AdminServiceBase {
     });
   }
 
+  Future<int> repairStuckMarketplaceSettlement({
+    String borrowRequestId = '',
+  }) async {
+    final callable = _functions.httpsCallable('repairStuckMarketplaceSettlement');
+    final result = await callable.call<Map<String, dynamic>>({
+      if (borrowRequestId.trim().isNotEmpty)
+        'borrowRequestId': borrowRequestId.trim(),
+    });
+    final data = result.data;
+    final repaired = data['repairedCount'];
+    if (repaired is int) return repaired;
+    if (repaired is num) return repaired.toInt();
+    return 0;
+  }
+
   Future<void> forceServicePayout({
     required String serviceRequestId,
     required String reason,

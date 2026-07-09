@@ -6,6 +6,7 @@ import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/utils/display_labels.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:provider/provider.dart';
 
@@ -552,13 +553,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     );
   }
 
-  String _accountStatusLabel(String status) {
-    return switch (status) {
-      AppConstants.accountStatusSuspended => 'Suspended',
-      AppConstants.accountStatusArchived => 'Archived',
-      _ => 'Active',
-    };
-  }
+  String _accountStatusLabel(String status) => accountStatusLabel(status);
 
   Color _accountStatusColor(String status) {
     return switch (status) {

@@ -26,13 +26,25 @@ const baseService = {
   providerId: PROVIDER_ID,
   providerName: 'Service Provider',
   providerEmail: 'provider@example.com',
+  providerPhotoUrl: '',
   title: 'House cleaning',
   description: 'Weekly cleaning help',
-  category: 'cleaning',
+  category: 'homeCleaningUpkeep',
   priceType: 'fixed',
   priceAmount: 50,
+  pricingMode: 'fixedJob',
+  hourlyRate: null,
+  fixedJobPrice: 50,
+  imageUrls: ['https://example.com/service.jpg'],
+  certificateUrls: [],
+  certificateNames: [],
   availability: 'Weekends',
+  availableWeekdays: [6, 7],
+  availabilityStartMinutes: 9 * 60,
+  availabilityEndMinutes: 17 * 60,
   status: 'active',
+  communityId: 'community-1',
+  communityName: 'Palm Grove',
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -99,10 +111,16 @@ describe('service provider updates', () => {
       updateDoc(doc(db, 'services', SERVICE_ID), {
         title: 'Deep cleaning',
         description: 'Updated description',
-        category: 'cleaning',
+        category: 'homeCleaningUpkeep',
         priceType: 'fixed',
         priceAmount: 60,
-        availability: 'Saturday mornings',
+        pricingMode: 'fixedJob',
+        hourlyRate: null,
+        fixedJobPrice: 60,
+        availability: 'Sat, Sun, 9:00 AM - 5:00 PM',
+        availableWeekdays: [6, 7],
+        availabilityStartMinutes: 9 * 60,
+        availabilityEndMinutes: 17 * 60,
         updatedAt: new Date(),
       }),
     );
@@ -168,6 +186,33 @@ describe('service delete and neighbor access', () => {
   test('neighbor in same community can read a service listing', async () => {
     const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
     await assertSucceeds(getDoc(doc(db, 'services', SERVICE_ID)));
+  });
+
+  test('neighbor can list public profile active services by provider and community', async () => {
+    const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'services'),
+          where('providerId', '==', PROVIDER_ID),
+          where('communityId', '==', 'community-1'),
+          where('status', '==', 'active'),
+        ),
+      ),
+    );
+  });
+
+  test('neighbor cannot list public profile services without community constraint', async () => {
+    const db = testEnv.authenticatedContext(NEIGHBOR_ID).firestore();
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'services'),
+          where('providerId', '==', PROVIDER_ID),
+          where('status', '==', 'active'),
+        ),
+      ),
+    );
   });
 
   test('resident in another community cannot read service listings', async () => {

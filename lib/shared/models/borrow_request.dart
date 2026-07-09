@@ -95,6 +95,7 @@ class BorrowRequest {
     this.manualPayoutMarkedBy = '',
     this.manualPayoutReference = '',
     this.manualPayoutNote = '',
+    this.settlementMode = '',
     this.borrowerReviewSubmitted = false,
     this.borrowerReviewSubmittedAt,
     this.ownerReviewSubmitted = false,
@@ -202,6 +203,7 @@ class BorrowRequest {
   final String manualPayoutMarkedBy;
   final String manualPayoutReference;
   final String manualPayoutNote;
+  final String settlementMode;
   /// Marketplace reviews: prevents borrower and lender from submitting duplicate post-transaction reviews.
   final bool borrowerReviewSubmitted;
   final DateTime? borrowerReviewSubmittedAt;
@@ -301,6 +303,7 @@ class BorrowRequest {
     String? manualPayoutMarkedBy,
     String? manualPayoutReference,
     String? manualPayoutNote,
+    String? settlementMode,
     bool? borrowerReviewSubmitted,
     DateTime? borrowerReviewSubmittedAt,
     bool? ownerReviewSubmitted,
@@ -415,6 +418,7 @@ class BorrowRequest {
       manualPayoutReference:
           manualPayoutReference ?? this.manualPayoutReference,
       manualPayoutNote: manualPayoutNote ?? this.manualPayoutNote,
+      settlementMode: settlementMode ?? this.settlementMode,
       borrowerReviewSubmitted:
           borrowerReviewSubmitted ?? this.borrowerReviewSubmitted,
       borrowerReviewSubmittedAt:
@@ -537,6 +541,7 @@ class BorrowRequest {
       manualPayoutReference:
           (data['manualPayoutReference'] as String?) ?? '',
       manualPayoutNote: (data['manualPayoutNote'] as String?) ?? '',
+      settlementMode: (data['settlementMode'] as String?) ?? '',
       borrowerReviewSubmitted:
           data['borrowerReviewSubmitted'] as bool? ?? false,
       borrowerReviewSubmittedAt: _toNullableDate(
@@ -703,6 +708,7 @@ class BorrowRequest {
       'manualPayoutReference':
           manualPayoutReference.isEmpty ? null : manualPayoutReference,
       'manualPayoutNote': manualPayoutNote.isEmpty ? null : manualPayoutNote,
+      'settlementMode': settlementMode.isEmpty ? null : settlementMode,
       'borrowerReviewSubmitted': borrowerReviewSubmitted,
       'borrowerReviewSubmittedAt': borrowerReviewSubmittedAt == null
           ? null

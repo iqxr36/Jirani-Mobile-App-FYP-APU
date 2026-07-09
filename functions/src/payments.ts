@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 import {createHash, randomInt} from "crypto";
 import {logger} from "firebase-functions";
-import {defineSecret} from "firebase-functions/params";
+import {defineSecret, defineString} from "firebase-functions/params";
 import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {createInAppNotification} from "./notifications";
 
@@ -93,9 +93,59 @@ const ALLOWED_TEST_PAYOUT_CHANNELS = new Set([
   "MY_RHB",
   "MY_TNG",
 ]);
+const SERVICE_DISPUTE_TYPE_INCOMPLETE = "incomplete";
+const SERVICE_DISPUTE_TYPE_POOR_QUALITY = "poorQuality";
+const SERVICE_DISPUTE_TYPE_NO_SHOW = "noShow";
+const SERVICE_DISPUTE_TYPE_SCOPE_MISMATCH = "scopeMismatch";
+const SERVICE_DISPUTE_TYPE_SAFETY_CONCERN = "safetyConcern";
+const SERVICE_DISPUTE_TYPE_OTHER = "other";
+const ALLOWED_SERVICE_DISPUTE_TYPES = new Set([
+  SERVICE_DISPUTE_TYPE_INCOMPLETE,
+  SERVICE_DISPUTE_TYPE_POOR_QUALITY,
+  SERVICE_DISPUTE_TYPE_NO_SHOW,
+  SERVICE_DISPUTE_TYPE_SCOPE_MISMATCH,
+  SERVICE_DISPUTE_TYPE_SAFETY_CONCERN,
+  SERVICE_DISPUTE_TYPE_OTHER,
+]);
+const SETTLEMENT_MODE_SIMULATED = "simulated";
+const SETTLEMENT_MODE_LIVE = "live";
+const RESOLVED_DEPOSIT_STATUSES = new Set([
+  DEPOSIT_STATUS_REFUNDED,
+  DEPOSIT_STATUS_PARTIALLY_REFUNDED,
+  DEPOSIT_STATUS_DEDUCTED,
+]);
 
 const xenditSecret = defineSecret("XENDIT_SECRET_KEY");
 const xenditWebhookToken = defineSecret("XENDIT_WEBHOOK_TOKEN");
+const paymentSettlementMode = defineString("PAYMENT_SETTLEMENT_MODE", {
+  default: SETTLEMENT_MODE_SIMULATED,
+});
+
+function isSimulatedSettlement(): boolean {
+  const mode = (process.env.PAYMENT_SETTLEMENT_MODE ??
+    paymentSettlementMode.value() ??
+    SETTLEMENT_MODE_SIMULATED).toLowerCase();
+  return mode !== SETTLEMENT_MODE_LIVE;
+}
+
+function currentSettlementMode(): string {
+  return isSimulatedSettlement() ? SETTLEMENT_MODE_SIMULATED : SETTLEMENT_MODE_LIVE;
+}
+
+function manualPayoutStatusAfterDepositDecision(refundFailed: boolean): string {
+  return refundFailed ? MANUAL_PAYOUT_BLOCKED : MANUAL_PAYOUT_PENDING_MANUAL;
+}
+
+function xenditRefundStatusToAppStatus(status: string): string {
+  const normalized = status.toUpperCase();
+  if (["SUCCEEDED", "SUCCESSFUL", "COMPLETED", "SUCCESS"].includes(normalized)) {
+    return REFUND_STATUS_SUCCEEDED;
+  }
+  if (["FAILED", "CANCELED", "CANCELLED", "EXPIRED"].includes(normalized)) {
+    return REFUND_STATUS_FAILED;
+  }
+  return REFUND_STATUS_PENDING;
+}
 
 function requireUid(auth: {uid?: string} | undefined): string {
   const uid = auth?.uid;
@@ -135,6 +185,14 @@ function moneyToXenditAmount(value: number): number {
   return Math.max(0, Math.round(value * 100) / 100);
 }
 
+function moneyToMinorUnits(value: number): number {
+  return Math.round(Math.max(0, value) * 100);
+}
+
+function expectedHourlyServiceAmountMinor(hourlyRate: number, durationHours: number): number {
+  return moneyToMinorUnits(hourlyRate * durationHours);
+}
+
 function expectedMarketplaceAmount(data: DocumentData): number {
   const usageFee = Math.max(0, toMoneyNumber(data.usageFeeAmount));
   const deposit = Math.max(0, toMoneyNumber(data.depositAmount));
@@ -150,7 +208,7 @@ function moneyLabel(value: number): string {
 }
 
 function serviceAmountMinor(data: DocumentData): number {
-  return Math.round(Math.max(0, toMoneyNumber(data.amount)) * 100);
+  return moneyToMinorUnits(toMoneyNumber(data.amount));
 }
 
 function serviceCodeHash(requestId: string, purpose: string, code: string): string {
@@ -176,6 +234,29 @@ function assertFourDigitCode(code: string): void {
   }
 }
 
+function assertServiceDisputeInput(disputeType: string, details: string): void {
+  if (!ALLOWED_SERVICE_DISPUTE_TYPES.has(disputeType)) {
+    throw new HttpsError("invalid-argument", "Choose a valid dispute type.");
+  }
+  if (disputeType === SERVICE_DISPUTE_TYPE_OTHER && !details.trim()) {
+    throw new HttpsError("invalid-argument", "Please describe the issue when choosing Other.");
+  }
+}
+
+function serviceDisputeNotificationBody(disputeType: string, details: string): string {
+  const labels: Record<string, string> = {
+    [SERVICE_DISPUTE_TYPE_INCOMPLETE]: "Service not performed or incomplete",
+    [SERVICE_DISPUTE_TYPE_POOR_QUALITY]: "Poor quality or unsatisfactory work",
+    [SERVICE_DISPUTE_TYPE_NO_SHOW]: "Provider late or did not show up",
+    [SERVICE_DISPUTE_TYPE_SCOPE_MISMATCH]: "Work not as agreed",
+    [SERVICE_DISPUTE_TYPE_SAFETY_CONCERN]: "Damage, mess, or safety concern",
+    [SERVICE_DISPUTE_TYPE_OTHER]: "Other issue",
+  };
+  const label = labels[disputeType] ?? "Service dispute";
+  const trimmed = details.trim();
+  return trimmed ? `${label}: ${trimmed}` : label;
+}
+
 function safeErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim().slice(0, 500);
@@ -190,6 +271,7 @@ function notificationIdFor(...parts: string[]): string {
 async function xenditPost(
   path: string,
   body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {},
 ): Promise<Record<string, unknown>> {
   const secretKey = process.env.XENDIT_SECRET_KEY;
   if (!secretKey) {
@@ -204,6 +286,7 @@ async function xenditPost(
     headers: {
       "Authorization": `Basic ${auth}`,
       "Content-Type": "application/json",
+      ...extraHeaders,
     },
     body: JSON.stringify(body),
   });
@@ -412,8 +495,22 @@ async function validateXenditServicePayment(
   ]);
   const serviceData = serviceSnapshot.data();
   const providerData = providerSnapshot.data();
-  if (!serviceData || serviceData.providerId !== receiverId || serviceData.priceType !== "fixed") {
-    throw new HttpsError("failed-precondition", "Only fixed-price services can use escrow checkout.");
+  if (!serviceData || serviceData.providerId !== receiverId) {
+    throw new HttpsError("failed-precondition", "Service payment target is invalid.");
+  }
+  const pricingMode = readString(serviceData, "pricingMode");
+  if (pricingMode === "hourly") {
+    const durationHours = Number(requestData.durationHours ?? 0);
+    const hourlyRate = toMoneyNumber(requestData.hourlyRate ?? serviceData.hourlyRate);
+    if (!Number.isInteger(durationHours) || durationHours < 1 || durationHours > 12 || hourlyRate <= 0) {
+      throw new HttpsError("failed-precondition", "Hourly service duration is invalid.");
+    }
+    const expectedHourlyAmount = expectedHourlyServiceAmountMinor(hourlyRate, durationHours);
+    if (amountValue !== expectedHourlyAmount) {
+      throw new HttpsError("invalid-argument", "Hourly service amount does not match duration.");
+    }
+  } else if (pricingMode !== "fixedJob" && serviceData.priceType !== "fixed") {
+    throw new HttpsError("failed-precondition", "Only priced services can use escrow checkout.");
   }
   if (!providerData || providerData.payoutAccountStatus !== PAYOUT_ACCOUNT_VERIFIED) {
     throw new HttpsError("failed-precondition", "The provider must verify payout details before paid bookings.");
@@ -958,9 +1055,6 @@ async function updateMarketplaceRefundFromXenditEvent(
   if (status === REFUND_STATUS_SUCCEEDED) {
     update.refundFailureReason = "";
     update.depositRefundedAt = now;
-    if (requestData.manualPayoutStatus !== MANUAL_PAYOUT_PAID) {
-      update.manualPayoutStatus = MANUAL_PAYOUT_PENDING_MANUAL;
-    }
   } else if (status === REFUND_STATUS_FAILED) {
     update.depositStatus = DEPOSIT_STATUS_REFUND_FAILED;
     update.refundFailureReason = failureReason || "Xendit refund failed.";
@@ -971,21 +1065,6 @@ async function updateMarketplaceRefundFromXenditEvent(
   }
 
   await requestRef.set(update, {merge: true});
-
-  const wasReady = requestData.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL ||
-    requestData.manualPayoutStatus === MANUAL_PAYOUT_PAID;
-  const becomesReady = status === REFUND_STATUS_SUCCEEDED && !wasReady;
-  if (becomesReady) {
-    const ownerId = typeof requestData.ownerId === "string" ? requestData.ownerId : "";
-    const itemTitle = typeof requestData.itemTitle === "string" && requestData.itemTitle.trim() ?
-      requestData.itemTitle.trim() :
-      "your marketplace item";
-    await notifyManualPayoutReady(db, requestRef.id, {
-      ownerId,
-      itemTitle,
-      lenderTotalEarning: Math.max(0, toMoneyNumber(requestData.lenderTotalEarning)),
-    }, "system");
-  }
 }
 
 async function updatePaymentFromXenditEvent(eventBody: Record<string, unknown>): Promise<void> {
@@ -1157,16 +1236,50 @@ export const xenditWebhook = onRequest(
   }
 });
 
+async function applySimulatedServicePayout(
+  db: admin.firestore.Firestore,
+  requestId: string,
+  requestData: DocumentData,
+  actorId: string,
+  amount: number,
+): Promise<{payoutId: string; payoutStatus: string}> {
+  const requestRef = db.collection(SERVICE_REQUESTS_COLLECTION).doc(requestId);
+  const providerId = typeof requestData.providerId === "string" ? requestData.providerId : "";
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  await requestRef.set({
+    payoutStatus: SERVICE_PAYOUT_SENT,
+    status: SERVICE_STATUS_COMPLETED_PAYOUT_SENT,
+    settlementMode: SETTLEMENT_MODE_SIMULATED,
+    xenditPayoutId: "",
+    payoutFailureReason: "",
+    payoutSentAt: now,
+    updatedAt: now,
+  }, {merge: true});
+  await createInAppNotification(db, {
+    userId: providerId,
+    actorId,
+    type: NOTIFICATION_TYPE_SERVICE_PAYOUT_SENT,
+    title: "Service payout sent",
+    body: `Your ${moneyLabel(amount)} test payout for "${String(requestData.serviceTitle ?? "your service")}" was recorded.`,
+    category: "Services",
+    serviceRequestId: requestId,
+    notificationId: notificationIdFor("servicePayoutSent", requestId, providerId),
+  });
+  return {payoutId: "", payoutStatus: SERVICE_PAYOUT_SENT};
+}
+
 async function createServicePayout(
   db: admin.firestore.Firestore,
   requestId: string,
   requestData: DocumentData,
   actorId: string,
-): Promise<{payoutId: string}> {
+  options: {throwOnFailure?: boolean} = {},
+): Promise<{payoutId: string; payoutStatus: string; payoutFailureReason?: string}> {
+  const throwOnFailure = options.throwOnFailure ?? true;
   const requestRef = db.collection(SERVICE_REQUESTS_COLLECTION).doc(requestId);
   const existingPayoutId = typeof requestData.xenditPayoutId === "string" ? requestData.xenditPayoutId : "";
   if (existingPayoutId && requestData.payoutStatus === SERVICE_PAYOUT_SENT) {
-    return {payoutId: existingPayoutId};
+    return {payoutId: existingPayoutId, payoutStatus: SERVICE_PAYOUT_SENT};
   }
 
   const amount = Math.max(0, toMoneyNumber(requestData.providerPayoutAmount || requestData.amount));
@@ -1189,9 +1302,14 @@ async function createServicePayout(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
 
+  if (isSimulatedSettlement()) {
+    return applySimulatedServicePayout(db, requestId, requestData, actorId, amount);
+  }
+
   try {
+    const payoutReferenceId = `service_${requestId}_payout`;
     const payout = await xenditPost("/v2/payouts", {
-      reference_id: `service_${requestId}_payout`,
+      reference_id: payoutReferenceId,
       amount: moneyToXenditAmount(amount),
       currency: DEFAULT_CURRENCY.toUpperCase(),
       channel_code: payoutChannel,
@@ -1201,6 +1319,8 @@ async function createServicePayout(
       },
       description: `Jirani service payout for ${String(requestData.serviceTitle ?? "service")}`,
       metadata: {serviceRequestId: requestId, providerId, actorId},
+    }, {
+      "Idempotency-key": payoutReferenceId,
     });
     const payoutId = readString(payout, "id") || readString(payout, "payout_id");
     const payoutStatus = xenditStatusToServicePayoutStatus(
@@ -1210,6 +1330,7 @@ async function createServicePayout(
     const payoutUpdate: Record<string, unknown> = {
       payoutStatus,
       xenditPayoutId: payoutId,
+      settlementMode: SETTLEMENT_MODE_LIVE,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (payoutStatus === SERVICE_PAYOUT_SENT) {
@@ -1230,7 +1351,7 @@ async function createServicePayout(
         notificationId: notificationIdFor("servicePayoutSent", requestId, providerId),
       });
     }
-    return {payoutId};
+    return {payoutId, payoutStatus};
   } catch (error) {
     const message = safeErrorMessage(error);
     await requestRef.set({
@@ -1248,7 +1369,14 @@ async function createServicePayout(
       serviceRequestId: requestId,
       notificationId: notificationIdFor("servicePayoutFailed", requestId, providerId),
     });
-    throw new HttpsError("internal", message);
+    if (throwOnFailure) {
+      throw new HttpsError("internal", message);
+    }
+    return {
+      payoutId: "",
+      payoutStatus: SERVICE_PAYOUT_FAILED,
+      payoutFailureReason: message,
+    };
   }
 }
 
@@ -1382,7 +1510,9 @@ export const submitServiceCompletionCode = onCall(
     updatedAt: now,
   }, {merge: true});
   const latest = await ref.get();
-  await createServicePayout(db, requestId, latest.data() ?? data, uid);
+  await createServicePayout(db, requestId, latest.data() ?? data, uid, {
+    throwOnFailure: false,
+  });
   await createInAppNotification(db, {
     userId: String(data.requesterId ?? ""),
     actorId: uid,
@@ -1401,16 +1531,21 @@ export const disputeServiceRequest = onCall(async (request) => {
   const input = asRecord(request.data);
   const requestId = readString(input, "requestId");
   const requesterId = readString(input, "requesterId");
-  const reason = readString(input, "reason");
+  const disputeType = readString(input, "disputeType");
+  const details = readString(input, "details");
+  const legacyReason = readString(input, "reason");
+  const resolvedDetails = details || legacyReason;
+  assertServiceDisputeInput(disputeType, resolvedDetails);
   if (uid !== requesterId) throw new HttpsError("permission-denied", "Only the requester can dispute this service.");
-  if (!reason) throw new HttpsError("invalid-argument", "A dispute reason is required.");
   const db = admin.firestore();
   const {ref, data} = await getServiceRequestForActor(db, requestId);
   if (data.requesterId !== uid) throw new HttpsError("permission-denied", "Only the requester can dispute this service.");
   if (data.status !== SERVICE_STATUS_IN_PROGRESS) throw new HttpsError("failed-precondition", "Only in-progress services can be disputed.");
+  const notificationBody = serviceDisputeNotificationBody(disputeType, resolvedDetails);
   await ref.set({
     status: SERVICE_STATUS_DISPUTED,
-    disputeReason: reason,
+    disputeType,
+    disputeReason: resolvedDetails.trim(),
     disputedAt: admin.firestore.FieldValue.serverTimestamp(),
     payoutStatus: SERVICE_PAYOUT_BLOCKED,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1420,7 +1555,7 @@ export const disputeServiceRequest = onCall(async (request) => {
     actorId: uid,
     type: NOTIFICATION_TYPE_SERVICE_DISPUTED,
     title: "Service disputed",
-    body: reason,
+    body: notificationBody,
     category: "Services",
     serviceRequestId: requestId,
     notificationId: notificationIdFor("serviceDisputed", requestId, String(data.providerId ?? "")),
@@ -1440,6 +1575,8 @@ export const forceServicePayout = onCall(
   const {ref, data} = await getServiceRequestForActor(db, requestId);
   if (data.status !== SERVICE_STATUS_DISPUTED) throw new HttpsError("failed-precondition", "Only disputed services can be force-paid.");
   await ref.set({
+    status: SERVICE_STATUS_COMPLETED_PAYOUT_PENDING,
+    payoutStatus: SERVICE_PAYOUT_PENDING,
     adminResolvedAt: admin.firestore.FieldValue.serverTimestamp(),
     adminResolvedBy: uid,
     adminResolution: "forcePayout",
@@ -1474,6 +1611,34 @@ export const refundServicePayment = onCall(
   const invoiceId = typeof data.xenditInvoiceId === "string" ? data.xenditInvoiceId : "";
   const amount = Math.max(0, toMoneyNumber(data.amount));
   if (!invoiceId || amount <= 0) throw new HttpsError("failed-precondition", "Missing service payment details.");
+
+  if (isSimulatedSettlement()) {
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    await ref.set({
+      status: SERVICE_STATUS_REFUNDED,
+      refundStatus: REFUND_STATUS_SUCCEEDED,
+      settlementMode: SETTLEMENT_MODE_SIMULATED,
+      xenditRefundId: "",
+      refundFailureReason: "",
+      adminResolvedAt: now,
+      adminResolvedBy: uid,
+      adminResolution: "refund",
+      adminResolutionReason: reason,
+      updatedAt: now,
+    }, {merge: true});
+    await createInAppNotification(db, {
+      userId: String(data.requesterId ?? ""),
+      actorId: uid,
+      type: NOTIFICATION_TYPE_SERVICE_REFUNDED,
+      title: "Service payment refunded",
+      body: `Admin refunded ${moneyLabel(amount)} for "${String(data.serviceTitle ?? "your service")}" (test settlement).`,
+      category: "Services",
+      serviceRequestId: requestId,
+      notificationId: notificationIdFor("serviceRefunded", requestId, String(data.requesterId ?? "")),
+    });
+    return {success: true, xenditRefundId: ""};
+  }
+
   await ref.set({
     refundStatus: REFUND_STATUS_PENDING,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1488,9 +1653,11 @@ export const refundServicePayment = onCall(
       metadata: {serviceRequestId: requestId, adminId: uid},
     });
     const refundId = readString(refund, "id") || readString(refund, "refund_id");
-    await ref.set({
+    const refundStatus = xenditRefundStatusToAppStatus(readString(refund, "status"));
+    const refundUpdate: Record<string, unknown> = {
       status: SERVICE_STATUS_REFUNDED,
-      refundStatus: REFUND_STATUS_SUCCEEDED,
+      refundStatus,
+      settlementMode: SETTLEMENT_MODE_LIVE,
       xenditRefundId: refundId,
       refundFailureReason: "",
       adminResolvedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1498,7 +1665,11 @@ export const refundServicePayment = onCall(
       adminResolution: "refund",
       adminResolutionReason: reason,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
+    };
+    if (refundStatus === REFUND_STATUS_SUCCEEDED) {
+      refundUpdate.refundCompletedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+    await ref.set(refundUpdate, {merge: true});
     await createInAppNotification(db, {
       userId: String(data.requesterId ?? ""),
       actorId: uid,
@@ -1675,9 +1846,21 @@ export const resolveMarketplaceDeposit = onCall(
       lenderDamageEarning: 0,
       lenderTotalEarning: usageFeeAmount,
       manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+      settlementMode: currentSettlementMode(),
       updatedAt: now,
     };
     await requestRef.set(noDepositUpdate, {merge: true});
+    if (usageFeeAmount > 0) {
+      const ownerId = typeof requestData.ownerId === "string" ? requestData.ownerId : "";
+      const itemTitle = typeof requestData.itemTitle === "string" && requestData.itemTitle.trim() ?
+        requestData.itemTitle.trim() :
+        "your marketplace item";
+      await notifyManualPayoutReady(db, borrowRequestId, {
+        ownerId,
+        itemTitle,
+        lenderTotalEarning: usageFeeAmount,
+      }, uid);
+    }
     return {success: true, refundAmount: 0, payoutMode: "manual"};
   }
 
@@ -1694,39 +1877,41 @@ export const resolveMarketplaceDeposit = onCall(
   const lenderTotalEarning = usageFeeAmount + deductionAmount;
   let xenditRefundId = "";
   let refundStatus = refundAmount > 0 ? REFUND_STATUS_PENDING : REFUND_STATUS_NOT_REQUIRED;
+  let refundFailed = false;
 
   if (refundAmount > 0) {
-    if (!xenditInvoiceId) throw new HttpsError("failed-precondition", "Missing Xendit invoice id.");
-    await requestRef.set({
-      refundStatus: REFUND_STATUS_PENDING,
-      manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
-      updatedAt: now,
-    }, {merge: true});
-    try {
-      const refund = await xenditPost("/refunds", {
-        reference_id: `borrow_${borrowRequestId}_${decision}`,
-        invoice_id: xenditInvoiceId,
-        currency: DEFAULT_CURRENCY.toUpperCase(),
-        amount: moneyToXenditAmount(refundAmount),
-        reason: "REQUESTED_BY_CUSTOMER",
-        metadata: {borrowRequestId, refundType: "marketplace_deposit", decision},
-      });
-      xenditRefundId = readString(refund, "id");
-      if (readString(refund, "status").toUpperCase() === "SUCCEEDED") {
-        refundStatus = REFUND_STATUS_SUCCEEDED;
+    if (isSimulatedSettlement()) {
+      refundStatus = REFUND_STATUS_SUCCEEDED;
+      xenditRefundId = "";
+    } else {
+      if (!xenditInvoiceId) throw new HttpsError("failed-precondition", "Missing Xendit invoice id.");
+      try {
+        const refund = await xenditPost("/refunds", {
+          reference_id: `borrow_${borrowRequestId}_${decision}`,
+          invoice_id: xenditInvoiceId,
+          currency: DEFAULT_CURRENCY.toUpperCase(),
+          amount: moneyToXenditAmount(refundAmount),
+          reason: "REQUESTED_BY_CUSTOMER",
+          metadata: {borrowRequestId, refundType: "marketplace_deposit", decision},
+        });
+        xenditRefundId = readString(refund, "id");
+        refundStatus = xenditRefundStatusToAppStatus(readString(refund, "status"));
+      } catch (error) {
+        refundFailed = true;
+        await requestRef.set({
+          depositStatus: DEPOSIT_STATUS_REFUND_FAILED,
+          refundStatus: REFUND_STATUS_FAILED,
+          refundFailureReason: safeErrorMessage(error),
+          xenditFailureReason: safeErrorMessage(error),
+          manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        throw new HttpsError("internal", "Refund failed. The deposit remains blocked for admin review.");
       }
-    } catch (error) {
-      await requestRef.set({
-        depositStatus: DEPOSIT_STATUS_REFUND_FAILED,
-        refundStatus: REFUND_STATUS_FAILED,
-        refundFailureReason: safeErrorMessage(error),
-        xenditFailureReason: safeErrorMessage(error),
-        manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
-      throw new HttpsError("internal", "Refund failed. The deposit remains blocked for admin review.");
     }
   }
+
+  const manualPayoutStatus = manualPayoutStatusAfterDepositDecision(refundFailed);
 
   const update: Record<string, unknown> = {
     status: BORROW_STATUS_COMPLETED,
@@ -1743,10 +1928,12 @@ export const resolveMarketplaceDeposit = onCall(
     lenderBaseEarning: usageFeeAmount,
     lenderDamageEarning: deductionAmount,
     lenderTotalEarning,
-    manualPayoutStatus: refundStatus === REFUND_STATUS_PENDING ? MANUAL_PAYOUT_BLOCKED : MANUAL_PAYOUT_PENDING_MANUAL,
+    manualPayoutStatus,
+    settlementMode: currentSettlementMode(),
     updatedAt: now,
   };
-  if (refundAmount > 0 && refundStatus === REFUND_STATUS_SUCCEEDED) {
+  if (refundAmount > 0 &&
+      (refundStatus === REFUND_STATUS_SUCCEEDED || isSimulatedSettlement())) {
     update.depositRefundedAt = now;
   }
   if (adminCaller) {
@@ -1808,7 +1995,7 @@ export const resolveMarketplaceDeposit = onCall(
       borrowRequestId,
       notificationId: notificationIdFor("borrowDepositResolved", borrowRequestId, ownerId),
     }),
-    update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL ?
+    update.manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL && lenderTotalEarning > 0 ?
       notifyManualPayoutReady(db, borrowRequestId, {ownerId, itemTitle, lenderTotalEarning}, uid) :
       Promise.resolve(),
   ]);
@@ -1818,6 +2005,7 @@ export const resolveMarketplaceDeposit = onCall(
     refundAmount,
     xenditRefundId,
     payoutMode: "manual",
+    settlementMode: currentSettlementMode(),
   };
 });
 
@@ -1866,6 +2054,71 @@ export const markManualPayoutPaid = onCall(async (request) => {
   return {success: true};
 });
 
+function isStuckMarketplaceSettlement(data: DocumentData): boolean {
+  const depositStatus = typeof data.depositStatus === "string" ? data.depositStatus : "";
+  if (!RESOLVED_DEPOSIT_STATUSES.has(depositStatus)) return false;
+  if (data.manualPayoutStatus !== MANUAL_PAYOUT_BLOCKED) return false;
+  return Math.max(0, toMoneyNumber(data.lenderTotalEarning)) > 0;
+}
+
+async function repairOneStuckMarketplaceSettlement(
+  db: admin.firestore.Firestore,
+  requestRef: admin.firestore.DocumentReference,
+  data: DocumentData,
+  actorId: string,
+): Promise<boolean> {
+  if (!isStuckMarketplaceSettlement(data)) return false;
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const update: Record<string, unknown> = {
+    manualPayoutStatus: MANUAL_PAYOUT_PENDING_MANUAL,
+    settlementMode: currentSettlementMode(),
+    updatedAt: now,
+  };
+  if (isSimulatedSettlement() && data.refundStatus === REFUND_STATUS_PENDING) {
+    update.refundStatus = REFUND_STATUS_SUCCEEDED;
+    update.depositRefundedAt = now;
+    update.refundFailureReason = "";
+  }
+  await requestRef.set(update, {merge: true});
+  const ownerId = typeof data.ownerId === "string" ? data.ownerId : "";
+  const itemTitle = typeof data.itemTitle === "string" && data.itemTitle.trim() ?
+    data.itemTitle.trim() :
+    "your marketplace item";
+  const lenderTotalEarning = Math.max(0, toMoneyNumber(data.lenderTotalEarning));
+  if (ownerId && lenderTotalEarning > 0) {
+    await notifyManualPayoutReady(db, requestRef.id, {ownerId, itemTitle, lenderTotalEarning}, actorId);
+  }
+  return true;
+}
+
+export const repairStuckMarketplaceSettlement = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const db = admin.firestore();
+  await requireAdmin(db, uid);
+  const borrowRequestId = readString(asRecord(request.data), "borrowRequestId");
+
+  if (borrowRequestId) {
+    const requestRef = db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+    const snapshot = await requestRef.get();
+    const data = snapshot.data();
+    if (!data) throw new HttpsError("not-found", "Borrow request was not found.");
+    const repaired = await repairOneStuckMarketplaceSettlement(db, requestRef, data, uid);
+    return {success: true, repairedCount: repaired ? 1 : 0};
+  }
+
+  const snapshot = await db.collection(BORROW_REQUESTS_COLLECTION)
+    .where("manualPayoutStatus", "==", MANUAL_PAYOUT_BLOCKED)
+    .get();
+  let repairedCount = 0;
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (await repairOneStuckMarketplaceSettlement(db, doc.ref, data, uid)) {
+      repairedCount += 1;
+    }
+  }
+  return {success: true, repairedCount};
+});
+
 export async function markMarketplaceDepositDisputedIfNeeded(
   db: admin.firestore.Firestore,
   borrowRequestId: string,
@@ -1891,3 +2144,13 @@ export async function markMarketplaceDepositDisputedIfNeeded(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
 }
+
+export const settlementTestExports = {
+  manualPayoutStatusAfterDepositDecision,
+  xenditRefundStatusToAppStatus,
+  isStuckMarketplaceSettlement,
+  assertServiceDisputeInput,
+  serviceDisputeNotificationBody,
+  moneyToMinorUnits,
+  expectedHourlyServiceAmountMinor,
+};

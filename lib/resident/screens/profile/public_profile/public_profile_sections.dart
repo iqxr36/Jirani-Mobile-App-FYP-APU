@@ -115,6 +115,20 @@ class _IdentityPanel extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _MetricTile(
+                label: 'Provided Services',
+                value: '${user.completedServicesProvided}',
+              ),
+              const SizedBox(width: 8),
+              _MetricTile(
+                label: 'Requested Services',
+                value: '${user.completedServicesRequested}',
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Text(
             'Contact details and unit number are private. Reviews shown here are published anonymously.',
@@ -226,6 +240,70 @@ class _PublicListingsSection extends StatelessWidget {
                 )
               else
                 ...items.take(4).map((item) => _ListingPreview(item: item)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PublicServicesSection extends StatelessWidget {
+  const _PublicServicesSection({
+    required this.providerId,
+    required this.communityId,
+  });
+
+  final String providerId;
+  final String communityId;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection(AppConstants.servicesCollection)
+          .where('providerId', isEqualTo: providerId)
+          .where('communityId', isEqualTo: communityId)
+          .where('status', isEqualTo: AppConstants.serviceStatusActive)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final services = (snapshot.data?.docs ?? const [])
+            .map((doc) => ServiceModel.fromMap(doc.id, doc.data()))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        return _GlassPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Active Services'),
+              const SizedBox(height: 12),
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  services.isEmpty)
+                const _InlineState(
+                  icon: Icons.handyman_outlined,
+                  title: 'Loading services',
+                  message: 'Checking active services from this resident.',
+                )
+              else if (snapshot.hasError)
+                _InlineState(
+                  icon: Icons.error_outline_rounded,
+                  title: 'Services unavailable',
+                  message: snapshot.error
+                      .toString()
+                      .replaceFirst('Exception: ', ''),
+                )
+              else if (services.isEmpty)
+                const _InlineState(
+                  icon: Icons.handyman_outlined,
+                  title: 'No active services',
+                  message:
+                      'This resident does not have public services right now.',
+                )
+              else
+                ...services
+                    .take(4)
+                    .map((service) => _ServicePreview(service: service)),
             ],
           ),
         );

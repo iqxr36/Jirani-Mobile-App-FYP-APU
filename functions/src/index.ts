@@ -16,6 +16,10 @@ import { handleConnectionNotificationChanges } from "./connection_notifications"
 import { notifyChatMessageCreated } from "./chat_notifications";
 import { sendFcmForNotification } from "./notifications";
 import { handleServiceRequestNotificationChanges } from "./service_notifications";
+import {
+  applyServiceCompletionSideEffects,
+  serviceBecameCompleted,
+} from "./service_completion";
 import { handleReportNotificationChanges } from "./report_notifications";
 import { syncPublicProfileFromUser } from "./public_profile";
 import {
@@ -23,7 +27,7 @@ import {
   publishGraceExpiredBorrowReviews,
   shouldAttemptPublishAfterBorrowUpdate,
 } from "./review_publish";
-export {createMarketplaceReview} from "./reviews";
+export {createMarketplaceReview, createServiceReview} from "./reviews";
 import {
   syncUserFromCancelledVerificationRequest,
   syncUserFromSubmittedVerificationRequest,
@@ -51,6 +55,7 @@ export {
   getPaymentStatus,
   markManualPayoutPaid,
   refundServicePayment,
+  repairStuckMarketplaceSettlement,
   resolveMarketplaceDeposit,
   saveTestPayoutAccount,
   submitServiceArrivalCode,
@@ -178,6 +183,18 @@ export const onServiceRequestNotificationOrchestration = onDocumentWritten(
         before,
         after,
       );
+
+      if (serviceBecameCompleted(before, after) && after) {
+        logger.info("Service request became completed", {
+          requestId,
+          beforeStatus: typeof before?.status === "string" ? before.status : "",
+          afterStatus: typeof after.status === "string" ? after.status : "",
+          providerId: after.providerId,
+          requesterId: after.requesterId,
+        });
+        await applyServiceCompletionSideEffects(db, requestId, after);
+        logger.info("Applied service completion side effects", { requestId });
+      }
     } catch (error) {
       logger.error("Failed service request notification orchestration", {
         requestId,

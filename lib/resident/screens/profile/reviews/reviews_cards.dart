@@ -7,12 +7,18 @@ class _AnonymousReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = review.role == AppConstants.reviewRoleBorrowerToOwner
-        ? 'Borrower Review'
-        : 'Lender Review';
-    final focus = review.role == AppConstants.reviewRoleBorrowerToOwner
-        ? 'Lending experience'
-        : 'Borrowing experience';
+    final serviceReview =
+        review.role == AppConstants.reviewRoleServiceRequesterToProvider;
+    final title = serviceReview
+        ? 'Service Review'
+        : review.role == AppConstants.reviewRoleBorrowerToOwner
+            ? 'Borrower Review'
+            : 'Lender Review';
+    final focus = serviceReview
+        ? 'Service experience'
+        : review.role == AppConstants.reviewRoleBorrowerToOwner
+            ? 'Lending experience'
+            : 'Borrowing experience';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

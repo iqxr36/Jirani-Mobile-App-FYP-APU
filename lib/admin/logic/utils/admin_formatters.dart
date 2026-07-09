@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/shared/utils/display_labels.dart';
 
 BoxDecoration adminSurfaceDecoration() {
   return BoxDecoration(
@@ -88,14 +89,7 @@ String adminOcrFieldLabel(String value) {
   };
 }
 
-String adminStatusLabel(String value) {
-  if (value.trim().isEmpty) return 'Unknown';
-  final spaced = value.replaceAllMapped(
-    RegExp(r'([a-z])([A-Z])'),
-    (match) => '${match.group(1)} ${match.group(2)}',
-  );
-  return spaced[0].toUpperCase() + spaced.substring(1);
-}
+String adminStatusLabel(String value) => lookupDisplayLabel(value);
 
 IconData adminCategoryIcon(String category) {
   return switch (category) {

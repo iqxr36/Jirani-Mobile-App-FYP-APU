@@ -1,15 +1,24 @@
 import * as admin from "firebase-admin";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
-import {buildReviewDocId} from "./review_publish";
+import {buildReviewDocId, buildServiceReviewDocId} from "./review_publish";
+import {recalculateTrustScoreForUser} from "./trust_score";
 
 type DocumentData = admin.firestore.DocumentData;
 
 const BORROW_REQUESTS_COLLECTION = "borrowRequests";
+const SERVICE_REQUESTS_COLLECTION = "serviceRequests";
 const REVIEWS_COLLECTION = "reviews";
 const BORROW_STATUS_COMPLETED = "completed";
+const SERVICE_COMPLETED_STATUSES = new Set([
+  "completed",
+  "completedPayoutPending",
+  "completedPayoutSent",
+]);
 const REVIEW_ROLE_BORROWER_TO_OWNER = "borrowerToOwner";
 const REVIEW_ROLE_OWNER_TO_BORROWER = "ownerToBorrower";
+const REVIEW_ROLE_SERVICE_REQUESTER_TO_PROVIDER = "serviceRequesterToProvider";
 const REVIEW_STATUS_HIDDEN = "hidden";
+const REVIEW_STATUS_PUBLISHED = "published";
 const REVIEW_GRACE_DAYS = 3;
 
 function requireUid(auth: {uid?: string} | undefined): string {
@@ -123,6 +132,8 @@ export const createMarketplaceReview = onCall(async (request) => {
     const now = admin.firestore.FieldValue.serverTimestamp();
     txn.set(reviewRef, {
       borrowRequestId,
+      serviceRequestId: "",
+      serviceId: "",
       itemId: String(borrowRequest.itemId ?? ""),
       reviewerId: uid,
       reviewerName,
@@ -144,6 +155,87 @@ export const createMarketplaceReview = onCall(async (request) => {
       updatedAt: now,
     });
   });
+
+  return {
+    success: true,
+    reviewId: reviewRef.id,
+  };
+});
+
+export const createServiceReview = onCall(async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const serviceRequestId = readString(input, "serviceRequestId");
+  const reviewerName = readString(input, "reviewerName");
+  const comment = readString(input, "comment");
+  const rating = readRating(input);
+
+  if (!serviceRequestId) {
+    throw new HttpsError("invalid-argument", "Missing service request id.");
+  }
+
+  const db = admin.firestore();
+  const requestRef = db.collection(SERVICE_REQUESTS_COLLECTION).doc(serviceRequestId);
+  const reviewRef = db.collection(REVIEWS_COLLECTION).doc(buildServiceReviewDocId(serviceRequestId, uid));
+  let targetRevieweeId = "";
+
+  await db.runTransaction(async (txn) => {
+    const requestSnap = await txn.get(requestRef);
+    const serviceRequest = requestSnap.data();
+    if (!serviceRequest) {
+      throw new HttpsError("not-found", "Service request was not found.");
+    }
+    if (!SERVICE_COMPLETED_STATUSES.has(String(serviceRequest.status ?? ""))) {
+      throw new HttpsError("failed-precondition", "Only completed services can be reviewed.");
+    }
+    if (serviceRequest.requesterId !== uid) {
+      throw new HttpsError("permission-denied", "Only the requester can review this service.");
+    }
+    if (serviceRequest.requesterReviewSubmitted === true) {
+      throw new HttpsError("already-exists", "You already submitted a review for this service.");
+    }
+
+    const revieweeId = String(serviceRequest.providerId ?? "");
+    const revieweeName = String(serviceRequest.providerName ?? "");
+    if (!revieweeId || revieweeId === uid) {
+      throw new HttpsError("failed-precondition", "Review target is invalid.");
+    }
+    targetRevieweeId = revieweeId;
+
+    const existingReview = await txn.get(reviewRef);
+    if (existingReview.exists) {
+      throw new HttpsError("already-exists", "You already submitted a review for this service.");
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    txn.set(reviewRef, {
+      serviceRequestId,
+      serviceId: String(serviceRequest.serviceId ?? ""),
+      borrowRequestId: "",
+      itemId: "",
+      reviewerId: uid,
+      reviewerName,
+      revieweeId,
+      revieweeName,
+      rating,
+      comment,
+      role: REVIEW_ROLE_SERVICE_REQUESTER_TO_PROVIDER,
+      visible: true,
+      status: REVIEW_STATUS_PUBLISHED,
+      publishAfter: null,
+      publishedAt: now,
+      createdAt: now,
+    });
+    txn.update(requestRef, {
+      requesterReviewSubmitted: true,
+      requesterReviewSubmittedAt: now,
+      updatedAt: now,
+    });
+  });
+
+  if (targetRevieweeId) {
+    await recalculateTrustScoreForUser(db, targetRevieweeId, reviewRef.id);
+  }
 
   return {
     success: true,

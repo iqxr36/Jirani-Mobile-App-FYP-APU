@@ -1,5 +1,6 @@
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/reported_chat_message_snapshot.dart';
+import 'package:jirani/shared/utils/display_labels.dart';
 
 String chatReportCategoryLabel(String category) {
   return switch (category) {
@@ -8,7 +9,7 @@ String chatReportCategoryLabel(String category) {
     AppConstants.chatReportCategoryThreat => 'Threatening behavior',
     AppConstants.chatReportCategorySpam => 'Spam',
     AppConstants.chatReportCategoryOther => 'Other',
-    _ => category.trim().isEmpty ? 'Not specified' : category,
+    _ => lookupDisplayLabel(category),
   };
 }
 

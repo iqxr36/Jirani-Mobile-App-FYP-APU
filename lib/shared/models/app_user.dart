@@ -35,6 +35,8 @@ class AppUser {
     required this.completedBorrowings,
     required this.completedLendings,
     required this.completedServices,
+    this.completedServicesProvided = 0,
+    this.completedServicesRequested = 0,
     required this.termsAccepted,
     required this.locationVerified,
     required this.createdAt,
@@ -72,6 +74,8 @@ class AppUser {
   final int completedBorrowings;
   final int completedLendings;
   final int completedServices;
+  final int completedServicesProvided;
+  final int completedServicesRequested;
   final bool termsAccepted;
   final bool locationVerified;
   final DateTime createdAt;
@@ -132,6 +136,8 @@ class AppUser {
     int? completedBorrowings,
     int? completedLendings,
     int? completedServices,
+    int? completedServicesProvided,
+    int? completedServicesRequested,
     bool? termsAccepted,
     bool? locationVerified,
     DateTime? createdAt,
@@ -170,6 +176,10 @@ class AppUser {
       completedBorrowings: completedBorrowings ?? this.completedBorrowings,
       completedLendings: completedLendings ?? this.completedLendings,
       completedServices: completedServices ?? this.completedServices,
+      completedServicesProvided:
+          completedServicesProvided ?? this.completedServicesProvided,
+      completedServicesRequested:
+          completedServicesRequested ?? this.completedServicesRequested,
       termsAccepted: termsAccepted ?? this.termsAccepted,
       locationVerified: locationVerified ?? this.locationVerified,
       createdAt: createdAt ?? this.createdAt,
@@ -211,6 +221,8 @@ class AppUser {
       'completedBorrowings': completedBorrowings,
       'completedLendings': completedLendings,
       'completedServices': completedServices,
+      'completedServicesProvided': completedServicesProvided,
+      'completedServicesRequested': completedServicesRequested,
       'termsAccepted': termsAccepted,
       'locationVerified': locationVerified,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -265,6 +277,8 @@ class AppUser {
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),
+      completedServicesProvided: _parseInt(map['completedServicesProvided']),
+      completedServicesRequested: _parseInt(map['completedServicesRequested']),
       termsAccepted: map['termsAccepted'] as bool? ?? false,
       locationVerified: map['locationVerified'] as bool? ?? false,
       createdAt: _parseDate(map['createdAt']),

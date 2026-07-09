@@ -214,7 +214,7 @@ class _PaymentsInfoPanel extends StatelessWidget {
             title: 'Service provider payouts',
             body: user?.hasVerifiedPayoutAccount == true
                 ? 'Your payout account is verified for test mode.'
-                : 'Add payout details before publishing fixed-job paid services.',
+                : 'Add payout details before publishing paid services.',
           ),
         ],
       ),

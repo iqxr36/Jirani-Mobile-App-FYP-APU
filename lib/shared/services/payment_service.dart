@@ -75,7 +75,7 @@ class PaymentService {
     );
   }
 
-  /// Service payments: creates a Xendit checkout for an accepted fixed-price service request.
+  /// Service payments: creates a Xendit checkout for an accepted paid service request.
   Future<ServicePaymentResult> createXenditServicePayment({
     required ServiceRequestModel request,
     required String successRedirectUrl,

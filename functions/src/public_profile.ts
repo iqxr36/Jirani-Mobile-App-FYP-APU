@@ -76,6 +76,8 @@ export function buildPublicProfilePayload(
     completedBorrowings: asInt(data.completedBorrowings),
     completedLendings: asInt(data.completedLendings),
     completedServices: asInt(data.completedServices),
+    completedServicesProvided: asInt(data.completedServicesProvided),
+    completedServicesRequested: asInt(data.completedServicesRequested),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 }

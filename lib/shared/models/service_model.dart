@@ -22,6 +22,9 @@ class ServiceModel {
     this.hourlyRate,
     this.fixedJobPrice,
     required this.availability,
+    this.availableWeekdays = const <int>[],
+    this.availabilityStartMinutes = 0,
+    this.availabilityEndMinutes = 0,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -46,6 +49,9 @@ class ServiceModel {
   final double? hourlyRate;
   final double? fixedJobPrice;
   final String availability;
+  final List<int> availableWeekdays;
+  final int availabilityStartMinutes;
+  final int availabilityEndMinutes;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -72,6 +78,9 @@ class ServiceModel {
       hourlyRate: _toDouble(data['hourlyRate']),
       fixedJobPrice: _toDouble(data['fixedJobPrice']),
       availability: (data['availability'] as String?) ?? '',
+      availableWeekdays: _toIntList(data['availableWeekdays']),
+      availabilityStartMinutes: _toInt(data['availabilityStartMinutes']),
+      availabilityEndMinutes: _toInt(data['availabilityEndMinutes']),
       status: (data['status'] as String?) ?? '',
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
@@ -91,6 +100,28 @@ class ServiceModel {
       return value.whereType<String>().toList(growable: false);
     }
     return const <String>[];
+  }
+
+  static List<int> _toIntList(dynamic value) {
+    if (value is Iterable) {
+      return value
+          .map((entry) {
+            if (entry is int) return entry;
+            if (entry is num) return entry.toInt();
+            if (entry is String) return int.tryParse(entry);
+            return null;
+          })
+          .whereType<int>()
+          .toList(growable: false);
+    }
+    return const <int>[];
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   /// Services DB model: converts Firestore timestamp-like fields into DateTime.

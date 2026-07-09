@@ -22,6 +22,8 @@ class PublicResidentProfile {
     required this.completedBorrowings,
     required this.completedLendings,
     required this.completedServices,
+    this.completedServicesProvided = 0,
+    this.completedServicesRequested = 0,
     required this.updatedAt,
   });
 
@@ -41,6 +43,8 @@ class PublicResidentProfile {
   final int completedBorrowings;
   final int completedLendings;
   final int completedServices;
+  final int completedServicesProvided;
+  final int completedServicesRequested;
   final DateTime updatedAt;
 
   /// Public profile feature: combines public first/last name for cards and profile headers.
@@ -81,6 +85,8 @@ class PublicResidentProfile {
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),
       completedServices: _parseInt(map['completedServices']),
+      completedServicesProvided: _parseInt(map['completedServicesProvided']),
+      completedServicesRequested: _parseInt(map['completedServicesRequested']),
       updatedAt: _parseDate(map['updatedAt']),
     );
   }
@@ -109,6 +115,8 @@ class PublicResidentProfile {
       completedBorrowings: completedBorrowings,
       completedLendings: completedLendings,
       completedServices: completedServices,
+      completedServicesProvided: completedServicesProvided,
+      completedServicesRequested: completedServicesRequested,
       termsAccepted: false,
       locationVerified: false,
       createdAt: updatedAt,

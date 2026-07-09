@@ -14,6 +14,16 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   bool _pushNotifications = true;
   bool _profileImageSaving = false;
   bool _loadedNotificationPreference = false;
+  bool _profileStatsRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshProfileStats(showIndicator: false);
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -49,6 +59,20 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not update notification settings.')),
       );
+    }
+  }
+
+  Future<void> _refreshProfileStats({bool showIndicator = true}) async {
+    if (_profileStatsRefreshing) return;
+    if (showIndicator) {
+      setState(() => _profileStatsRefreshing = true);
+    }
+    try {
+      await context.read<AuthViewModel>().refreshCurrentUser();
+    } finally {
+      if (mounted && showIndicator) {
+        setState(() => _profileStatsRefreshing = false);
+      }
     }
   }
 
@@ -207,42 +231,52 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     return JiraniBackground(
       child: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16, 18, 16, 24 + bottom),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _ProfileStatsBuilder(
-                    user: user,
-                    builder: (context, counts) {
-                      return _ProfileCard(
-                        user: user,
-                        marketplaceCounts: counts,
-                        onEditProfile: _openEditProfile,
-                        onChangePhoto: user == null
-                            ? null
-                            : _changeProfileImage,
-                        isPhotoUpdating: _profileImageSaving,
-                        onVerificationStatus: _openVerificationProcess,
-                        onVerifyEmail: user == null || user.emailVerified
-                            ? null
-                            : () => _openEmailVerification(user),
-                        onVerifyPhone: user == null || user.phoneVerified
-                            ? null
-                            : () => _openPhoneVerification(user),
-                        onMyItems: _openMyItems,
-                        onRatings: _openRatings,
-                        onMyServices: _openMyServices,
-                        onSettings: _openSettings,
-                        onLogout: _logout,
-                      );
-                    },
-                  ),
-                ],
+        child: RefreshIndicator(
+          onRefresh: () => _refreshProfileStats(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 24 + bottom),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _kMaxContentWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_profileStatsRefreshing)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(minHeight: 2),
+                      ),
+                    _ProfileStatsBuilder(
+                      user: user,
+                      builder: (context, counts) {
+                        return _ProfileCard(
+                          user: user,
+                          marketplaceCounts: counts,
+                          onEditProfile: _openEditProfile,
+                          onChangePhoto: user == null
+                              ? null
+                              : _changeProfileImage,
+                          isPhotoUpdating: _profileImageSaving,
+                          onVerificationStatus: _openVerificationProcess,
+                          onVerifyEmail: user == null || user.emailVerified
+                              ? null
+                              : () => _openEmailVerification(user),
+                          onVerifyPhone: user == null || user.phoneVerified
+                              ? null
+                              : () => _openPhoneVerification(user),
+                          onMyItems: _openMyItems,
+                          onRatings: _openRatings,
+                          onMyServices: _openMyServices,
+                          onSettings: _openSettings,
+                          onLogout: _logout,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

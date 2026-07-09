@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
+import 'package:jirani/shared/utils/service_availability.dart';
 import 'package:mime/mime.dart';
 
 /// Services feature service: manages service listings and resident service requests in Firestore.
@@ -87,6 +89,23 @@ class ServiceService {
         });
   }
 
+  /// Services transaction tracking: streams one service request by id.
+  Stream<ServiceRequestModel?> watchServiceRequest(String requestId) {
+    return _requests.doc(requestId).snapshots().map((snapshot) {
+      final data = snapshot.data();
+      if (data == null) return null;
+      return ServiceRequestModel.fromMap(snapshot.id, data);
+    });
+  }
+
+  /// Services notification deep links: loads one request for navigation.
+  Future<ServiceRequestModel?> fetchServiceRequest(String requestId) async {
+    final snap = await _requests.doc(requestId).get();
+    final data = snap.data();
+    if (data == null) return null;
+    return ServiceRequestModel.fromMap(snap.id, data);
+  }
+
   /// Services provider dashboard: streams requests received by a service provider.
   Stream<List<ServiceRequestModel>> watchIncomingServiceRequests(
     String providerId,
@@ -114,6 +133,9 @@ class ServiceService {
     double? hourlyRate,
     double? fixedJobPrice,
     required String availability,
+    required Set<int> availableWeekdays,
+    required TimeOfDay availabilityStartTime,
+    required TimeOfDay availabilityEndTime,
     List<String> imagePaths = const <String>[],
     List<String> certificatePaths = const <String>[],
     List<String> certificateNames = const <String>[],
@@ -151,6 +173,11 @@ class ServiceService {
     if (t.isEmpty || d.isEmpty || av.isEmpty) {
       throw Exception('Title, description, and availability are required.');
     }
+    final availabilityFields = availabilityFieldsForServiceWrite(
+      weekdays: availableWeekdays,
+      startTime: availabilityStartTime,
+      endTime: availabilityEndTime,
+    );
     _validateServiceImages(imagePaths);
     _validateServiceCertificates(certificatePaths);
     if (certificateNames.length != certificatePaths.length) {
@@ -164,6 +191,11 @@ class ServiceService {
       if (hourlyRate == null || hourlyRate <= 0) {
         throw Exception('Enter a valid hourly rate.');
       }
+      if (!provider.hasVerifiedPayoutAccount) {
+        throw Exception(
+          'Add and verify your payout account before listing paid services.',
+        );
+      }
       resolvedHourlyRate = hourlyRate;
       resolvedPriceAmount = hourlyRate;
     } else {
@@ -172,7 +204,7 @@ class ServiceService {
       }
       if (!provider.hasVerifiedPayoutAccount) {
         throw Exception(
-          'Add and verify your payout account before listing fixed-job paid services.',
+          'Add and verify your payout account before listing paid services.',
         );
       }
       resolvedFixedJobPrice = fixedJobPrice;
@@ -220,6 +252,7 @@ class ServiceService {
         'certificateUrls': certificateUpload.urls,
         'certificateNames': certificateNames.map((name) => name.trim()).toList(),
         'availability': av,
+        ...availabilityFields,
         'status': AppConstants.serviceStatusActive,
         'createdAt': now,
         'updatedAt': now,
@@ -307,6 +340,9 @@ class ServiceService {
     double? hourlyRate,
     double? fixedJobPrice,
     required String availability,
+    required Set<int> availableWeekdays,
+    required TimeOfDay availabilityStartTime,
+    required TimeOfDay availabilityEndTime,
     List<String> imagePaths = const <String>[],
     List<String> certificatePaths = const <String>[],
     List<String> certificateNames = const <String>[],
@@ -352,6 +388,11 @@ class ServiceService {
     if (t.isEmpty || d.isEmpty || av.isEmpty) {
       throw Exception('Title, description, and availability are required.');
     }
+    final availabilityFields = availabilityFieldsForServiceWrite(
+      weekdays: availableWeekdays,
+      startTime: availabilityStartTime,
+      endTime: availabilityEndTime,
+    );
     _validateServiceImages(imagePaths);
     _validateServiceCertificates(certificatePaths);
     if (certificateNames.length != certificatePaths.length) {
@@ -365,6 +406,11 @@ class ServiceService {
       if (hourlyRate == null || hourlyRate <= 0) {
         throw Exception('Enter a valid hourly rate.');
       }
+      if (!provider.hasVerifiedPayoutAccount) {
+        throw Exception(
+          'Add and verify your payout account before listing paid services.',
+        );
+      }
       resolvedHourlyRate = hourlyRate;
       resolvedPriceAmount = hourlyRate;
     } else {
@@ -373,7 +419,7 @@ class ServiceService {
       }
       if (!provider.hasVerifiedPayoutAccount) {
         throw Exception(
-          'Add and verify your payout account before listing fixed-job paid services.',
+          'Add and verify your payout account before listing paid services.',
         );
       }
       resolvedFixedJobPrice = fixedJobPrice;
@@ -420,6 +466,7 @@ class ServiceService {
           ...certificateNames.map((name) => name.trim()),
         ],
         'availability': av,
+        ...availabilityFields,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -443,6 +490,7 @@ class ServiceService {
     required String message,
     required DateTime preferredDate,
     required String preferredTime,
+    int? durationHours,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != requester.uid) {
@@ -466,16 +514,45 @@ class ServiceService {
       throw Exception('Preferred time is required.');
     }
 
+    final schedule = parseServiceAvailability(service);
+    validateServiceAvailability(
+      schedule: schedule,
+      preferredDate: preferredDate,
+      preferredTimeLabel: pt,
+    );
+    final preferredWeekday = weekdayFromDate(preferredDate);
+    final preferredTimeMinutes = minutesFromPreferredTimeLabel(pt);
+    if (preferredTimeMinutes == null) {
+      throw Exception('Choose a valid preferred time.');
+    }
+
     try {
       final now = FieldValue.serverTimestamp();
       final doc = _requests.doc();
+      final isHourlyService =
+          service.pricingMode == AppConstants.servicePricingModeHourly;
       final isFixedJobService =
           service.pricingMode == AppConstants.servicePricingModeFixedJob ||
           (service.pricingMode.isEmpty &&
               service.priceType == AppConstants.servicePriceTypeFixed);
-      final requestAmount = isFixedJobService
-          ? (service.fixedJobPrice ?? service.priceAmount)
-          : null;
+      int? resolvedDurationHours;
+      double? resolvedHourlyRate;
+      double? requestAmount;
+      if (isHourlyService) {
+        final hours = durationHours ?? 0;
+        final rate = service.hourlyRate ?? service.priceAmount ?? 0;
+        if (hours <= 0) {
+          throw Exception('Select how many hours you need.');
+        }
+        if (rate <= 0) {
+          throw Exception('This hourly service is missing its rate.');
+        }
+        resolvedDurationHours = hours;
+        resolvedHourlyRate = rate;
+        requestAmount = rate * hours;
+      } else if (isFixedJobService) {
+        requestAmount = service.fixedJobPrice ?? service.priceAmount;
+      }
       await doc.set({
         'id': doc.id,
         'serviceId': service.id,
@@ -489,7 +566,11 @@ class ServiceService {
           DateTime(preferredDate.year, preferredDate.month, preferredDate.day),
         ),
         'preferredTime': pt,
+        'preferredWeekday': preferredWeekday,
+        'preferredTimeMinutes': preferredTimeMinutes,
         'amount': requestAmount,
+        'durationHours': resolvedDurationHours,
+        'hourlyRate': resolvedHourlyRate,
         'currency': AppConstants.defaultPaymentCurrency,
         'paymentStatus': AppConstants.paymentStatusPending,
         'paymentId': '',
@@ -556,7 +637,7 @@ class ServiceService {
     );
   }
 
-  /// Services requester flow: cancels a pending service request before provider acceptance.
+  /// Services requester flow: cancels a pending or awaiting-payment service request.
   Future<void> cancelServiceRequest({
     required String requestId,
     required String requesterId,
@@ -565,7 +646,10 @@ class ServiceService {
       requestId: requestId,
       actingUserId: requesterId,
       actorIsProvider: false,
-      fromStatuses: {AppConstants.serviceRequestStatusPending},
+      fromStatuses: {
+        AppConstants.serviceRequestStatusPending,
+        AppConstants.serviceRequestStatusAcceptedAwaitingPayment,
+      },
       toStatus: AppConstants.serviceRequestStatusCancelled,
     );
   }
@@ -631,12 +715,14 @@ class ServiceService {
   Future<void> disputeServiceRequest({
     required String requestId,
     required String requesterId,
-    required String reason,
+    required String disputeType,
+    required String details,
   }) async {
     await _call('disputeServiceRequest', {
       'requestId': requestId,
       'requesterId': requesterId,
-      'reason': reason,
+      'disputeType': disputeType,
+      'details': details,
     });
   }
 

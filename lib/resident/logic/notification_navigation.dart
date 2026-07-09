@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/resident/providers/borrow_request_provider.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';
+import 'package:jirani/resident/providers/service_provider.dart' as services;
 import 'package:jirani/resident/screens/chat/resident_chat_thread_view.dart';
 import 'package:jirani/resident/screens/chat/resident_messages_view.dart';
 import 'package:jirani/resident/screens/connections/resident_connections_view.dart';
@@ -74,11 +75,16 @@ Future<void> navigateFromNotification(
     case AppConstants.notificationTypeServiceRequest:
     case AppConstants.notificationTypeServiceAccepted:
     case AppConstants.notificationTypeServiceRejected:
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const ResidentServicesView(),
-        ),
-      );
+    case AppConstants.notificationTypeServicePaymentReceived:
+    case AppConstants.notificationTypeServiceArrivalCode:
+    case AppConstants.notificationTypeServiceArrivalVerified:
+    case AppConstants.notificationTypeServiceCompleted:
+    case AppConstants.notificationTypeServiceDisputed:
+    case AppConstants.notificationTypeServicePayoutSent:
+    case AppConstants.notificationTypeServicePayoutFailed:
+    case AppConstants.notificationTypeServiceRefunded:
+    case AppConstants.notificationTypeServiceAdminResolved:
+      await _openServiceNotification(context, notification);
       return;
     case AppConstants.notificationTypeCommunityNews:
     case AppConstants.notificationTypeCommunityAnnouncement:
@@ -126,6 +132,60 @@ Future<void> _openChatNotification(
   await Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
       builder: (_) => const ResidentMessagesView(),
+    ),
+  );
+}
+
+/// Services notifications: opens provider or requester transaction view based on notification type and user role.
+Future<void> _openServiceNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final requestId = notification.serviceRequestId.trim();
+  if (requestId.isEmpty) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentServicesView(),
+      ),
+    );
+    return;
+  }
+
+  final request = await context
+      .read<services.ServiceProvider>()
+      .fetchServiceRequest(requestId);
+  if (!context.mounted) return;
+
+  final currentUser = context.read<AuthViewModel>().currentUser;
+  if (request == null || currentUser == null) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentServicesView(),
+      ),
+    );
+    return;
+  }
+
+  final opensProviderView =
+      notification.type == AppConstants.notificationTypeServiceRequest ||
+      notification.type ==
+          AppConstants.notificationTypeServicePaymentReceived ||
+      notification.type ==
+          AppConstants.notificationTypeServiceArrivalVerified ||
+      notification.type == AppConstants.notificationTypeServicePayoutSent ||
+      notification.type == AppConstants.notificationTypeServicePayoutFailed ||
+      (notification.type == AppConstants.notificationTypeServiceDisputed &&
+          currentUser.uid == request.providerId) ||
+      (notification.type == AppConstants.notificationTypeServiceAdminResolved &&
+          currentUser.uid == request.providerId);
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => ServiceTransactionView(
+        initialRequest: request,
+        user: currentUser,
+        requesterView: !opensProviderView,
+      ),
     ),
   );
 }

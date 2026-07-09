@@ -20,48 +20,23 @@ String _money(double? amount) {
   return 'RM ${_amountText(amount ?? 0)}';
 }
 
-String _categoryLabel(String category) {
-  for (final option in _categoryOptions) {
-    if (option.value == category) return option.label;
-  }
-  return 'Other';
-}
+String _categoryLabel(String category) => itemCategoryLabel(category);
 
-String _conditionLabel(String condition) {
-  for (final option in _conditionOptions) {
-    if (option.value == condition) return option.label;
-  }
-  return 'Used';
-}
+String _conditionLabel(String condition) => itemConditionLabel(condition);
 
 String _handoverConditionLabel(String condition) {
-  for (final option in _handoverConditionOptions) {
-    if (option.value == condition) return option.label;
-  }
-  return condition.trim().isEmpty ? 'Not recorded' : condition;
+  final label = lookupDisplayLabel(condition);
+  return condition.trim().isEmpty ? 'Not recorded' : label;
 }
 
 String _returnConditionLabel(String condition) {
-  for (final option in _returnConditionOptions) {
-    if (option.value == condition) return option.label;
-  }
-  return condition.trim().isEmpty ? 'Not recorded' : condition;
+  final label = lookupDisplayLabel(condition);
+  return condition.trim().isEmpty ? 'Not recorded' : label;
 }
 
 String _depositDecisionLabel(String decision) {
-  for (final option in _depositDecisionOptions) {
-    if (option.value == decision) return option.label;
-  }
-  if (decision == AppConstants.depositDecisionNotRequired) {
-    return 'No deposit required';
-  }
-  if (decision == AppConstants.depositDecisionPending) {
-    return 'Pending decision';
-  }
-  if (decision == AppConstants.depositDecisionPartialDeduction) {
-    return 'Partial deduction';
-  }
-  return decision.trim().isEmpty ? 'Not recorded' : decision;
+  if (decision.trim().isEmpty) return 'Not recorded';
+  return depositDecisionLabel(decision);
 }
 
 String _statusLabel(ItemModel item) {
@@ -74,7 +49,7 @@ String _statusLabel(ItemModel item) {
   if (item.status == AppConstants.itemStatusAvailable) return 'Available';
   if (item.status == AppConstants.itemStatusUnavailable) return 'Unavailable';
   if (item.status == AppConstants.itemStatusBorrowed) return 'Borrowed';
-  return item.status;
+  return itemStatusLabel(item.status);
 }
 
 _StatusTone _itemStatusTone(ItemModel item) {
@@ -124,33 +99,11 @@ String _requestDateRange(BorrowRequest request) {
 }
 
 String _requestStatusLabel(BorrowRequest request) {
-  switch (request.status) {
-    case AppConstants.borrowStatusPending:
-      return 'Pending';
-    case AppConstants.borrowStatusApproved:
-      return MarketplaceBorrowFlow.isPaymentComplete(request)
-          ? 'Paid'
-          : 'Approved';
-    case AppConstants.borrowStatusRejected:
-      return 'Rejected';
-    case AppConstants.borrowStatusCancelled:
-      return 'Cancelled';
-    case AppConstants.borrowStatusPickupReady:
-      return 'Handover Started';
-    case AppConstants.borrowStatusHandedOver:
-    case AppConstants.borrowStatusActive:
-      return 'Active';
-    case AppConstants.borrowStatusReturnSubmitted:
-      return 'Returning';
-    case AppConstants.borrowStatusMinorIssuePending:
-      return 'Minor Issue';
-    case AppConstants.borrowStatusDisputed:
-      return 'Disputed';
-    case AppConstants.borrowStatusCompleted:
-      return 'Completed';
-    default:
-      return request.status;
-  }
+  return borrowRequestStatusLabel(
+    request.status,
+    paymentComplete: MarketplaceBorrowFlow.isPaymentComplete(request),
+    lenderApprovedLabel: true,
+  );
 }
 
 _StatusTone _requestStatusTone(BorrowRequest request) {
@@ -278,10 +231,20 @@ String _lenderAdminDecisionMessage(BorrowRequest request) {
   }
   if (request.manualPayoutStatus ==
       AppConstants.manualPayoutStatusPendingManual) {
+    if (request.refundStatus == AppConstants.refundStatusPending) {
+      return 'Your manual payout is ready for admin collection. The borrower refund may still be processing separately.';
+    }
     return 'Your manual payout is ready. Please collect it from admin; admin will record the payout reference after payment.';
   }
   if (request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked) {
-    return 'Payout is blocked until the deposit refund or dispute process finishes.';
+    if (request.depositStatus == AppConstants.depositStatusDisputed ||
+        request.status == AppConstants.borrowStatusDisputed) {
+      return 'Payout is blocked while the deposit dispute is under admin review.';
+    }
+    if (request.refundStatus == AppConstants.refundStatusFailed) {
+      return 'Payout is blocked because the borrower refund failed. Admin review is required.';
+    }
+    return 'Payout is blocked until the deposit dispute or refund issue is resolved.';
   }
   return 'Admin decision details will appear here once the deposit is resolved.';
 }

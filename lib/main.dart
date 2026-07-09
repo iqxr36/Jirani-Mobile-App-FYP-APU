@@ -28,7 +28,8 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
-final PushNotificationService pushNotificationService = PushNotificationService();
+final PushNotificationService pushNotificationService =
+    PushNotificationService();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,7 +63,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
   bool? _hasInternet;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
-  @override  
+  @override
   void initState() {
     super.initState();
     unawaited(_start());
@@ -211,9 +212,7 @@ class _BootstrapLoadingScreen extends StatelessWidget {
 enum _BootstrapPhase { initializing, ready, error }
 
 Future<void> _activateFirebaseAppCheck() async {
-  const useAppCheckDebugProvider = bool.fromEnvironment(
-    'USE_APP_CHECK_DEBUG',
-  );
+  const useAppCheckDebugProvider = bool.fromEnvironment('USE_APP_CHECK_DEBUG');
 
   if (kDebugMode || useAppCheckDebugProvider) {
     if (useAppCheckDebugProvider && !kDebugMode) {
@@ -245,7 +244,9 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => BorrowRequestProvider(),
         ),
         ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
-        ChangeNotifierProvider<ServiceProvider>(create: (_) => ServiceProvider()),
+        ChangeNotifierProvider<ServiceProvider>(
+          create: (_) => ServiceProvider(),
+        ),
         ChangeNotifierProvider<PaymentProvider>(
           create: (_) => PaymentProvider(),
         ),
@@ -354,10 +355,8 @@ class StartupErrorScaffold extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         '${AppConstants.appName} could not load',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 8),
                       const Text(

@@ -1,175 +1,48 @@
+library;
+
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/responsive.dart';
+import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/resident/providers/payment_provider.dart';
+import 'package:jirani/resident/providers/review_provider.dart';
 import 'package:jirani/resident/providers/service_provider.dart' as services;
 import 'package:jirani/resident/screens/profile/payment_methods_view.dart';
+import 'package:jirani/resident/screens/profile/public_resident_profile_view.dart';
 import 'package:jirani/resident/widgets/resident_transaction_widgets.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
 import 'package:jirani/shared/providers/auth_provider.dart';
+import 'package:jirani/shared/utils/display_labels.dart';
+import 'package:jirani/shared/utils/service_availability.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum _ServiceSection { discover, bookings }
+
+part 'services/resident_services_browse.dart';
+part 'services/service_detail_view.dart';
+part 'services/service_transaction_view.dart';
+part 'services/service_request_sheet.dart';
+part 'services/service_list_widgets.dart';
+part 'services/service_helpers.dart';
 
 enum _MyServiceTab { listed, incoming }
-
-const _serviceSectionOptions = [
-  ResidentSectionOption(
-    value: _ServiceSection.discover,
-    label: 'Discover',
-    icon: Icons.home_repair_service_outlined,
-  ),
-  ResidentSectionOption(
-    value: _ServiceSection.bookings,
-    label: 'Bookings',
-    icon: Icons.receipt_long_rounded,
-  ),
-];
-
-// Services UI feature: Firestore-backed service discovery, booking, escrow, and handshake workspace.
-class ResidentServicesView extends StatefulWidget {
-  const ResidentServicesView({super.key});
-
-  @override
-  State<ResidentServicesView> createState() => _ResidentServicesViewState();
-}
-
-class _ResidentServicesViewState extends State<ResidentServicesView> {
-  _ServiceSection _section = _ServiceSection.discover;
-  String _query = '';
-  String _category = 'all';
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().currentUser;
-    final sideInset = JiraniResponsive.scaled(context, 20);
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
-    final addButtonBottom = keyboardInset > 0
-        ? keyboardInset + JiraniResponsive.scaled(context, 16)
-        : bottomSafeArea + JiraniResponsive.scaled(context, 20);
-
-    return JiraniBackground(
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                ResidentInsetContent(
-                  sideInset: sideInset,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ResidentPageHeader(
-                          title: 'Services',
-                          subtitle: user?.hasVerifiedPayoutAccount == true
-                              ? 'Book help, offer skills, and verify work face to face.'
-                              : 'Paid listings require a verified payout profile.',
-                        ),
-                        const SizedBox(height: 18),
-                        ResidentSectionSwitch<_ServiceSection>(
-                          selected: _section,
-                          options: _serviceSectionOptions,
-                          onChanged: (value) => setState(() => _section = value),
-                        ),
-                        if (_section == _ServiceSection.discover) ...[
-                          const SizedBox(height: 16),
-                          ResidentSearchField(
-                            hint: 'Search services',
-                            onChanged: (value) => setState(() => _query = value),
-                          ),
-                          const SizedBox(height: 12),
-                          ResidentCategoryChips(
-                            options: _serviceCategoryOptions,
-                            selected: _category,
-                            onSelected: (value) =>
-                                setState(() => _category = value),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: user == null
-                      ? const _SignedOutState()
-                      : switch (_section) {
-                          _ServiceSection.discover => _DiscoverServices(
-                            query: _query,
-                            category: _category,
-                            user: user,
-                          ),
-                          _ServiceSection.bookings => _ServiceRequests(
-                            user: user,
-                            requesterView: true,
-                          ),
-                        },
-                ),
-              ],
-            ),
-            Positioned(
-              right: sideInset,
-              bottom: addButtonBottom,
-              child: _ServiceAddButton(
-                onTap: () => _openAddServiceFlow(context, user),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openAddServiceFlow(BuildContext context, AppUser? user) async {
-    if (user == null) {
-      _showSnack(context, 'Sign in before listing a service.');
-      return;
-    }
-    if (!user.isVerifiedResident) {
-      _showSnack(context, 'Only verified residents can list services.');
-      return;
-    }
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => ResidentAddNewServiceView(user: user),
-      ),
-    );
-  }
-}
-
-class _SignedOutState extends StatelessWidget {
-  const _SignedOutState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _ServiceListView(
-      children: [
-        ResidentStateCard(
-          icon: Icons.lock_outline_rounded,
-          title: 'Sign in required',
-          message: 'Sign in to browse and manage resident services.',
-        ),
-      ],
-    );
-  }
-}
 
 class ResidentMyServicesView extends StatefulWidget {
   const ResidentMyServicesView({super.key});
@@ -191,60 +64,70 @@ class _ResidentMyServicesViewState extends State<ResidentMyServicesView> {
       body: JiraniBackground(
         child: SafeArea(
           bottom: false,
-          child: Column(
-            children: [
-              ResidentInsetContent(
-                sideInset: sideInset,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 8),
-                    ResidentScreenTitleBar(
-                      title: 'My Services',
-                      onBack: () => Navigator.of(context).pop(),
-                      trailing: ResidentCircleIconButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Create service',
-                        onTap: user == null
-                            ? () => _showSnack(
-                                  context,
-                                  'Sign in before listing a service.',
-                                )
-                            : () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        ResidentAddNewServiceView(user: user),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              SliverToBoxAdapter(
+                child: ResidentInsetContent(
+                  sideInset: sideInset,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 8),
+                      ResidentScreenTitleBar(
+                        title: 'My Services',
+                        onBack: () => Navigator.of(context).pop(),
+                        trailing: ResidentCircleIconButton(
+                          icon: Icons.add_rounded,
+                          tooltip: 'Create service',
+                          onTap: user == null
+                              ? () => _showSnack(
+                                    context,
+                                    'Sign in before listing a service.',
+                                  )
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          ResidentAddNewServiceView(user: user),
+                                    ),
                                   ),
-                                ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    _MyServicesSummary(user: user),
-                    const SizedBox(height: 14),
-                    _MyServicesTabs(
-                      selected: _tab,
-                      onChanged: (tab) => setState(() => _tab = tab),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                      const SizedBox(height: 16),
+                      _MyServicesSummary(user: user),
+                      const SizedBox(height: 14),
+                      _MyServicesTabs(
+                        selected: _tab,
+                        onChanged: (tab) => setState(() => _tab = tab),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                  ),
                 ),
               ),
-              Expanded(
-                child: user == null
-                    ? const _ServiceListView(
-                        children: [
-                          ResidentStateCard(
-                            icon: Icons.lock_outline_rounded,
-                            title: 'Sign in required',
-                            message:
-                                'Sign in to manage service listings and requests.',
-                          ),
-                        ],
-                      )
-                    : _tab == _MyServiceTab.listed
-                        ? _MyServiceListings(user: user)
-                        : _ServiceRequests(user: user, requesterView: false),
-              ),
+              if (user == null)
+                SliverToBoxAdapter(
+                  child: _ServiceInsetCard(
+                    sideInset: sideInset,
+                    child: const ResidentStateCard(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'Sign in required',
+                      message:
+                          'Sign in to manage service listings and requests.',
+                    ),
+                  ),
+                )
+              else if (_tab == _MyServiceTab.listed)
+                _MyServiceListings(user: user, sideInset: sideInset)
+              else
+                _ServiceRequestsSliver(
+                  user: user,
+                  requesterView: false,
+                  sideInset: sideInset,
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ),
         ),
@@ -299,7 +182,22 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
             ? service.fixedJobPrice ?? service.priceAmount
             : service.hourlyRate ?? service.priceAmount;
     if (amount != null) _price.text = _serviceAmountText(amount);
-    _applyAvailability(service.availability);
+    if (service.availableWeekdays.isNotEmpty &&
+        service.availabilityEndMinutes > service.availabilityStartMinutes) {
+      _availableDays
+        ..clear()
+        ..addAll(service.availableWeekdays);
+      _startTime = TimeOfDay(
+        hour: service.availabilityStartMinutes ~/ 60,
+        minute: service.availabilityStartMinutes % 60,
+      );
+      _endTime = TimeOfDay(
+        hour: service.availabilityEndMinutes ~/ 60,
+        minute: service.availabilityEndMinutes % 60,
+      );
+    } else {
+      _applyAvailability(service.availability);
+    }
   }
 
   @override
@@ -679,8 +577,8 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                 ),
                 child: Text(
                   _isHourly
-                      ? 'Hourly services can be listed now. Checkout will wait for a future agreed final amount step.'
-                      : 'Fixed-job services can enter escrow after you accept a request.',
+                      ? 'Hourly services use escrow based on the duration selected by the requester.'
+                      : 'Paid services enter escrow after you accept a request.',
                   style: TextStyle(
                     color: context.appMuted,
                     fontSize: 12,
@@ -689,7 +587,7 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                   ),
                 ),
               ),
-              if (!_isHourly && !user.hasVerifiedPayoutAccount) ...[
+              if (!user.hasVerifiedPayoutAccount) ...[
                 const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -698,7 +596,7 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    'Fixed-job paid services need a verified payout account before publishing.',
+                    'Paid services need a verified payout account before publishing.',
                     style: TextStyle(
                       color: context.appMuted,
                       fontSize: 12,
@@ -814,10 +712,10 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
       _showSnack(context, 'Enter a valid price amount.');
       return;
     }
-    if (!_isHourly && !provider.hasVerifiedPayoutAccount) {
+    if (!provider.hasVerifiedPayoutAccount) {
       _showSnack(
         context,
-        'Verify your payout profile before publishing fixed-job services.',
+        'Verify your payout profile before publishing paid services.',
       );
       return;
     }
@@ -837,6 +735,9 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
             hourlyRate: _isHourly ? parsedPrice : null,
             fixedJobPrice: _isHourly ? null : parsedPrice,
             availability: _availabilityText(context),
+            availableWeekdays: _availableDays,
+            availabilityStartTime: _startTime,
+            availabilityEndTime: _endTime,
             imagePaths: _jobPhotos.map((photo) => photo.path).toList(),
             certificatePaths:
                 _certificates.map((certificate) => certificate.path).toList(),
@@ -856,6 +757,9 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
           hourlyRate: _isHourly ? parsedPrice : null,
           fixedJobPrice: _isHourly ? null : parsedPrice,
           availability: _availabilityText(context),
+          availableWeekdays: _availableDays,
+          availabilityStartTime: _startTime,
+          availabilityEndTime: _endTime,
           imagePaths: _jobPhotos.map((photo) => photo.path).toList(),
           certificatePaths:
               _certificates.map((certificate) => certificate.path).toList(),
@@ -1928,7 +1832,11 @@ class _CertificateLinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      onTap: () => _openCertificatePreview(
+        context: context,
+        name: name,
+        url: url,
+      ),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -1953,7 +1861,156 @@ class _CertificateLinkTile extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(Icons.open_in_new_rounded, size: 18),
+            const Icon(Icons.visibility_rounded, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CertificateImagePreviewScreen extends StatelessWidget {
+  const _CertificateImagePreviewScreen({required this.name, required this.url});
+
+  final String name;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = _certificateTitle(name);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 5,
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.contain,
+            placeholder: (context, _) => const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+            errorWidget: (context, _, _) => const Icon(
+              Icons.broken_image_outlined,
+              color: Colors.white,
+              size: 52,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CertificatePdfPreviewScreen extends StatefulWidget {
+  const _CertificatePdfPreviewScreen({
+    required this.filePath,
+    required this.name,
+  });
+
+  final String filePath;
+  final String name;
+
+  @override
+  State<_CertificatePdfPreviewScreen> createState() =>
+      _CertificatePdfPreviewScreenState();
+}
+
+class _CertificatePdfPreviewScreenState
+    extends State<_CertificatePdfPreviewScreen> {
+  late final PdfControllerPinch _pdfController;
+  int _currentPage = 1;
+  int? _pagesCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfController = PdfControllerPinch(
+      document: PdfDocument.openFile(widget.filePath),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pagesCount = _pagesCount;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: residentBrandTeal,
+        foregroundColor: Colors.white,
+        title: Text(
+          _certificateTitle(widget.name),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          if (pagesCount != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  '$_currentPage / $pagesCount',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: PdfViewPinch(
+        controller: _pdfController,
+        onDocumentLoaded: (document) {
+          setState(() => _pagesCount = document.pagesCount);
+        },
+        onPageChanged: (page) {
+          setState(() => _currentPage = page);
+        },
+        onDocumentError: (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open this certificate.')),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CertificateProgressDialog extends StatelessWidget {
+  const _CertificateProgressDialog({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
@@ -2105,2205 +2162,3 @@ class _MyServiceTabButton extends StatelessWidget {
     );
   }
 }
-
-class _DiscoverServices extends StatelessWidget {
-  const _DiscoverServices({
-    required this.query,
-    required this.category,
-    required this.user,
-  });
-
-  final String query;
-  final String category;
-  final AppUser user;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.read<services.ServiceProvider>();
-    return StreamBuilder<List<ServiceModel>>(
-      stream: provider.activeServicesStream(communityId: user.communityId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _ServiceListSkeleton();
-        }
-        if (snapshot.hasError) {
-          return _ServiceListView(
-            children: [
-              ResidentStateCard(
-                icon: Icons.error_outline_rounded,
-                title: 'Could not load services',
-                message: _friendlyServiceError(snapshot.error),
-              ),
-            ],
-          );
-        }
-        final servicesList = (snapshot.data ?? const <ServiceModel>[])
-            .where((service) => service.providerId != user.uid)
-            .where((service) => category == 'all' || service.category == category)
-            .where((service) {
-              final q = query.trim().toLowerCase();
-              if (q.isEmpty) return true;
-              return service.title.toLowerCase().contains(q) ||
-                  service.providerName.toLowerCase().contains(q) ||
-                  service.description.toLowerCase().contains(q);
-            })
-            .toList();
-        if (servicesList.isEmpty) {
-          return const _ServiceListView(
-            children: [
-              ResidentStateCard(
-                icon: Icons.home_repair_service_outlined,
-                title: 'No services found',
-                message: 'Try another search or create the first listing.',
-              ),
-            ],
-          );
-        }
-        return _ServiceListView(
-          children: [
-            for (final service in servicesList)
-              _ServiceListingCard(
-                service: service,
-                onTap: () => _showServiceDetail(context, user, service),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ServiceRequests extends StatelessWidget {
-  const _ServiceRequests({required this.user, required this.requesterView});
-
-  final AppUser user;
-  final bool requesterView;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.read<services.ServiceProvider>();
-    return StreamBuilder<List<ServiceRequestModel>>(
-      stream: requesterView
-          ? provider.myRequestsStream(user.uid)
-          : provider.incomingRequestsStream(user.uid),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _ServiceListSkeleton();
-        }
-        final requests = snapshot.data ?? const <ServiceRequestModel>[];
-        if (requests.isEmpty) {
-          return _ServiceListView(
-            children: [
-              ResidentStateCard(
-                icon: requesterView
-                    ? Icons.event_available_outlined
-                    : Icons.inbox_outlined,
-                title: requesterView ? 'No bookings yet' : 'No incoming requests',
-                message: requesterView
-                    ? 'Requested services will appear here.'
-                    : 'Bookings from requesters will appear here.',
-              ),
-            ],
-          );
-        }
-        return _ServiceListView(
-          children: [
-            for (final request in requests)
-              _ServiceRequestCard(
-                request: request,
-                user: user,
-                requesterView: requesterView,
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _MyServiceListings extends StatelessWidget {
-  const _MyServiceListings({required this.user});
-
-  final AppUser user;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.read<services.ServiceProvider>();
-    return StreamBuilder<List<ServiceModel>>(
-      stream: provider.myServicesStream(user.uid),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _ServiceListSkeleton();
-        }
-        final listings = snapshot.data ?? const <ServiceModel>[];
-        final missingCommunityIds = listings
-            .where((listing) => listing.communityId.trim().isEmpty)
-            .map((listing) => listing.id)
-            .toList(growable: false);
-        if (missingCommunityIds.isNotEmpty && user.communityId.trim().isNotEmpty) {
-          Future.microtask(
-            () => provider.repairMissingServiceCommunityIds(
-              provider: user,
-              serviceIds: missingCommunityIds,
-            ),
-          );
-        }
-        if (listings.isEmpty) {
-          return const _ServiceListView(
-            children: [
-              ResidentStateCard(
-                icon: Icons.add_business_outlined,
-                title: 'No listings yet',
-                message: 'Create a service to receive bookings from neighbors.',
-              ),
-            ],
-          );
-        }
-        return _ServiceListView(
-          children: [
-            for (final listing in listings)
-              _MyServiceListingCard(
-                service: listing,
-                visibilityRepairNeeded: listing.communityId.trim().isEmpty,
-                onEdit: _serviceIsArchived(listing)
-                    ? null
-                    : () => _openEditService(context, listing),
-                onArchive: _serviceIsArchived(listing)
-                    ? null
-                    : () => _confirmArchive(context, listing),
-                onUnarchive: _serviceIsArchived(listing)
-                    ? () => _confirmUnarchive(context, listing)
-                    : null,
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _openEditService(BuildContext context, ServiceModel service) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => ResidentAddNewServiceView(user: user, service: service),
-      ),
-    );
-  }
-
-  Future<void> _confirmArchive(
-    BuildContext context,
-    ServiceModel service,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Archive service?'),
-        content: Text(
-          '${service.title} will disappear from Services Discover.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Archive'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    await _setStatus(context, service, AppConstants.serviceStatusArchived);
-  }
-
-  Future<void> _confirmUnarchive(
-    BuildContext context,
-    ServiceModel service,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unarchive service?'),
-        content: Text(
-          '${service.title} will appear in Services Discover again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Unarchive'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    await _setStatus(context, service, AppConstants.serviceStatusActive);
-  }
-
-  Future<void> _setStatus(
-    BuildContext context,
-    ServiceModel service,
-    String status,
-  ) async {
-    final provider = context.read<services.ServiceProvider>();
-    await provider.setServiceStatus(
-      serviceId: service.id,
-      providerId: user.uid,
-      status: status,
-    );
-    if (!context.mounted) return;
-    _showSnack(
-      context,
-      status == AppConstants.serviceStatusArchived
-          ? 'Service archived.'
-          : 'Service unarchived.',
-    );
-  }
-}
-
-class _ServiceListingCard extends StatelessWidget {
-  const _ServiceListingCard({
-    required this.service,
-    this.onTap,
-  });
-
-  final ServiceModel service;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ResidentGlassPanel(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _ServiceVisualStrip(service: service),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  service.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.appInk,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    height: 1.15,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const ResidentStatusPill(label: 'Available'),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _categoryLabel(service.category),
-            style: TextStyle(
-              color: context.appMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            service.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: context.appInk,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              ResidentAvatar(
-                name: service.providerName,
-                photoUrl: service.providerPhotoUrl,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service.providerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appInk,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      service.availability.trim().isEmpty
-                          ? 'Availability by request'
-                          : service.availability,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appMuted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _priceLabel(service),
-                    style: const TextStyle(
-                      color: residentBrandTeal,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    _priceTypeLabel(service),
-                    style: TextStyle(
-                      color: context.appMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MyServiceListingCard extends StatelessWidget {
-  const _MyServiceListingCard({
-    required this.service,
-    required this.visibilityRepairNeeded,
-    required this.onEdit,
-    required this.onArchive,
-    required this.onUnarchive,
-  });
-
-  final ServiceModel service;
-  final bool visibilityRepairNeeded;
-  final VoidCallback? onEdit;
-  final VoidCallback? onArchive;
-  final VoidCallback? onUnarchive;
-
-  @override
-  Widget build(BuildContext context) {
-    final archived = _serviceIsArchived(service);
-    return ResidentGlassPanel(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _MyServiceThumb(service: service),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appInk,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _categoryLabel(service.category),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ResidentStatusPill(
-                          label: _serviceStatusLabel(service.status),
-                        ),
-                        if (service.certificateUrls.isNotEmpty)
-                          ResidentStatusPill(
-                            label:
-                                '${service.certificateUrls.length} credential${service.certificateUrls.length == 1 ? '' : 's'}',
-                          ),
-                        if (visibilityRepairNeeded)
-                          const ResidentStatusPill(label: 'Repairing visibility'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _MyServiceInfoPanel(service: service),
-          if (archived) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Archived services are hidden from Services Discover.',
-              style: TextStyle(
-                color: context.appMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
-              ),
-            ),
-          ],
-          if (visibilityRepairNeeded) ...[
-            const SizedBox(height: 10),
-            Text(
-              'This listing is being linked to your community so neighbors can discover it.',
-              style: TextStyle(
-                color: context.appMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ServiceFormSecondaryButton(
-                  label: 'Edit',
-                  icon: Icons.edit_outlined,
-                  onTap: onEdit,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: archived
-                    ? _ServiceFormSecondaryButton(
-                        label: 'Unarchive',
-                        icon: Icons.unarchive_outlined,
-                        onTap: onUnarchive,
-                      )
-                    : _ServiceDangerButton(
-                        label: 'Archive',
-                        icon: Icons.archive_outlined,
-                        onTap: onArchive,
-                      ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MyServiceThumb extends StatelessWidget {
-  const _MyServiceThumb({required this.service});
-
-  final ServiceModel service;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = service.imageUrls.isEmpty ? '' : service.imageUrls.first;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 82,
-        height: 82,
-        color: residentBrandTeal.withValues(alpha: 0.10),
-        child: imageUrl.isEmpty
-            ? Icon(_categoryIcon(service.category), color: residentBrandTeal)
-            : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
-      ),
-    );
-  }
-}
-
-class _MyServiceInfoPanel extends StatelessWidget {
-  const _MyServiceInfoPanel({required this.service});
-
-  final ServiceModel service;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.softSurface(),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.residentOutline()),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _MyServiceInfoColumn(
-              label: 'Availability',
-              value: service.availability.trim().isEmpty
-                  ? 'By request'
-                  : service.availability,
-            ),
-          ),
-          const SizedBox(width: 12),
-          _MyServiceInfoColumn(
-            label: _priceTypeLabel(service),
-            value: _priceLabel(service),
-            alignEnd: true,
-            emphasized: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MyServiceInfoColumn extends StatelessWidget {
-  const _MyServiceInfoColumn({
-    required this.label,
-    required this.value,
-    this.alignEnd = false,
-    this.emphasized = false,
-  });
-
-  final String label;
-  final String value;
-  final bool alignEnd;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-          style: TextStyle(
-            color: emphasized ? residentBrandTeal : context.appInk,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: context.appMuted,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ServiceVisualStrip extends StatelessWidget {
-  const _ServiceVisualStrip({required this.service});
-
-  final ServiceModel service;
-
-  @override
-  Widget build(BuildContext context) {
-    final photos = service.imageUrls;
-    return SizedBox(
-      height: JiraniResponsive.scaled(context, 124),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: photos.isEmpty
-                ? _ServiceVisualTile(
-                    icon: _categoryIcon(service.category),
-                    label: _categoryLabel(service.category),
-                  )
-                : _ServiceNetworkImageTile(
-                    imageUrl: photos.first,
-                    label: _categoryLabel(service.category),
-                  ),
-          ),
-          SizedBox(width: JiraniResponsive.scaled(context, 10)),
-          Expanded(
-            flex: 2,
-            child: Column(
-              children: [
-                Expanded(
-                  child: photos.length > 1
-                      ? _ServiceNetworkImageTile(
-                          imageUrl: photos[1],
-                          label: 'Work',
-                          compact: true,
-                        )
-                      : _ServiceVisualTile(
-                          icon: Icons.schedule_rounded,
-                          label: _priceTypeLabel(service),
-                          compact: true,
-                        ),
-                ),
-                SizedBox(height: JiraniResponsive.scaled(context, 10)),
-                Expanded(
-                  child: service.certificateUrls.isNotEmpty
-                      ? const _ServiceVisualTile(
-                          icon: Icons.workspace_premium_outlined,
-                          label: 'Certs',
-                          compact: true,
-                        )
-                      : const _ServiceVisualTile(
-                          icon: Icons.verified_user_outlined,
-                          label: 'Profile',
-                          compact: true,
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceNetworkImageTile extends StatelessWidget {
-  const _ServiceNetworkImageTile({
-    required this.imageUrl,
-    required this.label,
-    this.compact = false,
-  });
-
-  final String imageUrl;
-  final String label;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(JiraniResponsive.scaledRadius(context, 18)),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: residentBrandTeal.withValues(alpha: 0.10),
-            ),
-            errorWidget: (context, url, error) => _ServiceVisualTile(
-              icon: Icons.image_not_supported_outlined,
-              label: label,
-              compact: compact,
-            ),
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.42),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 10,
-            right: 10,
-            bottom: 8,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: compact ? 10 : 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceVisualTile extends StatelessWidget {
-  const _ServiceVisualTile({
-    required this.icon,
-    required this.label,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = JiraniResponsive.scaledRadius(context, 18);
-    return Container(
-      decoration: BoxDecoration(
-        color: residentBrandTeal.withValues(alpha: compact ? 0.08 : 0.12),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: residentBrandTeal.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: JiraniResponsive.scaled(context, compact ? 26 : 48),
-            color: residentBrandTeal.withValues(alpha: 0.72),
-          ),
-          if (!compact) ...[
-            const SizedBox(height: 8),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: residentBrandTeal,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceRequestCard extends StatelessWidget {
-  const _ServiceRequestCard({
-    required this.request,
-    required this.user,
-    required this.requesterView,
-  });
-
-  final ServiceRequestModel request;
-  final AppUser user;
-  final bool requesterView;
-
-  @override
-  Widget build(BuildContext context) {
-    final personName =
-        requesterView ? request.providerName : request.requesterName;
-    final personRole = requesterView ? 'Service provider' : 'Requester';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ResidentGlassPanel(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              ResidentIconTile(icon: Icons.handshake_outlined, size: 70),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      request.serviceTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appInk,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${DateFormat('MMM d').format(request.preferredDate)} - ${request.preferredTime}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.appMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ResidentStatusPill(
-                          label: _requestStatusLabel(request.status),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            request.amount == null
-                                ? 'Free'
-                                : _money(request.amount!),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: residentBrandTeal,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        ResidentProgressPanel(steps: _requestProgressSteps(request)),
-        const SizedBox(height: 12),
-        _ServiceLedgerPanel(request: request, requesterView: requesterView),
-        const SizedBox(height: 12),
-        ResidentPersonRow(name: personName, subtitle: personRole),
-        const SizedBox(height: 12),
-        _ServiceActionPanel(
-          request: request,
-          user: user,
-          requesterView: requesterView,
-        ),
-      ],
-    );
-  }
-}
-
-class _ServiceLedgerPanel extends StatelessWidget {
-  const _ServiceLedgerPanel({
-    required this.request,
-    required this.requesterView,
-  });
-
-  final ServiceRequestModel request;
-  final bool requesterView;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = request.amount ?? 0;
-    final payout = request.providerPayoutAmount > 0
-        ? request.providerPayoutAmount
-        : total;
-    return ResidentGlassPanel(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              ResidentIconTile(
-                icon: requesterView
-                    ? Icons.savings_outlined
-                    : Icons.account_balance_wallet_outlined,
-                size: 34,
-                radius: 10,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  requesterView ? 'Escrow Payment' : 'Provider Payout',
-                  style: TextStyle(
-                    color: context.appInk,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              ResidentStatusPill(
-                label: requesterView
-                    ? _paymentStatusLabel(request)
-                    : _payoutStatusLabel(request),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ResidentSummaryRow(
-            label: requesterView ? 'Amount held' : 'Service amount',
-            value: request.amount == null ? 'Free' : _money(total),
-          ),
-          const SizedBox(height: 8),
-          ResidentSummaryRow(
-            label: 'Platform fee',
-            value: _money(request.platformFeeAmount),
-          ),
-          const Divider(height: 24),
-          ResidentSummaryRow(
-            label: requesterView ? 'Total paid' : 'Expected payout',
-            value: request.amount == null ? 'Free' : _money(payout),
-            emphasized: true,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _ledgerMessage(request, requesterView),
-            style: TextStyle(
-              color: context.appMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceActionPanel extends StatelessWidget {
-  const _ServiceActionPanel({
-    required this.request,
-    required this.user,
-    required this.requesterView,
-  });
-
-  final ServiceRequestModel request;
-  final AppUser user;
-  final bool requesterView;
-
-  @override
-  Widget build(BuildContext context) {
-    final serviceProvider = context.read<services.ServiceProvider>();
-    final paymentProvider = context.watch<PaymentProvider>();
-    final busy =
-        context.watch<services.ServiceProvider>().isLoading ||
-        paymentProvider.isLoading;
-
-    if (!requesterView &&
-        request.status == AppConstants.serviceRequestStatusPending) {
-      return ResidentGlassPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _PanelLabel('Request Review'),
-            const SizedBox(height: 12),
-            ResidentTrackingStepCard(
-              icon: Icons.fact_check_outlined,
-              title: 'Accept or reject booking',
-              message:
-                  'Accepting a paid fixed service asks the requester to complete Xendit checkout before work can begin.',
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: ResidentPrimaryButton(
-                    icon: Icons.check_rounded,
-                    label: busy ? 'Working...' : 'Accept',
-                    onTap: busy
-                        ? null
-                        : () => _guard(
-                              context,
-                              () => serviceProvider.acceptServiceRequest(
-                                requestId: request.id,
-                                providerId: user.uid,
-                              ),
-                            ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ResidentSecondaryButton(
-                    icon: Icons.close_rounded,
-                    label: 'Reject',
-                    onTap: busy
-                        ? null
-                        : () => _guard(
-                              context,
-                              () => serviceProvider.rejectServiceRequest(
-                                requestId: request.id,
-                                providerId: user.uid,
-                              ),
-                            ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (requesterView &&
-        request.status ==
-            AppConstants.serviceRequestStatusAcceptedAwaitingPayment) {
-      return _CheckoutPanel(
-        request: request,
-        busy: busy,
-        onPayment: () => _payForService(context, request),
-      );
-    }
-
-    if (!requesterView &&
-        request.status == AppConstants.serviceRequestStatusPaidHeld) {
-      return ResidentGlassPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _PanelLabel('Proof of Arrival'),
-            const SizedBox(height: 12),
-            ResidentTrackingStepCard(
-              icon: Icons.pin_rounded,
-              title: 'Show arrival code',
-              message:
-                  'Generate this when you are physically with the requester. The requester enters it to start the job timer.',
-              action: ResidentPrimaryButton(
-                icon: Icons.pin_rounded,
-                label: busy ? 'Generating...' : 'Generate Arrival Code',
-                onTap: busy
-                    ? null
-                    : () => _showGeneratedCode(
-                          context,
-                          () => serviceProvider.generateArrivalCode(
-                            requestId: request.id,
-                            providerId: user.uid,
-                          ),
-                          'Arrival Code',
-                        ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (requesterView &&
-        request.status == AppConstants.serviceRequestStatusPaidHeld) {
-      return ResidentGlassPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _PanelLabel('Confirm Arrival'),
-            const SizedBox(height: 12),
-            ResidentTrackingStepCard(
-              icon: Icons.handshake_rounded,
-              title: 'Enter provider arrival code',
-              message:
-                  'Only enter the code after the provider has arrived in person and is ready to begin.',
-              action: ResidentPrimaryButton(
-                icon: Icons.pin_rounded,
-                label: 'Enter Arrival Code',
-                onTap: busy
-                    ? null
-                    : () => _showCodeInput(
-                          context,
-                          title: 'Arrival Code',
-                          submit: (code) => serviceProvider.submitArrivalCode(
-                            requestId: request.id,
-                            requesterId: user.uid,
-                            code: code,
-                          ),
-                        ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (requesterView &&
-        request.status == AppConstants.serviceRequestStatusInProgress) {
-      return ResidentGlassPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _PanelLabel('Work Completion'),
-            const SizedBox(height: 12),
-            ResidentTrackingStepCard(
-              icon: Icons.task_alt_rounded,
-              title: 'Approve completed work',
-              message:
-                  'Inspect the work. Generate the completion code only when you are satisfied.',
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: ResidentPrimaryButton(
-                    icon: Icons.verified_rounded,
-                    label: 'Generate Completion Code',
-                    onTap: busy
-                        ? null
-                        : () => _showGeneratedCode(
-                              context,
-                              () => serviceProvider.generateCompletionCode(
-                                requestId: request.id,
-                                requesterId: user.uid,
-                              ),
-                              'Completion Code',
-                            ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ResidentDangerButton(
-                    icon: Icons.gavel_rounded,
-                    label: 'Dispute',
-                    onTap: busy
-                        ? null
-                        : () => _showDisputeDialog(
-                              context,
-                              request.id,
-                              user.uid,
-                            ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (!requesterView &&
-        request.status == AppConstants.serviceRequestStatusInProgress) {
-      return ResidentGlassPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _PanelLabel('Proof of Work'),
-            const SizedBox(height: 12),
-            ResidentTrackingStepCard(
-              icon: Icons.pin_rounded,
-              title: 'Enter completion code',
-              message:
-                  'After the requester approves the work, enter their 4-digit completion code to release payout.',
-              action: ResidentPrimaryButton(
-                icon: Icons.verified_rounded,
-                label: 'Enter Completion Code',
-                onTap: busy
-                    ? null
-                    : () => _showCodeInput(
-                          context,
-                          title: 'Completion Code',
-                          submit: (code) =>
-                              serviceProvider.submitCompletionCode(
-                            requestId: request.id,
-                            providerId: user.uid,
-                            code: code,
-                          ),
-                        ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (!requesterView &&
-        request.status == AppConstants.serviceRequestStatusAccepted &&
-        !request.isPaidService) {
-      return ResidentGlassPanel(
-        child: ResidentTrackingStepCard(
-          icon: Icons.task_alt_rounded,
-          title: 'Complete free service',
-          message:
-              'This request does not require escrow. Mark it complete once the work is done.',
-          action: ResidentPrimaryButton(
-            icon: Icons.check_rounded,
-            label: busy ? 'Completing...' : 'Complete Free Service',
-            onTap: busy
-                ? null
-                : () => _guard(
-                      context,
-                      () => serviceProvider.completeServiceRequest(
-                        requestId: request.id,
-                        providerId: user.uid,
-                      ),
-                    ),
-          ),
-        ),
-      );
-    }
-
-    if (request.status == AppConstants.serviceRequestStatusDisputed) {
-      return _DisputedPanel(request: request);
-    }
-
-    if (request.status ==
-            AppConstants.serviceRequestStatusCompletedPayoutPending ||
-        request.status == AppConstants.serviceRequestStatusCompletedPayoutSent ||
-        request.status == AppConstants.serviceRequestStatusCompleted) {
-      return _CompletedPanel(request: request, requesterView: requesterView);
-    }
-
-    return ResidentGlassPanel(
-      child: ResidentTrackingStepCard(
-        icon: Icons.info_outline_rounded,
-        title: _requestStatusLabel(request.status),
-        message: _statusHelp(request),
-      ),
-    );
-  }
-}
-
-class _CheckoutPanel extends StatelessWidget {
-  const _CheckoutPanel({
-    required this.request,
-    required this.busy,
-    required this.onPayment,
-  });
-
-  final ServiceRequestModel request;
-  final bool busy;
-  final VoidCallback onPayment;
-
-  @override
-  Widget build(BuildContext context) {
-    final amount = request.amount ?? 0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ResidentGlassPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _PanelLabel('Transaction Summary'),
-              const SizedBox(height: 12),
-              ResidentSummaryRow(label: 'Service', value: request.serviceTitle),
-              const SizedBox(height: 8),
-              ResidentSummaryRow(
-                label: 'Date',
-                value: DateFormat('MMM d, yyyy').format(request.preferredDate),
-              ),
-              const SizedBox(height: 8),
-              ResidentSummaryRow(label: 'Time', value: request.preferredTime),
-              const Divider(height: 28),
-              ResidentSummaryRow(
-                label: 'Total Due',
-                value: _money(amount),
-                emphasized: true,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        ResidentGlassPanel(
-          child: ResidentTrackingStepCard(
-            icon: Icons.account_balance_wallet_rounded,
-            title: 'Secure Xendit checkout',
-            message:
-                'Xendit will open a secure checkout page with Malaysian payment options. Your payment is held until completion is verified.',
-            action: ResidentPrimaryButton(
-              icon: Icons.lock_rounded,
-              label: busy ? 'Opening checkout...' : 'Pay with Xendit',
-              onTap: busy ? null : onPayment,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DisputedPanel extends StatelessWidget {
-  const _DisputedPanel({required this.request});
-
-  final ServiceRequestModel request;
-
-  @override
-  Widget build(BuildContext context) {
-    final reason = request.disputeReason.trim();
-    return ResidentGlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _PanelLabel('Admin Review'),
-          const SizedBox(height: 12),
-          ResidentTrackingStepCard(
-            icon: Icons.gavel_rounded,
-            title: 'Escrow Frozen',
-            message:
-                'This service is paused while admin reviews the dispute. Funds remain held until admin decides payout or refund.',
-            child: Column(
-              children: [
-                ResidentSummaryRow(
-                  label: 'Reason',
-                  value: reason.isEmpty ? 'Waiting for admin review' : reason,
-                ),
-                const SizedBox(height: 8),
-                const ResidentSummaryRow(
-                  label: 'Admin note',
-                  value: 'The final resolution will appear here.',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompletedPanel extends StatelessWidget {
-  const _CompletedPanel({
-    required this.request,
-    required this.requesterView,
-  });
-
-  final ServiceRequestModel request;
-  final bool requesterView;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPayoutSent =
-        request.status == AppConstants.serviceRequestStatusCompletedPayoutSent ||
-        request.status == AppConstants.serviceRequestStatusCompleted;
-    return ResidentGlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Icon(
-            isPayoutSent ? Icons.check_circle_rounded : Icons.hourglass_top_rounded,
-            color: isPayoutSent ? residentBrandTeal : residentWarmAccent,
-            size: 46,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            isPayoutSent ? 'Service Complete' : 'Payout Processing',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.appInk,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            requesterView
-                ? 'Completion was verified face to face.'
-                : isPayoutSent
-                    ? 'The service payout has been sent.'
-                    : 'Completion is verified and payout is being processed.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.appMuted,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 18),
-          ResidentTrackingStepCard(
-            icon: Icons.rate_review_rounded,
-            title: requesterView ? 'Rate the Provider' : 'Review Ready',
-            message: requesterView
-                ? 'Service reviews will use the same Marketplace rating style once service review submission is enabled.'
-                : 'The requester can review the completed service from their booking history.',
-            child: requesterView
-                ? Center(
-                    child: RatingBarIndicator(
-                      rating: 5,
-                      itemSize: 34,
-                      itemBuilder: (context, _) => const Icon(
-                        Icons.star_rounded,
-                        color: residentWarmAccent,
-                      ),
-                    ),
-                  )
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PanelLabel extends StatelessWidget {
-  const _PanelLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: TextStyle(
-        color: context.appMuted,
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0,
-      ),
-    );
-  }
-}
-
-class _ServiceListView extends StatelessWidget {
-  const _ServiceListView({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-      itemCount: children.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: residentMaxContentWidth),
-            child: children[index],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ServiceListSkeleton extends StatelessWidget {
-  const _ServiceListSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return _ServiceListView(
-      children: [
-        for (var i = 0; i < 3; i++)
-          ResidentGlassPanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  height: 124,
-                  decoration: BoxDecoration(
-                    color: residentBrandTeal.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  height: 18,
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: context.skeletonBar,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 14,
-                  width: 120,
-                  decoration: BoxDecoration(
-                    color: context.skeletonBar,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-Future<void> _showServiceDetail(
-  BuildContext context,
-  AppUser user,
-  ServiceModel service,
-) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    builder: (sheetContext) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ServiceVisualStrip(service: service),
-            const SizedBox(height: 16),
-            Text(
-              service.title,
-              style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(service.description),
-            const SizedBox(height: 14),
-            ResidentPersonRow(
-              name: service.providerName,
-              subtitle: service.availability.trim().isEmpty
-                  ? 'Availability by request'
-                  : service.availability,
-              photoUrl: service.providerPhotoUrl,
-            ),
-            const SizedBox(height: 14),
-            ResidentGlassPanel(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  ResidentSummaryRow(
-                    label: 'Price',
-                    value: _priceLabel(service),
-                    emphasized: true,
-                  ),
-                  const SizedBox(height: 8),
-                  ResidentSummaryRow(
-                    label: 'Category',
-                    value: _categoryLabel(service.category),
-                  ),
-                  const SizedBox(height: 8),
-                  ResidentSummaryRow(
-                    label: 'Pricing mode',
-                    value: _priceTypeLabel(service),
-                  ),
-                ],
-              ),
-            ),
-            if (service.certificateUrls.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              ResidentGlassPanel(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const _PanelTitle(
-                      icon: Icons.workspace_premium_outlined,
-                      title: 'Self-provided certificates',
-                    ),
-                    const SizedBox(height: 10),
-                    for (var i = 0; i < service.certificateUrls.length; i += 1)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: i == service.certificateUrls.length - 1 ? 0 : 8,
-                        ),
-                        child: _CertificateLinkTile(
-                          name: i < service.certificateNames.length
-                              ? service.certificateNames[i]
-                              : 'Certificate ${i + 1}',
-                          url: service.certificateUrls[i],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            ResidentPrimaryButton(
-              icon: Icons.receipt_long_rounded,
-              label: 'Request Service',
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showRequestSheet(context, user, service);
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-Future<void> _showRequestSheet(
-  BuildContext context,
-  AppUser user,
-  ServiceModel service,
-) async {
-  final message = TextEditingController();
-  final time = TextEditingController();
-  var date = DateTime.now().add(const Duration(days: 1));
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Request ${service.title}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: message,
-                  decoration: context.residentInputDecoration(
-                    label: 'Message',
-                    hint: 'Share what you need help with',
-                  ),
-                  minLines: 2,
-                  maxLines: 4,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: time,
-                  decoration: context.residentInputDecoration(
-                    label: 'Preferred time',
-                    hint: 'e.g. 4:00 PM',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ResidentSecondaryButton(
-                  icon: Icons.calendar_today_outlined,
-                  label: DateFormat('MMM d, yyyy').format(date),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 90)),
-                      initialDate: date,
-                    );
-                    if (picked != null) setState(() => date = picked);
-                  },
-                ),
-                const SizedBox(height: 18),
-                ResidentPrimaryButton(
-                  icon: Icons.send_rounded,
-                  label: 'Submit Request',
-                  onTap: () => _guard(context, () async {
-                    await context
-                        .read<services.ServiceProvider>()
-                        .createServiceRequest(
-                          service: service,
-                          requester: user,
-                          message: message.text,
-                          preferredDate: date,
-                          preferredTime: time.text,
-                        );
-                    if (context.mounted) Navigator.pop(context);
-                  }),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
-Future<void> _showGeneratedCode(
-  BuildContext context,
-  Future<String?> Function() generator,
-  String title,
-) async {
-  final code = await generator();
-  if (!context.mounted || code == null || code.isEmpty) return;
-  await showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: ResidentCodeDisplay(label: title, code: code),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Done'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _showCodeInput(
-  BuildContext context, {
-  required String title,
-  required Future<void> Function(String code) submit,
-}) async {
-  final controller = TextEditingController();
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(4),
-        ],
-        maxLength: 4,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
-        ),
-        decoration: context.residentInputDecoration(
-          label: '4-digit code',
-          hint: '0000',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => _guard(dialogContext, () async {
-            await submit(controller.text.trim());
-            if (dialogContext.mounted) Navigator.pop(dialogContext);
-          }),
-          child: const Text('Submit'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _showDisputeDialog(
-  BuildContext context,
-  String requestId,
-  String requesterId,
-) async {
-  final reason = TextEditingController();
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Raise Dispute'),
-      content: TextField(
-        controller: reason,
-        minLines: 3,
-        maxLines: 5,
-        decoration: context.residentInputDecoration(
-          label: 'What went wrong?',
-          hint: 'Describe the issue for admin review',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => _guard(dialogContext, () async {
-            await dialogContext
-                .read<services.ServiceProvider>()
-                .disputeServiceRequest(
-                  requestId: requestId,
-                  requesterId: requesterId,
-                  reason: reason.text,
-                );
-            if (dialogContext.mounted) Navigator.pop(dialogContext);
-          }),
-          child: const Text('Submit'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _payForService(
-  BuildContext context,
-  ServiceRequestModel request,
-) async {
-  final paymentProvider = context.read<PaymentProvider>();
-  final result = await paymentProvider.createXenditServicePayment(
-    request: request,
-    successRedirectUrl:
-        'https://final-year-project-faisal.web.app/xendit-payment-success',
-    failureRedirectUrl:
-        'https://final-year-project-faisal.web.app/xendit-payment-failed',
-  );
-  if (!context.mounted) return;
-  if (result == null || result.checkoutUrl.isEmpty) {
-    _showSnack(
-      context,
-      paymentProvider.errorMessage ?? 'Could not open Xendit checkout.',
-    );
-    return;
-  }
-  final opened = await launchUrl(
-    Uri.parse(result.checkoutUrl),
-    mode: LaunchMode.externalApplication,
-  );
-  if (!context.mounted) return;
-  if (!opened) {
-    _showSnack(context, 'Could not open Xendit checkout.');
-    return;
-  }
-  _showSnack(context, "Payment opened. We'll confirm with Xendit shortly.");
-  await paymentProvider.waitForPaymentConfirmation(result.paymentId);
-}
-
-Future<void> _guard(BuildContext context, Future<void> Function() action) async {
-  try {
-    await action();
-    if (context.mounted) _showSnack(context, 'Done.');
-  } catch (error) {
-    if (!context.mounted) return;
-    _showSnack(context, error.toString().replaceFirst('Exception: ', ''));
-  }
-}
-
-void _showSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-}
-
-String _friendlyServiceError(Object? error) {
-  final raw = error?.toString() ?? 'Unknown error.';
-  if (raw.contains('failed-precondition') || raw.contains('index')) {
-    return 'Firestore needs the Services community/status index. Deploy indexes and try again.';
-  }
-  if (raw.contains('permission-denied')) {
-    return 'Firestore rules denied this Services query. Check the service community visibility rules.';
-  }
-  return raw.replaceFirst('Exception: ', '');
-}
-
-List<ResidentProgressStep> _requestProgressSteps(ServiceRequestModel request) {
-  final status = request.status;
-  return [
-    ResidentProgressStep(
-      label: 'Accept',
-      icon: Icons.verified_rounded,
-      done: status != AppConstants.serviceRequestStatusPending &&
-          status != AppConstants.serviceRequestStatusRejected &&
-          status != AppConstants.serviceRequestStatusCancelled,
-    ),
-    ResidentProgressStep(
-      label: 'Payment',
-      icon: Icons.payments_rounded,
-      done: !request.isPaidService ||
-          status == AppConstants.serviceRequestStatusPaidHeld ||
-          _isAfterServicePayment(status),
-    ),
-    ResidentProgressStep(
-      label: 'Arrival',
-      icon: Icons.handshake_rounded,
-      done: request.arrivalVerifiedAt != null ||
-          status == AppConstants.serviceRequestStatusInProgress ||
-          _isAfterServiceArrival(status),
-    ),
-    ResidentProgressStep(
-      label: 'Complete',
-      icon: Icons.task_alt_rounded,
-      done: request.completedAt != null ||
-          status == AppConstants.serviceRequestStatusCompleted ||
-          status == AppConstants.serviceRequestStatusCompletedPayoutPending ||
-          status == AppConstants.serviceRequestStatusCompletedPayoutSent,
-    ),
-  ];
-}
-
-bool _isAfterServicePayment(String status) {
-  return status == AppConstants.serviceRequestStatusInProgress ||
-      status == AppConstants.serviceRequestStatusCompletedPayoutPending ||
-      status == AppConstants.serviceRequestStatusCompletedPayoutSent ||
-      status == AppConstants.serviceRequestStatusDisputed ||
-      status == AppConstants.serviceRequestStatusRefunded ||
-      status == AppConstants.serviceRequestStatusCompleted;
-}
-
-bool _isAfterServiceArrival(String status) {
-  return status == AppConstants.serviceRequestStatusCompletedPayoutPending ||
-      status == AppConstants.serviceRequestStatusCompletedPayoutSent ||
-      status == AppConstants.serviceRequestStatusDisputed ||
-      status == AppConstants.serviceRequestStatusRefunded ||
-      status == AppConstants.serviceRequestStatusCompleted;
-}
-
-String _priceLabel(ServiceModel service) {
-  if (service.pricingMode == AppConstants.servicePricingModeHourly) {
-    return '${_money(service.hourlyRate ?? service.priceAmount ?? 0)} / hour';
-  }
-  if (service.pricingMode == AppConstants.servicePricingModeFixedJob) {
-    return _money(service.fixedJobPrice ?? service.priceAmount ?? 0);
-  }
-  switch (service.priceType) {
-    case AppConstants.servicePriceTypeFree:
-      return 'Free';
-    case AppConstants.servicePriceTypeNegotiable:
-      return service.priceAmount == null
-          ? 'Negotiable'
-          : '${_money(service.priceAmount!)} negotiable';
-    default:
-      return _money(service.priceAmount ?? 0);
-  }
-}
-
-String _priceTypeLabel(ServiceModel service) {
-  if (service.pricingMode == AppConstants.servicePricingModeHourly) {
-    return 'Hourly rate';
-  }
-  if (service.pricingMode == AppConstants.servicePricingModeFixedJob) {
-    return 'Fixed job';
-  }
-  return switch (service.priceType) {
-    AppConstants.servicePriceTypeFree => 'No payment',
-    AppConstants.servicePriceTypeNegotiable => 'Negotiable',
-    _ => 'Service fee',
-  };
-}
-
-String _money(double value) => 'RM ${value.toStringAsFixed(2)}';
-
-String _serviceStatusLabel(String status) {
-  return status.isEmpty ? 'Unknown' : status[0].toUpperCase() + status.substring(1);
-}
-
-bool _serviceIsArchived(ServiceModel service) {
-  return service.status == AppConstants.serviceStatusArchived;
-}
-
-String _requestStatusLabel(String status) {
-  return switch (status) {
-    AppConstants.serviceRequestStatusAcceptedAwaitingPayment =>
-      'Awaiting Payment',
-    AppConstants.serviceRequestStatusPaidHeld => 'Paid',
-    AppConstants.serviceRequestStatusInProgress => 'In Progress',
-    AppConstants.serviceRequestStatusCompletedPayoutPending => 'Payout Pending',
-    AppConstants.serviceRequestStatusCompletedPayoutSent => 'Completed',
-    AppConstants.serviceRequestStatusPaymentFailed => 'Payment Failed',
-    _ => _serviceStatusLabel(status),
-  };
-}
-
-String _paymentStatusLabel(ServiceRequestModel request) {
-  if (!request.isPaidService) return 'No Payment';
-  if (request.paymentStatus.trim().isNotEmpty) {
-    return _serviceStatusLabel(request.paymentStatus);
-  }
-  return switch (request.status) {
-    AppConstants.serviceRequestStatusAcceptedAwaitingPayment => 'Unpaid',
-    AppConstants.serviceRequestStatusPaidHeld => 'Held',
-    AppConstants.serviceRequestStatusPaymentFailed => 'Failed',
-    AppConstants.serviceRequestStatusRefunded => 'Refunded',
-    _ => 'Pending',
-  };
-}
-
-String _payoutStatusLabel(ServiceRequestModel request) {
-  if (!request.isPaidService) return 'No Payout';
-  if (request.payoutStatus.trim().isNotEmpty) {
-    return _serviceStatusLabel(request.payoutStatus);
-  }
-  return 'Pending';
-}
-
-String _ledgerMessage(ServiceRequestModel request, bool requesterView) {
-  if (!request.isPaidService) {
-    return 'This is a free service request, so no escrow payment is required.';
-  }
-  if (request.status == AppConstants.serviceRequestStatusDisputed) {
-    return 'Escrow is frozen while admin reviews the dispute.';
-  }
-  if (request.status == AppConstants.serviceRequestStatusCompletedPayoutSent) {
-    return requesterView
-        ? 'Work was verified and provider payout was sent.'
-        : 'Payout was sent after completion code verification.';
-  }
-  return requesterView
-      ? 'Payment is held until arrival and completion are verified face to face.'
-      : 'Payout is released only after the requester gives the completion code.';
-}
-
-String _statusHelp(ServiceRequestModel request) {
-  return switch (request.status) {
-    AppConstants.serviceRequestStatusPending => 'Waiting for provider response.',
-    AppConstants.serviceRequestStatusAcceptedAwaitingPayment =>
-      'Waiting for requester payment.',
-    AppConstants.serviceRequestStatusPaidHeld =>
-      'Payment is held until arrival is verified.',
-    AppConstants.serviceRequestStatusCompletedPayoutPending =>
-      'Completion verified. Payout is processing.',
-    AppConstants.serviceRequestStatusCompletedPayoutSent =>
-      'Completed and payout sent.',
-    AppConstants.serviceRequestStatusDisputed =>
-      'Dispute is frozen for admin review.',
-    AppConstants.serviceRequestStatusRefunded => 'Payment was refunded.',
-    AppConstants.serviceRequestStatusPaymentFailed =>
-      'Payment failed. The requester can try again.',
-    _ => 'No action available for this state.',
-  };
-}
-
-IconData _categoryIcon(String category) {
-  return switch (category) {
-    AppConstants.serviceCategoryHomeCleaningUpkeep =>
-      Icons.cleaning_services_outlined,
-    AppConstants.serviceCategoryRepairsMaintenance => Icons.build_outlined,
-    AppConstants.serviceCategoryAssemblyLabor => Icons.handyman_outlined,
-    AppConstants.serviceCategoryTutoringEducation => Icons.school_outlined,
-    AppConstants.serviceCategoryAssistanceErrands => Icons.volunteer_activism_outlined,
-    AppConstants.serviceCategoryItTechSetup => Icons.router_outlined,
-    AppConstants.serviceCategoryHomeCookingMealPrep => Icons.restaurant_outlined,
-    AppConstants.serviceCategoryCreativeDigitalTasks =>
-      Icons.design_services_outlined,
-    _ => Icons.home_repair_service_outlined,
-  };
-}
-
-int _timeMinutes(TimeOfDay time) => time.hour * 60 + time.minute;
-
-String _serviceAmountText(double amount) {
-  return amount % 1 == 0 ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2);
-}
-
-TimeOfDay? _parseServiceTime(String? hour, String? minute, String? period) {
-  final parsedHour = int.tryParse(hour ?? '');
-  final parsedMinute = int.tryParse(minute ?? '');
-  if (parsedHour == null || parsedMinute == null || period == null) {
-    return null;
-  }
-  var resolvedHour = parsedHour % 12;
-  if (period.toLowerCase() == 'pm') resolvedHour += 12;
-  return TimeOfDay(hour: resolvedHour, minute: parsedMinute);
-}
-
-bool _sameDays(Set<int> left, Set<int> right) {
-  if (left.length != right.length) return false;
-  return left.every(right.contains);
-}
-
-String _availabilityDaySummary(Set<int> days) {
-  if (_sameDays(days, _everydayDays)) return 'Everyday';
-  if (_sameDays(days, _weekdayDays)) return 'Mon-Fri';
-  if (_sameDays(days, _weekendDays)) return 'Sat-Sun';
-  final sorted = days.toList()..sort();
-  return sorted.map(_dayShortLabel).join(', ');
-}
-
-String _dayShortLabel(int day) {
-  return switch (day) {
-    DateTime.monday => 'Mon',
-    DateTime.tuesday => 'Tue',
-    DateTime.wednesday => 'Wed',
-    DateTime.thursday => 'Thu',
-    DateTime.friday => 'Fri',
-    DateTime.saturday => 'Sat',
-    DateTime.sunday => 'Sun',
-    _ => 'Day',
-  };
-}
-
-String _categoryLabel(String category) => _serviceCategories[category] ?? 'Other';
-
-const _availabilityDays = [
-  _AvailabilityDay(DateTime.monday, 'Mon'),
-  _AvailabilityDay(DateTime.tuesday, 'Tue'),
-  _AvailabilityDay(DateTime.wednesday, 'Wed'),
-  _AvailabilityDay(DateTime.thursday, 'Thu'),
-  _AvailabilityDay(DateTime.friday, 'Fri'),
-  _AvailabilityDay(DateTime.saturday, 'Sat'),
-  _AvailabilityDay(DateTime.sunday, 'Sun'),
-];
-
-const _weekdayDays = {
-  DateTime.monday,
-  DateTime.tuesday,
-  DateTime.wednesday,
-  DateTime.thursday,
-  DateTime.friday,
-};
-
-const _weekendDays = {
-  DateTime.saturday,
-  DateTime.sunday,
-};
-
-const _everydayDays = {
-  DateTime.monday,
-  DateTime.tuesday,
-  DateTime.wednesday,
-  DateTime.thursday,
-  DateTime.friday,
-  DateTime.saturday,
-  DateTime.sunday,
-};
-
-class _AvailabilityDay {
-  const _AvailabilityDay(this.value, this.label);
-
-  final int value;
-  final String label;
-}
-
-const _serviceCategories = <String, String>{
-  AppConstants.serviceCategoryHomeCleaningUpkeep: 'Home Cleaning & Upkeep',
-  AppConstants.serviceCategoryRepairsMaintenance: 'Repairs & Maintenance',
-  AppConstants.serviceCategoryAssemblyLabor: 'Assembly & Labor',
-  AppConstants.serviceCategoryTutoringEducation: 'Tutoring & Education',
-  AppConstants.serviceCategoryAssistanceErrands: 'Assistance & Errands',
-  AppConstants.serviceCategoryItTechSetup: 'IT & Tech Setup',
-  AppConstants.serviceCategoryHomeCookingMealPrep: 'Home Cooking & Meal Prep',
-  AppConstants.serviceCategoryCreativeDigitalTasks: 'Creative & Digital Tasks',
-};
-
-const _serviceCategoryOptions = [
-  ResidentCategoryOption('All Services', 'all'),
-  ResidentCategoryOption(
-    'Home Cleaning',
-    AppConstants.serviceCategoryHomeCleaningUpkeep,
-  ),
-  ResidentCategoryOption(
-    'Repairs',
-    AppConstants.serviceCategoryRepairsMaintenance,
-  ),
-  ResidentCategoryOption(
-    'Labor',
-    AppConstants.serviceCategoryAssemblyLabor,
-  ),
-  ResidentCategoryOption(
-    'Tutoring',
-    AppConstants.serviceCategoryTutoringEducation,
-  ),
-  ResidentCategoryOption(
-    'Errands',
-    AppConstants.serviceCategoryAssistanceErrands,
-  ),
-  ResidentCategoryOption(
-    'Tech',
-    AppConstants.serviceCategoryItTechSetup,
-  ),
-  ResidentCategoryOption(
-    'Cooking',
-    AppConstants.serviceCategoryHomeCookingMealPrep,
-  ),
-  ResidentCategoryOption(
-    'Creative',
-    AppConstants.serviceCategoryCreativeDigitalTasks,
-  ),
-];

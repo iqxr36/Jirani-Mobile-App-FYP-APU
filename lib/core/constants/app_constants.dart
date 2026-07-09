@@ -221,6 +221,8 @@ class AppConstants {
   static const String refundStatusSucceeded = 'succeeded';
   static const String refundStatusFailed = 'failed';
   static const String refundStatusNotRequired = 'not_required';
+  static const String settlementModeSimulated = 'simulated';
+  static const String settlementModeLive = 'live';
 
   static const String damageDecisionNone = 'none';
   static const String damageDecisionBorrowerAccepted = 'borrower_accepted';
@@ -270,6 +272,8 @@ class AppConstants {
   // Reviews (Phase 6)
   static const String reviewRoleBorrowerToOwner = 'borrowerToOwner';
   static const String reviewRoleOwnerToBorrower = 'ownerToBorrower';
+  static const String reviewRoleServiceRequesterToProvider =
+      'serviceRequesterToProvider';
   static const String reviewStatusHidden = 'hidden';
   static const String reviewStatusPublished = 'published';
 
@@ -345,6 +349,35 @@ class AppConstants {
   static const String serviceRequestStatusCancelled = 'cancelled';
   static const String serviceRequestStatusCompleted = 'completed';
   static const String serviceRequestStatusPaymentFailed = 'paymentFailed';
+
+  static const String serviceDisputeTypeIncomplete = 'incomplete';
+  static const String serviceDisputeTypePoorQuality = 'poorQuality';
+  static const String serviceDisputeTypeNoShow = 'noShow';
+  static const String serviceDisputeTypeScopeMismatch = 'scopeMismatch';
+  static const String serviceDisputeTypeSafetyConcern = 'safetyConcern';
+  static const String serviceDisputeTypeOther = 'other';
+
+  static const List<String> serviceDisputeTypes = [
+    serviceDisputeTypeIncomplete,
+    serviceDisputeTypePoorQuality,
+    serviceDisputeTypeNoShow,
+    serviceDisputeTypeScopeMismatch,
+    serviceDisputeTypeSafetyConcern,
+    serviceDisputeTypeOther,
+  ];
+
+  static const Map<String, String> serviceDisputeTypeLabels = {
+    serviceDisputeTypeIncomplete: 'Service not performed or incomplete',
+    serviceDisputeTypePoorQuality: 'Poor quality or unsatisfactory work',
+    serviceDisputeTypeNoShow: 'Provider late or did not show up',
+    serviceDisputeTypeScopeMismatch: 'Work not as agreed',
+    serviceDisputeTypeSafetyConcern: 'Damage, mess, or safety concern',
+    serviceDisputeTypeOther: 'Other (explain below)',
+  };
+
+  static String serviceDisputeTypeLabel(String disputeType) {
+    return serviceDisputeTypeLabels[disputeType] ?? 'Dispute';
+  }
 
   static const String servicePayoutStatusNotStarted = 'notStarted';
   static const String servicePayoutStatusPending = 'pending';

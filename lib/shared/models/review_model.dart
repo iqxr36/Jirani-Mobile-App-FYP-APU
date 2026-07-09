@@ -5,6 +5,8 @@ class ReviewModel {
   const ReviewModel({
     required this.id,
     required this.borrowRequestId,
+    this.serviceRequestId = '',
+    this.serviceId = '',
     required this.itemId,
     required this.reviewerId,
     required this.reviewerName,
@@ -22,6 +24,8 @@ class ReviewModel {
 
   final String id;
   final String borrowRequestId;
+  final String serviceRequestId;
+  final String serviceId;
   final String itemId;
   final String reviewerId;
   final String reviewerName;
@@ -41,6 +45,8 @@ class ReviewModel {
     return ReviewModel(
       id: id,
       borrowRequestId: (data['borrowRequestId'] as String?) ?? '',
+      serviceRequestId: (data['serviceRequestId'] as String?) ?? '',
+      serviceId: (data['serviceId'] as String?) ?? '',
       itemId: (data['itemId'] as String?) ?? '',
       reviewerId: (data['reviewerId'] as String?) ?? '',
       reviewerName: (data['reviewerName'] as String?) ?? '',

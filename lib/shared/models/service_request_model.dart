@@ -18,6 +18,8 @@ class ServiceRequestModel {
     this.paymentId = '',
     this.paymentProvider = '',
     this.amount,
+    this.durationHours,
+    this.hourlyRate,
     this.currency = '',
     this.platformFeeAmount = 0,
     this.providerPayoutAmount = 0,
@@ -33,11 +35,13 @@ class ServiceRequestModel {
     this.refundStatus = '',
     this.xenditRefundId = '',
     this.refundFailureReason = '',
+    this.disputeType = '',
     this.disputeReason = '',
     this.disputedAt,
     this.adminResolvedAt,
     this.adminResolvedBy = '',
     this.adminResolution = '',
+    this.settlementMode = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -57,6 +61,8 @@ class ServiceRequestModel {
   final String paymentId;
   final String paymentProvider;
   final double? amount;
+  final int? durationHours;
+  final double? hourlyRate;
   final String currency;
   final double platformFeeAmount;
   final double providerPayoutAmount;
@@ -72,11 +78,13 @@ class ServiceRequestModel {
   final String refundStatus;
   final String xenditRefundId;
   final String refundFailureReason;
+  final String disputeType;
   final String disputeReason;
   final DateTime? disputedAt;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
   final String adminResolution;
+  final String settlementMode;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -98,6 +106,8 @@ class ServiceRequestModel {
       paymentId: (data['paymentId'] as String?) ?? '',
       paymentProvider: (data['paymentProvider'] as String?) ?? '',
       amount: _toDouble(data['amount']),
+      durationHours: _toInt(data['durationHours']),
+      hourlyRate: _toDouble(data['hourlyRate']),
       currency: (data['currency'] as String?) ?? '',
       platformFeeAmount: _toDouble(data['platformFeeAmount']) ?? 0,
       providerPayoutAmount: _toDouble(data['providerPayoutAmount']) ?? 0,
@@ -115,22 +125,34 @@ class ServiceRequestModel {
       refundStatus: (data['refundStatus'] as String?) ?? '',
       xenditRefundId: (data['xenditRefundId'] as String?) ?? '',
       refundFailureReason: (data['refundFailureReason'] as String?) ?? '',
+      disputeType: (data['disputeType'] as String?) ?? '',
       disputeReason: (data['disputeReason'] as String?) ?? '',
       disputedAt: _parseOptionalDate(data['disputedAt']),
       adminResolvedAt: _parseOptionalDate(data['adminResolvedAt']),
       adminResolvedBy: (data['adminResolvedBy'] as String?) ?? '',
       adminResolution: (data['adminResolution'] as String?) ?? '',
+      settlementMode: (data['settlementMode'] as String?) ?? '',
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
     );
   }
 
   bool get isPaidService => amount != null && amount! > 0;
+  bool get isHourlyService =>
+      durationHours != null && durationHours! > 0 && hourlyRate != null;
 
   static double? _toDouble(dynamic value) {
     if (value == null) return null;
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
     return null;
   }
 

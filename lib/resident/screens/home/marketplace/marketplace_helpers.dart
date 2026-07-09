@@ -204,6 +204,9 @@ String _depositLedgerMessage(BorrowRequest request) {
 String _manualPayoutMessage(BorrowRequest request) {
   switch (request.manualPayoutStatus) {
     case AppConstants.manualPayoutStatusPendingManual:
+      if (request.refundStatus == AppConstants.refundStatusPending) {
+        return 'Your payout is ready for admin collection. The borrower refund may still be processing separately.';
+      }
       return 'Your payout is ready. Please collect it from admin; admin will record the payout reference after payment.';
     case AppConstants.manualPayoutStatusPaid:
       final ref = request.manualPayoutReference.trim();
@@ -211,7 +214,14 @@ String _manualPayoutMessage(BorrowRequest request) {
           ? 'Admin marked this payout as paid.'
           : 'Admin marked this payout as paid. Reference: $ref';
     case AppConstants.manualPayoutStatusBlocked:
-      return 'Payout is blocked until deposit refund or dispute resolution is complete.';
+      if (request.depositStatus == AppConstants.depositStatusDisputed ||
+          request.status == AppConstants.borrowStatusDisputed) {
+        return 'Payout is blocked while the deposit dispute is under admin review.';
+      }
+      if (request.refundStatus == AppConstants.refundStatusFailed) {
+        return 'Payout is blocked because the borrower refund failed. Admin review is required.';
+      }
+      return 'Payout is blocked until the deposit dispute or refund issue is resolved.';
     default:
       return 'Payout becomes ready after return and deposit settlement.';
   }
@@ -248,33 +258,10 @@ String _conditionLabel(String condition) {
 }
 
 String _statusLabel(BorrowRequest request) {
-  switch (request.status) {
-    case AppConstants.borrowStatusPending:
-      return 'Pending';
-    case AppConstants.borrowStatusApproved:
-      return MarketplaceBorrowFlow.isPaymentComplete(request)
-          ? 'Paid'
-          : 'Checkout';
-    case AppConstants.borrowStatusRejected:
-      return 'Rejected';
-    case AppConstants.borrowStatusCancelled:
-      return 'Cancelled';
-    case AppConstants.borrowStatusPickupReady:
-      return 'Handover';
-    case AppConstants.borrowStatusActive:
-    case AppConstants.borrowStatusHandedOver:
-      return 'Active';
-    case AppConstants.borrowStatusReturnSubmitted:
-      return 'Returning';
-    case AppConstants.borrowStatusMinorIssuePending:
-      return 'Minor Issue';
-    case AppConstants.borrowStatusDisputed:
-      return 'Disputed';
-    case AppConstants.borrowStatusCompleted:
-      return 'Complete';
-    default:
-      return request.status;
-  }
+  return borrowRequestStatusLabel(
+    request.status,
+    paymentComplete: MarketplaceBorrowFlow.isPaymentComplete(request),
+  );
 }
 
 bool _isAfterApproval(String status) {

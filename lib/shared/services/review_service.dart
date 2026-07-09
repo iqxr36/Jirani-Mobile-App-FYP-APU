@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/review_model.dart';
+import 'package:jirani/shared/models/service_request_model.dart';
 
 /// Blind-review submission for completed borrows.
 ///
@@ -42,6 +43,9 @@ class ReviewService {
   static String reviewDocId(String borrowRequestId, String reviewerId) =>
       '${borrowRequestId.replaceAll('/', '_')}_$reviewerId';
 
+  static String serviceReviewDocId(String serviceRequestId, String reviewerId) =>
+      'service_${serviceRequestId.replaceAll('/', '_')}_$reviewerId';
+
   /// Reviews feature: checks whether the current resident has already submitted their one-time review.
   Future<bool> hasUserReviewedBorrowRequest({
     required String borrowRequestId,
@@ -49,6 +53,16 @@ class ReviewService {
   }) async {
     final snap = await _reviews
         .doc(reviewDocId(borrowRequestId, reviewerId))
+        .get();
+    return snap.exists;
+  }
+
+  Future<bool> hasUserReviewedServiceRequest({
+    required String serviceRequestId,
+    required String reviewerId,
+  }) async {
+    final snap = await _reviews
+        .doc(serviceReviewDocId(serviceRequestId, reviewerId))
         .get();
     return snap.exists;
   }
@@ -179,6 +193,8 @@ class ReviewService {
         debugStage = 'write hidden review and borrow review flag';
         txn.set(reviewRef, {
           'borrowRequestId': req.id,
+          'serviceRequestId': '',
+          'serviceId': '',
           'itemId': req.itemId,
           'reviewerId': reviewerId,
           'reviewerName': reviewerName,
@@ -219,6 +235,48 @@ class ReviewService {
         );
       }
       throw Exception(e.message ?? 'Failed to submit review.');
+    }
+  }
+
+  Future<void> createServiceReview({
+    required ServiceRequestModel serviceRequest,
+    required String reviewerId,
+    required String reviewerName,
+    required int rating,
+    required String comment,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid != reviewerId) {
+      throw Exception('Missing user profile. Please sign in again.');
+    }
+    final completed = {
+      AppConstants.serviceRequestStatusCompleted,
+      AppConstants.serviceRequestStatusCompletedPayoutPending,
+      AppConstants.serviceRequestStatusCompletedPayoutSent,
+    }.contains(serviceRequest.status);
+    if (!completed) {
+      throw Exception('Only completed services can be reviewed.');
+    }
+    if (serviceRequest.requesterId != reviewerId) {
+      throw Exception('Only the requester can review this service.');
+    }
+    if (rating < 1 || rating > 5) {
+      throw Exception('Rating must be between 1 and 5.');
+    }
+
+    try {
+      final callable = (_functions ?? FirebaseFunctions.instance)
+          .httpsCallable('createServiceReview');
+      await callable.call<void>({
+        'serviceRequestId': serviceRequest.id,
+        'reviewerName': reviewerName,
+        'rating': rating,
+        'comment': comment.trim(),
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Failed to submit service review.');
+    } on FirebaseException catch (e) {
+      throw Exception(e.message ?? 'Failed to submit service review.');
     }
   }
 

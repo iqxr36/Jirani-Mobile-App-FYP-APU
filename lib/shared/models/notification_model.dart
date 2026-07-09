@@ -161,7 +161,16 @@ class NotificationModel {
       AppConstants.notificationTypeBorrowPayoutPaid => 'Marketplace',
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
-      AppConstants.notificationTypeServiceRejected => 'Services',
+      AppConstants.notificationTypeServiceRejected ||
+      AppConstants.notificationTypeServicePaymentReceived ||
+      AppConstants.notificationTypeServiceArrivalCode ||
+      AppConstants.notificationTypeServiceArrivalVerified ||
+      AppConstants.notificationTypeServiceCompleted ||
+      AppConstants.notificationTypeServiceDisputed ||
+      AppConstants.notificationTypeServicePayoutSent ||
+      AppConstants.notificationTypeServicePayoutFailed ||
+      AppConstants.notificationTypeServiceRefunded ||
+      AppConstants.notificationTypeServiceAdminResolved => 'Services',
       AppConstants.notificationTypeCommunityEvent => 'Events',
       AppConstants.notificationTypeMaintenanceNotice => 'Maintenance',
       AppConstants.notificationTypeCommunityNews => 'News',
@@ -194,7 +203,16 @@ class NotificationModel {
         Icons.inventory_2_outlined,
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
-      AppConstants.notificationTypeServiceRejected =>
+      AppConstants.notificationTypeServiceRejected ||
+      AppConstants.notificationTypeServicePaymentReceived ||
+      AppConstants.notificationTypeServiceArrivalCode ||
+      AppConstants.notificationTypeServiceArrivalVerified ||
+      AppConstants.notificationTypeServiceCompleted ||
+      AppConstants.notificationTypeServiceDisputed ||
+      AppConstants.notificationTypeServicePayoutSent ||
+      AppConstants.notificationTypeServicePayoutFailed ||
+      AppConstants.notificationTypeServiceRefunded ||
+      AppConstants.notificationTypeServiceAdminResolved =>
         Icons.home_repair_service_outlined,
       AppConstants.notificationTypeCommunityEvent =>
         Icons.event_available_outlined,
@@ -234,7 +252,16 @@ class NotificationModel {
       AppConstants.notificationTypeBorrowPayoutPaid => const Color(0xFF006D77),
       AppConstants.notificationTypeServiceRequest ||
       AppConstants.notificationTypeServiceAccepted ||
-      AppConstants.notificationTypeServiceRejected =>
+      AppConstants.notificationTypeServiceRejected ||
+      AppConstants.notificationTypeServicePaymentReceived ||
+      AppConstants.notificationTypeServiceArrivalCode ||
+      AppConstants.notificationTypeServiceArrivalVerified ||
+      AppConstants.notificationTypeServiceCompleted ||
+      AppConstants.notificationTypeServiceDisputed ||
+      AppConstants.notificationTypeServicePayoutSent ||
+      AppConstants.notificationTypeServicePayoutFailed ||
+      AppConstants.notificationTypeServiceRefunded ||
+      AppConstants.notificationTypeServiceAdminResolved =>
         const Color(0xFF7C3AED),
       AppConstants.notificationTypeCommunityEvent => const Color(0xFFE29578),
       AppConstants.notificationTypeMaintenanceNotice =>

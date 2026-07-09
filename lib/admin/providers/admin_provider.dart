@@ -409,7 +409,28 @@ class AdminProvider extends ChangeNotifier {
         manualPayoutReference: reference,
         manualPayoutNote: note,
       );
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> repairStuckMarketplaceSettlement({
+    String borrowRequestId = '',
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final repairedCount = await _service.repairStuckMarketplaceSettlement(
+        borrowRequestId: borrowRequestId,
+      );
       await loadDashboardStats();
+      if (repairedCount == 0) {
+        _errorMessage = 'No stuck marketplace payouts needed repair.';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {

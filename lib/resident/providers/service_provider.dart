@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
@@ -14,47 +15,38 @@ class ServiceProvider extends ChangeNotifier {
   bool _busy = false;
   bool get isLoading => _busy;
 
-  final Map<String, Stream<List<ServiceModel>>> _activeCache = {};
-  final Map<String, Stream<List<ServiceModel>>> _myServicesCache = {};
-  final Map<String, Stream<List<ServiceRequestModel>>> _myReqCache = {};
-  final Map<String, Stream<List<ServiceRequestModel>>> _incomingCache = {};
-
   // Services feature: streams active community services and caches the stream for list screens.
   Stream<List<ServiceModel>> activeServicesStream({required String communityId}) {
-    final scopedCommunityId = communityId.trim();
-    return _activeCache.putIfAbsent(
-      scopedCommunityId,
-      () => _service.watchActiveServices(communityId: scopedCommunityId),
-    );
+    return _service.watchActiveServices(communityId: communityId.trim());
   }
 
   // Services feature: streams services created by the current provider.
   Stream<List<ServiceModel>> myServicesStream(String providerId) {
-    return _myServicesCache.putIfAbsent(
-      providerId,
-      () => _service.watchMyServices(providerId),
-    );
+    return _service.watchMyServices(providerId);
   }
 
   // Services feature: streams requests the current resident has sent to service providers.
   Stream<List<ServiceRequestModel>> myRequestsStream(String requesterId) {
-    return _myReqCache.putIfAbsent(
-      requesterId,
-      () => _service.watchMyServiceRequests(requesterId),
-    );
+    return _service.watchMyServiceRequests(requesterId);
   }
 
   // Services feature: streams requests received by the current service provider.
   Stream<List<ServiceRequestModel>> incomingRequestsStream(String providerId) {
-    return _incomingCache.putIfAbsent(
-      providerId,
-      () => _service.watchIncomingServiceRequests(providerId),
-    );
+    return _service.watchIncomingServiceRequests(providerId);
+  }
+
+  // Services transaction tracking: streams one request for a live detail screen.
+  Stream<ServiceRequestModel?> requestStream(String requestId) {
+    return _service.watchServiceRequest(requestId);
   }
 
   // Services feature: loads a single service for detail or notification navigation.
   Future<ServiceModel?> getService(String serviceId) =>
       _service.getService(serviceId);
+
+  // Services notification deep links: loads one request for transaction navigation.
+  Future<ServiceRequestModel?> fetchServiceRequest(String requestId) =>
+      _service.fetchServiceRequest(requestId);
 
   // Services feature: creates a provider service listing; service payments are intentionally not active yet.
   Future<void> createService({
@@ -68,6 +60,9 @@ class ServiceProvider extends ChangeNotifier {
     double? hourlyRate,
     double? fixedJobPrice,
     required String availability,
+    required Set<int> availableWeekdays,
+    required TimeOfDay availabilityStartTime,
+    required TimeOfDay availabilityEndTime,
     List<String> imagePaths = const <String>[],
     List<String> certificatePaths = const <String>[],
     List<String> certificateNames = const <String>[],
@@ -86,6 +81,9 @@ class ServiceProvider extends ChangeNotifier {
         hourlyRate: hourlyRate,
         fixedJobPrice: fixedJobPrice,
         availability: availability,
+        availableWeekdays: availableWeekdays,
+        availabilityStartTime: availabilityStartTime,
+        availabilityEndTime: availabilityEndTime,
         imagePaths: imagePaths,
         certificatePaths: certificatePaths,
         certificateNames: certificateNames,
@@ -109,6 +107,9 @@ class ServiceProvider extends ChangeNotifier {
     double? hourlyRate,
     double? fixedJobPrice,
     required String availability,
+    required Set<int> availableWeekdays,
+    required TimeOfDay availabilityStartTime,
+    required TimeOfDay availabilityEndTime,
     List<String> imagePaths = const <String>[],
     List<String> certificatePaths = const <String>[],
     List<String> certificateNames = const <String>[],
@@ -128,6 +129,9 @@ class ServiceProvider extends ChangeNotifier {
         hourlyRate: hourlyRate,
         fixedJobPrice: fixedJobPrice,
         availability: availability,
+        availableWeekdays: availableWeekdays,
+        availabilityStartTime: availabilityStartTime,
+        availabilityEndTime: availabilityEndTime,
         imagePaths: imagePaths,
         certificatePaths: certificatePaths,
         certificateNames: certificateNames,
@@ -175,6 +179,7 @@ class ServiceProvider extends ChangeNotifier {
     required String message,
     required DateTime preferredDate,
     required String preferredTime,
+    int? durationHours,
   }) async {
     _busy = true;
     notifyListeners();
@@ -185,6 +190,7 @@ class ServiceProvider extends ChangeNotifier {
         message: message,
         preferredDate: preferredDate,
         preferredTime: preferredTime,
+        durationHours: durationHours,
       );
     } finally {
       _busy = false;
@@ -319,13 +325,15 @@ class ServiceProvider extends ChangeNotifier {
   Future<void> disputeServiceRequest({
     required String requestId,
     required String requesterId,
-    required String reason,
+    required String disputeType,
+    required String details,
   }) async {
     await _runVoid(
       () => _service.disputeServiceRequest(
         requestId: requestId,
         requesterId: requesterId,
-        reason: reason,
+        disputeType: disputeType,
+        details: details,
       ),
     );
   }

@@ -147,7 +147,7 @@ class _MetricTile extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        height: 58,
+        height: 64,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: context.softSurface(),
@@ -170,7 +170,7 @@ class _MetricTile extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: muted,

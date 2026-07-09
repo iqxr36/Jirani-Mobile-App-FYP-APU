@@ -26,3 +26,27 @@ String _categoryLabel(String value) {
     _ => value.isEmpty ? 'Other' : value,
   };
 }
+
+String _serviceCategoryLabel(String value) {
+  return switch (value) {
+    AppConstants.serviceCategoryHomeCleaningUpkeep => 'Home Cleaning',
+    AppConstants.serviceCategoryRepairsMaintenance => 'Repairs',
+    AppConstants.serviceCategoryAssemblyLabor => 'Assembly',
+    AppConstants.serviceCategoryTutoringEducation => 'Tutoring',
+    AppConstants.serviceCategoryAssistanceErrands => 'Errands',
+    AppConstants.serviceCategoryItTechSetup => 'IT Setup',
+    AppConstants.serviceCategoryHomeCookingMealPrep => 'Home Cooking',
+    AppConstants.serviceCategoryCreativeDigitalTasks => 'Creative',
+    _ => value.isEmpty ? 'Service' : value,
+  };
+}
+
+String _servicePriceLabel(ServiceModel service) {
+  if (service.priceType == AppConstants.servicePriceTypeFree) return 'Free';
+  final amount =
+      service.fixedJobPrice ?? service.hourlyRate ?? service.priceAmount ?? 0;
+  final suffix = service.pricingMode == AppConstants.servicePricingModeHourly
+      ? ' / hour'
+      : '';
+  return '${_money(amount)}$suffix';
+}

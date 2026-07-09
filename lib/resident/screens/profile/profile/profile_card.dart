@@ -175,6 +175,20 @@ class _ProfileCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _MetricChip(
+                value: '${user?.completedServicesProvided ?? 0}',
+                label: 'Provided',
+              ),
+              const SizedBox(width: 8),
+              _MetricChip(
+                value: '${user?.completedServicesRequested ?? 0}',
+                label: 'Requested',
+              ),
+            ],
+          ),
           const SizedBox(height: 17),
           _IdentityVerificationPanel(
             user: user,

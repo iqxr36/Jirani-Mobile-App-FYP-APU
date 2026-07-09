@@ -11,6 +11,14 @@ export function buildReviewDocId(
   return `${borrowRequestId.replace(/\//g, "_")}_${reviewerId}`;
 }
 
+// Service review feature: deterministic IDs prevent duplicate requester reviews for a service job.
+export function buildServiceReviewDocId(
+  serviceRequestId: string,
+  reviewerId: string,
+): string {
+  return `service_${serviceRequestId.replace(/\//g, "_")}_${reviewerId}`;
+}
+
 // Review feature: detects when a completed borrow request has a newly submitted hidden review to publish.
 export function shouldAttemptPublishAfterBorrowUpdate(
   before: DocumentData | undefined,
