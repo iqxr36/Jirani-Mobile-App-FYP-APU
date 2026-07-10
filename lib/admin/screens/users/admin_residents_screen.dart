@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:jirani/admin/logic/export/resident_directory_exporter.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/file_download.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/utils/display_labels.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
   String _accountFilter = 'all';
   String _searchQuery = '';
   _ResidentSortMode _sortMode = _ResidentSortMode.nameAsc;
+  bool _exportInProgress = false;
 
   @override
   void initState() {
@@ -97,11 +99,16 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
               label: Text(_activeControlLabel),
             ),
             FilledButton.tonalIcon(
-              onPressed: residents.isEmpty
+              onPressed: residents.isEmpty || _exportInProgress
                   ? null
-                  : () => _exportResidents(residents),
-              icon: const Icon(Icons.download_rounded),
-              label: const Text('Export Data'),
+                  : () => _showExportFormatPicker(residents, admin),
+              icon: _exportInProgress
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_rounded),
+              label: Text(_exportInProgress ? 'Exporting...' : 'Export Data'),
             ),
           ],
         ),
@@ -611,31 +618,123 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     return result == true;
   }
 
-  // Admin residents UI feature: exports the currently filtered resident list for admin reporting.
-  void _exportResidents(List<AppUser> residents) {
-    final csv = [
-      'Name,Email,Phone,Community,Unit,Verification,Account,Trust Score,Updated',
-      ...residents.map((resident) {
-        return [
-          resident.fullName,
-          resident.email,
-          resident.phoneNumber,
-          resident.communityName,
-          resident.unitNumber,
-          adminStatusLabel(resident.verificationStatus),
-          _accountStatusLabel(resident.accountStatus),
-          resident.communityTrustScore.toStringAsFixed(1),
-          resident.updatedAt.toIso8601String(),
-        ].map(_csvCell).join(',');
-      }),
-    ].join('\n');
-    Clipboard.setData(ClipboardData(text: csv));
-    _showSnack(context, 'Filtered resident CSV copied to clipboard.');
+  Future<void> _showExportFormatPicker(
+    List<AppUser> residents,
+    AdminProvider admin,
+  ) async {
+    final format = await showModalBottomSheet<ResidentExportFormat>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Export resident data',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Download the currently filtered list (${residents.length} residents).',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AdminColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _ExportFormatTile(
+                  icon: Icons.table_chart_rounded,
+                  title: 'Excel workbook',
+                  subtitle: 'Spreadsheet (.xlsx) for reporting and analysis',
+                  onTap: () => Navigator.of(context).pop(
+                    ResidentExportFormat.xlsx,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _ExportFormatTile(
+                  icon: Icons.data_object_rounded,
+                  title: 'JSON data',
+                  subtitle: 'Structured export (.json) for integrations',
+                  onTap: () => Navigator.of(context).pop(
+                    ResidentExportFormat.json,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _ExportFormatTile(
+                  icon: Icons.picture_as_pdf_outlined,
+                  title: 'PDF report',
+                  subtitle: 'Printable table (.pdf) for records',
+                  onTap: () => Navigator.of(context).pop(
+                    ResidentExportFormat.pdf,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || format == null) return;
+    await _exportResidents(
+      residents: residents,
+      format: format,
+      admin: admin,
+    );
   }
 
-  String _csvCell(String value) {
-    final escaped = value.replaceAll('"', '""');
-    return '"$escaped"';
+  // Admin residents UI feature: exports the currently filtered resident list for admin reporting.
+  Future<void> _exportResidents({
+    required List<AppUser> residents,
+    required ResidentExportFormat format,
+    required AdminProvider admin,
+  }) async {
+    if (_exportInProgress) return;
+    setState(() => _exportInProgress = true);
+    try {
+      final exporter = ResidentDirectoryExporter(
+        communityName: admin.communityName,
+        filterSummary: _exportFilterSummary(),
+      );
+      final bytes = await exporter.exportBytes(format: format, residents: residents);
+      await saveExportedFile(
+        filename: exporter.filenameFor(format),
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      _showSnack(
+        context,
+        'Exported ${residents.length} residents as ${exporter.formatLabel(format)}.',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(
+        context,
+        'Could not export residents: ${error.toString().replaceFirst('Exception: ', '')}',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _exportInProgress = false);
+      }
+    }
+  }
+
+  String? _exportFilterSummary() {
+    final parts = <String>[];
+    final query = _searchQuery.trim();
+    if (query.isNotEmpty) parts.add('search="$query"');
+    if (_verificationFilter != 'all') {
+      parts.add('verification=${adminStatusLabel(_verificationFilter)}');
+    }
+    if (_accountFilter != 'all') {
+      parts.add('account=${accountStatusLabel(_accountFilter)}');
+    }
+    if (parts.isEmpty) return null;
+    return parts.join(', ');
   }
 
   void _showSnack(BuildContext context, String? message) {
@@ -2180,6 +2279,68 @@ class _VerificationOverrideDialogState
     }
     Navigator.of(context).pop(
       _VerificationOverrideResult(status: _status, reason: reason),
+    );
+  }
+}
+
+class _ExportFormatTile extends StatelessWidget {
+  const _ExportFormatTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AdminColors.background,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(icon, color: AdminColors.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AdminColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AdminColors.muted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AdminColors.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
