@@ -18,6 +18,8 @@ export type InAppNotificationInput = {
   borrowRequestId?: string;
   serviceRequestId?: string;
   postId?: string;
+  itemId?: string;
+  serviceId?: string;
   verificationRequestId?: string;
   residentId?: string;
   reportId?: string;
@@ -80,6 +82,8 @@ function buildNotificationPayload(input: InAppNotificationInput): DocumentData {
   if (input.borrowRequestId) payload.borrowRequestId = input.borrowRequestId;
   if (input.serviceRequestId) payload.serviceRequestId = input.serviceRequestId;
   if (input.postId) payload.postId = input.postId;
+  if (input.itemId) payload.itemId = input.itemId;
+  if (input.serviceId) payload.serviceId = input.serviceId;
   if (input.verificationRequestId) {
     payload.verificationRequestId = input.verificationRequestId;
   }
@@ -148,7 +152,23 @@ export async function sendFcmForNotification(
   if (typeof userId !== "string" || userId.length === 0) return;
 
   const userSnap = await db.collection("users").doc(userId).get();
-  const fcmToken = userSnap.data()?.fcmToken;
+  const userData = userSnap.data();
+  if (userData?.notificationEnabled === false) {
+    return;
+  }
+
+  const notificationType =
+    typeof notification.type === "string" ? notification.type : "";
+  if (
+    (notificationType === "neighborNewItem" ||
+      notificationType === "neighborNewService" ||
+      notificationType === "neighborTrustWarning") &&
+    userData?.neighborUpdatesEnabled === false
+  ) {
+    return;
+  }
+
+  const fcmToken = userData?.fcmToken;
   if (typeof fcmToken !== "string" || fcmToken.trim().length === 0) {
     return;
   }
@@ -180,6 +200,15 @@ export async function sendFcmForNotification(
   }
   if (typeof notification.postId === "string" && notification.postId) {
     data.postId = notification.postId;
+  }
+  if (typeof notification.itemId === "string" && notification.itemId) {
+    data.itemId = notification.itemId;
+  }
+  if (typeof notification.serviceId === "string" && notification.serviceId) {
+    data.serviceId = notification.serviceId;
+  }
+  if (typeof notification.residentId === "string" && notification.residentId) {
+    data.residentId = notification.residentId;
   }
   if (
     typeof notification.verificationRequestId === "string" &&

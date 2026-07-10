@@ -14,6 +14,11 @@ import { handleBorrowRequestNotificationChanges } from "./borrow_notifications";
 import { handleCommunityPostNotificationChanges } from "./community_post_notifications";
 import { processCommunityPostLifecycle } from "./community_post_lifecycle";
 import { handleConnectionNotificationChanges } from "./connection_notifications";
+import {
+  handleAdminWarningNeighborNotifications,
+  handleNewItemNeighborNotifications,
+  handleNewServiceNeighborNotifications,
+} from "./neighbor_activity_notifications";
 import { notifyChatMessageCreated } from "./chat_notifications";
 import { sendFcmForNotification } from "./notifications";
 import { handleServiceRequestNotificationChanges } from "./service_notifications";
@@ -265,6 +270,86 @@ export const onReportNotificationOrchestration = onDocumentWritten(
     } catch (error) {
       logger.error("Failed report notification orchestration", {
         reportId,
+        error,
+      });
+      throw error;
+    }
+  },
+);
+
+// Neighbor activity notification feature: alerts connected neighbors when a resident publishes a marketplace item.
+export const onItemNeighborActivity = onDocumentCreated(
+  "items/{itemId}",
+  async (event) => {
+    const itemId = event.params.itemId;
+    const data = event.data?.data();
+    if (!data) return;
+
+    try {
+      await handleNewItemNeighborNotifications(
+        admin.firestore(),
+        itemId,
+        data,
+      );
+      logger.info("Processed neighbor item activity notifications", { itemId });
+    } catch (error) {
+      logger.error("Failed neighbor item activity notifications", {
+        itemId,
+        error,
+      });
+      throw error;
+    }
+  },
+);
+
+// Neighbor activity notification feature: alerts connected neighbors when a resident publishes a service listing.
+export const onServiceNeighborActivity = onDocumentCreated(
+  "services/{serviceId}",
+  async (event) => {
+    const serviceId = event.params.serviceId;
+    const data = event.data?.data();
+    if (!data) return;
+
+    try {
+      await handleNewServiceNeighborNotifications(
+        admin.firestore(),
+        serviceId,
+        data,
+      );
+      logger.info("Processed neighbor service activity notifications", {
+        serviceId,
+      });
+    } catch (error) {
+      logger.error("Failed neighbor service activity notifications", {
+        serviceId,
+        error,
+      });
+      throw error;
+    }
+  },
+);
+
+// Neighbor activity notification feature: fans out generic trust warnings to connected neighbors.
+export const onAdminWarningNeighborFanOut = onDocumentCreated(
+  "notifications/{notificationId}",
+  async (event) => {
+    const notificationId = event.params.notificationId;
+    const data = event.data?.data();
+    if (!data) return;
+    if (data.type !== "adminWarning") return;
+
+    try {
+      await handleAdminWarningNeighborNotifications(
+        admin.firestore(),
+        notificationId,
+        data,
+      );
+      logger.info("Processed neighbor admin warning fan-out", {
+        notificationId,
+      });
+    } catch (error) {
+      logger.error("Failed neighbor admin warning fan-out", {
+        notificationId,
         error,
       });
       throw error;
