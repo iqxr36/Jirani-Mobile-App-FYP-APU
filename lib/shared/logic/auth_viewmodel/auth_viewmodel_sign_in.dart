@@ -5,7 +5,8 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
   Future<void> login({required String email, required String password}) async {
     authDebugLog('[AuthProvider.login] started');
     final validationError =
-        Validators.validateEmail(email) ?? Validators.validatePassword(password);
+        Validators.validateEmail(email) ??
+        Validators.validatePassword(password);
     if (validationError != null) {
       _setValidationError(validationError);
       return;
@@ -56,30 +57,6 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
       _showAccountCreatedScreen = false;
     } catch (e) {
       authDebugLogError('[AuthProvider.signInWithGoogle]', e);
-      _errorMessage = _mapAuthError(e);
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Returns without error if the user cancelled Apple sign-in.
-  Future<void> signInWithApple() async {
-    _setLoading(true);
-    clearError(notify: false);
-    _successMessage = null;
-    _profileErrorMessage = null;
-
-    try {
-      final user = await _repository.signInWithApple();
-      if (user == null) {
-        return;
-      }
-      _currentUser = user;
-      _currentAdmin = null;
-      _firebaseUser = _repository.currentFirebaseUser;
-      _showAccountCreatedScreen = false;
-    } catch (e) {
-      authDebugLogError('[AuthProvider.signInWithApple]', e);
       _errorMessage = _mapAuthError(e);
     } finally {
       _setLoading(false);

@@ -93,10 +93,6 @@ dependencies:
 
   # Sign in
   google_sign_in: ^6.2.2
-  sign_in_with_apple: ^6.1.4
-
-  # Security
-  crypto: ^3.0.6
 
   # Payments
 
@@ -150,6 +146,7 @@ flutter:
     - assets/Location2.png
     - "assets/Location Map Ping.png"
     - assets/auth1.png
+    - assets/images/auth/google_g.png
     - assets/In-app-logo-Jirani.png
     - assets/In-app-logo-dark-mode-Jirani.png
     - "assets/In-app Jirani no background.png"

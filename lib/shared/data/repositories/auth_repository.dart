@@ -296,10 +296,13 @@ class AuthRepository {
     // Duplicate checks must go through Firebase Auth — residents cannot query
     // /users by email (Firestore list rules are admin-only).
     await _authService.verifyBeforeUpdateEmail(trimmedEmail);
-    await _firestore.collection(AppConstants.usersCollection).doc(firebaseUser.uid).update({
-      'pendingEmail': trimmedEmail,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(firebaseUser.uid)
+        .update({
+          'pendingEmail': trimmedEmail,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
     await _authService.reloadCurrentUser();
   }
 
@@ -473,44 +476,7 @@ class AuthRepository {
     return appUser;
   }
 
-  // Authentication feature: signs in with Apple and creates the resident profile if this OAuth user is new.
-  Future<AppUser?> signInWithApple() async {
-    authDebugLog('[AuthRepository.signInWithApple] started');
-    final AppleSignInFlowResult? result = await _authService.signInWithApple();
-    if (result == null) {
-      authDebugLog('[AuthRepository.signInWithApple] cancelled');
-      return null;
-    }
-    final firebaseUser = result.credential.user;
-    if (firebaseUser == null) {
-      throw Exception('Unable to sign in with Apple.');
-    }
-    await _authService.reloadCurrentUser();
-    final refreshed = _authService.currentUser ?? firebaseUser;
-
-    var fullName = '';
-    if (result.givenName != null || result.familyName != null) {
-      fullName = '${result.givenName ?? ''} ${result.familyName ?? ''}'.trim();
-    }
-    if (fullName.isEmpty) {
-      fullName = refreshed.displayName?.trim() ?? '';
-    }
-
-    var email = refreshed.email?.trim() ?? '';
-    if (email.isEmpty && result.appleEmail != null) {
-      email = result.appleEmail!.trim();
-    }
-
-    final appUser = await _ensureResidentProfileAfterOAuth(
-      refreshed,
-      preferredFullName: fullName,
-      preferredEmail: email,
-    );
-    authDebugLog('[AuthRepository.signInWithApple] done');
-    return appUser;
-  }
-
-  // OAuth profile feature: creates users/{uid} for first-time Google/Apple users or returns the existing profile.
+  // OAuth profile feature: creates users/{uid} for first-time Google users or returns the existing profile.
   Future<AppUser> _ensureResidentProfileAfterOAuth(
     User firebaseUser, {
     required String preferredFullName,

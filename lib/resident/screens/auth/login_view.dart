@@ -32,7 +32,10 @@ class _LoginViewState extends State<LoginView> {
   static Color _fieldBorderColor(BuildContext context) =>
       context.residentOutline();
 
-  OutlineInputBorder _outlineBorder(BuildContext context, {bool focused = false}) {
+  OutlineInputBorder _outlineBorder(
+    BuildContext context, {
+    bool focused = false,
+  }) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(_kFieldRadius),
       borderSide: BorderSide(
@@ -69,11 +72,6 @@ class _LoginViewState extends State<LoginView> {
   // Resident authentication UI feature: starts Google sign-in and lets AuthWrapper route the authenticated user.
   Future<void> _googleSignIn() async {
     await context.read<AuthViewModel>().signInWithGoogle();
-  }
-
-  // Resident authentication UI feature: starts Apple sign-in and lets AuthWrapper route the authenticated user.
-  Future<void> _appleSignIn() async {
-    await context.read<AuthViewModel>().signInWithApple();
   }
 
   static TextStyle _labelStyle(BuildContext context) {
@@ -258,28 +256,8 @@ class _LoginViewState extends State<LoginView> {
                               ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _SocialIconButton(
-                              tooltip: 'Continue with Apple',
-                              onPressed: vm.isLoading ? null : _appleSignIn,
-                              child: const _AppleSignInIcon(),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 59,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              color: dividerGrey,
-                            ),
-                            _SocialIconButton(
-                              tooltip: 'Continue with Google',
-                              onPressed: vm.isLoading ? null : _googleSignIn,
-                              child: const _GoogleSignInIcon(),
-                            ),
-                          ],
+                        _GoogleSignInButton(
+                          onPressed: vm.isLoading ? null : _googleSignIn,
                         ),
                         const SizedBox(height: 28),
                         if (vm.errorMessage != null)
@@ -376,63 +354,34 @@ class _LoginViewState extends State<LoginView> {
   }
 }
 
-class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton({
-    required this.tooltip,
-    required this.onPressed,
-    required this.child,
-  });
+class _GoogleSignInButton extends StatelessWidget {
+  const _GoogleSignInButton({required this.onPressed});
 
-  final String tooltip;
   final VoidCallback? onPressed;
-  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        child: Tooltip(
-          message: tooltip,
-          child: SizedBox(width: 47, height: 47, child: Center(child: child)),
-        ),
-      ),
-    );
-  }
-}
-
-class _AppleSignInIcon extends StatelessWidget {
-  const _AppleSignInIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.apple,
-      color: context.isDarkUi ? context.appInk : Colors.black,
-      size: 36,
-    );
-  }
-}
-
-/// Prefer `assets/images/auth/google.png` when added to pubspec.
-class _GoogleSignInIcon extends StatelessWidget {
-  const _GoogleSignInIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Center(
-        child: Text(
-          'G',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF4285F4),
-            height: 1,
+    final isEnabled = onPressed != null;
+    return Opacity(
+      opacity: isEnabled ? 1 : 0.62,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Tooltip(
+            message: 'Continue with Google',
+            child: SizedBox(
+              width: 47,
+              height: 47,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/auth/google_g.png',
+                  width: 40,
+                  height: 40,
+                ),
+              ),
+            ),
           ),
         ),
       ),

@@ -132,9 +132,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
 
   /// Auth bootstrap: reacts to Firebase session changes and loads the matching resident or admin profile.
   Future<void> _onAuthStateChanged(User? user) async {
-    authDebugLog(
-      '[AuthProvider._onAuthStateChanged] session=${user != null}',
-    );
+    authDebugLog('[AuthProvider._onAuthStateChanged] session=${user != null}');
     _firebaseUser = user;
 
     if (user == null) {
@@ -360,9 +358,6 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       return e.message ?? e.code;
     }
     final raw = e.toString().replaceFirst('Exception: ', '').trim();
-    if (raw.contains('Apple sign-in is not available')) {
-      return 'Apple sign-in is not available on this device.';
-    }
     if (raw.contains('Network error')) {
       return raw;
     }

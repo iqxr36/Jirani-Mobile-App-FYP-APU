@@ -156,7 +156,7 @@ App start → AuthWrapper
   ├─ Not logged in → ResidentPreAuthGate
   │   ├─ First launch → OnboardingScreen → LoginView
   │   └─ Returning    → LoginView
-  │       ├─ Login (email/Google/Apple) → AuthViewModel
+  │       ├─ Login (email/Google) → AuthViewModel
   │       ├─ Register → AuthViewModel.register → AccountCreatedView
   │       └─ Forgot password → ForgotPasswordView
   └─ Logged in → Load profile
@@ -173,7 +173,7 @@ App start → AuthWrapper
 | Mixin | File | Responsibility |
 |-------|------|----------------|
 | Core | `auth_viewmodel_core.dart` | Base state, lifecycle, error handling |
-| Sign-in | `auth_viewmodel_sign_in.dart` | Email/Google/Apple sign-in, password reset |
+| Sign-in | `auth_viewmodel_sign_in.dart` | Email/Google sign-in, password reset |
 | Registration | `auth_viewmodel_registration.dart` | Resident registration + post-registration steps |
 | Verification | `auth_viewmodel_verification.dart` | Phone link, email verify, phone credential |
 | Profile | `auth_viewmodel_profile.dart` | Profile save/update, image upload |
