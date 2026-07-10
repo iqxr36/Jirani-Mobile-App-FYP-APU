@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/admin/logic/widgets/admin_login_widgets.dart';
+import 'package:jirani/admin/providers/admin_theme_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/auth_debug_log.dart';
+import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -13,15 +16,40 @@ class AdminLoginScreen extends StatefulWidget {
   State<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
-class _AdminLoginScreenState extends State<AdminLoginScreen> {
+class _AdminLoginScreenState extends State<AdminLoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   String? _localError;
   bool _obscurePassword = true;
+  late final AnimationController _entryController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
+    _entryController.forward();
+  }
 
   @override
   void dispose() {
+    _entryController.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
@@ -74,84 +102,65 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+  Future<void> _sendResetEmail(AuthProvider auth) async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      setState(() => _localError = 'Enter your email to reset password.');
+      return;
+    }
+    await auth.sendPasswordResetEmail(email);
+    if (!mounted) return;
+    if (auth.errorMessage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: const Text('Password reset email sent.'),
+        ),
+      );
+    } else {
+      setState(() => _localError = auth.errorMessage);
+    }
+  }
 
-    final loginCard = Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 460),
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 32,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
+  Widget _buildForm({
+    required AuthProvider auth,
+    required Color primary,
+    required bool compactHeader,
+  }) {
+    return AdminLoginFormCard(
+      primary: primary,
+      compactHeader: compactHeader,
       child: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 70,
-                height: 70,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF006D77).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Image.asset(
-                  'assets/In-app-logo-Jirani.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.apartment_rounded,
-                    color: Color(0xFF006D77),
-                    size: 34,
-                  ),
-                ),
-              ),
+            AdminLoginCardHeader(
+              primary: primary,
+              showBrandMark: compactHeader,
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Jirani Admin',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF1F2937),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Secure community management portal',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF6B7280)),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             TextFormField(
               controller: _emailCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
+              decoration: adminLoginInputDecoration(
+                label: 'Email address',
+                prefixIcon: Icons.mail_outline_rounded,
+                primary: primary,
               ),
               keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
               textInputAction: TextInputAction.next,
               validator: Validators.validateEmail,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _passwordCtrl,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
+              decoration: adminLoginInputDecoration(
+                label: 'Password',
+                prefixIcon: Icons.lock_outline_rounded,
+                primary: primary,
                 suffixIcon: IconButton(
                   tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   onPressed: () {
@@ -165,146 +174,157 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 ),
               ),
               obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.password],
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) {
                 if (!auth.isLoading) _submit();
               },
               validator: Validators.validatePassword,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: auth.isLoading ? null : () => _sendResetEmail(auth),
-                child: const Text('Forgot Password?'),
+                style: TextButton.styleFrom(
+                  foregroundColor: primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+                child: const Text('Forgot password?'),
               ),
             ),
-            if (_localError != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE29578).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFFE29578).withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.error_outline_rounded,
-                        color: Color(0xFFE29578),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _localError!,
-                          style: const TextStyle(color: Color(0xFF1F2937)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            FilledButton.icon(
+            if (_localError != null) ...[
+              AdminLoginErrorBanner(message: _localError!),
+              const SizedBox(height: 16),
+            ],
+            FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF006D77),
+                backgroundColor: primary,
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(52),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               onPressed: auth.isLoading ? null : _submit,
-              icon: auth.isLoading
+              child: auth.isLoading
                   ? const SizedBox.square(
-                      dimension: 18,
+                      dimension: 22,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 2.2,
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.login_rounded),
-              label: Text(auth.isLoading ? 'Signing in...' : 'Login'),
-            ),
-            const SizedBox(height: 18),
-            const Divider(color: Color(0xFFE5E7EB)),
-            const SizedBox(height: 12),
-            const Text(
-              'This portal is restricted to authorized community administrators only.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF6B7280)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Resident users should use the mobile app.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF6B7280)),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF006D77), Color(0xFF83C5BE)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
-                    child: Text(
-                      'Secure Admin Access for ${AppConstants.appName}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.login_rounded, size: 20),
+                        SizedBox(width: 10),
+                        Text(
+                          'Sign in',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  loginCard,
-                ],
-              ),
             ),
-          ),
+            const SizedBox(height: 20),
+            const AdminLoginFooterNote(),
+          ],
         ),
       ),
     );
   }
 
-  // Admin authentication UI feature: sends a password reset email for admin accounts.
-  Future<void> _sendResetEmail(AuthProvider auth) async {
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty) {
-      setState(() => _localError = 'Enter your email to reset password.');
-      return;
-    }
-    await auth.sendPasswordResetEmail(email);
-    if (!mounted) return;
-    if (auth.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent.')),
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final themeProvider = context.watch<AdminThemeProvider>();
+    final primary = themeProvider.preset.primary;
+    final secondary = themeProvider.preset.secondary;
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = JiraniResponsive.isAdminWide(width);
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    Widget content;
+    if (isWide) {
+      content = Row(
+        children: [
+          Expanded(
+            child: AdminLoginHeroPanel(
+              primary: primary,
+              secondary: secondary,
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+                child: _buildForm(
+                  auth: auth,
+                  primary: primary,
+                  compactHeader: false,
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     } else {
-      setState(() => _localError = auth.errorMessage);
+      content = Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(JiraniResponsive.gutter(context)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text(
+                'Secure admin access',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AppConstants.appName,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.88),
+                ),
+              ),
+              const SizedBox(height: 28),
+              _buildForm(
+                auth: auth,
+                primary: primary,
+                compactHeader: true,
+              ),
+            ],
+          ),
+        ),
+      );
     }
+
+    final body = AdminLoginBackground(
+      primary: primary,
+      secondary: secondary,
+      child: SafeArea(child: content),
+    );
+
+    if (reduceMotion) {
+      return Scaffold(body: body);
+    }
+
+    return Scaffold(
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(position: _slideAnimation, child: body),
+      ),
+    );
   }
 }

@@ -192,7 +192,9 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       _currentUser = null;
       final previousImageUrl = _currentAdmin?.profileImageUrl.trim() ?? '';
       try {
-        final loaded = await _repository.getCurrentAdminUser();
+        final loaded = await _repository.getCurrentAdminUser(
+          preferServer: true,
+        );
         _currentAdmin = _mergeAdminProfileImage(
           previousImageUrl: previousImageUrl,
           loaded: loaded,
@@ -354,6 +356,13 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
           return 'Enter a valid email address.';
         case 'requires-recent-login':
           return 'For security, please log out and log in again before changing your email.';
+      }
+      return e.message ?? e.code;
+    }
+    if (e is FirebaseException) {
+      if (e.code == 'permission-denied') {
+        return 'Permission denied. Check that your admin profile and deployed '
+            'Firestore security rules are configured correctly.';
       }
       return e.message ?? e.code;
     }

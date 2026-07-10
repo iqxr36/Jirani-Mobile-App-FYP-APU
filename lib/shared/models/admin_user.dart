@@ -13,6 +13,7 @@ class AdminUser {
     required this.communityId,
     required this.communityName,
     required this.profileImageUrl,
+    required this.themePresetId,
     required this.permissions,
     required this.notificationPreferences,
     required this.isActive,
@@ -28,6 +29,7 @@ class AdminUser {
   final String communityId;
   final String communityName;
   final String profileImageUrl;
+  final String themePresetId;
   final List<String> permissions;
   final AdminNotificationPreferences notificationPreferences;
   final bool isActive;
@@ -50,6 +52,7 @@ class AdminUser {
       'communityId': communityId,
       'communityName': communityName,
       'profileImageUrl': profileImageUrl,
+      'themePresetId': themePresetId,
       'permissions': permissions,
       'notificationPreferences': notificationPreferences.toMap(),
       'isActive': isActive,
@@ -69,6 +72,7 @@ class AdminUser {
       communityId: (map['communityId'] as String?) ?? '',
       communityName: (map['communityName'] as String?) ?? '',
       profileImageUrl: (map['profileImageUrl'] as String?) ?? '',
+      themePresetId: ((map['themePresetId'] as String?) ?? 'teal').trim(),
       permissions: _parseStringList(map['permissions']),
       notificationPreferences: AdminNotificationPreferences.fromMap(
         map['notificationPreferences'],
@@ -111,6 +115,7 @@ class AdminUser {
     String? fullName,
     String? phoneNumber,
     String? profileImageUrl,
+    String? themePresetId,
     AdminNotificationPreferences? notificationPreferences,
   }) {
     return AdminUser(
@@ -122,6 +127,7 @@ class AdminUser {
       communityId: communityId,
       communityName: communityName,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      themePresetId: themePresetId ?? this.themePresetId,
       permissions: permissions,
       notificationPreferences:
           notificationPreferences ?? this.notificationPreferences,

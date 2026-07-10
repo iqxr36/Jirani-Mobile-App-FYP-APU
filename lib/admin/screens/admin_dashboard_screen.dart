@@ -62,6 +62,8 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
   String? _selectedRequestId;
   String? _selectedReportId;
   String? _configuredAdminUid;
+  String? _appliedThemeAdminUid;
+  String? _appliedThemePresetId;
 
   @override
   void didChangeDependencies() {
@@ -72,6 +74,18 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         context.read<AdminProvider>().configureForAdmin(currentAdmin);
+      });
+    }
+    if (currentAdmin != null &&
+        (currentAdmin.uid != _appliedThemeAdminUid ||
+            currentAdmin.themePresetId != _appliedThemePresetId)) {
+      _appliedThemeAdminUid = currentAdmin.uid;
+      _appliedThemePresetId = currentAdmin.themePresetId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context
+            .read<AdminThemeProvider>()
+            .syncFromAdminProfile(currentAdmin.themePresetId);
       });
     }
   }
@@ -422,21 +436,6 @@ class _AdminTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 20),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 340),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search residents, reports, listings',
-                prefixIcon: const Icon(Icons.search_rounded),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AdminColors.border),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
           AdminNotificationBell(
             adminUid: admin?.uid ?? '',
             onNotificationSelected: onNotificationSelected,

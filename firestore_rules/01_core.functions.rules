@@ -29,9 +29,28 @@
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function adminIsActive(data) {
+      return ('isActive' in data && data.isActive is bool)
+        ? data.isActive
+        : (
+          ('status' in data && data.status is string)
+            ? (data.status.size() == 0 || data.status in ['active', 'enabled'])
+            : true
+        );
+    }
+
+    function adminRole(data) {
+      return ('role' in data && data.role is string)
+        ? data.role
+        : 'communityAdmin';
+    }
+
+    function adminHasValidRole(data) {
+      return adminRole(data) in ['communityAdmin', 'systemAdmin'];
+    }
+
     function isValidAdminDoc(data) {
-      return data.isActive != false &&
-        data.role in ['communityAdmin', 'systemAdmin'];
+      return adminIsActive(data) && adminHasValidRole(data);
     }
 
     function isAdmin() {
@@ -41,7 +60,7 @@
     function isSystemAdmin() {
       return hasAdminProfile() &&
         isValidAdminDoc(myAdminDoc().data) &&
-        myAdminDoc().data.role == 'systemAdmin';
+        adminRole(myAdminDoc().data) == 'systemAdmin';
     }
 
     function adminCommunityId() {

@@ -210,6 +210,7 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
     required String fullName,
     required String phoneNumber,
     required AdminNotificationPreferences notificationPreferences,
+    required String themePresetId,
   }) async {
     final uid = _firebaseUser?.uid ?? _currentAdmin?.uid;
     if (uid == null) {
@@ -236,9 +237,11 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
         fullName: fullName,
         phoneNumber: phoneNumber,
         notificationPreferences: notificationPreferences,
+        themePresetId: themePresetId,
       );
       _currentAdmin = await _repository.getCurrentAdminUser(
         reloadAuthUser: false,
+        preferServer: true,
       );
       return true;
     } catch (e) {

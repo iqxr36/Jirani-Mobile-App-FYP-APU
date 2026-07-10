@@ -34,13 +34,29 @@
           'phoneNumber',
           'notificationPreferences',
           'profileImageUrl',
+          'themePresetId',
           'updatedAt',
         ]) &&
-        request.resource.data.fullName is string &&
-        request.resource.data.phoneNumber is string &&
+        (
+          !changed.hasAny(['fullName']) ||
+          request.resource.data.fullName is string
+        ) &&
+        (
+          !changed.hasAny(['phoneNumber']) ||
+          request.resource.data.phoneNumber is string
+        ) &&
         (
           !changed.hasAny(['profileImageUrl']) ||
           request.resource.data.profileImageUrl is string
+        ) &&
+        (
+          !changed.hasAny(['themePresetId']) ||
+          request.resource.data.themePresetId in [
+            'teal',
+            'darkPurple',
+            'maroon',
+            'darkBlue',
+          ]
         ) &&
         (
           !changed.hasAny(['notificationPreferences']) ||

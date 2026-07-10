@@ -15,6 +15,7 @@ const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
 const PROJECT_ID = 'jirani-admin-settings-rules-test';
 const ADMIN_ID = 'community-admin';
 const OTHER_ADMIN_ID = 'other-admin';
+const LEGACY_ADMIN_ID = 'legacy-admin';
 
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
 let testEnv;
@@ -53,6 +54,18 @@ before(async () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    await setDoc(doc(db, 'admins', LEGACY_ADMIN_ID), {
+      uid: LEGACY_ADMIN_ID,
+      fullName: 'Legacy Admin',
+      email: 'legacy-admin@example.com',
+      phoneNumber: '',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 });
 
@@ -74,6 +87,44 @@ describe('admin settings self-updates', () => {
           serviceDisputeAlerts: true,
           weeklyDigest: false,
         },
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('admin can save settings payload used by the Flutter app', async () => {
+    const db = testEnv.authenticatedContext(ADMIN_ID).firestore();
+
+    await assertSucceeds(
+      updateDoc(doc(db, 'admins', ADMIN_ID), {
+        fullName: 'Updated Admin',
+        phoneNumber: '+60123456789',
+        notificationPreferences: {
+          verificationAlerts: true,
+          reportEscalations: true,
+          serviceDisputeAlerts: false,
+          weeklyDigest: false,
+        },
+        themePresetId: 'darkPurple',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('legacy admin without role field can update own settings', async () => {
+    const db = testEnv.authenticatedContext(LEGACY_ADMIN_ID).firestore();
+
+    await assertSucceeds(
+      updateDoc(doc(db, 'admins', LEGACY_ADMIN_ID), {
+        fullName: 'Legacy Admin Updated',
+        phoneNumber: '',
+        notificationPreferences: {
+          verificationAlerts: true,
+          reportEscalations: true,
+          serviceDisputeAlerts: true,
+          weeklyDigest: false,
+        },
+        themePresetId: 'teal',
         updatedAt: serverTimestamp(),
       }),
     );

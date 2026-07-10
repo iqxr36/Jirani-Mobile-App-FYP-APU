@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-const _agentDebugSessionId = 'd25731';
-const _agentDebugLogPath = 'debug-d25731.log';
+const _agentDebugSessionId = '3aaa37';
+const _agentDebugLogPath = 'debug-3aaa37.log';
 const _agentDebugEndpoint =
     'http://127.0.0.1:7679/ingest/555f9914-bbf7-410c-a0da-e3a57b261bed';
 

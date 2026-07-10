@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/logic/models/admin_display_rows.dart';
+import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_listing_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
@@ -68,11 +69,25 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
               child: TextField(
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded),
-                  hintText: 'Search listings',
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  hintText: 'Search listings',
+                  filled: true,
+                  fillColor: AdminColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AdminColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AdminColors.border),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 13,
+                  ),
                 ),
               ),
             ),
@@ -129,8 +144,8 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
           )
         else if (_grid)
           AdminResponsiveGrid(
-            minTileWidth: 280,
-            mainAxisExtent: 320,
+            minTileWidth: 300,
+            mainAxisExtent: 340,
             children: listingRows
                 .map(
                   (listing) => AdminListingCard(

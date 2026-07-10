@@ -252,8 +252,18 @@ class TrustCommunityApp extends StatelessWidget {
           create: (_) => PaymentProvider(),
         ),
         ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider<AdminThemeProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, AdminThemeProvider>(
           create: (_) => AdminThemeProvider(),
+          update: (_, auth, provider) {
+            final themeProvider = provider ?? AdminThemeProvider();
+            final admin = auth.currentAdmin;
+            if (admin != null) {
+              themeProvider.syncFromAdminProfile(admin.themePresetId);
+            } else if (auth.firebaseUser == null) {
+              themeProvider.clearAuthoritativeProfileTheme();
+            }
+            return themeProvider;
+          },
         ),
         if (!kIsWeb)
           ChangeNotifierProvider<NetworkStatusProvider>(

@@ -166,6 +166,7 @@ AdminListingRow adminListingRowFromService(ServiceModel service) {
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,
     service: service,
+    imageUrls: service.imageUrls,
     priceLabel: service.priceType == AppConstants.servicePriceTypeFree
         ? 'Free'
         : service.priceAmount == null

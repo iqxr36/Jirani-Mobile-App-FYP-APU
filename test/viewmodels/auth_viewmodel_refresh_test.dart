@@ -224,6 +224,31 @@ void main() {
       expect(viewModel.adminProfileImageErrorMessage, isNull);
       expect(viewModel.errorMessage, isNull);
     });
+
+    test('admin settings save surfaces permission-denied guidance', () async {
+      final admin = _adminUser(profileImageUrl: '');
+      final repository = _RefreshAuthRepository(
+        firebaseUser: MockUser(uid: admin.uid),
+        appUserResults: const [],
+        throwOnAdminProfileUpdate: true,
+      );
+      final viewModel = AuthViewModel.forTesting(
+        repository: repository,
+        currentAdmin: admin,
+      );
+      viewModel.testingSetFirebaseUser(MockUser(uid: admin.uid));
+      addTearDown(viewModel.dispose);
+
+      final success = await viewModel.updateAdminProfileSettings(
+        fullName: 'Updated Admin',
+        phoneNumber: '+60123456789',
+        notificationPreferences: AdminNotificationPreferences.defaults,
+        themePresetId: 'teal',
+      );
+
+      expect(success, isFalse);
+      expect(viewModel.errorMessage, contains('Could not save admin settings'));
+    });
   });
 }
 
@@ -269,6 +294,7 @@ AdminUser _adminUser({required String profileImageUrl}) {
     communityId: 'community-1',
     communityName: 'One South',
     profileImageUrl: profileImageUrl,
+    themePresetId: 'teal',
     permissions: const [],
     notificationPreferences: AdminNotificationPreferences.defaults,
     isActive: true,
@@ -284,6 +310,7 @@ class _RefreshAuthRepository implements AuthRepository {
     List<AdminUser?> adminUserResults = const [],
     this.downloadedProfileImageBytes,
     this.throwOnProfileImageDownload = false,
+    this.throwOnAdminProfileUpdate = false,
     this.uploadedProfileImageUrl,
   }) : _appUserResults = List<AppUser?>.from(appUserResults),
        _adminUserResults = List<AdminUser?>.from(adminUserResults);
@@ -293,6 +320,7 @@ class _RefreshAuthRepository implements AuthRepository {
   final List<AdminUser?> _adminUserResults;
   final Uint8List? downloadedProfileImageBytes;
   final bool throwOnProfileImageDownload;
+  final bool throwOnAdminProfileUpdate;
   final String? uploadedProfileImageUrl;
   String? savedAdminProfileImageUrl;
 
@@ -328,6 +356,18 @@ class _RefreshAuthRepository implements AuthRepository {
     if (invocation.memberName == #updateAdminProfileImageUrl) {
       savedAdminProfileImageUrl =
           invocation.namedArguments[#profileImageUrl] as String?;
+      return Future<void>.value();
+    }
+    if (invocation.memberName == #updateAdminProfile) {
+      if (throwOnAdminProfileUpdate) {
+        return Future<void>.error(
+          Exception(
+            'Could not save admin settings. Confirm admins/${firebaseUser.uid} exists, '
+            'role is communityAdmin or systemAdmin, the account is active, and '
+            'deployed Firestore rules allow admin self-profile updates.',
+          ),
+        );
+      }
       return Future<void>.value();
     }
     if (invocation.isMethod) {

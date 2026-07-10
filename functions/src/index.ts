@@ -12,6 +12,7 @@ import {
 } from "./borrow_completion";
 import { handleBorrowRequestNotificationChanges } from "./borrow_notifications";
 import { handleCommunityPostNotificationChanges } from "./community_post_notifications";
+import { processCommunityPostLifecycle } from "./community_post_lifecycle";
 import { handleConnectionNotificationChanges } from "./connection_notifications";
 import { notifyChatMessageCreated } from "./chat_notifications";
 import { sendFcmForNotification } from "./notifications";
@@ -231,6 +232,20 @@ export const onCommunityPostNotificationOrchestration = onDocumentWritten(
         postId,
         error,
       });
+      throw error;
+    }
+  },
+);
+
+// Community post lifecycle feature: publishes scheduled drafts and returns expired posts to drafts.
+export const reconcileCommunityPostLifecycle = onSchedule(
+  "every 5 minutes",
+  async () => {
+    const db = admin.firestore();
+    try {
+      await processCommunityPostLifecycle(db);
+    } catch (error) {
+      logger.error("Failed community post lifecycle reconciliation", {error});
       throw error;
     }
   },

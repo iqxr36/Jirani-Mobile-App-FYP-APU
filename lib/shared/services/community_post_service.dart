@@ -6,6 +6,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
 
+const String _durationOneDay = 'oneDay';
+const String _durationOneWeek = 'oneWeek';
+const String _durationOneMonth = 'oneMonth';
+
 /// Community news service: manages admin-created news, announcements, warnings, events, and maintenance posts.
 class CommunityPostService {
   CommunityPostService({
@@ -38,6 +42,7 @@ class CommunityPostService {
     return query.snapshots().map((snapshot) {
       final posts = snapshot.docs
           .map((doc) => CommunityPostModel.fromMap(doc.id, doc.data()))
+          .where((post) => !publishedOnly || post.isVisibleToResidents)
           .toList();
       posts.sort((a, b) {
         final aDate = a.publishedAt ?? a.updatedAt;
@@ -63,7 +68,7 @@ class CommunityPostService {
     final data = snap.data();
     if (!snap.exists || data == null) return null;
     final post = CommunityPostModel.fromMap(snap.id, data);
-    if (!post.isPublished) return null;
+    if (!post.isVisibleToResidents) return null;
     return post;
   }
 
@@ -77,6 +82,9 @@ class CommunityPostService {
     required String body,
     String audience = 'All residents',
     String? imageUrl,
+    DateTime? scheduledPublishAt,
+    DateTime? expiresAt,
+    String publishDuration = _durationOneWeek,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != authorId) {
@@ -95,6 +103,9 @@ class CommunityPostService {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       imageUrl: imageUrl,
+      scheduledPublishAt: scheduledPublishAt,
+      expiresAt: expiresAt,
+      publishDuration: _normalizePublishDuration(publishDuration),
     );
     try {
       final doc = _posts.doc();
@@ -252,6 +263,9 @@ class CommunityPostService {
     String? type,
     String? audience,
     String? imageUrl,
+    DateTime? scheduledPublishAt,
+    DateTime? expiresAt,
+    String? publishDuration,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != authorId) {
@@ -269,14 +283,26 @@ class CommunityPostService {
       throw Exception('Published posts cannot be edited.');
     }
     try {
-      await ref.update({
-        if (title != null) 'title': title.trim(),
-        if (body != null) 'body': body.trim(),
-        if (type != null) 'type': type,
-        if (audience != null) 'audience': audience.trim(),
-        if (imageUrl != null) 'imageUrl': imageUrl,
+      final updates = <String, dynamic>{
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (title != null) updates['title'] = title.trim();
+      if (body != null) updates['body'] = body.trim();
+      if (type != null) updates['type'] = type;
+      if (audience != null) updates['audience'] = audience.trim();
+      if (imageUrl != null) updates['imageUrl'] = imageUrl;
+      if (publishDuration != null) {
+        updates['publishDuration'] = _normalizePublishDuration(
+          publishDuration,
+        );
+      }
+      if (scheduledPublishAt != null) {
+        updates['scheduledPublishAt'] = Timestamp.fromDate(scheduledPublishAt);
+      }
+      if (expiresAt != null) {
+        updates['expiresAt'] = Timestamp.fromDate(expiresAt);
+      }
+      await ref.update(updates);
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         throw Exception(
@@ -292,6 +318,7 @@ class CommunityPostService {
   Future<void> publishPost({
     required String postId,
     required String authorId,
+    String? publishDuration,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid != authorId) {
@@ -306,10 +333,17 @@ class CommunityPostService {
       throw Exception('Only the author can publish this post.');
     }
     if (post.isPublished) return;
+    final normalizedDuration = _normalizePublishDuration(
+      publishDuration ?? post.publishDuration,
+    );
+    final publishAt = DateTime.now();
+    final expiresAt = _expiresAtFor(publishAt, normalizedDuration);
     try {
       await ref.update({
         'status': AppConstants.communityPostStatusPublished,
         'publishedAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'publishDuration': normalizedDuration,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       // Community post notifications are created server-side by Cloud Functions.
@@ -322,6 +356,89 @@ class CommunityPostService {
       }
       throw Exception(e.message ?? 'Failed to publish post.');
     }
+  }
+
+  /// Community news lifecycle: publishes due scheduled drafts and archives expired posts back to drafts.
+  Future<CommunityPostLifecycleResult> reconcileScheduledPosts({
+    required String communityId,
+  }) async {
+    final trimmedCommunityId = communityId.trim();
+    if (trimmedCommunityId.isEmpty) {
+      return const CommunityPostLifecycleResult();
+    }
+    final now = DateTime.now();
+    final snapshot = await _posts
+        .where('communityId', isEqualTo: trimmedCommunityId)
+        .get();
+    final batch = _firestore.batch();
+    var dueCount = 0;
+    var expiredCount = 0;
+
+    for (final doc in snapshot.docs) {
+      final post = CommunityPostModel.fromMap(doc.id, doc.data());
+      if (post.isScheduled &&
+          post.scheduledPublishAt != null &&
+          !post.scheduledPublishAt!.isAfter(now)) {
+        final duration = _normalizePublishDuration(post.publishDuration);
+        batch.update(doc.reference, {
+          'status': AppConstants.communityPostStatusPublished,
+          'publishedAt': FieldValue.serverTimestamp(),
+          'expiresAt': Timestamp.fromDate(_expiresAtFor(now, duration)),
+          'publishDuration': duration,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        dueCount++;
+        continue;
+      }
+
+      if (post.isPublished &&
+          post.expiresAt != null &&
+          !post.expiresAt!.isAfter(now)) {
+        batch.update(doc.reference, {
+          'status': AppConstants.communityPostStatusDraft,
+          'publishedAt': null,
+          'scheduledPublishAt': null,
+          'expiresAt': null,
+          'expiredAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        expiredCount++;
+      }
+    }
+
+    if (dueCount > 0 || expiredCount > 0) {
+      await batch.commit();
+    }
+    return CommunityPostLifecycleResult(
+      published: dueCount,
+      expired: expiredCount,
+    );
+  }
+
+  static DateTime _expiresAtFor(DateTime publishAt, String duration) {
+    return switch (_normalizePublishDuration(duration)) {
+      _durationOneDay => publishAt.add(const Duration(days: 1)),
+      _durationOneMonth => DateTime(
+          publishAt.year,
+          publishAt.month + 1,
+          publishAt.day,
+          publishAt.hour,
+          publishAt.minute,
+          publishAt.second,
+          publishAt.millisecond,
+          publishAt.microsecond,
+        ),
+      _ => publishAt.add(const Duration(days: 7)),
+    };
+  }
+
+  static String _normalizePublishDuration(String value) {
+    return switch (value.trim()) {
+      _durationOneDay => _durationOneDay,
+      _durationOneMonth => _durationOneMonth,
+      _durationOneWeek => _durationOneWeek,
+      _ => _durationOneWeek,
+    };
   }
 
   /// Community news admin flow: deletes a post after checking admin identity and community scope.
@@ -357,4 +474,14 @@ class CommunityPostService {
       throw Exception(e.message ?? 'Failed to delete post.');
     }
   }
+}
+
+class CommunityPostLifecycleResult {
+  const CommunityPostLifecycleResult({
+    this.published = 0,
+    this.expired = 0,
+  });
+
+  final int published;
+  final int expired;
 }

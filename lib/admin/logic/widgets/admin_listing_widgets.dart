@@ -1,3 +1,5 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/logic/models/admin_display_rows.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
@@ -24,92 +26,107 @@ class AdminListingCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onOpen,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         child: Ink(
-          decoration: adminSurfaceDecoration(),
+          decoration: adminSurfaceDecoration().copyWith(
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Positioned.fill(child: _ListingHero(listing: listing)),
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: IconButton.filled(
-                          tooltip: listing.canRestore
-                              ? 'Restore listing'
-                              : 'Remove listing',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: listing.canRestore
-                                ? AdminColors.primary
-                                : AdminColors.accent,
-                          ),
-                          onPressed: listing.canRestore
-                              ? onRestore
-                              : onArchive,
-                          icon: Icon(
-                            listing.canRestore
-                                ? Icons.restore_rounded
-                                : Icons.delete_outline_rounded,
-                          ),
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox.expand(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _ListingImage(listing: listing),
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: _ListingTypeChip(listing: listing),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              listing.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AdminColors.ink,
-                                fontWeight: FontWeight.w800,
-                              ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: IconButton.filled(
+                            tooltip: listing.canRestore
+                                ? 'Restore listing'
+                                : 'Remove listing',
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: listing.canRestore
+                                  ? AdminColors.primary
+                                  : AdminColors.accent,
+                            ),
+                            onPressed: listing.canRestore
+                                ? onRestore
+                                : onArchive,
+                            icon: Icon(
+                              listing.canRestore
+                                  ? Icons.restore_rounded
+                                  : Icons.delete_outline_rounded,
                             ),
                           ),
-                          AdminStatusPill(
-                            label: listing.status,
-                            color: listing.color,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${listing.category} by ${listing.owner}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AdminColors.muted),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        listing.isItem
-                            ? '${listing.priceLabel} - ${listing.depositLabel}'
-                            : '${listing.priceLabel} - ${listing.availabilityLabel}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AdminColors.ink,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                listing.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AdminColors.ink,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            AdminStatusPill(
+                              label: listing.status,
+                              color: listing.color,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${listing.category} by ${listing.owner}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AdminColors.muted,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          listing.isItem
+                              ? '${listing.priceLabel} · ${listing.depositLabel}'
+                              : '${listing.priceLabel} · ${listing.availabilityLabel}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AdminColors.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -132,17 +149,51 @@ class AdminListingListTile extends StatelessWidget {
   final VoidCallback onArchive;
   final VoidCallback onRestore;
 
+  String get _priceLine => listing.isItem
+      ? '${listing.priceLabel} · ${listing.depositLabel}'
+      : '${listing.priceLabel} · ${listing.availabilityLabel}';
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onOpen,
-      leading: CircleAvatar(
-        backgroundColor: AdminColors.secondary.withValues(alpha: 0.25),
-        foregroundColor: AdminColors.primary,
-        child: Icon(listing.icon),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: _ListingImage(listing: listing, compact: true),
+        ),
       ),
-      title: Text(listing.title),
-      subtitle: Text('${listing.category} by ${listing.owner}'),
+      title: Text(
+        listing.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 2),
+          Text(
+            '${listing.category} by ${listing.owner}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _priceLine,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AdminColors.ink,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
       trailing: Wrap(
         spacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
@@ -228,11 +279,11 @@ class AdminListingDetailDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
                     height: 220,
                     width: double.infinity,
-                    child: _ListingHero(listing: listing),
+                    child: _ListingImage(listing: listing),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -324,30 +375,111 @@ class AdminListingDetailDialog extends StatelessWidget {
   }
 }
 
-class _ListingHero extends StatelessWidget {
-  const _ListingHero({required this.listing});
+class _ListingTypeChip extends StatelessWidget {
+  const _ListingTypeChip({required this.listing});
 
   final AdminListingRow listing;
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = listing.imageUrls.isEmpty ? '' : listing.imageUrls.first;
-    if (imageUrl.trim().isNotEmpty) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        listing.isItem ? 'Marketplace' : 'Service',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _ListingImage extends StatelessWidget {
+  const _ListingImage({required this.listing, this.compact = false});
+
+  final AdminListingRow listing;
+  final bool compact;
+
+  String get _imageUrl {
+    for (final url in listing.imageUrls) {
+      final trimmed = url.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _imageUrl;
+    if (imageUrl.isEmpty) {
+      return _ListingFallbackHero(listing: listing, compact: compact);
+    }
+
+    if (kIsWeb) {
       return Image.network(
         imageUrl,
+        key: ValueKey<String>(imageUrl),
         fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _ListingImagePlaceholder(compact: compact);
+        },
         errorBuilder: (context, error, stackTrace) =>
-            _ListingFallbackHero(listing: listing),
+            _ListingFallbackHero(listing: listing, compact: compact),
       );
     }
-    return _ListingFallbackHero(listing: listing);
+
+    return CachedNetworkImage(
+      key: ValueKey<String>(imageUrl),
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      fadeInDuration: const Duration(milliseconds: 180),
+      placeholder: (context, url) => _ListingImagePlaceholder(compact: compact),
+      errorWidget: (context, url, error) =>
+          _ListingFallbackHero(listing: listing, compact: compact),
+    );
+  }
+}
+
+class _ListingImagePlaceholder extends StatelessWidget {
+  const _ListingImagePlaceholder({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AdminColors.background,
+      child: Center(
+        child: SizedBox(
+          width: compact ? 20 : 28,
+          height: compact ? 20 : 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AdminColors.primary.withValues(alpha: 0.7),
+          ),
+        ),
+      ),
+    );
   }
 }
 
 class _ListingFallbackHero extends StatelessWidget {
-  const _ListingFallbackHero({required this.listing});
+  const _ListingFallbackHero({required this.listing, this.compact = false});
 
   final AdminListingRow listing;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -362,10 +494,12 @@ class _ListingFallbackHero extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Icon(
-        listing.icon,
-        color: Colors.white.withValues(alpha: 0.8),
-        size: 72,
+      child: Center(
+        child: Icon(
+          listing.icon,
+          color: Colors.white.withValues(alpha: 0.8),
+          size: compact ? 28 : 72,
+        ),
       ),
     );
   }

@@ -10,11 +10,31 @@ service firebase.storage {
       return firestore.exists(/databases/(default)/documents/borrowRequests/$(requestId));
     }
 
+    function storageAdminData() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function storageAdminIsActive(data) {
+      return ('isActive' in data && data.isActive is bool)
+        ? data.isActive
+        : (
+          ('status' in data && data.status is string)
+            ? (data.status.size() == 0 || data.status in ['active', 'enabled'])
+            : true
+        );
+    }
+
+    function storageAdminRole(data) {
+      return ('role' in data && data.role is string)
+        ? data.role
+        : 'communityAdmin';
+    }
+
     function isStorageAdmin() {
       return request.auth != null &&
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isActive != false &&
-        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role in ['communityAdmin', 'systemAdmin'];
+        storageAdminIsActive(storageAdminData()) &&
+        storageAdminRole(storageAdminData()) in ['communityAdmin', 'systemAdmin'];
     }
 
     function isBorrowProofParticipant(requestId) {
@@ -70,12 +90,9 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(userId)).data;
     }
 
-    function storageAdminData() {
-      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
-    }
-
     function isStorageSystemAdmin() {
-      return isStorageAdmin() && storageAdminData().role == 'systemAdmin';
+      return isStorageAdmin() &&
+        storageAdminRole(storageAdminData()) == 'systemAdmin';
     }
 
     function storageAdminCommunityId() {

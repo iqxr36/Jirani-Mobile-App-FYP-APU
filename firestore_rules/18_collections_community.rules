@@ -10,7 +10,6 @@
       );
       allow create: if validCommunityPostCreate(postId);
       allow update: if isAdmin() &&
-        resource.data.authorId == request.auth.uid &&
         adminCanAccessCommunity(resource.data.communityId) &&
         validCommunityPostUpdate();
       allow delete: if isAdmin() &&

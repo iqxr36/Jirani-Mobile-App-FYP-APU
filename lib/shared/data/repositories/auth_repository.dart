@@ -253,10 +253,14 @@ class AuthRepository {
     required String uid,
     required String profileImageUrl,
   }) async {
-    await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
-      'profileImageUrl': profileImageUrl.trim(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
+        'profileImageUrl': profileImageUrl.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw Exception(_adminProfileWriteFailureMessage(e, uid: uid));
+    }
   }
 
   // Admin settings feature: saves editable admin profile fields and notification prefs.
@@ -265,16 +269,24 @@ class AuthRepository {
     required String fullName,
     required String phoneNumber,
     required AdminNotificationPreferences notificationPreferences,
+    required String themePresetId,
   }) async {
     final trimmedPhone = phoneNumber.trim();
-    await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
-      'fullName': fullName.trim(),
-      'phoneNumber': trimmedPhone.isEmpty
-          ? ''
-          : Validators.normalizePhoneNumber(trimmedPhone),
-      'notificationPreferences': notificationPreferences.toMap(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
+        'fullName': fullName.trim(),
+        'phoneNumber': trimmedPhone.isEmpty
+            ? ''
+            : Validators.normalizePhoneNumber(trimmedPhone),
+        'notificationPreferences': notificationPreferences.toMap(),
+        'themePresetId': themePresetId.trim().isEmpty
+            ? 'teal'
+            : themePresetId.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw Exception(_adminProfileWriteFailureMessage(e, uid: uid));
+    }
   }
 
   // Resident profile feature: starts Firebase's verified email-change flow and stores pendingEmail in Firestore.
@@ -677,6 +689,22 @@ class AuthRepository {
   static bool _isHttpUrl(String value) {
     final uri = Uri.tryParse(value);
     return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  static String _adminProfileWriteFailureMessage(
+    FirebaseException error, {
+    required String uid,
+  }) {
+    if (error.code == 'permission-denied') {
+      return 'Could not save admin settings. Confirm admins/$uid exists, '
+          'role is communityAdmin or systemAdmin, the account is active, and '
+          'deployed Firestore rules allow admin self-profile updates.';
+    }
+    if (error.code == 'not-found') {
+      return 'Admin profile not found at admins/$uid. Ask a system admin to '
+          'create your admin document.';
+    }
+    return error.message ?? 'Could not save admin settings (${error.code}).';
   }
 
   static String _profileImageDownloadFailureMessage(Object error) {

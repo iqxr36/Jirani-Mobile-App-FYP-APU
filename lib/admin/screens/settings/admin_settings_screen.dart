@@ -38,6 +38,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   bool _verificationAlerts = true;
   bool _reportEscalations = true;
   bool _serviceDisputeAlerts = true;
+  String _selectedThemePresetId = AdminThemePreset.teal.id;
 
   @override
   void dispose() {
@@ -55,6 +56,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     _verificationAlerts = prefs.verificationAlerts;
     _reportEscalations = prefs.reportEscalations;
     _serviceDisputeAlerts = prefs.serviceDisputeAlerts;
+    _selectedThemePresetId = AdminThemePreset.byId(admin.themePresetId).id;
   }
 
   void _showSnack(String message, {bool isError = false}) {
@@ -169,10 +171,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       fullName: _fullNameController.text,
       phoneNumber: _phoneController.text,
       notificationPreferences: prefs,
+      themePresetId: _selectedThemePresetId,
     );
     if (!mounted) return;
     setState(() => _settingsSaving = false);
     if (success) {
+      await context.read<AdminThemeProvider>().setPreset(_selectedThemePresetId);
       _showSnack('Settings saved.');
     } else {
       _showSnack(
@@ -405,9 +409,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   title: 'Portal theme',
                   subtitle: 'Choose the accent color for the admin dashboard.',
                   child: _AdminThemePicker(
-                    selectedId: themeProvider.presetId,
+                    selectedId: _selectedThemePresetId,
                     presets: themeProvider.presets,
-                    onSelected: themeProvider.setPreset,
+                    onSelected: (id) =>
+                        setState(() => _selectedThemePresetId = id),
                   ),
                 ),
                 const SizedBox(height: 20),

@@ -24,7 +24,6 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
   late final TextEditingController _searchController;
   String _verificationFilter = 'all';
   String _accountFilter = 'all';
-  String _communityFilter = 'all';
   String _searchQuery = '';
   _ResidentSortMode _sortMode = _ResidentSortMode.nameAsc;
 
@@ -46,19 +45,13 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
     final allResidents = admin.residents;
     final stats = _ResidentDirectoryStats.from(allResidents);
     final residents = _sortedResidents(_filteredResidents(allResidents));
-    final communities = allResidents
-        .map((resident) => resident.communityName.trim())
-        .where((community) => community.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
 
     return AdminPageScroll(
       children: [
         AdminControlBar(
           title: 'Resident Directory',
           subtitle:
-              'Search, filter, and manage resident account health across communities.',
+              'Search, filter, and manage resident account health in your assigned community.',
           controls: [
             _ResidentSearchField(
               controller: _searchController,
@@ -93,16 +86,6 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
                 AppConstants.accountStatusArchived: 'Archived',
               },
               onSelected: (value) => setState(() => _accountFilter = value),
-            ),
-            _ResidentFilterMenu(
-              icon: Icons.home_work_outlined,
-              label: _communityFilter == 'all' ? 'Community' : _communityFilter,
-              value: _communityFilter,
-              values: {
-                'all': 'All communities',
-                for (final community in communities) community: community,
-              },
-              onSelected: (value) => setState(() => _communityFilter = value),
             ),
             _ResidentSortMenu(
               value: _sortMode,
@@ -163,15 +146,13 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
   bool get _hasActiveControls =>
       _searchQuery.trim().isNotEmpty ||
       _verificationFilter != 'all' ||
-      _accountFilter != 'all' ||
-      _communityFilter != 'all';
+      _accountFilter != 'all';
 
   String get _activeControlLabel {
     final count = [
       _searchQuery.trim().isNotEmpty,
       _verificationFilter != 'all',
       _accountFilter != 'all',
-      _communityFilter != 'all',
     ].where((active) => active).length;
     return count == 0 ? 'Clear' : 'Clear $count';
   }
@@ -185,7 +166,6 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
       _searchQuery = '';
       _verificationFilter = 'all';
       _accountFilter = 'all';
-      _communityFilter = 'all';
     });
   }
 
@@ -197,10 +177,6 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
         return false;
       }
       if (_accountFilter != 'all' && resident.accountStatus != _accountFilter) {
-        return false;
-      }
-      if (_communityFilter != 'all' &&
-          resident.communityName.trim() != _communityFilter) {
         return false;
       }
       if (query.isEmpty) return true;

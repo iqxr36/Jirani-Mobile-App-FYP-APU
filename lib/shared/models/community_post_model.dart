@@ -17,6 +17,10 @@ class CommunityPostModel {
     required this.createdAt,
     required this.updatedAt,
     this.publishedAt,
+    this.scheduledPublishAt,
+    this.expiresAt,
+    this.expiredAt,
+    this.publishDuration = 'oneWeek',
     this.imageUrl,
   });
 
@@ -32,10 +36,18 @@ class CommunityPostModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? publishedAt;
+  final DateTime? scheduledPublishAt;
+  final DateTime? expiresAt;
+  final DateTime? expiredAt;
+  final String publishDuration;
   final String? imageUrl;
 
   bool get isPublished => status == AppConstants.communityPostStatusPublished;
   bool get isDraft => status == AppConstants.communityPostStatusDraft;
+  bool get isScheduled => isDraft && scheduledPublishAt != null;
+  bool get isExpired =>
+      expiresAt != null && !DateTime.now().isBefore(expiresAt!);
+  bool get isVisibleToResidents => isPublished && !isExpired;
 
   /// Community news UI: maps post type constants to readable labels.
   String get displayCategory {
@@ -102,6 +114,11 @@ class CommunityPostModel {
       createdAt: _parseDate(data['createdAt']),
       updatedAt: _parseDate(data['updatedAt']),
       publishedAt: _parseNullableDate(data['publishedAt']),
+      scheduledPublishAt: _parseNullableDate(data['scheduledPublishAt']),
+      expiresAt: _parseNullableDate(data['expiresAt']),
+      expiredAt: _parseNullableDate(data['expiredAt']),
+      publishDuration:
+          ((data['publishDuration'] as String?) ?? 'oneWeek').trim(),
       imageUrl: (data['imageUrl'] as String?)?.trim(),
     );
   }
@@ -120,6 +137,11 @@ class CommunityPostModel {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       if (publishedAt != null) 'publishedAt': Timestamp.fromDate(publishedAt!),
+      if (scheduledPublishAt != null)
+        'scheduledPublishAt': Timestamp.fromDate(scheduledPublishAt!),
+      if (expiresAt != null) 'expiresAt': Timestamp.fromDate(expiresAt!),
+      if (expiredAt != null) 'expiredAt': Timestamp.fromDate(expiredAt!),
+      'publishDuration': publishDuration,
       if (imageUrl != null && imageUrl!.isNotEmpty) 'imageUrl': imageUrl,
     };
   }
