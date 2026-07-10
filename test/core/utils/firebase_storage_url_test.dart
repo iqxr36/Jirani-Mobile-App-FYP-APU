@@ -51,4 +51,35 @@ void main() {
       );
     });
   });
+
+  group('profile image reference helpers', () {
+    test('isHttpProfileImageReference detects http and https URLs', () {
+      expect(
+        isHttpProfileImageReference(
+          'https://firebasestorage.googleapis.com/v0/b/bucket/o/file.jpg',
+        ),
+        isTrue,
+      );
+      expect(isHttpProfileImageReference('http://example.com/a.jpg'), isTrue);
+      expect(
+        isHttpProfileImageReference('profile_images/residents/a.jpg'),
+        isFalse,
+      );
+    });
+
+    test('isStorageResolvableProfileImageReference detects storage paths', () {
+      expect(
+        isStorageResolvableProfileImageReference(
+          'profile_images/residents/uid123/avatar.jpg',
+        ),
+        isTrue,
+      );
+      expect(
+        isStorageResolvableProfileImageReference(
+          'gs://bucket/profile_images/residents/uid123/avatar.jpg',
+        ),
+        isTrue,
+      );
+    });
+  });
 }

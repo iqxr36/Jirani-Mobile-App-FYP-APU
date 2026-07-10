@@ -9,18 +9,16 @@ class ResidentSettingsView extends StatelessWidget {
   const ResidentSettingsView({
     super.key,
     required this.darkTheme,
-    required this.pushNotifications,
     required this.onDarkThemeChanged,
-    required this.onPushNotificationsChanged,
+    required this.onPushNotifications,
     required this.onPrivacy,
     required this.onPaymentMethods,
     required this.onHelp,
   });
 
   final bool darkTheme;
-  final bool pushNotifications;
   final ValueChanged<bool> onDarkThemeChanged;
-  final ValueChanged<bool> onPushNotificationsChanged;
+  final VoidCallback onPushNotifications;
   final VoidCallback onPrivacy;
   final VoidCallback onPaymentMethods;
   final VoidCallback onHelp;
@@ -47,9 +45,8 @@ class ResidentSettingsView extends StatelessWidget {
                     const SizedBox(height: 18),
                     _SettingsCard(
                       darkTheme: darkTheme,
-                      pushNotifications: pushNotifications,
                       onDarkThemeChanged: onDarkThemeChanged,
-                      onPushNotificationsChanged: onPushNotificationsChanged,
+                      onPushNotifications: onPushNotifications,
                       onPrivacy: onPrivacy,
                       onPaymentMethods: onPaymentMethods,
                       onHelp: onHelp,
@@ -121,18 +118,16 @@ class _SettingsHeader extends StatelessWidget {
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
     required this.darkTheme,
-    required this.pushNotifications,
     required this.onDarkThemeChanged,
-    required this.onPushNotificationsChanged,
+    required this.onPushNotifications,
     required this.onPrivacy,
     required this.onPaymentMethods,
     required this.onHelp,
   });
 
   final bool darkTheme;
-  final bool pushNotifications;
   final ValueChanged<bool> onDarkThemeChanged;
-  final ValueChanged<bool> onPushNotificationsChanged;
+  final VoidCallback onPushNotifications;
   final VoidCallback onPrivacy;
   final VoidCallback onPaymentMethods;
   final VoidCallback onHelp;
@@ -165,11 +160,10 @@ class _SettingsCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SettingsSwitchRow(
+          _SettingsActionRow(
             icon: Icons.notifications_outlined,
             label: 'Push Notifications',
-            value: pushNotifications,
-            onChanged: onPushNotificationsChanged,
+            onTap: onPushNotifications,
           ),
           _SettingsSwitchRow(
             icon: Icons.dark_mode_outlined,

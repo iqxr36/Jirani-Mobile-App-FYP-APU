@@ -45,6 +45,20 @@ class VerificationPermissionRepository {
     }, SetOptions(merge: true));
   }
 
+  // Neighbor activity notification feature: toggles updates from connected neighbors.
+  Future<void> updateNeighborUpdatesEnabled({
+    required bool enabled,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('Missing signed-in user.');
+    }
+    await _firestore.collection(AppConstants.usersCollection).doc(uid).set({
+      AppConstants.userNeighborUpdatesEnabledField: enabled,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   // Notification permission feature: stores the latest FCM token for push notification delivery.
   Future<void> saveFcmToken(String token) async {
     final uid = _auth.currentUser?.uid;

@@ -40,3 +40,14 @@ bool _isProfileImageObjectPath(String value) {
   if (value.contains('://')) return false;
   return value.startsWith('profile_images/') && !value.contains('..');
 }
+
+/// Returns true when the reference is already an HTTP(S) image URL.
+bool isHttpProfileImageReference(String value) {
+  final trimmed = value.trim().toLowerCase();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://');
+}
+
+/// Returns true when the reference can be resolved through Firebase Storage.
+bool isStorageResolvableProfileImageReference(String value) {
+  return firebaseStorageObjectPathFromProfileImageReference(value) != null;
+}

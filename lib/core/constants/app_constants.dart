@@ -144,6 +144,12 @@ class AppConstants {
   static const String notificationTypeAdminReport = 'adminReport';
   static const String notificationTypeMarketplaceListingArchived = 'marketplaceListingArchived';
   static const String notificationTypeMarketplaceListingRestored = 'marketplaceListingRestored';
+  static const String notificationTypeNeighborNewItem = 'neighborNewItem';
+  static const String notificationTypeNeighborNewService = 'neighborNewService';
+  static const String notificationTypeNeighborTrustWarning = 'neighborTrustWarning';
+
+  // User notification preferences
+  static const String userNeighborUpdatesEnabledField = 'neighborUpdatesEnabled';
 
   // Community post types and statuses
   static const String communityPostTypeNews = 'news';

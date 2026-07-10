@@ -44,11 +44,13 @@ class _ResidentServicesViewState extends State<ResidentServicesView> {
         ? keyboardInset + JiraniResponsive.scaled(context, 16)
         : bottomSafeArea + JiraniResponsive.scaled(context, 20);
 
-    return JiraniBackground(
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: JiraniBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
             RefreshIndicator(
               color: residentBrandTeal,
               onRefresh: _refresh,
@@ -126,6 +128,7 @@ class _ResidentServicesViewState extends State<ResidentServicesView> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

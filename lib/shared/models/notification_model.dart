@@ -20,6 +20,8 @@ class NotificationModel {
     this.borrowRequestId = '',
     this.serviceRequestId = '',
     this.postId = '',
+    this.itemId = '',
+    this.serviceId = '',
     this.verificationRequestId = '',
     this.residentId = '',
     this.reportId = '',
@@ -42,6 +44,8 @@ class NotificationModel {
   final String borrowRequestId;
   final String serviceRequestId;
   final String postId;
+  final String itemId;
+  final String serviceId;
   final String verificationRequestId;
   final String residentId;
   final String reportId;
@@ -101,6 +105,8 @@ class NotificationModel {
       borrowRequestId: (data['borrowRequestId'] as String?) ?? '',
       serviceRequestId: (data['serviceRequestId'] as String?) ?? '',
       postId: (data['postId'] as String?) ?? '',
+      itemId: (data['itemId'] as String?) ?? '',
+      serviceId: (data['serviceId'] as String?) ?? '',
       verificationRequestId:
           (data['verificationRequestId'] as String?) ?? '',
       residentId: (data['residentId'] as String?) ?? '',
@@ -129,6 +135,8 @@ class NotificationModel {
       if (borrowRequestId.isNotEmpty) 'borrowRequestId': borrowRequestId,
       if (serviceRequestId.isNotEmpty) 'serviceRequestId': serviceRequestId,
       if (postId.isNotEmpty) 'postId': postId,
+      if (itemId.isNotEmpty) 'itemId': itemId,
+      if (serviceId.isNotEmpty) 'serviceId': serviceId,
       if (verificationRequestId.isNotEmpty)
         'verificationRequestId': verificationRequestId,
       if (residentId.isNotEmpty) 'residentId': residentId,
@@ -153,6 +161,9 @@ class NotificationModel {
       AppConstants.notificationTypeChatMessage => 'Messages',
       AppConstants.notificationTypeConnectionRequest ||
       AppConstants.notificationTypeConnectionAccepted => 'Community',
+      AppConstants.notificationTypeNeighborNewItem ||
+      AppConstants.notificationTypeNeighborNewService ||
+      AppConstants.notificationTypeNeighborTrustWarning => 'Neighbors',
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
       AppConstants.notificationTypeBorrowRejected ||
@@ -194,6 +205,12 @@ class NotificationModel {
       AppConstants.notificationTypeConnectionRequest ||
       AppConstants.notificationTypeConnectionAccepted =>
         Icons.groups_2_outlined,
+      AppConstants.notificationTypeNeighborNewItem =>
+        Icons.inventory_2_outlined,
+      AppConstants.notificationTypeNeighborNewService =>
+        Icons.home_repair_service_outlined,
+      AppConstants.notificationTypeNeighborTrustWarning =>
+        Icons.shield_outlined,
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
       AppConstants.notificationTypeBorrowRejected ||
@@ -244,6 +261,10 @@ class NotificationModel {
       AppConstants.notificationTypeConnectionRequest ||
       AppConstants.notificationTypeConnectionAccepted =>
         const Color(0xFF2F855A),
+      AppConstants.notificationTypeNeighborNewItem => const Color(0xFFE29578),
+      AppConstants.notificationTypeNeighborNewService => const Color(0xFF7C3AED),
+      AppConstants.notificationTypeNeighborTrustWarning =>
+        const Color(0xFFB42318),
       AppConstants.notificationTypeBorrowRequest ||
       AppConstants.notificationTypeBorrowApproved ||
       AppConstants.notificationTypeBorrowRejected => const Color(0xFFE29578),

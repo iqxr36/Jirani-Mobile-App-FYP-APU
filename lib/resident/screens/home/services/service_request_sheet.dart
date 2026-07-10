@@ -131,7 +131,7 @@ Future<void> _showRequestSheet(
                 TextField(
                   controller: message,
                   decoration: context.residentInputDecoration(
-                    label: 'Message to provider',
+                    label: 'Message to provider (optional)',
                     hint: 'Describe what you need or timing details',
                   ),
                   minLines: 2,

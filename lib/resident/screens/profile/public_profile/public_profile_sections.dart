@@ -51,9 +51,22 @@ class _IdentityPanel extends StatelessWidget {
     final name = user.fullName.trim().isEmpty ? 'Resident' : user.fullName;
     final ink = context.appInk;
     final muted = context.appMuted;
-    final score = user.communityTrustScore > 0
-        ? user.communityTrustScore
-        : user.reputationScore;
+    final reviewCount = publicProfileReviewCount(
+      liveReviewCount: reviews.length,
+      profileTotalReviews: user.totalReviews,
+    );
+    final trustScoreLabel = publicProfileTrustScoreLabel(
+      reviewCount: reviews.length,
+      averageReviewRating: averageReviewRating(
+        reviews.map((review) => review.rating),
+      ),
+      communityTrustScore: user.communityTrustScore,
+      reputationScore: user.reputationScore,
+      profileTotalReviews: user.totalReviews,
+    );
+    final ratingLabel = reviews.isEmpty
+        ? null
+        : '${averageReviewRating(reviews.map((review) => review.rating)).toStringAsFixed(1)} rating';
 
     return _GlassPanel(
       child: Column(
@@ -97,6 +110,11 @@ class _IdentityPanel extends StatelessWidget {
                   label: 'Trusted Resident',
                   accent: true,
                 ),
+              if (ratingLabel != null)
+                _InfoPill(
+                  icon: Icons.star_rounded,
+                  label: ratingLabel,
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -104,10 +122,10 @@ class _IdentityPanel extends StatelessWidget {
             children: [
               _MetricTile(
                 label: 'Trust Score',
-                value: user.totalReviews == 0 ? '-' : score.toStringAsFixed(1),
+                value: trustScoreLabel,
               ),
               const SizedBox(width: 8),
-              _MetricTile(label: 'Reviews', value: '${reviews.length}'),
+              _MetricTile(label: 'Reviews', value: '$reviewCount'),
               const SizedBox(width: 8),
               _MetricTile(
                 label: 'Lent',

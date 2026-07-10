@@ -299,65 +299,89 @@ class _OwnerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = context.appInk;
     final muted = context.appMuted;
+    final profileRepository = PublicProfileRepository();
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: context.softSurface(),
+    return StreamBuilder<PublicResidentProfile?>(
+      stream: profileRepository.watchProfile(item.ownerId),
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final ownerName = profile != null && profile.fullName.trim().isNotEmpty
+            ? profile.fullName
+            : item.ownerName;
+        final verified = profile?.isVerifiedResident ?? item.ownerVerified;
+        final reputationScore = profile != null
+            ? (profile.communityTrustScore > 0
+                ? profile.communityTrustScore
+                : profile.reputationScore)
+            : item.ownerReputationScore;
+        final photoReference =
+            profile != null && profile.profileImageUrl.trim().isNotEmpty
+            ? profile.profileImageUrl
+            : item.ownerPhotoUrl;
+        final ratingLabel = reputationScore > 0
+            ? reputationScore.toStringAsFixed(1)
+            : '-';
+
+        return Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: context.residentOutline()),
-          ),
-          child: Row(
-            children: [
-              _Avatar(
-                photoUrl: item.ownerPhotoUrl,
-                name: item.ownerName,
-                radius: 22,
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.softSurface(),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: context.residentOutline()),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.ownerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
+              child: Row(
+                children: [
+                  _Avatar(
+                    photoUrl: photoReference,
+                    name: ownerName,
+                    radius: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ownerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          '${verified ? 'Verified resident' : 'Resident'} - $ratingLabel rating',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${item.ownerVerified ? 'Verified resident' : 'Resident'} - ${item.ownerReputationScore.toStringAsFixed(1)} rating',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: muted,
+                    size: 22,
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: muted,
-                size: 22,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -371,27 +395,12 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = name.trim().isEmpty
-        ? 'R'
-        : name
-              .trim()
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((part) => part.characters.first.toUpperCase())
-              .join();
-    if (photoUrl.trim().isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: CachedNetworkImageProvider(photoUrl),
-      );
-    }
-    return CircleAvatar(
+    return ResolvedProfileAvatar(
+      photoReference: photoUrl,
+      name: name,
       radius: radius,
-      backgroundColor: context.avatarPlaceholder,
-      child: Text(
-        initials,
-        style: const TextStyle(color: _kBrandTeal, fontWeight: FontWeight.w900),
-      ),
+      initialsColor: _kBrandTeal,
+      placeholderColor: context.avatarPlaceholder,
     );
   }
 }

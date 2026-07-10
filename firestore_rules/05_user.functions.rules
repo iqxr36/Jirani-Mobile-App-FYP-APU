@@ -20,6 +20,7 @@
         'photosDocumentsPermissionStatus',
         'notificationEnabled',
         'notificationPermissionStatus',
+        'neighborUpdatesEnabled',
         'fcmToken',
         'locationVerified',
         'locationVerificationStatus',

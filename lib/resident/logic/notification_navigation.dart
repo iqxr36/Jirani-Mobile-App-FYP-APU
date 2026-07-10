@@ -12,6 +12,7 @@ import 'package:jirani/resident/screens/home/resident_marketplace_view.dart';
 import 'package:jirani/resident/screens/home/resident_services_view.dart';
 import 'package:jirani/resident/screens/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/resident/screens/notifications/resident_notifications_view.dart';
+import 'package:jirani/shared/data/repositories/item_repository.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/models/notification_model.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,9 @@ Future<void> navigateFromPushData(
       borrowRequestId: (data['borrowRequestId'] as String?) ?? '',
       serviceRequestId: (data['serviceRequestId'] as String?) ?? '',
       postId: (data['postId'] as String?) ?? '',
+      itemId: (data['itemId'] as String?) ?? '',
+      serviceId: (data['serviceId'] as String?) ?? '',
+      residentId: (data['residentId'] as String?) ?? '',
     ),
   );
 }
@@ -92,6 +96,15 @@ Future<void> navigateFromNotification(
     case AppConstants.notificationTypeMaintenanceNotice:
     case AppConstants.notificationTypeCommunityWarning:
       await _openCommunityNotification(context, notification);
+      return;
+    case AppConstants.notificationTypeNeighborNewItem:
+      await _openNeighborItemNotification(context, notification);
+      return;
+    case AppConstants.notificationTypeNeighborNewService:
+      await _openNeighborServiceNotification(context, notification);
+      return;
+    case AppConstants.notificationTypeNeighborTrustWarning:
+      await NotificationDetailsSheet.show(context, notification);
       return;
     case AppConstants.notificationTypeAdminWarning:
     case AppConstants.notificationTypeAdminReport:
@@ -143,11 +156,7 @@ Future<void> _openServiceNotification(
 ) async {
   final requestId = notification.serviceRequestId.trim();
   if (requestId.isEmpty) {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ResidentServicesView(),
-      ),
-    );
+    await _openServicesBrowse(context);
     return;
   }
 
@@ -158,11 +167,7 @@ Future<void> _openServiceNotification(
 
   final currentUser = context.read<AuthViewModel>().currentUser;
   if (request == null || currentUser == null) {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ResidentServicesView(),
-      ),
-    );
+    await _openServicesBrowse(context);
     return;
   }
 
@@ -240,6 +245,81 @@ Future<void> _openBorrowNotification(
   await Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
       builder: (_) => MarketplaceTransactionView(initialRequest: request),
+    ),
+  );
+}
+
+/// Neighbor activity notifications: opens a connected neighbor's marketplace listing when possible.
+Future<void> _openNeighborItemNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final itemId = notification.itemId.trim();
+  if (itemId.isEmpty) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMarketplaceView(),
+      ),
+    );
+    return;
+  }
+
+  final item = await ItemRepository().getItemById(itemId);
+  if (!context.mounted) return;
+
+  if (item == null) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMarketplaceView(),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => MarketplaceItemDetailView(item: item),
+    ),
+  );
+}
+
+/// Neighbor activity notifications: opens a connected neighbor's service listing when possible.
+Future<void> _openNeighborServiceNotification(
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final serviceId = notification.serviceId.trim();
+  if (serviceId.isEmpty) {
+    await _openServicesBrowse(context);
+    return;
+  }
+
+  final service = await context
+      .read<services.ServiceProvider>()
+      .getService(serviceId);
+  if (!context.mounted) return;
+
+  final currentUser = context.read<AuthViewModel>().currentUser;
+  if (service == null || currentUser == null) {
+    await _openServicesBrowse(context);
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => ServiceDetailView(
+        user: currentUser,
+        service: service,
+      ),
+    ),
+  );
+}
+
+/// Services notifications: opens the browse screen when a service deep link is unavailable.
+Future<void> _openServicesBrowse(BuildContext context) {
+  return Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => const ResidentServicesView(),
     ),
   );
 }

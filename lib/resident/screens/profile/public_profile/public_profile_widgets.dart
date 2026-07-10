@@ -8,32 +8,12 @@ class _PublicAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = user.fullName.trim();
-    final initials = name.isEmpty
-        ? 'R'
-        : name
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((part) => part.characters.first.toUpperCase())
-              .join();
-    final imageUrl = user.profileImageUrl.trim();
-    if (imageUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: CachedNetworkImageProvider(imageUrl),
-      );
-    }
-    return CircleAvatar(
+    return ResolvedProfileAvatar(
+      photoReference: user.profileImageUrl,
+      name: user.fullName,
       radius: radius,
-      backgroundColor: context.avatarPlaceholder,
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: _kBrandTeal,
-          fontWeight: FontWeight.w900,
-          fontSize: 20,
-        ),
-      ),
+      initialsColor: _kBrandTeal,
+      placeholderColor: context.avatarPlaceholder,
     );
   }
 }

@@ -12,7 +12,9 @@ import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/public_resident_profile.dart';
 import 'package:jirani/shared/models/review_model.dart';
 import 'package:jirani/shared/models/service_model.dart';
+import 'package:jirani/shared/utils/public_profile_metrics.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
+import 'package:jirani/shared/widgets/resolved_profile_avatar.dart';
 import 'package:provider/provider.dart';
 
 

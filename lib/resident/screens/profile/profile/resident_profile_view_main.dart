@@ -10,10 +10,7 @@ class ResidentProfileView extends StatefulWidget {
 
 class _ResidentProfileViewState extends State<ResidentProfileView> {
   final _imagePicker = ImagePicker();
-  final _permissionRepository = VerificationPermissionRepository();
-  bool _pushNotifications = true;
   bool _profileImageSaving = false;
-  bool _loadedNotificationPreference = false;
   bool _profileStatsRefreshing = false;
 
   @override
@@ -25,41 +22,40 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_loadedNotificationPreference) return;
-    _loadedNotificationPreference = true;
-    _loadNotificationPreference();
+  // Resident settings feature: opens settings with callbacks wired back to profile state/providers.
+  void _openSettings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return ResidentSettingsView(
+              darkTheme: themeProvider.isDarkMode,
+              onDarkThemeChanged: themeProvider.setDarkMode,
+              onPushNotifications: _openPushNotifications,
+              onPrivacy: _openPrivacySafety,
+              onPaymentMethods: _openPaymentMethods,
+              onHelp: () => _showUnavailable('Help & Support'),
+            );
+          },
+        ),
+      ),
+    );
   }
 
-  // Resident profile feature: reads saved push-notification preference for the profile toggle.
-  Future<void> _loadNotificationPreference() async {
-    final user = context.read<AuthViewModel>().currentUser;
-    if (user == null) return;
-    final snap = await FirebaseFirestore.instance
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .get();
-    final enabled = snap.data()?['notificationEnabled'];
-    if (!mounted) return;
-    if (enabled is bool) {
-      setState(() => _pushNotifications = enabled);
-    }
+  void _openPushNotifications() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentPushNotificationsSettingsView(),
+      ),
+    );
   }
 
-  // Resident profile feature: updates push-notification preference and rolls back the toggle on failure.
-  Future<void> _setPushNotifications(bool value) async {
-    setState(() => _pushNotifications = value);
-    try {
-      await _permissionRepository.updateNotificationEnabled(enabled: value);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _pushNotifications = !value);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update notification settings.')),
-      );
-    }
+  void _openPrivacySafety() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentPrivacySafetySettingsView(),
+      ),
+    );
   }
 
   Future<void> _refreshProfileStats({bool showIndicator = true}) async {
@@ -109,27 +105,6 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => PhoneVerificationView(phoneNumber: phone),
-      ),
-    );
-  }
-
-  // Resident settings feature: opens settings with callbacks wired back to profile state/providers.
-  void _openSettings() {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => Consumer<ThemeProvider>(
-          builder: (context, themeProvider, _) {
-            return ResidentSettingsView(
-              darkTheme: themeProvider.isDarkMode,
-              pushNotifications: _pushNotifications,
-              onDarkThemeChanged: themeProvider.setDarkMode,
-              onPushNotificationsChanged: _setPushNotifications,
-              onPrivacy: () => _showUnavailable('Privacy'),
-              onPaymentMethods: _openPaymentMethods,
-              onHelp: () => _showUnavailable('Help & Support'),
-            );
-          },
-        ),
       ),
     );
   }

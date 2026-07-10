@@ -878,6 +878,7 @@ service cloud.firestore {
         'photosDocumentsPermissionStatus',
         'notificationEnabled',
         'notificationPermissionStatus',
+        'neighborUpdatesEnabled',
         'fcmToken',
         'locationVerified',
         'locationVerificationStatus',

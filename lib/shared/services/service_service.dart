@@ -507,9 +507,6 @@ class ServiceService {
     }
     final msg = message.trim();
     final pt = preferredTime.trim();
-    if (msg.isEmpty) {
-      throw Exception('Please enter a message for the provider.');
-    }
     if (pt.isEmpty) {
       throw Exception('Preferred time is required.');
     }
