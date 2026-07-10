@@ -36,7 +36,10 @@ class _ResidentMainShellState extends State<ResidentMainShell> {
       body: IndexedStack(
         index: _tab.index,
         children: [
-          const ResidentHomeView(),
+          ResidentHomeView(
+            onOpenMarketplace: () => _selectTab(ResidentTab.marketplace),
+            onOpenServices: () => _selectTab(ResidentTab.services),
+          ),
           VerificationLockedOverlay(
             user: user,
             child: const ResidentMarketplaceView(),

@@ -1,7 +1,14 @@
 part of '../resident_home_view.dart';
 
 class ResidentHomeView extends StatefulWidget {
-  const ResidentHomeView({super.key});
+  const ResidentHomeView({
+    super.key,
+    this.onOpenMarketplace,
+    this.onOpenServices,
+  });
+
+  final VoidCallback? onOpenMarketplace;
+  final VoidCallback? onOpenServices;
 
   @override
   State<ResidentHomeView> createState() => _ResidentHomeViewState();
@@ -70,6 +77,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
             badge: post.displayCategory.toUpperCase(),
             icon: post.icon,
             imageUrl: post.imageUrl,
+            postId: post.id,
           ),
         )
         .toList(growable: false);
@@ -157,6 +165,55 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const ResidentNotificationsView(),
+      ),
+    );
+  }
+
+  void _openPost(BuildContext context, _CarouselSlide slide) {
+    final postId = slide.postId;
+    if (postId == null || postId.isEmpty) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CommunityPostDetailView(postId: postId),
+      ),
+    );
+  }
+
+  void _openMarketplace(BuildContext context, AppUser? user) {
+    if (!residentHasFullAppAccess(user)) {
+      _onLockedTap(context, user);
+      return;
+    }
+
+    final openMarketplace = widget.onOpenMarketplace;
+    if (openMarketplace != null) {
+      openMarketplace();
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentMarketplaceView(),
+      ),
+    );
+  }
+
+  void _openServices(BuildContext context, AppUser? user) {
+    if (!residentHasFullAppAccess(user)) {
+      _onLockedTap(context, user);
+      return;
+    }
+
+    final openServices = widget.onOpenServices;
+    if (openServices != null) {
+      openServices();
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentServicesView(),
       ),
     );
   }
@@ -448,10 +505,27 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
             final slide = slides[index];
             return Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 22),
-              child: _CarouselCard(
-                slide: slide,
-                active: index == _carouselIndex,
-              ),
+              child: slide.hasPost
+                  ? Semantics(
+                      button: true,
+                      label: 'Open ${slide.title}',
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(28),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => _openPost(context, slide),
+                          child: _CarouselCard(
+                            slide: slide,
+                            active: index == _carouselIndex,
+                          ),
+                        ),
+                      ),
+                    )
+                  : _CarouselCard(
+                      slide: slide,
+                      active: index == _carouselIndex,
+                    ),
             );
           },
         ),
@@ -611,8 +685,6 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
       );
     }
 
-    void locked() => _onLockedTap(context, user);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Center(
@@ -665,7 +737,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                     subtitle: 'Trusted help nearby',
                     assetPath: _kHomeServicesAsset,
                     fallbackIcon: Icons.home_repair_service_outlined,
-                    onTap: locked,
+                    onTap: () => _openServices(context, user),
                   ),
                   const SizedBox(width: 12),
                   card(
@@ -674,7 +746,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
                     subtitle: 'Borrow and lend safely',
                     assetPath: _kShareItemsAsset,
                     fallbackIcon: Icons.inventory_2_outlined,
-                    onTap: locked,
+                    onTap: () => _openMarketplace(context, user),
                   ),
                 ],
               ),

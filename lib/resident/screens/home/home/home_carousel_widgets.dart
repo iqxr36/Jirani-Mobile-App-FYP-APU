@@ -7,6 +7,7 @@ class _CarouselSlide {
     required this.badge,
     required this.icon,
     this.imageUrl,
+    this.postId,
   });
 
   final String title;
@@ -14,6 +15,9 @@ class _CarouselSlide {
   final String badge;
   final IconData icon;
   final String? imageUrl;
+  final String? postId;
+
+  bool get hasPost => postId != null && postId!.isNotEmpty;
 }
 
 class _CarouselCard extends StatelessWidget {
@@ -44,7 +48,8 @@ class _CarouselCard extends StatelessWidget {
               CachedNetworkImage(
                 imageUrl: slide.imageUrl!,
                 fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => _gradientFallback(),
+                errorWidget: (context, error, stackTrace) =>
+                    _gradientFallback(),
               )
             else
               _gradientFallback(),
