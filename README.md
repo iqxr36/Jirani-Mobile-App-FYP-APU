@@ -75,7 +75,25 @@ npm run build:firestore-rules
 firebase deploy --only firestore:rules,firestore:indexes,storage,functions
 ```
 
+Phone profile updates need these callables (included in a full functions deploy):
+
+```powershell
+firebase deploy --only functions:updateResidentPhoneNumber,functions:checkResidentPhoneAvailability,functions:adminUpdateResidentPhoneNumber,functions:backfillResidentPhoneRegistry
+```
+
+Community post expiry (notification deep links) needs the lifecycle function plus updated rules:
+
+```powershell
+firebase deploy --only functions:reconcileCommunityPostLifecycle,firestore:rules
+```
+
 App Check uses debug providers in `kDebugMode` and Play Integrity / Device Check in release builds.
+
+## Phone number (contact only)
+
+Residents enter a phone number at registration and can change it in Edit Profile. Uniqueness is enforced by the `updateResidentPhoneNumber` Cloud Function and the `residentPhoneNumbers` registry. **SMS / OTP phone verification was removed** — there is no Verify phone screen and Firebase Phone Auth is not used.
+
+To change phone: Edit Profile → save. Ensure `updateResidentPhoneNumber` is deployed.
 
 ## Security highlights
 

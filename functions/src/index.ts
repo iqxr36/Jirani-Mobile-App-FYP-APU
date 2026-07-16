@@ -34,6 +34,16 @@ import {
   shouldAttemptPublishAfterBorrowUpdate,
 } from "./review_publish";
 export {createMarketplaceReview, createServiceReview} from "./reviews";
+export {
+  adminUpdateResidentPhoneNumber,
+  backfillResidentPhoneRegistry,
+  checkResidentPhoneAvailability,
+  checkResidentRegistrationEligibility,
+  clearResidentEmailRestriction,
+  deleteResidentAccount,
+  finalizeResidentRegistration,
+  updateResidentPhoneNumber,
+} from "./account_lifecycle";
 import {
   syncUserFromCancelledVerificationRequest,
   syncUserFromSubmittedVerificationRequest,

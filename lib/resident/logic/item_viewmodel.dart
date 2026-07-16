@@ -244,6 +244,23 @@ class ItemViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Auth lifecycle: cancels item streams when the resident signs out or deletes their account.
+  void resetForSignedOutUser() {
+    _availableItemsSub?.cancel();
+    _availableItemsSub = null;
+    _myItemsSub?.cancel();
+    _myItemsSub = null;
+    _availableItems = const <ItemModel>[];
+    _myItems = const <ItemModel>[];
+    _selectedItem = null;
+    _isLoading = false;
+    _errorMessage = null;
+    _searchQuery = '';
+    _selectedCategoryFilter = 'all';
+    _communityIdFilter = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _availableItemsSub?.cancel();

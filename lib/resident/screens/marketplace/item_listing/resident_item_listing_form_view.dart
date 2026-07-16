@@ -294,6 +294,14 @@ class _ResidentItemListingFormViewState
       return;
     }
 
+    final pickupError = ItemListingFormValidator.validatePickupInstructions(
+      _pickupController.text,
+    );
+    if (pickupError != null) {
+      _showSnack(context, pickupError);
+      return;
+    }
+
     setState(() => _submitting = true);
     final provider = context.read<ItemProvider>();
     final fee = _pricingType.requiresFee
@@ -457,6 +465,7 @@ class _DetailsStep extends StatelessWidget {
                 controller: descriptionController,
                 minLines: 5,
                 maxLines: 7,
+                maxLength: AppConstants.maxListingDescriptionLength,
                 decoration: context.residentInputDecoration(
                   label: 'Description',
                   hint:
@@ -540,6 +549,7 @@ class _FinancialStep extends StatelessWidget {
             controller: pickupController,
             minLines: 3,
             maxLines: 4,
+            maxLength: AppConstants.maxPickupInstructionsLength,
             decoration: context.residentInputDecoration(
               label: 'Pickup Instructions',
               hint: 'e.g. Meet at lobby after owner confirmation.',
@@ -596,7 +606,7 @@ class _PhotoPickerPanel extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 212),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: context.glassFill( lightAlpha: 0.76),
+          color: context.glassFill(lightAlpha: 0.76),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _photoCount == 0
@@ -784,26 +794,28 @@ class _MoneyField extends StatelessWidget {
       controller: controller,
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: context.residentInputDecoration(label: label, hint: '0.00').copyWith(
-        prefixIcon: Container(
-          width: 44,
-          alignment: Alignment.center,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: enabled ? 0.10 : 0.05),
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(14),
+      decoration: context
+          .residentInputDecoration(label: label, hint: '0.00')
+          .copyWith(
+            prefixIcon: Container(
+              width: 44,
+              alignment: Alignment.center,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: enabled ? 0.10 : 0.05),
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(14),
+                ),
+              ),
+              child: Text(
+                'RM',
+                style: TextStyle(
+                  color: enabled ? context.appInk : context.appMuted,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
-          child: Text(
-            'RM',
-            style: TextStyle(
-              color: enabled ? context.appInk : context.appMuted,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -862,4 +874,3 @@ class _ProfileListingSummary extends StatelessWidget {
     );
   }
 }
-

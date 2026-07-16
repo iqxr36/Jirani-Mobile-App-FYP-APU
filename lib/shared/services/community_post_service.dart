@@ -60,7 +60,7 @@ class CommunityPostService {
     return watchCommunityPosts(communityId: communityId, publishedOnly: true);
   }
 
-  /// Community news detail: loads one published post for resident deep links.
+  /// Community news detail: loads a published or expired post for resident deep links.
   Future<CommunityPostModel?> getPublishedPost(String postId) async {
     final id = postId.trim();
     if (id.isEmpty) return null;
@@ -68,7 +68,7 @@ class CommunityPostService {
     final data = snap.data();
     if (!snap.exists || data == null) return null;
     final post = CommunityPostModel.fromMap(snap.id, data);
-    if (!post.isVisibleToResidents) return null;
+    if (!post.isReadableByResidents) return null;
     return post;
   }
 
@@ -358,7 +358,7 @@ class CommunityPostService {
     }
   }
 
-  /// Community news lifecycle: publishes due scheduled drafts and archives expired posts back to drafts.
+  /// Community news lifecycle: publishes due scheduled drafts and marks expired posts as expired.
   Future<CommunityPostLifecycleResult> reconcileScheduledPosts({
     required String communityId,
   }) async {
@@ -395,7 +395,7 @@ class CommunityPostService {
           post.expiresAt != null &&
           !post.expiresAt!.isAfter(now)) {
         batch.update(doc.reference, {
-          'status': AppConstants.communityPostStatusDraft,
+          'status': AppConstants.communityPostStatusExpired,
           'publishedAt': null,
           'scheduledPublishAt': null,
           'expiresAt': null,

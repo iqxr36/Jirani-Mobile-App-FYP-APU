@@ -1,18 +1,19 @@
     // --- users collection ---
     match /users/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
+      allow get: if isOwner(uid) ||
+        isSystemAdmin() ||
+        (isAdmin() && adminCanAccessCommunity(resource.data.communityId));
       allow list: if isSystemAdmin() ||
         (isAdmin() && resource.data.communityId == adminCommunityId());
 
-      allow create: if isOwner(uid) &&
-        request.resource.data.uid == uid &&
-        request.resource.data.role == 'resident' &&
-        request.resource.data.verificationStatus == 'pending';
+      // Registration is finalized by the privileged Cloud Function, so clients
+      // cannot create private resident profiles directly.
+      allow create: if false;
 
       // Trust/reputation fields are updated only by Cloud Functions (Admin SDK)
       // or manually by admins — never by resident clients.
       allow update: if isAdmin() ||
-        (isOwner(uid) && ownSafeUserUpdate()) ||
+        (isOwner(uid) && ownSafeUserUpdate() && validResidentSelfProfileData()) ||
         (isOwner(uid) && ownerCanChangeCommunityWithVerificationReset());
       allow delete: if isAdmin();
     }
@@ -40,4 +41,9 @@
       // during registration and location verification. Keep writes admin-only.
       allow get, list: if true;
       allow write: if isAdmin();
+    }
+
+    // Phone uniqueness registry — written only by Cloud Functions (Admin SDK).
+    match /residentPhoneNumbers/{phoneHash} {
+      allow read, write: if false;
     }

@@ -47,11 +47,9 @@ class PushNotificationService {
     await _configureLocalNotifications();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // Startup must never display an OS prompt. Permission is requested only
+    // from onboarding or the notification settings screen after user action.
+    final settings = await _messaging.getNotificationSettings();
     final authorized =
         settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
 import 'package:jirani/shared/utils/chat_report_formatters.dart';
@@ -8,10 +9,7 @@ const Color _kBrandTeal = Color(0xFF006D77);
 
 // Report UI feature: carries the chat report category, note, and message-selection choice back to the thread screen.
 class ChatReportSubmission {
-  const ChatReportSubmission({
-    required this.category,
-    required this.note,
-  });
+  const ChatReportSubmission({required this.category, required this.note});
 
   final String category;
   final String note;
@@ -63,6 +61,17 @@ class _ChatReportDialogState extends State<_ChatReportDialog> {
   void _submit() {
     final category = _selectedCategory;
     if (category == null) return;
+    final noteError = Validators.validateMaxLength(
+      _noteController.text,
+      maxLength: AppConstants.maxMediumTextLength,
+      fieldName: 'Additional details',
+    );
+    if (noteError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(noteError)));
+      return;
+    }
     Navigator.of(context).pop(
       ChatReportSubmission(
         category: category,
@@ -120,6 +129,7 @@ class _ChatReportDialogState extends State<_ChatReportDialog> {
                 controller: _noteController,
                 minLines: 2,
                 maxLines: 4,
+                maxLength: AppConstants.maxMediumTextLength,
                 decoration: const InputDecoration(
                   labelText: 'Additional details (optional)',
                   hintText: 'Tell admins anything else they should know',
@@ -152,9 +162,8 @@ class _MessagePreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final body = switch (message.type) {
-      AppConstants.chatMessageImage => message.text.trim().isEmpty
-          ? 'Image attachment'
-          : message.text.trim(),
+      AppConstants.chatMessageImage =>
+        message.text.trim().isEmpty ? 'Image attachment' : message.text.trim(),
       AppConstants.chatMessageFile =>
         message.fileName.trim().isEmpty
             ? 'File attachment'

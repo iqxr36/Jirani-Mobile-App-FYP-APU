@@ -186,6 +186,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
               controller: _messageController,
               minLines: 2,
               maxLines: 3,
+              maxLength: AppConstants.maxMediumTextLength,
               decoration: context.residentInputDecoration(
                 label: 'Message to owner',
                 hint: 'Optional meetup note or reason for borrowing',
@@ -316,6 +317,15 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
     final pickupTime = _mode == _RentalMode.daily
         ? 'Daily rental'
         : '${_startTime.format(context)} - ${_endTime.format(context)}';
+
+    final messageError = Validators.validateOptionalMessage(
+      _messageController.text,
+      fieldName: 'Message',
+    );
+    if (messageError != null) {
+      messenger.showSnackBar(SnackBar(content: Text(messageError)));
+      return;
+    }
 
     final provider = context.read<BorrowRequestProvider>();
     await provider.createBorrowRequest(

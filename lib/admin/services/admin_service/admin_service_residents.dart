@@ -2,6 +2,14 @@ part of '../admin_service.dart';
 
 // Admin residents feature: mutates resident account/profile status and records activity logs.
 mixin _AdminServiceResidentsMixin on _AdminServiceBase {
+  Future<void> clearDeletedResidentRestriction({
+    required String residentUid,
+  }) async {
+    await _functions.httpsCallable('clearResidentEmailRestriction').call({
+      'residentUid': residentUid,
+    });
+  }
+
   // Admin residents feature: updates resident profile and community assignment fields.
   Future<void> updateResidentDetails({
     required String residentUid,
@@ -19,6 +27,13 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     if (trimmedFirstName.isEmpty || trimmedLastName.isEmpty) {
       throw Exception('Resident first and last name are required.');
     }
+    final trimmedPhone = phoneNumber.trim();
+    if (trimmedPhone.isNotEmpty) {
+      await _functions.httpsCallable('adminUpdateResidentPhoneNumber').call({
+        'residentUid': residentUid,
+        'phoneNumber': trimmedPhone,
+      });
+    }
     final batch = _firestore.batch();
     final userRef = _residentRef(residentUid);
     final logRef = _activityLogRef();
@@ -27,17 +42,19 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'firstName': trimmedFirstName,
       'lastName': trimmedLastName,
       'fullName': '$trimmedFirstName $trimmedLastName'.trim(),
-      'phoneNumber': phoneNumber.trim(),
       'unitNumber': unitNumber.trim(),
       'communityId': communityId.trim(),
       'communityName': communityName.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(logRef, _residentLogData(
-      type: AppConstants.activityResidentUpdated,
-      adminUid: adminUid,
-      residentUid: residentUid,
-    ));
+    batch.set(
+      logRef,
+      _residentLogData(
+        type: AppConstants.activityResidentUpdated,
+        adminUid: adminUid,
+        residentUid: residentUid,
+      ),
+    );
     await batch.commit();
   }
 
@@ -46,11 +63,18 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
     required String residentUid,
     required String adminUid,
     required String reason,
+    required DateTime? suspensionEndsAt,
   }) async {
     _requireResidentActionIds(residentUid: residentUid, adminUid: adminUid);
     final trimmedReason = reason.trim();
     if (trimmedReason.isEmpty) {
       throw Exception('Suspension reason is required.');
+    }
+    if (trimmedReason.length > 500) {
+      throw Exception('Suspension reason cannot exceed 500 characters.');
+    }
+    if (suspensionEndsAt != null && !suspensionEndsAt.isAfter(DateTime.now())) {
+      throw Exception('Suspension end time must be in the future.');
     }
     final batch = _firestore.batch();
     batch.update(_residentRef(residentUid), {
@@ -58,15 +82,26 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'accountFlagged': true,
       'suspendedReason': trimmedReason,
       'suspendedAt': FieldValue.serverTimestamp(),
+      'suspensionEndsAt': suspensionEndsAt == null
+          ? FieldValue.delete()
+          : Timestamp.fromDate(suspensionEndsAt),
       'suspendedBy': adminUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentSuspended,
-      adminUid: adminUid,
-      residentUid: residentUid,
-      reason: trimmedReason,
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentSuspended,
+        adminUid: adminUid,
+        residentUid: residentUid,
+        reason: trimmedReason,
+        extra: {
+          'suspensionEndsAt': suspensionEndsAt == null
+              ? null
+              : Timestamp.fromDate(suspensionEndsAt),
+        },
+      ),
+    );
     await batch.commit();
   }
 
@@ -82,14 +117,18 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'accountFlagged': false,
       'suspendedReason': FieldValue.delete(),
       'suspendedAt': FieldValue.delete(),
+      'suspensionEndsAt': FieldValue.delete(),
       'suspendedBy': FieldValue.delete(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentReactivated,
-      adminUid: adminUid,
-      residentUid: residentUid,
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentReactivated,
+        adminUid: adminUid,
+        residentUid: residentUid,
+      ),
+    );
     await batch.commit();
   }
 
@@ -113,12 +152,15 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'archivedBy': adminUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentArchived,
-      adminUid: adminUid,
-      residentUid: residentUid,
-      reason: trimmedReason,
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentArchived,
+        adminUid: adminUid,
+        residentUid: residentUid,
+        reason: trimmedReason,
+      ),
+    );
     await batch.commit();
   }
 
@@ -137,11 +179,14 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'archivedBy': FieldValue.delete(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentUnarchived,
-      adminUid: adminUid,
-      residentUid: residentUid,
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentUnarchived,
+        adminUid: adminUid,
+        residentUid: residentUid,
+      ),
+    );
     await batch.commit();
   }
 
@@ -164,12 +209,15 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'verificationResetBy': adminUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentVerificationReset,
-      adminUid: adminUid,
-      residentUid: residentUid,
-      reason: trimmedReason,
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentVerificationReset,
+        adminUid: adminUid,
+        residentUid: residentUid,
+        reason: trimmedReason,
+      ),
+    );
     await batch.commit();
   }
 
@@ -199,13 +247,16 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
       'verificationOverrideBy': adminUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentVerificationOverridden,
-      adminUid: adminUid,
-      residentUid: residentUid,
-      reason: trimmedReason,
-      extra: {'status': nextStatus},
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentVerificationOverridden,
+        adminUid: adminUid,
+        residentUid: residentUid,
+        reason: trimmedReason,
+        extra: {'status': nextStatus},
+      ),
+    );
     await batch.commit();
   }
 
@@ -237,12 +288,15 @@ mixin _AdminServiceResidentsMixin on _AdminServiceBase {
         'createdAt': FieldValue.serverTimestamp(),
       },
     );
-    batch.set(_activityLogRef(), _residentLogData(
-      type: AppConstants.activityResidentNoticeSent,
-      adminUid: adminUid,
-      residentUid: residentUid,
-      extra: {'title': trimmedTitle},
-    ));
+    batch.set(
+      _activityLogRef(),
+      _residentLogData(
+        type: AppConstants.activityResidentNoticeSent,
+        adminUid: adminUid,
+        residentUid: residentUid,
+        extra: {'title': trimmedTitle},
+      ),
+    );
     await batch.commit();
   }
 

@@ -1,0 +1,127 @@
+    // --- Shared input length limits (mirror lib/core/constants/app_constants.dart) ---
+    function maxPersonNameLength() {
+      return 60;
+    }
+
+    function maxPhoneLength() {
+      return 16;
+    }
+
+    function maxShortTextLength() {
+      return 200;
+    }
+
+    function maxMediumTextLength() {
+      return 1000;
+    }
+
+    function maxLongTextLength() {
+      return 5000;
+    }
+
+    function minItemDescriptionLength() {
+      return 12;
+    }
+
+    function minServiceTitleLength() {
+      return 3;
+    }
+
+    function minServiceDescriptionLength() {
+      return 12;
+    }
+
+    function maxListingDescriptionLength() {
+      return 1000;
+    }
+
+    function maxItemTitleLength() {
+      return 120;
+    }
+
+    function maxPickupInstructionsLength() {
+      return 500;
+    }
+
+    function maxUnitNumberLength() {
+      return 20;
+    }
+
+    function isBoundedString(value, minSize, maxSize) {
+      return value is string &&
+        value.size() >= minSize &&
+        value.size() <= maxSize;
+    }
+
+    function validPersonName(value) {
+      return isBoundedString(value, 2, maxPersonNameLength());
+    }
+
+    function validResidentSelfProfileData() {
+      let data = request.resource.data;
+      return (
+        (!('firstName' in data) || validPersonName(data.firstName)) &&
+        (!('lastName' in data) || validPersonName(data.lastName)) &&
+        (!('fullName' in data) ||
+          isBoundedString(data.fullName, 2, maxPersonNameLength() * 2 + 1)) &&
+        (!('unitNumber' in data) ||
+          isBoundedString(data.unitNumber, 0, maxUnitNumberLength())) &&
+        (!('communityName' in data) ||
+          isBoundedString(data.communityName, 0, maxLongTextLength())) &&
+        (!('profileImageUrl' in data) ||
+          isBoundedString(data.profileImageUrl, 0, 2048))
+      );
+    }
+
+    function validReportType(type) {
+      return type in [
+        'damagedItem',
+        'lostItem',
+        'depositDispute',
+        'serviceDispute',
+        'userMisconduct',
+        'other',
+      ];
+    }
+
+    function validReportCreate(data) {
+      return data.reporterId is string &&
+        data.reporterId == request.auth.uid &&
+        data.communityId is string &&
+        data.communityId == myUserDoc().data.communityId &&
+        data.communityName is string &&
+        data.communityName == myUserDoc().data.communityName &&
+        data.type is string &&
+        validReportType(data.type) &&
+        data.status == 'open' &&
+        isBoundedString(data.title, 1, maxShortTextLength()) &&
+        isBoundedString(data.description, 1, maxLongTextLength()) &&
+        (!('reportCategory' in data) ||
+          isBoundedString(data.reportCategory, 0, maxShortTextLength())) &&
+        (!('reportedUserId' in data) ||
+          data.reportedUserId is string) &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+
+    function validVerificationDocumentType(type) {
+      return type in [
+        'utilityBill',
+        'tenancyAgreement',
+        'accessCard',
+        'otherProof',
+      ];
+    }
+
+    function validVerificationCreate(data) {
+      return data.userId == request.auth.uid &&
+        data.status == 'submitted' &&
+        data.communityId is string &&
+        data.communityId == myUserDoc().data.communityId &&
+        isBoundedString(data.unitNumber, 1, maxUnitNumberLength()) &&
+        data.documentType is string &&
+        validVerificationDocumentType(data.documentType) &&
+        (!('notes' in data) ||
+          isBoundedString(data.notes, 0, maxMediumTextLength())) &&
+        data.createdAt == request.time;
+    }

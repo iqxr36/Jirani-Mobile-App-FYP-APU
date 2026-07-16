@@ -34,11 +34,67 @@ class AdminDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.watch<AuthViewModel>().currentAdmin == null) {
+      return _AdminAccessDeniedScaffold(
+        onLogout: onLogout,
+        isLoggingOut: isLoggingOut,
+      );
+    }
     return ChangeNotifierProvider<AdminProvider>(
       create: (_) => AdminProvider(),
       child: _AdminDashboardView(
         onLogout: onLogout,
         isLoggingOut: isLoggingOut,
+      ),
+    );
+  }
+}
+
+class _AdminAccessDeniedScaffold extends StatelessWidget {
+  const _AdminAccessDeniedScaffold({
+    required this.onLogout,
+    required this.isLoggingOut,
+  });
+
+  final VoidCallback onLogout;
+  final bool isLoggingOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.admin_panel_settings_outlined, size: 52),
+                const SizedBox(height: 16),
+                Text(
+                  'Admin access required',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This account is not authorized to open the administrator portal.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: isLoggingOut ? null : onLogout,
+                  child: isLoggingOut
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Sign out'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -83,9 +139,9 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
       _appliedThemePresetId = currentAdmin.themePresetId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        context
-            .read<AdminThemeProvider>()
-            .syncFromAdminProfile(currentAdmin.themePresetId);
+        context.read<AdminThemeProvider>().syncFromAdminProfile(
+          currentAdmin.themePresetId,
+        );
       });
     }
   }

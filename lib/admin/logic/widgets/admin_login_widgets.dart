@@ -87,7 +87,11 @@ class _GlowOrb extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: color, blurRadius: diameter * 0.45, spreadRadius: 8),
+            BoxShadow(
+              color: color,
+              blurRadius: diameter * 0.45,
+              spreadRadius: 8,
+            ),
           ],
         ),
       ),
@@ -140,155 +144,155 @@ class AdminLoginHeroPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                          const _HeroLogoShowcase(),
-                          const SizedBox(height: 28),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.24),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.admin_panel_settings_outlined,
-                                  size: 16,
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Admin Portal',
-                                  style: textTheme.labelLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      const _HeroLogoShowcase(),
+                      const SizedBox(height: 28),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.24),
                           ),
-                          const SizedBox(height: 18),
-                          Text(
-                            'Your community command center',
-                            style: textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                              height: 1.15,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.admin_panel_settings_outlined,
+                              size: 16,
+                              color: Colors.white.withValues(alpha: 0.95),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Manage verification, residents, reports, and listings from one secure workspace built for neighborhood administrators.',
-                            style: textTheme.bodyLarge?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.86),
-                              height: 1.55,
+                            const SizedBox(width: 8),
+                            Text(
+                              'Admin Portal',
+                              style: textTheme.labelLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Your community command center',
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Manage verification, residents, reports, and listings from one secure workspace built for neighborhood administrators.',
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.86),
+                          height: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      const Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _HeroTrustPill(
+                            icon: Icons.verified_outlined,
+                            label: 'Verified access',
                           ),
-                          const SizedBox(height: 22),
-                          const Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              _HeroTrustPill(
-                                icon: Icons.verified_outlined,
-                                label: 'Verified access',
-                              ),
-                              _HeroTrustPill(
-                                icon: Icons.groups_2_outlined,
-                                label: 'Community-first',
-                              ),
-                              _HeroTrustPill(
-                                icon: Icons.history_edu_outlined,
-                                label: 'Audit trail',
-                              ),
-                            ],
+                          _HeroTrustPill(
+                            icon: Icons.groups_2_outlined,
+                            label: 'Community-first',
+                          ),
+                          _HeroTrustPill(
+                            icon: Icons.history_edu_outlined,
+                            label: 'Audit trail',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.fromLTRB(18, 18, 18, 10),
+                      child: Column(
+                        children: [
+                          _AdminLoginFeatureRow(
+                            icon: Icons.verified_user_outlined,
+                            title: 'Resident verification',
+                            subtitle:
+                                'Review documents and approve access quickly.',
+                          ),
+                          SizedBox(height: 14),
+                          _AdminLoginFeatureRow(
+                            icon: Icons.insights_outlined,
+                            title: 'Live community insights',
+                            subtitle:
+                                'Track reports, listings, and activity at a glance.',
+                          ),
+                          SizedBox(height: 14),
+                          _AdminLoginFeatureRow(
+                            icon: Icons.shield_outlined,
+                            title: 'Secure by design',
+                            subtitle:
+                                'Admin actions are logged and access is role-based.',
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: const Padding(
-                          padding: EdgeInsets.fromLTRB(18, 18, 18, 10),
-                          child: Column(
-                            children: [
-                              _AdminLoginFeatureRow(
-                                icon: Icons.verified_user_outlined,
-                                title: 'Resident verification',
-                                subtitle:
-                                    'Review documents and approve access quickly.',
-                              ),
-                              SizedBox(height: 14),
-                              _AdminLoginFeatureRow(
-                                icon: Icons.insights_outlined,
-                                title: 'Live community insights',
-                                subtitle:
-                                    'Track reports, listings, and activity at a glance.',
-                              ),
-                              SizedBox(height: 14),
-                              _AdminLoginFeatureRow(
-                                icon: Icons.shield_outlined,
-                                title: 'Secure by design',
-                                subtitle:
-                                    'Admin actions are logged and access is role-based.',
-                              ),
-                            ],
-                          ),
-                        ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.lock_outline_rounded,
+                      size: 17,
+                      color: secondary.withValues(alpha: 0.95),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Authorized community administrators only.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.78),
+                        height: 1.4,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.lock_outline_rounded,
-                          size: 17,
-                          color: secondary.withValues(alpha: 0.95),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Authorized community administrators only.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.78),
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -587,7 +591,11 @@ class AdminLoginErrorBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline_rounded, color: AdminColors.danger, size: 20),
+          Icon(
+            Icons.error_outline_rounded,
+            color: AdminColors.danger,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

@@ -191,9 +191,12 @@ void main() {
       expect(find.text('First name'), findsOneWidget);
       expect(find.text('Unit'), findsOneWidget);
       expect(find.text('Community'), findsOneWidget);
-      expect(find.textContaining('Faisal'), findsOneWidget);
+      expect(find.textContaining('Faisal', findRichText: true), findsOneWidget);
       expect(find.textContaining('A-18-07'), findsWidgets);
-      expect(find.textContaining('One South Residence'), findsOneWidget);
+      expect(
+        find.textContaining('One South Residence', findRichText: true),
+        findsOneWidget,
+      );
     });
   });
 }

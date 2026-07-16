@@ -7,6 +7,7 @@ type Timestamp = admin.firestore.Timestamp;
 
 const STATUS_DRAFT = "draft";
 const STATUS_PUBLISHED = "published";
+const STATUS_EXPIRED = "expired";
 const DURATION_ONE_DAY = "oneDay";
 const DURATION_ONE_MONTH = "oneMonth";
 
@@ -71,7 +72,7 @@ export async function processCommunityPostLifecycle(
 
     if (isExpiredPost(data, now)) {
       batch.update(doc.ref, {
-        status: STATUS_DRAFT,
+        status: STATUS_EXPIRED,
         publishedAt: null,
         scheduledPublishAt: null,
         expiresAt: null,

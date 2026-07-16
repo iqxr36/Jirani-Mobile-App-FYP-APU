@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:jirani/resident/logic/verification_access.dart';
 import 'package:jirani/shared/data/repositories/chat_repository.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/chat_message_model.dart';
@@ -39,14 +40,22 @@ class ChatProvider extends ChangeNotifier {
   void watchForUser(AppUser? user, {bool force = false}) {
     final sameUser = user?.uid == _currentUser?.uid;
     final sameCommunity = user?.communityId == _currentUser?.communityId;
-    if (!force && sameUser && sameCommunity) return;
+    final sameAccess =
+        residentCanStartProtectedListeners(user) ==
+        residentCanStartProtectedListeners(_currentUser);
+    if (!force && sameUser && sameCommunity && sameAccess) return;
     _currentUser = user;
     _chatsSub?.cancel();
+    _chatsSub = null;
 
     if (user == null) {
-      _chats = const <ChatModel>[];
-      _isLoading = false;
-      _errorMessage = null;
+      _resetState();
+      notifyListeners();
+      return;
+    }
+
+    if (!residentCanStartProtectedListeners(user)) {
+      _resetState();
       notifyListeners();
       return;
     }
@@ -206,6 +215,13 @@ class ChatProvider extends ChangeNotifier {
         userId: user.uid,
       ),
     );
+  }
+
+  // Chat feature: clears inbox state when the user signs out or lacks verified access.
+  void _resetState() {
+    _chats = const <ChatModel>[];
+    _isLoading = false;
+    _errorMessage = null;
   }
 
   // Chat UI state: clears the latest provider error after a SnackBar or inline error displays it.

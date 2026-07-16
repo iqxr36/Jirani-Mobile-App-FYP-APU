@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jirani/resident/screens/legal/legal_document_view.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
@@ -14,6 +15,7 @@ class ResidentSettingsView extends StatelessWidget {
     required this.onPrivacy,
     required this.onPaymentMethods,
     required this.onHelp,
+    required this.onDeleteAccount,
   });
 
   final bool darkTheme;
@@ -22,6 +24,7 @@ class ResidentSettingsView extends StatelessWidget {
   final VoidCallback onPrivacy;
   final VoidCallback onPaymentMethods;
   final VoidCallback onHelp;
+  final VoidCallback onDeleteAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -51,12 +54,66 @@ class ResidentSettingsView extends StatelessWidget {
                       onPaymentMethods: onPaymentMethods,
                       onHelp: onHelp,
                     ),
+                    const SizedBox(height: 18),
+                    _DangerZoneCard(onDeleteAccount: onDeleteAccount),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DangerZoneCard extends StatelessWidget {
+  const _DangerZoneCard({required this.onDeleteAccount});
+
+  final VoidCallback onDeleteAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    const danger = Color(0xFFB42318);
+    return Container(
+      decoration: BoxDecoration(
+        color: danger.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: danger.withValues(alpha: 0.35)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Danger Zone',
+            style: TextStyle(
+              color: danger,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Permanently remove your sign-in and personal profile data.',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.delete_forever_outlined, color: danger),
+            title: const Text(
+              'Delete Account',
+              style: TextStyle(color: danger, fontWeight: FontWeight.w800),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded, color: danger),
+            onTap: onDeleteAccount,
+          ),
+        ],
       ),
     );
   }
@@ -177,6 +234,20 @@ class _SettingsCard extends StatelessWidget {
             onTap: onPrivacy,
           ),
           _SettingsActionRow(
+            icon: Icons.groups_2_outlined,
+            label: 'Community Guidelines',
+            onTap: () => _openLegalDocument(
+              context,
+              JiraniLegalDocument.communityGuidelines,
+            ),
+          ),
+          _SettingsActionRow(
+            icon: Icons.description_outlined,
+            label: 'Terms of Service',
+            onTap: () =>
+                _openLegalDocument(context, JiraniLegalDocument.termsOfService),
+          ),
+          _SettingsActionRow(
             icon: Icons.account_balance_wallet_outlined,
             label: 'Payment Methods',
             onTap: onPaymentMethods,
@@ -188,6 +259,14 @@ class _SettingsCard extends StatelessWidget {
             showDivider: false,
           ),
         ],
+      ),
+    );
+  }
+
+  void _openLegalDocument(BuildContext context, JiraniLegalDocument document) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => JiraniLegalDocumentView(document: document),
       ),
     );
   }
@@ -308,11 +387,7 @@ class _SettingsBaseRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: scheme.outlineVariant,
-          ),
+          Divider(height: 1, thickness: 1, color: scheme.outlineVariant),
       ],
     );
   }

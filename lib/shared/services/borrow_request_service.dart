@@ -22,7 +22,6 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 
-
 part 'borrow_request/borrow_request_queries.dart';
 part 'borrow_request/borrow_request_lifecycle.dart';
 part 'borrow_request/borrow_request_handover.dart';
@@ -79,26 +78,20 @@ abstract class _BorrowRequestServiceBase {
     return request.paymentProvider == AppConstants.paymentProviderXendit &&
         request.paymentStatus == AppConstants.paymentStatusCompleted;
   }
-
 }
 
 /// Marketplace service: combines query, lifecycle, handover, return, and dispute mixins for borrow requests.
 class BorrowRequestService extends _BorrowRequestServiceBase
     with
-    _BorrowRequestQueriesMixin,
-    _BorrowRequestLifecycleMixin,
-    _BorrowRequestHandoverMixin,
-    _BorrowRequestDisputeMixin,
-    _BorrowRequestReturnMixin {
+        _BorrowRequestQueriesMixin,
+        _BorrowRequestLifecycleMixin,
+        _BorrowRequestHandoverMixin,
+        _BorrowRequestDisputeMixin,
+        _BorrowRequestReturnMixin {
   BorrowRequestService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-    FirebaseFunctions? functions,
-    FirebaseStorage? storage,
-  }) : super(
-         auth: auth,
-         firestore: firestore,
-         functions: functions,
-         storage: storage,
-       );
+    super.auth,
+    super.firestore,
+    super.functions,
+    super.storage,
+  });
 }

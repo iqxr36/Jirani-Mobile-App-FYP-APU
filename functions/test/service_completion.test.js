@@ -42,3 +42,11 @@ test("buildPublicProfilePayload includes service counter fields", () => {
   assert.equal(payload.completedServicesProvided, 2);
   assert.equal(payload.completedServicesRequested, 1);
 });
+
+test("buildPublicProfilePayload hides deleted residents", () => {
+  const payload = buildPublicProfilePayload("resident-deleted", {
+    role: "resident",
+    accountStatus: "deleted",
+  });
+  assert.equal(payload, null);
+});

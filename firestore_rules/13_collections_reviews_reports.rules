@@ -25,9 +25,7 @@
         (isAdmin() && !resource.data.keys().hasAny(['communityId']));
 
       allow create: if hasProfile() &&
-        request.resource.data.reporterId == request.auth.uid &&
-        request.resource.data.communityId == myUserDoc().data.communityId &&
-        request.resource.data.communityName == myUserDoc().data.communityName;
+        validReportCreate(request.resource.data);
 
       allow update, delete: if isSystemAdmin() ||
         adminCanAccessCommunity(resource.data.communityId) ||

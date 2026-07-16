@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:jirani/admin/logic/export/resident_directory_exporter.dart';
+import 'package:jirani/admin/logic/suspension_duration.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/utils/admin_formatters.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
@@ -86,6 +87,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
                 AppConstants.accountStatusActive: 'Active',
                 AppConstants.accountStatusSuspended: 'Suspended',
                 AppConstants.accountStatusArchived: 'Archived',
+                AppConstants.accountStatusDeleted: 'Deleted',
               },
               onSelected: (value) => setState(() => _accountFilter = value),
             ),
@@ -207,12 +209,13 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
       return switch (_sortMode) {
         _ResidentSortMode.nameAsc => a.fullName.compareTo(b.fullName),
         _ResidentSortMode.nameDesc => b.fullName.compareTo(a.fullName),
-        _ResidentSortMode.verification =>
-          _verificationRank(a).compareTo(_verificationRank(b)),
-        _ResidentSortMode.account =>
-          _accountRank(a).compareTo(_accountRank(b)),
-        _ResidentSortMode.trustDesc =>
-          b.communityTrustScore.compareTo(a.communityTrustScore),
+        _ResidentSortMode.verification => _verificationRank(
+          a,
+        ).compareTo(_verificationRank(b)),
+        _ResidentSortMode.account => _accountRank(a).compareTo(_accountRank(b)),
+        _ResidentSortMode.trustDesc => b.communityTrustScore.compareTo(
+          a.communityTrustScore,
+        ),
         _ResidentSortMode.updatedDesc => b.updatedAt.compareTo(a.updatedAt),
       };
     });
@@ -273,8 +276,9 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
             primary: resident.communityName.isEmpty
                 ? 'No community'
                 : resident.communityName,
-            secondary:
-                resident.unitNumber.isEmpty ? 'No unit' : resident.unitNumber,
+            secondary: resident.unitNumber.isEmpty
+                ? 'No unit'
+                : resident.unitNumber,
           ),
         ),
         DataCell(
@@ -295,12 +299,8 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
           PopupMenuButton<_ResidentAction>(
             tooltip: 'Resident actions',
             icon: const Icon(Icons.more_horiz_rounded),
-            onSelected: (action) => _handleResidentAction(
-              context,
-              admin,
-              resident,
-              action,
-            ),
+            onSelected: (action) =>
+                _handleResidentAction(context, admin, resident, action),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: _ResidentAction.view,
@@ -365,6 +365,16 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
                       : 'Archive resident',
                 ),
               ),
+              if (resident.isDeleted) ...[
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: _ResidentAction.allowNewSignup,
+                  child: _ResidentActionLabel(
+                    icon: Icons.person_add_alt_1_outlined,
+                    label: 'Allow new signup',
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -424,7 +434,10 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
           message: result.message,
         );
         if (!context.mounted) return;
-        _showSnack(context, ok ? 'Notice sent to resident.' : admin.errorMessage);
+        _showSnack(
+          context,
+          ok ? 'Notice sent to resident.' : admin.errorMessage,
+        );
         return;
       case _ResidentAction.resetVerification:
         final reason = await _askReason(
@@ -458,26 +471,31 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
         _showSnack(context, ok ? 'Verification updated.' : admin.errorMessage);
         return;
       case _ResidentAction.suspend:
-        final reason = await _askReason(
-          context,
-          title: 'Suspend account',
-          label: 'Suspension reason',
-          confirmLabel: 'Suspend',
+        final result = await showDialog<AdminSuspensionResult>(
+          context: context,
+          builder: (context) => AdminSuspensionDialog(resident: resident),
         );
-        if (reason == null) return;
+        if (result == null) return;
         final ok = await admin.suspendResident(
           resident: resident,
           adminUid: adminUid,
-          reason: reason,
+          reason: result.reason,
+          suspensionEndsAt: result.duration.endsAt(DateTime.now()),
         );
         if (!context.mounted) return;
-        _showSnack(context, ok ? 'Resident suspended.' : admin.errorMessage);
+        _showSnack(
+          context,
+          ok
+              ? 'Resident suspended: ${result.duration.label.toLowerCase()}.'
+              : admin.errorMessage,
+        );
         return;
       case _ResidentAction.reactivate:
         final confirmed = await _confirm(
           context,
           title: 'Reactivate account',
-          body: 'Reactivate ${resident.fullName} and remove the suspension flag?',
+          body:
+              'Reactivate ${resident.fullName} and remove the suspension flag?',
           confirmLabel: 'Reactivate',
         );
         if (!confirmed) return;
@@ -487,6 +505,22 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
         );
         if (!context.mounted) return;
         _showSnack(context, ok ? 'Resident reactivated.' : admin.errorMessage);
+        return;
+      case _ResidentAction.allowNewSignup:
+        final confirmed = await _confirm(
+          context,
+          title: 'Allow new signup',
+          body:
+              'Remove the suspended-email restriction for this deleted account? The person may create a completely new account.',
+          confirmLabel: 'Allow Signup',
+        );
+        if (!confirmed) return;
+        final ok = await admin.allowDeletedResidentSignup(resident: resident);
+        if (!context.mounted) return;
+        _showSnack(
+          context,
+          ok ? 'This identity may register again.' : admin.errorMessage,
+        );
         return;
       case _ResidentAction.archive:
         final reason = await _askReason(
@@ -523,10 +557,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
   }
 
   // Admin residents UI feature: opens a full resident profile summary dialog.
-  Future<void> _showResidentProfile(
-    BuildContext context,
-    AppUser resident,
-  ) {
+  Future<void> _showResidentProfile(BuildContext context, AppUser resident) {
     return showDialog<void>(
       context: context,
       builder: (context) => _ResidentProfileDialog(
@@ -642,36 +673,33 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Download the currently filtered list (${residents.length} residents).',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AdminColors.muted,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AdminColors.muted),
                 ),
                 const SizedBox(height: 16),
                 _ExportFormatTile(
                   icon: Icons.table_chart_rounded,
                   title: 'Excel workbook',
                   subtitle: 'Spreadsheet (.xlsx) for reporting and analysis',
-                  onTap: () => Navigator.of(context).pop(
-                    ResidentExportFormat.xlsx,
-                  ),
+                  onTap: () =>
+                      Navigator.of(context).pop(ResidentExportFormat.xlsx),
                 ),
                 const SizedBox(height: 10),
                 _ExportFormatTile(
                   icon: Icons.data_object_rounded,
                   title: 'JSON data',
                   subtitle: 'Structured export (.json) for integrations',
-                  onTap: () => Navigator.of(context).pop(
-                    ResidentExportFormat.json,
-                  ),
+                  onTap: () =>
+                      Navigator.of(context).pop(ResidentExportFormat.json),
                 ),
                 const SizedBox(height: 10),
                 _ExportFormatTile(
                   icon: Icons.picture_as_pdf_outlined,
                   title: 'PDF report',
                   subtitle: 'Printable table (.pdf) for records',
-                  onTap: () => Navigator.of(context).pop(
-                    ResidentExportFormat.pdf,
-                  ),
+                  onTap: () =>
+                      Navigator.of(context).pop(ResidentExportFormat.pdf),
                 ),
               ],
             ),
@@ -680,11 +708,7 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
       },
     );
     if (!mounted || format == null) return;
-    await _exportResidents(
-      residents: residents,
-      format: format,
-      admin: admin,
-    );
+    await _exportResidents(residents: residents, format: format, admin: admin);
   }
 
   // Admin residents UI feature: exports the currently filtered resident list for admin reporting.
@@ -700,7 +724,10 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
         communityName: admin.communityName,
         filterSummary: _exportFilterSummary(),
       );
-      final bytes = await exporter.exportBytes(format: format, residents: residents);
+      final bytes = await exporter.exportBytes(
+        format: format,
+        residents: residents,
+      );
       await saveExportedFile(
         filename: exporter.filenameFor(format),
         bytes: bytes,
@@ -738,9 +765,9 @@ class _AdminResidentsScreenState extends State<AdminResidentsScreen> {
   }
 
   void _showSnack(BuildContext context, String? message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message ?? 'Action failed.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message ?? 'Action failed.')));
   }
 
   String _accountStatusLabel(String status) => accountStatusLabel(status);
@@ -774,6 +801,7 @@ enum _ResidentAction {
   reactivate,
   archive,
   unarchive,
+  allowNewSignup,
 }
 
 enum _ResidentSortMode {
@@ -839,6 +867,7 @@ class _ResidentDirectoryStats {
         case AppConstants.accountStatusSuspended:
           suspended++;
         case AppConstants.accountStatusArchived:
+        case AppConstants.accountStatusDeleted:
           archived++;
         default:
           active++;
@@ -852,12 +881,14 @@ class _ResidentDirectoryStats {
         profileGaps++;
       }
 
-      final activity = resident.completedBorrowings +
+      final activity =
+          resident.completedBorrowings +
           resident.completedLendings +
           resident.completedServices;
       if (activity > 0) activeContributors++;
       if (resident.communityTrustScore >= 4) highTrust++;
-      if (resident.communityTrustScore > 0 && resident.communityTrustScore < 2.5) {
+      if (resident.communityTrustScore > 0 &&
+          resident.communityTrustScore < 2.5) {
         lowTrust++;
       }
       totalTrust += resident.communityTrustScore;
@@ -877,8 +908,7 @@ class _ResidentDirectoryStats {
       activeContributors: activeContributors,
       highTrust: highTrust,
       lowTrust: lowTrust,
-      averageTrustScore:
-          residents.isEmpty ? 0 : totalTrust / residents.length,
+      averageTrustScore: residents.isEmpty ? 0 : totalTrust / residents.length,
     );
   }
 
@@ -940,7 +970,9 @@ class _ResidentKpiGrid extends StatelessWidget {
           value: stats.accountRisk.toString(),
           detail: '${stats.flagged} flagged profiles',
           icon: Icons.shield_rounded,
-          color: stats.accountRisk == 0 ? const Color(0xFF2563EB) : AdminColors.danger,
+          color: stats.accountRisk == 0
+              ? const Color(0xFF2563EB)
+              : AdminColors.danger,
         ),
       ],
     );
@@ -1157,10 +1189,7 @@ class _ResidentDonutChart extends StatelessWidget {
 }
 
 class _ResidentDistributionBars extends StatelessWidget {
-  const _ResidentDistributionBars({
-    required this.total,
-    required this.entries,
-  });
+  const _ResidentDistributionBars({required this.total, required this.entries});
 
   final int total;
   final List<_ResidentChartSlice> entries;
@@ -1310,7 +1339,13 @@ class _ResidentDonutPainter extends CustomPainter {
     final total = slices.fold<int>(0, (sum, slice) => sum + slice.value);
     if (total == 0) {
       paint.color = AdminColors.border;
-      canvas.drawArc(rect.deflate(strokeWidth / 2), 0, math.pi * 2, false, paint);
+      canvas.drawArc(
+        rect.deflate(strokeWidth / 2),
+        0,
+        math.pi * 2,
+        false,
+        paint,
+      );
       return;
     }
 
@@ -1521,8 +1556,10 @@ class _ResidentSearchField extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AdminColors.border),
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 13,
+          ),
         ),
       ),
     );
@@ -1582,10 +1619,7 @@ class _ResidentFilterMenu extends StatelessWidget {
 }
 
 class _ResidentSortMenu extends StatelessWidget {
-  const _ResidentSortMenu({
-    required this.value,
-    required this.onSelected,
-  });
+  const _ResidentSortMenu({required this.value, required this.onSelected});
 
   final _ResidentSortMode value;
   final ValueChanged<_ResidentSortMode> onSelected;
@@ -1753,11 +1787,7 @@ class _ResidentActionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: [
-        Icon(icon, size: 20),
-        const SizedBox(width: 10),
-        Text(label),
-      ],
+      children: [Icon(icon, size: 20), const SizedBox(width: 10), Text(label)],
     );
   }
 }
@@ -1777,7 +1807,8 @@ class _ResidentProfileDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activity = resident.completedBorrowings +
+    final activity =
+        resident.completedBorrowings +
         resident.completedLendings +
         resident.completedServices;
     final warnings = <String>[
@@ -1787,6 +1818,10 @@ class _ResidentProfileDialog extends StatelessWidget {
             : resident.trustFlagReason.trim(),
       if (resident.isSuspended && resident.suspendedReason.trim().isNotEmpty)
         resident.suspendedReason.trim(),
+      if (resident.isSuspended)
+        resident.suspensionEndsAt == null
+            ? 'Suspension continues until an administrator reactivates the account.'
+            : 'Suspended until ${adminFormatDate(resident.suspensionEndsAt!)}.',
       if (resident.unitNumber.trim().isEmpty) 'Unit number is missing.',
       if (!resident.locationVerified) 'Location verification is incomplete.',
     ];
@@ -1853,7 +1888,8 @@ class _ResidentProfileDialog extends StatelessWidget {
                     color: accountStatusColor(resident.accountStatus),
                   ),
                   AdminStatusPill(
-                    label: 'Trust ${resident.communityTrustScore.toStringAsFixed(1)}',
+                    label:
+                        'Trust ${resident.communityTrustScore.toStringAsFixed(1)}',
                     color: resident.communityTrustScore >= 4
                         ? AdminColors.success
                         : AdminColors.primary,
@@ -1869,12 +1905,18 @@ class _ResidentProfileDialog extends StatelessWidget {
                 spacing: 16,
                 runSpacing: 16,
                 children: [
-                  AdminInfoTile(label: 'Phone', value: _dash(resident.phoneNumber)),
+                  AdminInfoTile(
+                    label: 'Phone',
+                    value: _dash(resident.phoneNumber),
+                  ),
                   AdminInfoTile(
                     label: 'Community',
                     value: _dash(resident.communityName),
                   ),
-                  AdminInfoTile(label: 'Unit', value: _dash(resident.unitNumber)),
+                  AdminInfoTile(
+                    label: 'Unit',
+                    value: _dash(resident.unitNumber),
+                  ),
                   AdminInfoTile(
                     label: 'Last updated',
                     value: adminFormatDate(resident.updatedAt),
@@ -2051,10 +2093,7 @@ class _EditResidentDialogState extends State<_EditResidentDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save changes'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save changes')),
       ],
     );
   }
@@ -2084,6 +2123,109 @@ class _EditResidentDialogState extends State<_EditResidentDialog> {
         decoration: InputDecoration(labelText: label),
       ),
     );
+  }
+}
+
+class AdminSuspensionResult {
+  const AdminSuspensionResult({required this.reason, required this.duration});
+
+  final String reason;
+  final SuspensionDuration duration;
+}
+
+class AdminSuspensionDialog extends StatefulWidget {
+  const AdminSuspensionDialog({super.key, required this.resident});
+
+  final AppUser resident;
+
+  @override
+  State<AdminSuspensionDialog> createState() => _AdminSuspensionDialogState();
+}
+
+class _AdminSuspensionDialogState extends State<AdminSuspensionDialog> {
+  final _reason = TextEditingController();
+  SuspensionDuration _duration = SuspensionDuration.sevenDays;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Suspend ${widget.resident.fullName}'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'The resident will be blocked from Jirani until the selected period ends or an administrator reactivates the account.',
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<SuspensionDuration>(
+              initialValue: _duration,
+              decoration: const InputDecoration(
+                labelText: 'Suspension duration',
+                helperText: 'Choose how long access should remain blocked.',
+              ),
+              items: SuspensionDuration.values
+                  .map(
+                    (duration) => DropdownMenuItem(
+                      value: duration,
+                      child: Text(duration.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _duration = value);
+              },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _reason,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: 'Suspension reason',
+                helperText:
+                    'Shown to the resident and saved in the audit trail.',
+                errorText: _errorText,
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.block_outlined),
+          label: const Text('Suspend account'),
+        ),
+      ],
+    );
+  }
+
+  void _submit() {
+    final reason = _reason.text.trim();
+    if (reason.isEmpty) {
+      setState(() => _errorText = 'Enter a reason before continuing.');
+      return;
+    }
+    Navigator.of(
+      context,
+    ).pop(AdminSuspensionResult(reason: reason, duration: _duration));
   }
 }
 
@@ -2147,10 +2289,7 @@ class _ResidentNoticeDialogState extends State<_ResidentNoticeDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _send,
-          child: const Text('Send notice'),
-        ),
+        FilledButton(onPressed: _send, child: const Text('Send notice')),
       ],
     );
   }
@@ -2198,8 +2337,8 @@ class _VerificationOverrideDialogState
   @override
   void initState() {
     super.initState();
-    _status = widget.resident.verificationStatus ==
-            AppConstants.verificationVerified
+    _status =
+        widget.resident.verificationStatus == AppConstants.verificationVerified
         ? AppConstants.verificationRejected
         : AppConstants.verificationVerified;
   }
@@ -2263,10 +2402,7 @@ class _VerificationOverrideDialogState
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save decision'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save decision')),
       ],
     );
   }
@@ -2277,9 +2413,9 @@ class _VerificationOverrideDialogState
       setState(() => _errorText = 'Enter a reason before saving.');
       return;
     }
-    Navigator.of(context).pop(
-      _VerificationOverrideResult(status: _status, reason: reason),
-    );
+    Navigator.of(
+      context,
+    ).pop(_VerificationOverrideResult(status: _status, reason: reason));
   }
 }
 
@@ -2333,10 +2469,7 @@ class _ExportFormatTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AdminColors.muted,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: AdminColors.muted),
             ],
           ),
         ),

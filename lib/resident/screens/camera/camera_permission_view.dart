@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
@@ -19,12 +21,76 @@ class CameraPermissionView extends StatefulWidget {
   State<CameraPermissionView> createState() => _CameraPermissionViewState();
 }
 
-class _CameraPermissionViewState extends State<CameraPermissionView> {
+class _CameraPermissionViewState extends State<CameraPermissionView>
+    with WidgetsBindingObserver {
   final _permissionRepository = VerificationPermissionRepository();
   bool _enabling = false;
   bool _skipping = false;
+  bool _waitingForSettings = false;
 
   bool get _buttonsLocked => _enabling || _skipping;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_waitingForSettings) return;
+    _waitingForSettings = false;
+    unawaited(_checkAfterSettings());
+  }
+
+  Future<void> _checkAfterSettings() async {
+    final status = await Permission.camera.status;
+    if (!mounted) return;
+    if (status.isGranted || status.isLimited) {
+      await _saveCameraPreference(enabled: true, status: 'authorized');
+      if (mounted) await _completePermissionFlow();
+      return;
+    }
+    _showSnack('Camera permission is still disabled.');
+  }
+
+  Future<void> _openSettings() async {
+    _waitingForSettings = await openAppSettings();
+    if (!_waitingForSettings && mounted) {
+      _showSnack('Could not open app settings. Please try again.');
+    }
+  }
+
+  Future<void> _showCameraBlockedDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Camera Permission Needed'),
+        content: const Text(
+          'Camera access is disabled for Jirani. Enable it in app settings to take verification and evidence photos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              unawaited(_openSettings());
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showSnack(String message) {
     if (!mounted) return;
@@ -62,7 +128,12 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
     if (_buttonsLocked) return;
     setState(() => _enabling = true);
     try {
-      final status = await Permission.camera.request();
+      var status = await Permission.camera.status;
+      if (status.isPermanentlyDenied || status.isRestricted) {
+        if (mounted) await _showCameraBlockedDialog();
+        return;
+      }
+      status = await Permission.camera.request();
 
       if (!mounted) return;
 
@@ -73,22 +144,19 @@ class _CameraPermissionViewState extends State<CameraPermissionView> {
       } else if (status.isPermanentlyDenied) {
         await _saveCameraPreference(enabled: false, status: 'denied');
         if (!mounted) return;
-        _showSnack(
-          'Camera access is blocked. You can enable it in your device settings.',
-        );
-        await _completePermissionFlow();
+        await _showCameraBlockedDialog();
       } else {
         await _saveCameraPreference(enabled: false, status: 'denied');
         if (!mounted) return;
         _showSnack(
           'Camera access was not granted. You can enable it later from settings.',
         );
-        await _completePermissionFlow();
+        // Stay on the explanation screen. The user can retry or explicitly
+        // choose Maybe Later; denial must not silently advance the flow.
       }
     } catch (_) {
       if (mounted) {
         _showSnack('Could not update camera settings.');
-        await _completePermissionFlow();
       }
     } finally {
       if (mounted) setState(() => _enabling = false);

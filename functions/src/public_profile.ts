@@ -45,7 +45,7 @@ export function buildPublicProfilePayload(
   uid: string,
   data: DocumentData,
 ): DocumentData | null {
-  if (data.role !== "resident") {
+  if (data.role !== "resident" || data.accountStatus === "deleted") {
     return null;
   }
 

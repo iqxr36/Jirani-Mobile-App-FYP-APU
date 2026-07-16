@@ -35,11 +35,143 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
               onPrivacy: _openPrivacySafety,
               onPaymentMethods: _openPaymentMethods,
               onHelp: () => _showUnavailable('Help & Support'),
+              onDeleteAccount: _showDeleteAccountDialog,
             );
           },
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final viewModel = context.read<AuthViewModel>();
+    final requiresPassword = viewModel.accountDeletionRequiresPassword;
+    final confirmationController = TextEditingController();
+    final passwordController = TextEditingController();
+    var deleting = false;
+    String? errorMessage;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Delete your account?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'This removes your sign-in and personal profile. Transaction, payment, report, and moderation records may be retained. Active obligations must be resolved first.',
+                ),
+                const SizedBox(height: 16),
+                const Text('Type DELETE to confirm.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmationController,
+                  enabled: !deleting,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(labelText: 'Confirmation'),
+                ),
+                if (requiresPassword) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordController,
+                    enabled: !deleting,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'You will be asked to verify your Google account.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    errorMessage!,
+                    style: const TextStyle(color: Color(0xFFB42318)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: deleting
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB42318),
+              ),
+              onPressed: deleting
+                  ? null
+                  : () async {
+                      if (confirmationController.text.trim() != 'DELETE') {
+                        setDialogState(
+                          () =>
+                              errorMessage = 'Type DELETE exactly to continue.',
+                        );
+                        return;
+                      }
+                      if (requiresPassword && passwordController.text.isEmpty) {
+                        setDialogState(
+                          () =>
+                              errorMessage = 'Enter your password to continue.',
+                        );
+                        return;
+                      }
+                      setDialogState(() {
+                        deleting = true;
+                        errorMessage = null;
+                      });
+                      final deleted = await viewModel.deleteResidentAccount(
+                        password: requiresPassword
+                            ? passwordController.text
+                            : null,
+                      );
+                      if (!dialogContext.mounted) return;
+                      if (deleted) {
+                        final rootNavigator = Navigator.of(
+                          dialogContext,
+                          rootNavigator: true,
+                        );
+                        rootNavigator.pop();
+                        rootNavigator.popUntil((route) => route.isFirst);
+                        return;
+                      }
+                      setDialogState(() {
+                        deleting = false;
+                        errorMessage =
+                            viewModel.errorMessage ??
+                            'Could not delete account.';
+                      });
+                    },
+              child: deleting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      requiresPassword ? 'Delete Account' : 'Verify & Delete',
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+    confirmationController.dispose();
+    passwordController.dispose();
   }
 
   void _openPushNotifications() {
@@ -88,23 +220,6 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
           sendLinkOnOpen: true,
           onVerified: () => Navigator.of(context).pop(),
         ),
-      ),
-    );
-  }
-
-  // Resident verification feature: opens phone verification if the resident has a saved phone number.
-  void _openPhoneVerification(AppUser user) {
-    final phone = user.phoneNumber.trim();
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add a phone number before verifying.')),
-      );
-      return;
-    }
-
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PhoneVerificationView(phoneNumber: phone),
       ),
     );
   }
@@ -239,9 +354,6 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
                           onVerifyEmail: user == null || user.emailVerified
                               ? null
                               : () => _openEmailVerification(user),
-                          onVerifyPhone: user == null || user.phoneVerified
-                              ? null
-                              : () => _openPhoneVerification(user),
                           onMyItems: _openMyItems,
                           onRatings: _openRatings,
                           onMyServices: _openMyServices,

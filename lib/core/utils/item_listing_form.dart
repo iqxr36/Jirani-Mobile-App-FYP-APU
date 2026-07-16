@@ -1,8 +1,9 @@
+import 'package:jirani/core/utils/validators.dart';
+
 enum ItemListingPricingType { free, feeOnly, depositOnly, feeAndDeposit }
 
 extension ItemListingPricingTypeX on ItemListingPricingType {
-  String get label {
-    return switch (this) {
+  String get label {    return switch (this) {
       ItemListingPricingType.free => 'Free',
       ItemListingPricingType.feeOnly => 'Borrowing Fee Only',
       ItemListingPricingType.depositOnly => 'Deposit Required',
@@ -34,19 +35,21 @@ class ItemListingFormValidator {
     if (imageCount <= 0) {
       return 'Add at least one item photo.';
     }
-    if (title.trim().length < 3) {
-      return 'Enter an item name with at least 3 characters.';
-    }
+    final titleError = Validators.validateItemTitle(title);
+    if (titleError != null) return titleError;
     if (category.trim().isEmpty) {
       return 'Select an item category.';
     }
     if (condition.trim().isEmpty) {
       return 'Select the item condition.';
     }
-    if (description.trim().length < 12) {
-      return 'Describe the item with at least 12 characters.';
-    }
+    final descriptionError = Validators.validateDescription(description);
+    if (descriptionError != null) return descriptionError;
     return null;
+  }
+
+  static String? validatePickupInstructions(String pickupInstructions) {
+    return Validators.validatePickupInstructions(pickupInstructions);
   }
 
   static String? validateFinancial({

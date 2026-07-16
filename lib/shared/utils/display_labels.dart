@@ -129,6 +129,7 @@ const Map<String, String> _accountStatusLabels = {
   AppConstants.accountStatusActive: 'Active',
   AppConstants.accountStatusSuspended: 'Suspended',
   AppConstants.accountStatusArchived: 'Archived',
+  AppConstants.accountStatusDeleted: 'Deleted',
 };
 
 const Map<String, String> _reportTypeLabels = {
@@ -237,6 +238,7 @@ const Map<String, String> _communityPostTypeLabels = {
 const Map<String, String> _communityPostStatusLabels = {
   AppConstants.communityPostStatusDraft: 'Draft',
   AppConstants.communityPostStatusPublished: 'Published',
+  AppConstants.communityPostStatusExpired: 'Expired',
 };
 
 const Map<String, String> _reviewStatusLabels = {
@@ -304,8 +306,7 @@ String formatUnknownDisplayLabel(String value) {
       .split(RegExp(r'\s+'))
       .where((word) => word.isNotEmpty)
       .map(
-        (word) =>
-            '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+        (word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
       )
       .join(' ');
 }

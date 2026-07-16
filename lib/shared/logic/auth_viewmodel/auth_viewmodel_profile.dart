@@ -1,6 +1,38 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
+  bool get accountDeletionRequiresPassword =>
+      _repository.currentUserUsesPassword;
+
+  Future<bool> deleteResidentAccount({String? password}) async {
+    final user = _currentUser;
+    if (user == null) {
+      _errorMessage = 'You must be signed in to delete your account.';
+      notifyListeners();
+      return false;
+    }
+    if (user.isDeleted) {
+      _errorMessage = 'This account has already been deleted.';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    clearError(notify: false);
+    try {
+      await _repository.reauthenticateForAccountDeletion(password: password);
+      await _repository.deleteResidentAccount();
+      _currentUser = null;
+      _firebaseUser = null;
+      return true;
+    } catch (error) {
+      _errorMessage = _mapAuthError(error);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Profile feature: saves editable resident profile fields and resets phone verification when phone changes.
   Future<void> saveProfile({
     required String firstName,
@@ -27,29 +59,53 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
 
     try {
       final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
-      final previousPhone = _currentUser?.phoneNumber ?? '';
+      final previousPhone = Validators.normalizePhoneNumber(
+        _currentUser?.phoneNumber ?? '',
+      );
       final phoneChanged = normalizedPhone != previousPhone;
+      if (phoneChanged) {
+        try {
+          await _repository.checkPhoneAvailability(
+            normalizedPhone,
+            excludeUid: uid,
+          );
+        } catch (e) {
+          _errorMessage = mapAuthErrorMessage(e, context: 'phoneUpdate');
+          return;
+        }
+      }
       final trimmedFirstName = firstName.trim();
       final trimmedLastName = lastName.trim();
       final fields = <String, dynamic>{
         'firstName': trimmedFirstName,
         'lastName': trimmedLastName,
         'fullName': '$trimmedFirstName $trimmedLastName'.trim(),
-        'phoneNumber': normalizedPhone,
         'communityName': communityName.trim(),
         'unitNumber': unitNumber.trim(),
       };
-      if (phoneChanged) {
-        fields['phoneVerified'] = false;
-      }
       if (profileImageUrl != null) {
         fields['profileImageUrl'] = profileImageUrl.trim();
       }
 
-      await _userRepository.updateUserFields(uid: uid, fields: fields);
+      try {
+        await _userRepository.updateUserFields(uid: uid, fields: fields);
+      } catch (e) {
+        _errorMessage = _mapAuthError(e);
+        return;
+      }
+
+      if (phoneChanged) {
+        try {
+          await _repository.updateResidentPhoneNumber(normalizedPhone);
+        } catch (e) {
+          _errorMessage = mapAuthErrorMessage(e, context: 'phoneUpdate');
+          await refreshCurrentUser();
+          return;
+        }
+      }
       await refreshCurrentUser();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapAuthError(e);
     } finally {
       _setLoading(false);
     }
@@ -97,20 +153,44 @@ mixin _AuthViewModelProfileMixin on _AuthViewModelBase {
         await _repository.updateResidentEmail(trimmedEmail);
       }
       final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
-      final previousPhone = _currentUser?.phoneNumber ?? '';
+      final previousPhone = Validators.normalizePhoneNumber(
+        _currentUser?.phoneNumber ?? '',
+      );
       final phoneChanged = normalizedPhone != previousPhone;
+      if (phoneChanged) {
+        try {
+          await _repository.checkPhoneAvailability(
+            normalizedPhone,
+            excludeUid: uid,
+          );
+        } catch (e) {
+          _errorMessage = mapAuthErrorMessage(e, context: 'phoneUpdate');
+          return false;
+        }
+      }
       final fields = <String, dynamic>{
         'firstName': trimmedFirstName,
         'lastName': trimmedLastName,
         'fullName': '$trimmedFirstName $trimmedLastName'.trim(),
-        'phoneNumber': normalizedPhone,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      if (phoneChanged) {
-        fields['phoneVerified'] = false;
+
+      try {
+        await _userRepository.updateUserFields(uid: uid, fields: fields);
+      } catch (e) {
+        _errorMessage = _mapAuthError(e);
+        return false;
       }
 
-      await _userRepository.updateUserFields(uid: uid, fields: fields);
+      if (phoneChanged) {
+        try {
+          await _repository.updateResidentPhoneNumber(normalizedPhone);
+        } catch (e) {
+          _errorMessage = mapAuthErrorMessage(e, context: 'phoneUpdate');
+          await refreshCurrentUser();
+          return false;
+        }
+      }
       await refreshCurrentUser();
       return true;
     } catch (e) {

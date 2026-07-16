@@ -8,6 +8,7 @@ import 'package:jirani/admin/logic/theme/admin_colors.dart';
 import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/providers/admin_provider.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
 import 'package:jirani/shared/services/community_post_service.dart';
 import 'package:provider/provider.dart';
@@ -152,6 +153,24 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     if (_titleController.text.trim().isEmpty ||
         _bodyController.text.trim().isEmpty) {
       _showSnack('Title and message are required.');
+      return;
+    }
+    final titleError = Validators.validateMaxLength(
+      _titleController.text,
+      maxLength: AppConstants.maxShortTextLength,
+      fieldName: 'Post title',
+    );
+    if (titleError != null) {
+      _showSnack(titleError);
+      return;
+    }
+    final bodyError = Validators.validateMaxLength(
+      _bodyController.text,
+      maxLength: AppConstants.maxLongTextLength,
+      fieldName: 'Resident message',
+    );
+    if (bodyError != null) {
+      _showSnack(bodyError);
       return;
     }
     final scheduledPublishAt = _scheduleEnabled ? _scheduledPublishAt : null;
@@ -417,6 +436,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
               TextField(
                 controller: _titleController,
                 enabled: !_submitting,
+                maxLength: AppConstants.maxShortTextLength,
                 decoration: const InputDecoration(labelText: 'Post title'),
               ),
               const SizedBox(height: 12),
@@ -425,6 +445,7 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                 enabled: !_submitting,
                 minLines: 4,
                 maxLines: 8,
+                maxLength: AppConstants.maxLongTextLength,
                 decoration: const InputDecoration(
                   labelText: 'Resident message',
                   alignLabelWithHint: true,
@@ -864,16 +885,20 @@ class _NewsQueueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = DateFormat('MMM d').format(post.publishedAt ?? post.updatedAt);
-    final status = post.isPublished
-        ? 'Published'
-        : post.isScheduled
-            ? 'Scheduled'
-            : 'Draft';
-    final statusColor = post.isPublished
-        ? AdminColors.success
-        : post.isScheduled
-            ? AdminColors.primary
-            : AdminColors.warning;
+    final status = post.isStatusExpired
+        ? 'Expired'
+        : post.isPublished
+            ? 'Published'
+            : post.isScheduled
+                ? 'Scheduled'
+                : 'Draft';
+    final statusColor = post.isStatusExpired
+        ? AdminColors.muted
+        : post.isPublished
+            ? AdminColors.success
+            : post.isScheduled
+                ? AdminColors.primary
+                : AdminColors.warning;
     final scheduledAt = post.scheduledPublishAt;
     final expiresAt = post.expiresAt;
 

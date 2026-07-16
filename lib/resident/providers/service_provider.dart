@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
@@ -16,7 +15,9 @@ class ServiceProvider extends ChangeNotifier {
   bool get isLoading => _busy;
 
   // Services feature: streams active community services and caches the stream for list screens.
-  Stream<List<ServiceModel>> activeServicesStream({required String communityId}) {
+  Stream<List<ServiceModel>> activeServicesStream({
+    required String communityId,
+  }) {
     return _service.watchActiveServices(communityId: communityId.trim());
   }
 

@@ -10,28 +10,6 @@ mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
     final chatId = ChatModel.chatId(currentUser.uid, neighbor.uid);
     final doc = _chats.doc(chatId);
     final now = FieldValue.serverTimestamp();
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H2,H4',
-        location: 'lib/services/chat_service.dart:79',
-        message: 'Opening or creating chat',
-        data: <String, Object?>{
-          'chatId': agentDebugId(chatId),
-          'currentUserId': agentDebugId(currentUser.uid),
-          'neighborId': agentDebugId(neighbor.uid),
-          'currentStatus': currentUser.verificationStatus,
-          'neighborStatus': neighbor.verificationStatus,
-          'currentRole': currentUser.role,
-          'neighborRole': neighbor.role,
-          'sameCommunity': currentUser.communityId == neighbor.communityId,
-          'currentCommunityId': agentDebugId(currentUser.communityId),
-          'neighborCommunityId': agentDebugId(neighbor.communityId),
-        },
-      ),
-    );
-    // #endregion
 
     final baseData = <String, dynamic>{
       'participantIds': <String>[currentUser.uid, neighbor.uid]..sort(),
@@ -60,21 +38,6 @@ mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
           'deletedFor': FieldValue.arrayRemove([currentUser.uid]),
         });
       } else {
-        // #region agent log
-        unawaited(
-          agentDebugLog(
-            runId: 'post-fix',
-            hypothesisId: 'H4',
-            location: 'lib/services/chat_service.dart:130',
-            message:
-                'Chat did not exist; creating chat after allowed missing-doc read',
-            data: <String, Object?>{
-              'chatId': agentDebugId(chatId),
-              'snapshotExists': snapshot.exists,
-            },
-          ),
-        );
-        // #endregion
         await doc.set({
           ...baseData,
           'lastMessageText': '',
@@ -87,20 +50,6 @@ mixin _ChatServiceLifecycleMixin on _ChatServiceBase {
         });
       }
     } catch (error) {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'post-fix',
-          hypothesisId: 'H4',
-          location: 'lib/services/chat_service.dart:132',
-          message: 'openOrCreateChat Firestore open/create failed',
-          data: <String, Object?>{
-            'errorType': error.runtimeType.toString(),
-            'error': error.toString(),
-          },
-        ),
-      );
-      // #endregion
       rethrow;
     }
 

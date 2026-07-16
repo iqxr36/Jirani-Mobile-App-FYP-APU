@@ -3,7 +3,10 @@
       allow get: if chatParticipant(resource.data) ||
         (isVerifiedResident() &&
           !exists(/databases/$(database)/documents/chats/$(chatId)));
-      allow list: if isVerifiedResident();
+      // Chat inbox queries must prove that every returned chat contains the
+      // signed-in resident. This remains valid while community re-verification
+      // is pending, so old chats can be archived without exposing other chats.
+      allow list: if chatParticipantLookup(resource.data);
       allow create: if validChatCreate(request.resource.data);
       allow update: if validChatUpdate();
       allow delete: if false;

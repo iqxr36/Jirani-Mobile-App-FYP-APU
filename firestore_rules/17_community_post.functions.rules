@@ -109,7 +109,7 @@
       return resource.data.status == 'published' &&
         resource.data.expiresAt is timestamp &&
         resource.data.expiresAt <= request.time &&
-        request.resource.data.status == 'draft' &&
+        request.resource.data.status == 'expired' &&
         changed.hasOnly([
           'status',
           'publishedAt',

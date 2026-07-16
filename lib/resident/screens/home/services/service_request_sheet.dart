@@ -136,6 +136,7 @@ Future<void> _showRequestSheet(
                   ),
                   minLines: 2,
                   maxLines: 4,
+                  maxLength: AppConstants.maxMediumTextLength,
                 ),
                 const SizedBox(height: 8),
                 const _ServiceRequestHelperText(
@@ -175,6 +176,14 @@ Future<void> _showRequestSheet(
                                         preferredTimeLabel:
                                             preferredTime.format(context),
                                       );
+                                      final messageError =
+                                          Validators.validateOptionalMessage(
+                                        message.text,
+                                        fieldName: 'Message',
+                                      );
+                                      if (messageError != null) {
+                                        throw Exception(messageError);
+                                      }
                                       await context
                                           .read<services.ServiceProvider>()
                                           .createServiceRequest(

@@ -181,16 +181,13 @@
           'availabilityEndMinutes',
           'updatedAt',
         ]) &&
-        request.resource.data.title is string &&
-        request.resource.data.description is string &&
+        isBoundedString(request.resource.data.title, minServiceTitleLength(), maxShortTextLength()) &&
+        isBoundedString(request.resource.data.description, minServiceDescriptionLength(), maxListingDescriptionLength()) &&
         request.resource.data.category is string &&
         request.resource.data.priceType is string &&
-        request.resource.data.availability is string &&
+        isBoundedString(request.resource.data.availability, 1, maxMediumTextLength()) &&
         request.resource.data.communityName is string &&
         validServiceCommunityId(request.resource.data) &&
-        request.resource.data.title.size() > 0 &&
-        request.resource.data.description.size() > 0 &&
-        request.resource.data.availability.size() > 0 &&
         validServiceCategory(request.resource.data.category) &&
         request.resource.data.imageUrls is list &&
         request.resource.data.certificateUrls is list &&
@@ -216,8 +213,8 @@
         data.providerId == request.auth.uid &&
         data.status == 'active' &&
         data.id == serviceId &&
-        data.title is string &&
-        data.description is string &&
+        isBoundedString(data.title, minServiceTitleLength(), maxShortTextLength()) &&
+        isBoundedString(data.description, minServiceDescriptionLength(), maxListingDescriptionLength()) &&
         data.category is string &&
         validServiceCategory(data.category) &&
         data.priceType is string &&
@@ -228,7 +225,7 @@
         data.certificateNames is list &&
         data.certificateUrls.size() == data.certificateNames.size() &&
         validServicePricing(data) &&
-        data.availability is string &&
+        isBoundedString(data.availability, 1, maxMediumTextLength()) &&
         validServiceAvailabilityFields(data) &&
         data.providerName is string &&
         data.providerEmail is string &&

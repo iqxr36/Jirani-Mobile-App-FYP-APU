@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jirani/shared/models/community_post_model.dart';
@@ -7,6 +8,7 @@ import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
+const String _kUnavailableMessage = 'This update is no longer available.';
 
 class CommunityPostDetailView extends StatefulWidget {
   const CommunityPostDetailView({super.key, required this.postId});
@@ -45,10 +47,22 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = _mapLoadError(error);
         _loading = false;
       });
     }
+  }
+
+  String _mapLoadError(Object error) {
+    if (error is FirebaseException && error.code == 'permission-denied') {
+      return _kUnavailableMessage;
+    }
+    final raw = error.toString();
+    if (raw.contains('permission-denied') ||
+        raw.contains('PERMISSION_DENIED')) {
+      return _kUnavailableMessage;
+    }
+    return raw;
   }
 
   @override
@@ -113,14 +127,16 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     if (post == null) {
       return Center(
         child: Text(
-          'This update is no longer available.',
+          _kUnavailableMessage,
           style: TextStyle(color: context.appMuted),
         ),
       );
     }
 
     final publishedLabel = post.publishedAt == null
-        ? ''
+        ? (post.expiredAt == null
+              ? ''
+              : DateFormat('d MMM yyyy').format(post.expiredAt!))
         : DateFormat('d MMM yyyy').format(post.publishedAt!);
 
     return SingleChildScrollView(
@@ -136,7 +152,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 child: CachedNetworkImage(
                   imageUrl: post.imageUrl!,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => ColoredBox(
+                  errorWidget: (_, _, _) => ColoredBox(
                     color: context.appMuted.withValues(alpha: 0.1),
                     child: const Icon(Icons.image_not_supported_outlined),
                   ),
@@ -145,27 +161,55 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             ),
             const SizedBox(height: 20),
           ],
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: post.accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(post.icon, size: 16, color: post.accentColor),
-                const SizedBox(width: 6),
-                Text(
-                  post.displayCategory,
-                  style: TextStyle(
-                    color: post.accentColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: post.accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(post.icon, size: 16, color: post.accentColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      post.displayCategory,
+                      style: TextStyle(
+                        color: post.accentColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (post.isStatusExpired)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.appMuted.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Expired',
+                    style: TextStyle(
+                      color: context.appMuted,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
           const SizedBox(height: 14),
           Text(

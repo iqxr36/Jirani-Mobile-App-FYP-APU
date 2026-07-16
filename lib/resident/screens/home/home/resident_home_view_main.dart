@@ -26,6 +26,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   int _carouselIndex = 0;
   String? _warningWatchUserId;
   String? _watchedCommunityId;
+  bool _watchedWithFullAccess = false;
   final Set<String> _shownAdminWarningIds = <String>{};
 
   static const _carouselSlides = <_CarouselSlide>[
@@ -85,20 +86,39 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
 
   void _watchCommunityPosts(AppUser? user) {
     final communityId = user?.communityId.trim() ?? '';
-    if (communityId == _watchedCommunityId) return;
+    final canWatch = residentCanStartProtectedListeners(user);
+    if (communityId == _watchedCommunityId &&
+        canWatch == _watchedWithFullAccess) {
+      return;
+    }
     _watchedCommunityId = communityId;
+    _watchedWithFullAccess = canWatch;
     _communityPostsSub?.cancel();
     _communityPostsSub = null;
-    if (communityId.isEmpty) {
-      _communityPosts = const <CommunityPostModel>[];
+    if (communityId.isEmpty || !canWatch) {
+      if (_communityPosts.isNotEmpty) {
+        if (mounted) {
+          setState(() => _communityPosts = const <CommunityPostModel>[]);
+        } else {
+          _communityPosts = const <CommunityPostModel>[];
+        }
+      }
       return;
     }
     _communityPostsSub = _communityPostService
         .watchPublishedPostsForCommunity(communityId)
-        .listen((posts) {
-          if (!mounted) return;
-          setState(() => _communityPosts = posts);
-        });
+        .listen(
+          (posts) {
+            if (!mounted) return;
+            setState(() => _communityPosts = posts);
+          },
+          onError: (Object error) {
+            _communityPostsSub?.cancel();
+            _communityPostsSub = null;
+            if (!mounted) return;
+            setState(() => _communityPosts = const <CommunityPostModel>[]);
+          },
+        );
   }
 
   void _startCarouselTimer() {
@@ -557,134 +577,6 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
   }
 
   Widget _buildQuickActions(BuildContext context, AppUser? user) {
-    Widget card({
-      required String semanticLabel,
-      required String title,
-      required String subtitle,
-      required String? assetPath,
-      required IconData fallbackIcon,
-      required VoidCallback onTap,
-    }) {
-      return Expanded(
-        child: Semantics(
-          button: true,
-          label: semanticLabel,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.13),
-                  blurRadius: 28,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 16),
-                ),
-                BoxShadow(
-                  color: _kBrandTeal.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  spreadRadius: -10,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Material(
-              color: context.glassFill( lightAlpha: 0.92),
-              borderRadius: BorderRadius.circular(24),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(24),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: context.glassBorder( lightAlpha: 0.90),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AspectRatio(
-                          aspectRatio: 1.22,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(17),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: _kBrandTeal.withValues(alpha: 0.07),
-                                border: Border.all(
-                                  color: _kBrandTeal.withValues(alpha: 0.08),
-                                ),
-                              ),
-                              child: assetPath != null
-                                  ? Image.asset(
-                                      assetPath,
-                                      fit: BoxFit.contain,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              _quickActionPlaceholder(
-                                                fallbackIcon,
-                                              ),
-                                    )
-                                  : _quickActionPlaceholder(fallbackIcon),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.appInk,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.appMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            height: 1.25,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: const [
-                            Text(
-                              'Open',
-                              style: TextStyle(
-                                color: _kBrandTeal,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              color: _kBrandTeal,
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Center(
@@ -731,22 +623,26 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  card(
-                    semanticLabel: 'Home Services',
-                    title: 'Home Services',
-                    subtitle: 'Trusted help nearby',
-                    assetPath: _kHomeServicesAsset,
-                    fallbackIcon: Icons.home_repair_service_outlined,
-                    onTap: () => _openServices(context, user),
+                  Expanded(
+                    child: _ExploreJiraniActionTile(
+                      semanticLabel: 'Home Services',
+                      title: 'Home Services',
+                      assetPath: _kHomeServicesAsset,
+                      badgeIcon: Icons.home_repair_service_outlined,
+                      fallbackIcon: Icons.home_repair_service_outlined,
+                      onTap: () => _openServices(context, user),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  card(
-                    semanticLabel: 'Share Items',
-                    title: 'Share Items',
-                    subtitle: 'Borrow and lend safely',
-                    assetPath: _kShareItemsAsset,
-                    fallbackIcon: Icons.inventory_2_outlined,
-                    onTap: () => _openMarketplace(context, user),
+                  Expanded(
+                    child: _ExploreJiraniActionTile(
+                      semanticLabel: 'Share Items',
+                      title: 'Share Items',
+                      assetPath: _kShareItemsAsset,
+                      badgeIcon: Icons.inventory_2_outlined,
+                      fallbackIcon: Icons.inventory_2_outlined,
+                      onTap: () => _openMarketplace(context, user),
+                    ),
                   ),
                 ],
               ),
@@ -756,15 +652,271 @@ class _ResidentHomeViewState extends State<ResidentHomeView> {
       ),
     );
   }
+}
 
-  Widget _quickActionPlaceholder(IconData icon) {
+class _ExploreJiraniActionTile extends StatelessWidget {
+  const _ExploreJiraniActionTile({
+    required this.semanticLabel,
+    required this.title,
+    required this.assetPath,
+    required this.badgeIcon,
+    required this.fallbackIcon,
+    required this.onTap,
+  });
+
+  final String semanticLabel;
+  final String title;
+  final String? assetPath;
+  final IconData badgeIcon;
+  final IconData fallbackIcon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = isDark ? scheme.primary : _kBrandTeal;
+    final radius = BorderRadius.circular(24);
+    final borderColor = isDark
+        ? scheme.outlineVariant.withValues(alpha: 0.82)
+        : accent.withValues(alpha: 0.14);
+    final imageSurface = isDark
+        ? scheme.surfaceContainerHighest.withValues(alpha: 0.74)
+        : const Color(0xFFEAF7F7);
+    final imageGlow = isDark
+        ? scheme.primary.withValues(alpha: 0.18)
+        : const Color(0xFFE9C46A).withValues(alpha: 0.24);
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      hint: 'Opens $title',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.12),
+              blurRadius: 26,
+              spreadRadius: -10,
+              offset: const Offset(0, 16),
+            ),
+            BoxShadow(
+              color: accent.withValues(alpha: isDark ? 0.12 : 0.14),
+              blurRadius: 20,
+              spreadRadius: -12,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: context.glassFill(lightAlpha: 0.96),
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            splashColor: accent.withValues(alpha: isDark ? 0.18 : 0.10),
+            highlightColor: accent.withValues(alpha: isDark ? 0.12 : 0.06),
+            overlayColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return accent.withValues(alpha: isDark ? 0.16 : 0.08);
+              }
+              if (states.contains(WidgetState.focused)) {
+                return accent.withValues(alpha: isDark ? 0.14 : 0.07);
+              }
+              return null;
+            }),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(color: borderColor),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: AspectRatio(
+                  aspectRatio: 1.03,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: imageSurface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: accent.withValues(
+                                alpha: isDark ? 0.18 : 0.10,
+                              ),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                imageSurface,
+                                imageGlow,
+                                imageSurface.withValues(
+                                  alpha: isDark ? 0.86 : 0.98,
+                                ),
+                              ],
+                              stops: const [0, 0.54, 1],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 32),
+                          child: assetPath != null
+                              ? Image.asset(
+                                  assetPath!,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      _TileIconFallback(icon: fallbackIcon),
+                                )
+                              : _TileIconFallback(icon: fallbackIcon),
+                        ),
+                      ),
+                      Positioned(
+                        left: 10,
+                        top: 10,
+                        child: _TileIconBadge(icon: badgeIcon),
+                      ),
+                      Positioned(
+                        left: 8,
+                        right: 8,
+                        bottom: 8,
+                        child: _TileGlassLabel(title: title, accent: accent),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TileGlassLabel extends StatelessWidget {
+  const _TileGlassLabel({required this.title, required this.accent});
+
+  final String title;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _kBrandTeal.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.32)
+            : Colors.white.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : accent.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
+            blurRadius: 16,
+            spreadRadius: -8,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Center(
-        child: Icon(icon, size: 48, color: _kBrandTeal.withValues(alpha: 0.55)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.appInk,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isDark ? 0.24 : 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: accent,
+                  size: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TileIconBadge extends StatelessWidget {
+  const _TileIconBadge({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDarkUi;
+    final accent = isDark ? Theme.of(context).colorScheme.primary : _kBrandTeal;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isDark
+            ? accent.withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.92),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: accent.withValues(alpha: isDark ? 0.36 : 0.16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.10),
+            blurRadius: 12,
+            spreadRadius: -6,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 18, color: accent),
+      ),
+    );
+  }
+}
+
+class _TileIconFallback extends StatelessWidget {
+  const _TileIconFallback({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.isDarkUi
+        ? Theme.of(context).colorScheme.primary
+        : _kBrandTeal;
+    return Center(
+      child: Icon(
+        icon,
+        size: 46,
+        color: accent.withValues(alpha: context.isDarkUi ? 0.76 : 0.58),
       ),
     );
   }

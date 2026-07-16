@@ -81,9 +81,21 @@
       return status in ['verified', 'approved'];
     }
 
+    function residentAccountCanAccess(data) {
+      return !('accountStatus' in data) ||
+        data.accountStatus == 'active' ||
+        (
+          data.accountStatus == 'suspended' &&
+          'suspensionEndsAt' in data &&
+          data.suspensionEndsAt is timestamp &&
+          request.time >= data.suspensionEndsAt
+        );
+    }
+
     function isVerifiedResident() {
       return hasProfile() &&
-        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus);
+        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus) &&
+        residentAccountCanAccess(myUserDoc().data);
     }
 
     function isVerifiedResidentData(data) {

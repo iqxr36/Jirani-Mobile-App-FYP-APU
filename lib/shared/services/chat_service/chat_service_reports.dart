@@ -48,11 +48,13 @@ mixin _ChatServiceReportsMixin on _ChatServiceBase {
       'reportedUserName': reportedUserName,
       'chatId': chat.id,
       'reportCategory': category,
-      'reportedMessageIds': snapshots.map((message) => message.messageId).toList(),
+      'reportedMessageIds': snapshots
+          .map((message) => message.messageId)
+          .toList(),
       'reportedMessages': snapshots.map((message) => message.toMap()).toList(),
       'relatedBorrowRequestId': '',
       'itemId': '',
-      if (evidenceImageUrl != null) 'evidenceImageUrl': evidenceImageUrl,
+      'evidenceImageUrl': ?evidenceImageUrl,
       'communityId': reporter.communityId,
       'communityName': reporter.communityName,
       'createdAt': now,

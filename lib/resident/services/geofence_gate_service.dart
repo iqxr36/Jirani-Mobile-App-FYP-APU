@@ -3,6 +3,40 @@ import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/community_model.dart';
 import 'package:jirani/shared/services/community_service.dart';
 
+/// Platform location operations used by the geofence gate.
+///
+/// Keeping this boundary injectable lets the gate be tested without invoking
+/// platform channels and, importantly, keeps passive checks separate from OS
+/// permission prompts.
+abstract interface class GeofenceLocationGateway {
+  Future<bool> isServiceEnabled();
+  Future<LocationPermission> checkPermission();
+  Future<LocationPermission> requestPermission();
+  Future<Position> getCurrentPosition();
+}
+
+class GeolocatorGeofenceLocationGateway implements GeofenceLocationGateway {
+  const GeolocatorGeofenceLocationGateway();
+
+  @override
+  Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
+
+  @override
+  Future<LocationPermission> checkPermission() => Geolocator.checkPermission();
+
+  @override
+  Future<LocationPermission> requestPermission() =>
+      Geolocator.requestPermission();
+
+  @override
+  Future<Position> getCurrentPosition() => Geolocator.getCurrentPosition(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.medium,
+      timeLimit: Duration(seconds: 20),
+    ),
+  );
+}
+
 /// Geofence feature block reason: lets the UI choose the right recovery action instead of showing a generic retry loop.
 enum GeofenceGateBlockReason {
   missingCommunity,
@@ -29,10 +63,42 @@ class GeofenceGateResult {
 
 /// Geofence feature service: validates resident access by comparing the device location to the selected community radius.
 class GeofenceGateService {
-  GeofenceGateService({CommunityService? communityService})
-    : _communityService = communityService ?? CommunityService();
+  GeofenceGateService({
+    CommunityService? communityService,
+    GeofenceLocationGateway? locationGateway,
+  }) : _communityService = communityService ?? CommunityService(),
+       _locationGateway =
+           locationGateway ?? const GeolocatorGeofenceLocationGateway();
 
   final CommunityService _communityService;
+  final GeofenceLocationGateway _locationGateway;
+
+  /// Requests foreground location only after an explicit user action.
+  Future<GeofenceGateResult> requestForegroundLocationPermission() async {
+    try {
+      final serviceEnabled = await _locationGateway.isServiceEnabled().timeout(
+        const Duration(seconds: 8),
+      );
+      if (!serviceEnabled) {
+        return const GeofenceGateResult(
+          insideBoundary: false,
+          message: 'Turn on location services to enter your community.',
+          blockReason: GeofenceGateBlockReason.locationServicesOff,
+        );
+      }
+
+      final permission = await _locationGateway.requestPermission().timeout(
+        const Duration(seconds: 15),
+      );
+      return _permissionResult(permission);
+    } catch (_) {
+      return const GeofenceGateResult(
+        insideBoundary: false,
+        message: 'Could not request location permission. Please try again.',
+        blockReason: GeofenceGateBlockReason.checkFailed,
+      );
+    }
+  }
 
   /// Geofence feature: checks permissions, loads the resident community boundary, and returns whether the resident may enter the app.
   Future<GeofenceGateResult> checkResidentAccess(AppUser user) async {
@@ -50,8 +116,9 @@ class GeofenceGateService {
     }
 
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled()
-          .timeout(const Duration(seconds: 8));
+      final serviceEnabled = await _locationGateway.isServiceEnabled().timeout(
+        const Duration(seconds: 8),
+      );
       if (!serviceEnabled) {
         return const GeofenceGateResult(
           insideBoundary: false,
@@ -60,40 +127,16 @@ class GeofenceGateService {
         );
       }
 
-      var permission = await Geolocator.checkPermission().timeout(
+      final permission = await _locationGateway.checkPermission().timeout(
         const Duration(seconds: 8),
       );
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission().timeout(
-          const Duration(seconds: 15),
-        );
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.unableToDetermine) {
-        return const GeofenceGateResult(
-          insideBoundary: false,
-          message: 'Allow location access to enter your community.',
-          blockReason: GeofenceGateBlockReason.permissionDenied,
-        );
-      }
-      if (permission == LocationPermission.deniedForever) {
-        return const GeofenceGateResult(
-          insideBoundary: false,
-          message:
-              'Location permission is blocked. Enable it in app settings to enter your community.',
-          blockReason: GeofenceGateBlockReason.permissionDeniedForever,
-        );
-      }
+      final permissionResult = _permissionResult(permission);
+      if (permissionResult.blockReason != null) return permissionResult;
 
       final boundary = await _loadBoundary(
         user,
       ).timeout(const Duration(seconds: 15));
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
+      final position = await _locationGateway.getCurrentPosition();
 
       // Geofence feature: calculate the straight-line distance from the phone to the community center.
       final distance = Geolocator.distanceBetween(
@@ -120,6 +163,26 @@ class GeofenceGateService {
         blockReason: GeofenceGateBlockReason.checkFailed,
       );
     }
+  }
+
+  GeofenceGateResult _permissionResult(LocationPermission permission) {
+    if (permission == LocationPermission.deniedForever) {
+      return const GeofenceGateResult(
+        insideBoundary: false,
+        message:
+            'Location permission is blocked. Enable it in app settings to enter your community.',
+        blockReason: GeofenceGateBlockReason.permissionDeniedForever,
+      );
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.unableToDetermine) {
+      return const GeofenceGateResult(
+        insideBoundary: false,
+        message: 'Allow location access to enter your community.',
+        blockReason: GeofenceGateBlockReason.permissionDenied,
+      );
+    }
+    return const GeofenceGateResult(insideBoundary: true);
   }
 
   /// Geofence feature: loads the community center point and radius from Firestore using either communityId or communityName.

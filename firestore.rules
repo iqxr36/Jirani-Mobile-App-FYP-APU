@@ -28,6 +28,134 @@ service cloud.firestore {
     //   17_community_post.functions.rules   — community post validation helpers
     //   18_collections_community.rules      — communityPosts and default deny
 
+// --- Shared input length limits (mirror lib/core/constants/app_constants.dart) ---
+    function maxPersonNameLength() {
+      return 60;
+    }
+
+    function maxPhoneLength() {
+      return 16;
+    }
+
+    function maxShortTextLength() {
+      return 200;
+    }
+
+    function maxMediumTextLength() {
+      return 1000;
+    }
+
+    function maxLongTextLength() {
+      return 5000;
+    }
+
+    function minItemDescriptionLength() {
+      return 12;
+    }
+
+    function minServiceTitleLength() {
+      return 3;
+    }
+
+    function minServiceDescriptionLength() {
+      return 12;
+    }
+
+    function maxListingDescriptionLength() {
+      return 1000;
+    }
+
+    function maxItemTitleLength() {
+      return 120;
+    }
+
+    function maxPickupInstructionsLength() {
+      return 500;
+    }
+
+    function maxUnitNumberLength() {
+      return 20;
+    }
+
+    function isBoundedString(value, minSize, maxSize) {
+      return value is string &&
+        value.size() >= minSize &&
+        value.size() <= maxSize;
+    }
+
+    function validPersonName(value) {
+      return isBoundedString(value, 2, maxPersonNameLength());
+    }
+
+    function validResidentSelfProfileData() {
+      let data = request.resource.data;
+      return (
+        (!('firstName' in data) || validPersonName(data.firstName)) &&
+        (!('lastName' in data) || validPersonName(data.lastName)) &&
+        (!('fullName' in data) ||
+          isBoundedString(data.fullName, 2, maxPersonNameLength() * 2 + 1)) &&
+        (!('unitNumber' in data) ||
+          isBoundedString(data.unitNumber, 0, maxUnitNumberLength())) &&
+        (!('communityName' in data) ||
+          isBoundedString(data.communityName, 0, maxLongTextLength())) &&
+        (!('profileImageUrl' in data) ||
+          isBoundedString(data.profileImageUrl, 0, 2048))
+      );
+    }
+
+    function validReportType(type) {
+      return type in [
+        'damagedItem',
+        'lostItem',
+        'depositDispute',
+        'serviceDispute',
+        'userMisconduct',
+        'other',
+      ];
+    }
+
+    function validReportCreate(data) {
+      return data.reporterId is string &&
+        data.reporterId == request.auth.uid &&
+        data.communityId is string &&
+        data.communityId == myUserDoc().data.communityId &&
+        data.communityName is string &&
+        data.communityName == myUserDoc().data.communityName &&
+        data.type is string &&
+        validReportType(data.type) &&
+        data.status == 'open' &&
+        isBoundedString(data.title, 1, maxShortTextLength()) &&
+        isBoundedString(data.description, 1, maxLongTextLength()) &&
+        (!('reportCategory' in data) ||
+          isBoundedString(data.reportCategory, 0, maxShortTextLength())) &&
+        (!('reportedUserId' in data) ||
+          data.reportedUserId is string) &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
+    }
+
+    function validVerificationDocumentType(type) {
+      return type in [
+        'utilityBill',
+        'tenancyAgreement',
+        'accessCard',
+        'otherProof',
+      ];
+    }
+
+    function validVerificationCreate(data) {
+      return data.userId == request.auth.uid &&
+        data.status == 'submitted' &&
+        data.communityId is string &&
+        data.communityId == myUserDoc().data.communityId &&
+        isBoundedString(data.unitNumber, 1, maxUnitNumberLength()) &&
+        data.documentType is string &&
+        validVerificationDocumentType(data.documentType) &&
+        (!('notes' in data) ||
+          isBoundedString(data.notes, 0, maxMediumTextLength())) &&
+        data.createdAt == request.time;
+    }
+
 // --- Core auth/admin/resident helpers ---
     function signedIn() {
       return request.auth != null;
@@ -111,9 +239,21 @@ service cloud.firestore {
       return status in ['verified', 'approved'];
     }
 
+    function residentAccountCanAccess(data) {
+      return !('accountStatus' in data) ||
+        data.accountStatus == 'active' ||
+        (
+          data.accountStatus == 'suspended' &&
+          'suspensionEndsAt' in data &&
+          data.suspensionEndsAt is timestamp &&
+          request.time >= data.suspensionEndsAt
+        );
+    }
+
     function isVerifiedResident() {
       return hasProfile() &&
-        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus);
+        hasVerifiedResidentStatus(myUserDoc().data.verificationStatus) &&
+        residentAccountCanAccess(myUserDoc().data);
     }
 
     function isVerifiedResidentData(data) {
@@ -306,7 +446,9 @@ service cloud.firestore {
         chatParticipantById(chatId) &&
         chatBelongsToMyCommunity(chatId) &&
         data.chatId == chatId &&
-        data.senderId == request.auth.uid;
+        data.senderId == request.auth.uid &&
+        data.text is string &&
+        data.text.size() <= maxLongTextLength();
     }
 
     function validChatMessageReadUpdate(chatId) {
@@ -865,8 +1007,6 @@ service cloud.firestore {
         'fullName',
         'email',
         'pendingEmail',
-        'phoneNumber',
-        'phoneVerified',
         'emailVerified',
         'profileImageUrl',
         'communityId',
@@ -1030,11 +1170,19 @@ service cloud.firestore {
           'adminModeratedAt',
           'updatedAt',
         ]) &&
-        request.resource.data.title is string &&
-        request.resource.data.description is string &&
+        isBoundedString(request.resource.data.title, 3, maxItemTitleLength()) &&
+        isBoundedString(
+          request.resource.data.description,
+          minItemDescriptionLength(),
+          maxListingDescriptionLength()
+        ) &&
         request.resource.data.category is string &&
         request.resource.data.condition is string &&
-        request.resource.data.pickupInstructions is string &&
+        isBoundedString(
+          request.resource.data.pickupInstructions,
+          0,
+          maxPickupInstructionsLength()
+        ) &&
         request.resource.data.imageUrls is list;
     }
 
@@ -1112,10 +1260,15 @@ service cloud.firestore {
         data.communityId == myUserDoc().data.communityId &&
         data.communityName == myUserDoc().data.communityName &&
         data.title is string &&
+        data.title.size() >= 3 &&
+        data.title.size() <= maxItemTitleLength() &&
         data.description is string &&
+        data.description.size() >= minItemDescriptionLength() &&
+        data.description.size() <= maxListingDescriptionLength() &&
         data.category is string &&
         data.condition is string &&
         data.pickupInstructions is string &&
+        data.pickupInstructions.size() <= maxPickupInstructionsLength() &&
         data.imageUrls is list &&
         data.imageUrls.size() > 0 &&
         data.lendingType is string &&
@@ -1333,16 +1486,13 @@ service cloud.firestore {
           'availabilityEndMinutes',
           'updatedAt',
         ]) &&
-        request.resource.data.title is string &&
-        request.resource.data.description is string &&
+        isBoundedString(request.resource.data.title, minServiceTitleLength(), maxShortTextLength()) &&
+        isBoundedString(request.resource.data.description, minServiceDescriptionLength(), maxListingDescriptionLength()) &&
         request.resource.data.category is string &&
         request.resource.data.priceType is string &&
-        request.resource.data.availability is string &&
+        isBoundedString(request.resource.data.availability, 1, maxMediumTextLength()) &&
         request.resource.data.communityName is string &&
         validServiceCommunityId(request.resource.data) &&
-        request.resource.data.title.size() > 0 &&
-        request.resource.data.description.size() > 0 &&
-        request.resource.data.availability.size() > 0 &&
         validServiceCategory(request.resource.data.category) &&
         request.resource.data.imageUrls is list &&
         request.resource.data.certificateUrls is list &&
@@ -1368,8 +1518,8 @@ service cloud.firestore {
         data.providerId == request.auth.uid &&
         data.status == 'active' &&
         data.id == serviceId &&
-        data.title is string &&
-        data.description is string &&
+        isBoundedString(data.title, minServiceTitleLength(), maxShortTextLength()) &&
+        isBoundedString(data.description, minServiceDescriptionLength(), maxListingDescriptionLength()) &&
         data.category is string &&
         validServiceCategory(data.category) &&
         data.priceType is string &&
@@ -1380,7 +1530,7 @@ service cloud.firestore {
         data.certificateNames is list &&
         data.certificateUrls.size() == data.certificateNames.size() &&
         validServicePricing(data) &&
-        data.availability is string &&
+        isBoundedString(data.availability, 1, maxMediumTextLength()) &&
         validServiceAvailabilityFields(data) &&
         data.providerName is string &&
         data.providerEmail is string &&
@@ -1741,19 +1891,20 @@ service cloud.firestore {
 
 // --- users collection ---
     match /users/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
+      allow get: if isOwner(uid) ||
+        isSystemAdmin() ||
+        (isAdmin() && adminCanAccessCommunity(resource.data.communityId));
       allow list: if isSystemAdmin() ||
         (isAdmin() && resource.data.communityId == adminCommunityId());
 
-      allow create: if isOwner(uid) &&
-        request.resource.data.uid == uid &&
-        request.resource.data.role == 'resident' &&
-        request.resource.data.verificationStatus == 'pending';
+      // Registration is finalized by the privileged Cloud Function, so clients
+      // cannot create private resident profiles directly.
+      allow create: if false;
 
       // Trust/reputation fields are updated only by Cloud Functions (Admin SDK)
       // or manually by admins — never by resident clients.
       allow update: if isAdmin() ||
-        (isOwner(uid) && ownSafeUserUpdate()) ||
+        (isOwner(uid) && ownSafeUserUpdate() && validResidentSelfProfileData()) ||
         (isOwner(uid) && ownerCanChangeCommunityWithVerificationReset());
       allow delete: if isAdmin();
     }
@@ -1783,6 +1934,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Phone uniqueness registry — written only by Cloud Functions (Admin SDK).
+    match /residentPhoneNumbers/{phoneHash} {
+      allow read, write: if false;
+    }
+
 // --- verificationRequests collection ---
     match /verificationRequests/{requestId} {
       allow read: if signedIn() &&
@@ -1793,8 +1949,7 @@ service cloud.firestore {
         );
 
       allow create: if signedIn() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == 'submitted';
+        validVerificationCreate(request.resource.data);
 
       allow update: if isAdmin() ||
         (
@@ -1900,9 +2055,7 @@ service cloud.firestore {
         (isAdmin() && !resource.data.keys().hasAny(['communityId']));
 
       allow create: if hasProfile() &&
-        request.resource.data.reporterId == request.auth.uid &&
-        request.resource.data.communityId == myUserDoc().data.communityId &&
-        request.resource.data.communityName == myUserDoc().data.communityName;
+        validReportCreate(request.resource.data);
 
       allow update, delete: if isSystemAdmin() ||
         adminCanAccessCommunity(resource.data.communityId) ||
@@ -1953,7 +2106,10 @@ service cloud.firestore {
       allow get: if chatParticipant(resource.data) ||
         (isVerifiedResident() &&
           !exists(/databases/$(database)/documents/chats/$(chatId)));
-      allow list: if isVerifiedResident();
+      // Chat inbox queries must prove that every returned chat contains the
+      // signed-in resident. This remains valid while community re-verification
+      // is pending, so old chats can be archived without exposing other chats.
+      allow list: if chatParticipantLookup(resource.data);
       allow create: if validChatCreate(request.resource.data);
       allow update: if validChatUpdate();
       allow delete: if false;
@@ -2086,7 +2242,7 @@ service cloud.firestore {
       return resource.data.status == 'published' &&
         resource.data.expiresAt is timestamp &&
         resource.data.expiresAt <= request.time &&
-        request.resource.data.status == 'draft' &&
+        request.resource.data.status == 'expired' &&
         changed.hasOnly([
           'status',
           'publishedAt',
@@ -2133,7 +2289,7 @@ service cloud.firestore {
         (
           isVerifiedResident() &&
           resource.data.communityId == myUserDoc().data.communityId &&
-          resource.data.status == 'published'
+          resource.data.status in ['published', 'expired']
         )
       );
       allow create: if validCommunityPostCreate(postId);

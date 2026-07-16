@@ -7,22 +7,26 @@ import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/resident/screens/home/resident_main_shell.dart';
 import 'package:jirani/admin/screens/auth/admin_login_screen.dart';
 import 'package:jirani/resident/screens/auth/email_verification_view.dart';
-import 'package:jirani/resident/screens/auth/phone_verification_view.dart';
 import 'package:jirani/resident/screens/auth/resident_pre_auth_gate.dart';
 import 'package:jirani/resident/screens/auth/account_created_view.dart';
+import 'package:jirani/resident/screens/auth/suspended_account_view.dart';
 import 'package:provider/provider.dart';
 import 'package:jirani/resident/screens/location/resident_geofence_gate.dart';
 
 /// Routes the app based on [FirebaseAuth] session and loaded [AppUser] profile.
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
+  const AuthWrapper({super.key, @visibleForTesting this.isWebOverride});
+
+  /// Allows widget tests to exercise web-only routing without launching Chrome.
+  final bool? isWebOverride;
 
   @override
   /// App routing: chooses admin login, resident onboarding/login, verification screens, geofence gate, or dashboards.
   Widget build(BuildContext context) {
+    final isWeb = isWebOverride ?? kIsWeb;
     return Consumer<AuthViewModel>(
       builder: (context, vm, _) {
-        authDebugLog('[AuthWrapper] build start kIsWeb=$kIsWeb');
+        authDebugLog('[AuthWrapper] build start kIsWeb=$isWeb');
         authDebugLog(
           '[AuthWrapper] firebaseUser=${vm.firebaseUser != null} '
           'currentUser=${vm.currentUser != null} '
@@ -36,7 +40,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (vm.firebaseUser == null) {
-          if (kIsWeb) {
+          if (isWeb) {
             authDebugLog('[AuthWrapper] route -> AdminLoginScreen');
             return const AdminLoginScreen();
           }
@@ -51,7 +55,20 @@ class AuthWrapper extends StatelessWidget {
           return const _AuthLoadingScaffold();
         }
 
-        if (vm.currentUser == null && vm.currentAdmin == null) {
+        final user = vm.currentUser;
+        final admin = vm.currentAdmin;
+
+        // The web build is the administrator portal. Keep the login screen in
+        // place while a non-admin session is rejected so it can never route to
+        // resident features or the admin dashboard.
+        if (isWeb && admin == null) {
+          authDebugLog(
+            '[AuthWrapper] route -> AdminLoginScreen (non-admin blocked)',
+          );
+          return const AdminLoginScreen();
+        }
+
+        if (user == null && admin == null) {
           return _MissingProfileScaffold(
             message:
                 vm.profileErrorMessage ??
@@ -61,8 +78,6 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        final user = vm.currentUser;
-        final admin = vm.currentAdmin;
         final role = user?.role ?? admin?.role ?? '';
         final isAdmin = admin != null;
         if (role != AppConstants.roleResident && !isAdmin) {
@@ -70,6 +85,16 @@ class AuthWrapper extends StatelessWidget {
             message: 'Unknown role "$role". Please contact support.',
             onLogout: () => context.read<AuthViewModel>().logout(),
             isLoggingOut: vm.isLoading,
+          );
+        }
+
+        if (user?.hasActiveSuspension ?? false) {
+          authDebugLog('[AuthWrapper] route -> SuspendedAccountView');
+          return SuspendedAccountView(
+            user: user!,
+            onCheckStatus: () =>
+                context.read<AuthViewModel>().refreshCurrentUser(),
+            onSignOut: () => context.read<AuthViewModel>().logout(),
           );
         }
 
@@ -86,19 +111,6 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (vm.showPhoneVerificationAfterRegister && user != null) {
-          authDebugLog('[AuthWrapper] route -> PhoneVerificationView');
-          final phone = user.phoneNumber.trim();
-          return PhoneVerificationView(
-            phoneNumber: phone,
-            verificationId: null,
-            resendToken: null,
-            onFlowFinished: () => context
-                .read<AuthViewModel>()
-                .exitPhoneVerificationRegistrationFlow(),
-          );
-        }
-
         if (vm.showAccountCreatedScreen) {
           authDebugLog('[AuthWrapper] route -> AccountCreatedView');
           return const AccountCreatedView();
@@ -112,7 +124,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (!kIsWeb) {
+        if (!isWeb) {
           authDebugLog('[AuthWrapper] route -> mobile admin blocked');
           return _MobileAdminBlockedScaffold(
             onRetry: () => context.read<AuthViewModel>().refreshCurrentUser(),

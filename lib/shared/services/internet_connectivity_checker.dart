@@ -34,7 +34,9 @@ class InternetConnectivityChecker {
   }) : _connectivity = connectivity ?? Connectivity(),
        _client = client ?? http.Client(),
        _ownsClient = client == null,
-       _probeUris = List<Uri>.unmodifiable(probeUris ?? defaultInternetProbeUris),
+       _probeUris = List<Uri>.unmodifiable(
+         probeUris ?? defaultInternetProbeUris,
+       ),
        _timeout = timeout {
     _checkConnectivity =
         checkConnectivity ?? () => _connectivity.checkConnectivity();
@@ -51,8 +53,8 @@ class InternetConnectivityChecker {
     return results.any((result) => result != ConnectivityResult.none);
   }
 
-  Future<bool> check() async {
-    final osResults = await _checkConnectivity();
+  Future<bool> check({List<ConnectivityResult>? connectivityResults}) async {
+    final osResults = connectivityResults ?? await _checkConnectivity();
     if (!hasNetworkInterface(osResults)) {
       return false;
     }

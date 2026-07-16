@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/service_model.dart';
 import 'package:jirani/shared/models/service_request_model.dart';
@@ -29,6 +30,18 @@ class ServiceService {
   final FirebaseFunctions _functions;
   final FirebaseStorage _storage;
 
+  static void _validateServiceListingText({
+    required String title,
+    required String description,
+    required String availability,
+  }) {
+    final error =
+        Validators.validateServiceTitle(title) ??
+        Validators.validateServiceDescription(description) ??
+        Validators.validateServiceAvailability(availability);
+    if (error != null) throw Exception(error);
+  }
+
   CollectionReference<Map<String, dynamic>> get _services =>
       _firestore.collection(AppConstants.servicesCollection);
 
@@ -36,22 +49,23 @@ class ServiceService {
       _firestore.collection(AppConstants.serviceRequestsCollection);
 
   /// Services browse: streams all active services shown to residents.
-  Stream<List<ServiceModel>> watchActiveServices({required String communityId}) {
+  Stream<List<ServiceModel>> watchActiveServices({
+    required String communityId,
+  }) {
     final scopedCommunityId = communityId.trim();
     if (scopedCommunityId.isEmpty) {
       return Stream<List<ServiceModel>>.value(const <ServiceModel>[]);
     }
-    final query = _services.where(
-      'status',
-      isEqualTo: AppConstants.serviceStatusActive,
-    ).where('communityId', isEqualTo: scopedCommunityId);
+    final query = _services
+        .where('status', isEqualTo: AppConstants.serviceStatusActive)
+        .where('communityId', isEqualTo: scopedCommunityId);
     return query.snapshots().map((snapshot) {
-          final list = snapshot.docs
-              .map((d) => ServiceModel.fromMap(d.id, d.data()))
-              .toList();
-          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return list;
-        });
+      final list = snapshot.docs
+          .map((d) => ServiceModel.fromMap(d.id, d.data()))
+          .toList();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
   }
 
   /// Services provider dashboard: streams services created by the current provider.
@@ -170,9 +184,7 @@ class ServiceService {
     final t = title.trim();
     final d = description.trim();
     final av = availability.trim();
-    if (t.isEmpty || d.isEmpty || av.isEmpty) {
-      throw Exception('Title, description, and availability are required.');
-    }
+    _validateServiceListingText(title: t, description: d, availability: av);
     final availabilityFields = availabilityFieldsForServiceWrite(
       weekdays: availableWeekdays,
       startTime: availabilityStartTime,
@@ -250,7 +262,9 @@ class ServiceService {
         'fixedJobPrice': resolvedFixedJobPrice,
         'imageUrls': imageUpload.urls,
         'certificateUrls': certificateUpload.urls,
-        'certificateNames': certificateNames.map((name) => name.trim()).toList(),
+        'certificateNames': certificateNames
+            .map((name) => name.trim())
+            .toList(),
         'availability': av,
         ...availabilityFields,
         'status': AppConstants.serviceStatusActive,
@@ -385,9 +399,7 @@ class ServiceService {
     final t = title.trim();
     final d = description.trim();
     final av = availability.trim();
-    if (t.isEmpty || d.isEmpty || av.isEmpty) {
-      throw Exception('Title, description, and availability are required.');
-    }
+    _validateServiceListingText(title: t, description: d, availability: av);
     final availabilityFields = availabilityFieldsForServiceWrite(
       weekdays: availableWeekdays,
       startTime: availabilityStartTime,
@@ -843,7 +855,10 @@ class ServiceService {
       if (!file.existsSync()) {
         throw Exception('Selected file is no longer available.');
       }
-      final contentType = _serviceFileContentType(file.path, allowPdf: allowPdf);
+      final contentType = _serviceFileContentType(
+        file.path,
+        allowPdf: allowPdf,
+      );
       final fileName = file.uri.pathSegments.isNotEmpty
           ? file.uri.pathSegments.last
           : 'file_$i';

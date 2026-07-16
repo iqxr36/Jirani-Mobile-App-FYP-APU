@@ -1,0 +1,879 @@
+[
+  {
+    "table_number": 131,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Submit a valid Resident registration",
+        "First name: Amina; last name: Rahman; valid email; +60123456789; password with at least 6 characters; matching confirmation; selected community",
+        "A Firebase Authentication account is created and a users/{uid} resident profile is written before the post-registration verification flow is shown.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Leave the email field blank",
+        "Email: blank",
+        "The message \"Email is required.\" is displayed and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Enter an invalid phone number",
+        "Phone: 012-3456789 without a country code",
+        "The message \"Include country code starting with + (e.g. +60).\" is displayed and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Enter mismatched password confirmation",
+        "Password: jirani123; confirmation: jiran123",
+        "The message \"Passwords do not match.\" is displayed and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Enter an invalid first name",
+        "First name: A1",
+        "The message \"First name can only contain letters, spaces, apostrophes, and hyphens.\" is displayed and submission is prevented.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 132,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Log in with valid Resident credentials",
+        "Registered Resident email and correct password",
+        "Firebase authenticates the account and AuthWrapper routes the Resident through ResidentGeofenceGate to ResidentMainShell.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Log in with an invalid password",
+        "Registered email and incorrect password",
+        "Authentication is rejected and the mapped Firebase authentication error is displayed; the protected Resident interface is not opened.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Request password recovery",
+        "Valid registered email",
+        "Firebase sends a password-reset email to the trimmed address and the recovery screen displays its success state.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Open the mobile application using an administrator account",
+        "Authenticated account with communityAdmin role on a non-web platform",
+        "Access to the Resident application is blocked and the message \"Admin access is available on the web portal only.\" is displayed.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Load an authenticated account without a profile",
+        "Firebase user exists but no users or admins profile can be loaded",
+        "The missing-profile screen displays \"Your account profile could not be loaded.\" or the recorded profile error and offers logout.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 133,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Update valid profile information",
+        "Valid full name, phone number, unit number, and optional biography",
+        "The users/{uid} profile and permitted public profile fields are updated, and the refreshed values are displayed.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Submit an invalid email format",
+        "Email: resident@invalid",
+        "The message \"Enter a valid email address.\" is displayed and the profile update is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Upload a profile image",
+        "Supported image selected by the authenticated Resident",
+        "The image is uploaded under profile_images and the stored profile-image URL is updated for the Resident.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Attempt an email change without an authenticated session",
+        "No current Firebase user",
+        "The message \"You must be signed in to update your email.\" is produced and no profile email is changed.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 134,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Submit a supported residency document",
+        "Selected community and unit; utility bill, tenancy agreement, access card, or other proof file",
+        "The document is uploaded under verification_documents or resident_documents, a verificationRequests record is created, and OCR status begins as pending.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Submit without selecting a document",
+        "Verification details provided; document missing",
+        "Submission is prevented and the interface requires a residency proof file.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Cancel a pending verification request",
+        "Authenticated owner of a pending request",
+        "The request status changes to cancelled and the Resident verification state is refreshed.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Process an OCR extraction failure",
+        "Submitted request whose Document AI or Gemini processing throws an error",
+        "The request is updated with ocrStatus failed and an administrator-readable OCR failure message while any partial OCR text is preserved.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Process OCR data that matches the Resident",
+        "Readable document with matching name, unit, community, and available contact evidence",
+        "Extracted fields and automatic checks are stored, adminStatus becomes ocr_matched, and scoped administrators receive an OCR review notification.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 135,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Validate a Resident inside the community geofence",
+        "Location permission granted; GPS enabled; current coordinates inside configured radius",
+        "The community is confirmed and the Resident may proceed to the protected application interface.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Deny location permission",
+        "Location permission denied",
+        "The location permission interface remains active, access is not granted, and the Resident is guided to retry or open settings.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Attempt validation with GPS disabled",
+        "Permission granted; device location services disabled",
+        "The system blocks geofence completion and provides the option to open the device location settings.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Attempt validation outside the community boundary",
+        "Current coordinates exceed the configured radius",
+        "The outside-geofence interface is displayed and protected Resident access remains blocked.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Validate a community without a configured boundary",
+        "Community record has no usable latitude, longitude, or radius",
+        "The message \"Community boundary is not configured.\" is produced and geofence access is not granted.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 136,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Create a valid item listing",
+        "Title, description, category, condition, rental mode, valid fee/deposit details, and item image",
+        "An items document is created with available status, uploaded images are stored under item_images, and the listing appears in the Resident marketplace.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Submit a title shorter than three characters",
+        "Item title: TV",
+        "The message \"Item title is too short.\" is displayed and the listing is not created.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Submit a description shorter than ten characters",
+        "Description: Good tool",
+        "The message \"Description should be at least 10 characters.\" is displayed and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Search and filter marketplace items",
+        "Search text plus category and availability filter",
+        "Only matching, readable marketplace items are displayed; an appropriate empty state appears when no item matches.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Archive an owned listing",
+        "Authenticated owner selects archive on an active item",
+        "The item status is updated to archived and it is removed from normal marketplace browsing.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 137,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Submit a valid borrowing request",
+        "Available item owned by another Resident; valid dates; optional message",
+        "A borrowRequests\ndocument is created with pending status and the item owner receives a borrow-request notification.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Owner approves a pending request",
+        "Pending request acted on by its item owner",
+        "The request status changes to approved and the borrower receives a\nborrow-approved notification.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Borrower cancels a pending request",
+        "Pending request acted on by its requester",
+        "The request status changes to cancelled; later transaction actions are not enabled.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Start hosted payment for an approved paid request",
+        "Approved request with fee or deposit and configured Xendit backend",
+        "A managed payment request is created and the hosted checkout flow opens; completion is recorded only after provider confirmation.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Resolve payment configuration failure",
+        "Xendit secret key is unavailable",
+        "The message \"Payment setup is not configured yet. Add XENDIT_SECRET_KEY to Firebase Functions and redeploy.\" is displayed and payment completion is not claimed.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 138,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Validate a correct handover code",
+        "Four-digit code matching the active pickup transaction",
+        "The request advances from pickupReady through the handover action to active status and the handover evidence fields are stored.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Submit an invalid handover code format",
+        "Code: 12A",
+        "The message \"Enter a 4-digit code.\" is displayed and the status does not advance.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Complete a no-damage return",
+        "Active request; return evidence submitted; owner confirms same condition",
+        "The request becomes completed and the managed deposit resolver records the applicable full-refund or not-required outcome.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Report a minor issue at return",
+        "Return submitted with minor damage, reason, evidence, and deduction amount",
+        "The request moves to minorIssuePending and awaits the borrower's decision or administrator dispute handling.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Attempt to resolve a completed transaction again",
+        "Deposit-resolution action on a completed/resolved request",
+        "The duplicate or invalid status transition is rejected and no second refund or deduction is created.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 139,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Create a valid service listing",
+        "Service title, category, description, pricing mode, availability, and optional media",
+        "A services document is created with active status and media files are stored under service_media when provided.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Submit a non-positive service amount",
+        "Paid service amount: 0",
+        "The relevant amount\nvalidation reports that the value must be greater than 0 and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Submit a valid service request",
+        "Active service owned by another Resident; preferred date/time; duration or fixed request details",
+        "A serviceRequests\ndocument is created with pending status and the provider receives a service-request notification.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Provider accepts a paid service request",
+        "Pending paid request acted on by its provider",
+        "The request changes to acceptedAwaitingPayment and the requester receives a service-accepted notification.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Provider rejects a pending request",
+        "Pending request and rejection action",
+        "The request status changes to rejected and the requester receives a service-rejected notification.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 140,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Complete payment for an accepted service",
+        "acceptedAwaitingPayment request and successful provider callback",
+        "Payment status is recorded as completed and the service request advances to paidHeld.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Verify a correct service arrival code",
+        "Valid four-digit arrival code before expiry",
+        "Arrival verification is recorded and the service request advances to inProgress.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Reject an invalid completion code",
+        "Incorrect or expired four-digit completion code",
+        "Completion verification is rejected and the request does not advance to completion or payout.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Complete a service successfully",
+        "inProgress request with valid completion verification",
+        "The request advances to completedPayoutPending and the backend begins the configured payout process.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Open a service dispute",
+        "Eligible paid service; dispute type, reason, and optional evidence",
+        "The service request becomes disputed, evidence is stored under service_dispute_proofs when provided, and an administrator report is created for review.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 141,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Send a neighbour connection request",
+        "Verified Resident selects another eligible Resident in the same permitted context",
+        "A connections document is created with pending status and the recipient receives a connection-request notification.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Accept a pending connection",
+        "Pending request acted on by its recipient",
+        "The connection status changes to accepted and the requester receives a connection-accepted notification.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Send a text chat message",
+        "Accepted chat participant; non-empty message",
+        "A messages document is created under the chat and unread state is updated for the recipient.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Upload a chat attachment",
+        "Authenticated chat participant selects a supported image or file",
+        "The file is stored under chat_attachments and an image or file message is created for the chat.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Access a chat as a non-participant",
+        "Authenticated account whose UID is not in the chat participants",
+        "Firestore and Storage rules deny access to the chat content and its protected attachments.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 142,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Mark a notification as read",
+        "Unread notification belonging to the authenticated user",
+        "The notification read field is updated and the unread count decreases.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Attempt to read another user's notification",
+        "Notification whose userId does not match the authenticated UID",
+        "Firestore rules deny the read operation.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Submit an eligible transaction review",
+        "Completed marketplace or service transaction; valid rating; optional comment within 1000 characters",
+        "A reviews document is created with the correct review role and publication state, and the related review-submitted marker is updated.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Submit an over-length review comment",
+        "Review comment longer than 1000 characters",
+        "The message \"Review comment must be at most 1000 characters.\" is displayed and submission is prevented.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Submit a chat or transaction report",
+        "Supported report category/type, reason, related record, and optional evidence",
+        "A reports document is created with open status and the report becomes available to the permitted Community Administrator workflow.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 143,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Log in with an active Community Administrator account",
+        "Valid administrator email and password on Flutter Web",
+        "The administrator profile is loaded and AuthWrapper opens AdminDashboardScreen.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Log in with a disabled administrator account",
+        "Correct credentials for a disabled administrator profile",
+        "The message \"This admin account is disabled.\" is displayed and portal access is denied.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Attempt portal access with a Resident account",
+        "Authenticated Resident opens the web application",
+        "Role-based routing does not grant Community Administrator management access.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Open the administrator portal without authentication",
+        "No Firebase session",
+        "AuthWrapper displays AdminLoginScreen instead of protected portal content.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 144,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Approve a reviewed verification request",
+        "Pending/submitted request in the administrator's community with reviewed extracted fields",
+        "The request is confirmed, the Resident verification status becomes verified, and a verification-approved activity record and notification are created.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Reject a verification request with a reason",
+        "Pending/submitted request and non-empty rejection reason",
+        "The request and Resident verification status become rejected and the Resident receives the recorded reason through the supported notification/status interface.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Correct OCR-extracted fields before approval",
+        "Administrator edits supported extracted values in Review OCR details",
+        "The corrected extractedFields values are stored with administrator-reviewed source information and are used by the subsequent decision.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Suspend an active Resident",
+        "Community-scoped active Resident and administrator reason",
+        "The Resident account status changes to suspended and a residentSuspended activity log entry is recorded.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Access a Resident from another administrator community",
+        "Community Administrator requests a users record outside adminCommunityId",
+        "Firestore rules deny the community-scoped operation.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 145,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Publish a valid community news post",
+        "Post type, title, message, duration/schedule, and optional cover image",
+        "A communityPosts document is created or updated with published status and eligible community Residents receive the corresponding community notification.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Save a community post as a draft",
+        "Valid title and message with draft action",
+        "The post is stored with draft status and is not treated as a published Resident\nannouncement.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Archive an item listing",
+        "Active community item selected by a permitted administrator",
+        "The item status changes to archived, the owner receives the supported listing-archived notification, and an activity log is recorded.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Restore an archived service listing",
+        "Archived community service selected by a permitted administrator",
+        "The service returns to its restorable active state, the provider receives the supported listing-restored notification, and an activity log is recorded.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 146,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Dismiss an open report",
+        "Open report and recorded dismissal reason",
+        "The report status changes to dismissed and the administrator decision is stored.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Resolve a marketplace deposit dispute",
+        "Eligible disputed borrow request; full refund, partial deduction, or full deduction decision; reason",
+        "The resolveMarketplaceDeposit callable validates the request and records the corresponding deposit, refund, deduction, and resolution fields.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Resolve a service dispute",
+        "Eligible disputed service request and supported administrator resolution",
+        "The service request stores the administrator resolution and advances to the corresponding refund, payout, or resolved state through backend processing.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Mark a manual lender payout as paid",
+        "Payout-ready transaction with reference and optional note",
+        "The manual payout status becomes paid and the marking administrator, timestamp, reference, and note are recorded.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Update administrator notification preferences",
+        "Changed verification, report, service, or transaction notification toggles",
+        "The administrator preference fields are updated and the settings interface reflects the saved selections.",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "table_number": 147,
+    "rows": [
+      [
+        "TC NO.",
+        "TEST SCENARIO",
+        "TEST DATA",
+        "EXPECTED MESSAGE",
+        "ACTUAL MESSAGE",
+        "RESULT"
+      ],
+      [
+        "TC1",
+        "Create a marketplace item as an unverified Resident",
+        "Authenticated Resident whose verification status is not verified",
+        "Firestore rules deny item creation because the verified-resident requirement is not satisfied.",
+        "",
+        ""
+      ],
+      [
+        "TC2",
+        "Read another Resident's private users record",
+        "Authenticated Resident requests users/{otherUid}",
+        "Firestore rules deny the private profile read unless the requester is the owner or an authorised administrator.",
+        "",
+        ""
+      ],
+      [
+        "TC3",
+        "Upload an item image into another user's path",
+        "Authenticated UID differs from item_images/{userId}",
+        "Firebase Storage rules deny the create or update operation.",
+        "",
+        ""
+      ],
+      [
+        "TC4",
+        "Write an arbitrary unknown collection",
+        "Authenticated client writes a path not covered by an allow rule",
+        "The final deny-all Firestore rule rejects the operation.",
+        "",
+        ""
+      ],
+      [
+        "TC5",
+        "Read a borrow request as an unrelated Resident",
+        "Authenticated Resident is neither borrower nor owner and is not an administrator",
+        "Firestore rules deny access to the borrowRequests document.",
+        "",
+        ""
+      ]
+    ]
+  }
+]

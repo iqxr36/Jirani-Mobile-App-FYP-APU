@@ -31,55 +31,55 @@ void main() {
           .collection(AppConstants.borrowRequestsCollection)
           .doc(borrowId)
           .set({
-        'id': borrowId,
-        'itemId': itemId,
-        'itemTitle': 'Drill',
-        'itemImageUrl': '',
-        'ownerId': ownerId,
-        'ownerName': 'Owner One',
-        'ownerEmail': 'owner@example.com',
-        'borrowerId': borrowerId,
-        'borrowerName': 'Borrower One',
-        'borrowerEmail': 'borrower@example.com',
-        'borrowerPhoneNumber': '',
-        'borrowerVerified': true,
-        'borrowerReputationScore': 0,
-        'requestedStartDate': now,
-        'expectedReturnDate': now,
-        'pickupTime': '10:00',
-        'message': '',
-        'status': AppConstants.borrowStatusCompleted,
-        'paymentStatus': AppConstants.paymentStatusCompleted,
-        'paymentCompletedAt': now,
-        'paymentProvider': AppConstants.paymentProviderManualV1,
-        'chatId': '',
-        'handoverCode': '',
-        'returnCode': '',
-        'usageFeeAmount': null,
-        'depositAmount': null,
-        'hasUsageFee': false,
-        'hasDeposit': false,
-        'createdAt': now,
-        'updatedAt': now,
-        'approvedAt': now,
-        'rejectedAt': null,
-        'rejectionReason': '',
-        'pickupConfirmedAt': null,
-        'handoverConfirmedAt': null,
-        'returnSubmittedAt': null,
-        'returnConfirmedAt': null,
-        'completedAt': now,
-        'pickupProofImageUrl': null,
-        'handoverProofImageUrl': null,
-        'returnProofImageUrl': null,
-        'itemConditionBefore': null,
-        'itemConditionAfter': null,
-        'returnNotes': '',
-        'ownerReturnNotes': '',
-        'depositDecision': AppConstants.depositDecisionNotRequired,
-        'depositDecisionReason': '',
-        'depositDecidedAt': null,
-      });
+            'id': borrowId,
+            'itemId': itemId,
+            'itemTitle': 'Drill',
+            'itemImageUrl': '',
+            'ownerId': ownerId,
+            'ownerName': 'Owner One',
+            'ownerEmail': 'owner@example.com',
+            'borrowerId': borrowerId,
+            'borrowerName': 'Borrower One',
+            'borrowerEmail': 'borrower@example.com',
+            'borrowerPhoneNumber': '',
+            'borrowerVerified': true,
+            'borrowerReputationScore': 0,
+            'requestedStartDate': now,
+            'expectedReturnDate': now,
+            'pickupTime': '10:00',
+            'message': '',
+            'status': AppConstants.borrowStatusCompleted,
+            'paymentStatus': AppConstants.paymentStatusCompleted,
+            'paymentCompletedAt': now,
+            'paymentProvider': AppConstants.paymentProviderManualV1,
+            'chatId': '',
+            'handoverCode': '',
+            'returnCode': '',
+            'usageFeeAmount': null,
+            'depositAmount': null,
+            'hasUsageFee': false,
+            'hasDeposit': false,
+            'createdAt': now,
+            'updatedAt': now,
+            'approvedAt': now,
+            'rejectedAt': null,
+            'rejectionReason': '',
+            'pickupConfirmedAt': null,
+            'handoverConfirmedAt': null,
+            'returnSubmittedAt': null,
+            'returnConfirmedAt': null,
+            'completedAt': now,
+            'pickupProofImageUrl': null,
+            'handoverProofImageUrl': null,
+            'returnProofImageUrl': null,
+            'itemConditionBefore': null,
+            'itemConditionAfter': null,
+            'returnNotes': '',
+            'ownerReturnNotes': '',
+            'depositDecision': AppConstants.depositDecisionNotRequired,
+            'depositDecisionReason': '',
+            'depositDecidedAt': null,
+          });
       await firestore
           .collection(AppConstants.publicProfilesCollection)
           .doc(ownerId)
@@ -134,9 +134,17 @@ void main() {
     test('rejects invalid review roles and mismatched reviewer', () async {
       await seedCompletedBorrow();
       final request = completedRequest();
+      final ownerService = ReviewService(
+        auth: MockFirebaseAuth(
+          signedIn: true,
+          mockUser: MockUser(uid: ownerId),
+        ),
+        firestore: firestore,
+        useCallableSubmission: false,
+      );
 
       await expectLater(
-        service.createReview(
+        ownerService.createReview(
           borrowRequest: request,
           reviewerId: ownerId,
           reviewerName: 'Owner One',
@@ -154,39 +162,41 @@ void main() {
       );
     });
 
-    test('creates hidden review and flags borrow request during blind period',
-        () async {
-      await seedCompletedBorrow();
-      final request = completedRequest();
+    test(
+      'creates hidden review and flags borrow request during blind period',
+      () async {
+        await seedCompletedBorrow();
+        final request = completedRequest();
 
-      await service.createReview(
-        borrowRequest: request,
-        reviewerId: borrowerId,
-        reviewerName: 'Borrower One',
-        role: AppConstants.reviewRoleBorrowerToOwner,
-        rating: 5,
-        comment: 'Smooth handover',
-      );
+        await service.createReview(
+          borrowRequest: request,
+          reviewerId: borrowerId,
+          reviewerName: 'Borrower One',
+          role: AppConstants.reviewRoleBorrowerToOwner,
+          rating: 5,
+          comment: 'Smooth handover',
+        );
 
-      final reviewId = ReviewService.reviewDocId(borrowId, borrowerId);
-      final reviewSnap = await firestore
-          .collection(AppConstants.reviewsCollection)
-          .doc(reviewId)
-          .get();
-      final borrowSnap = await firestore
-          .collection(AppConstants.borrowRequestsCollection)
-          .doc(borrowId)
-          .get();
+        final reviewId = ReviewService.reviewDocId(borrowId, borrowerId);
+        final reviewSnap = await firestore
+            .collection(AppConstants.reviewsCollection)
+            .doc(reviewId)
+            .get();
+        final borrowSnap = await firestore
+            .collection(AppConstants.borrowRequestsCollection)
+            .doc(borrowId)
+            .get();
 
-      expect(reviewSnap.exists, isTrue);
-      expect(reviewSnap.data()?['visible'], isFalse);
-      expect(reviewSnap.data()?['status'], AppConstants.reviewStatusHidden);
-      expect(reviewSnap.data()?['revieweeId'], ownerId);
-      expect(reviewSnap.data()?['publishAfter'], isNotNull);
+        expect(reviewSnap.exists, isTrue);
+        expect(reviewSnap.data()?['visible'], isFalse);
+        expect(reviewSnap.data()?['status'], AppConstants.reviewStatusHidden);
+        expect(reviewSnap.data()?['revieweeId'], ownerId);
+        expect(reviewSnap.data()?['publishAfter'], isNotNull);
 
-      expect(borrowSnap.data()?['borrowerReviewSubmitted'], isTrue);
-      expect(borrowSnap.data()?['reviewGraceEndsAt'], isNotNull);
-    });
+        expect(borrowSnap.data()?['borrowerReviewSubmitted'], isTrue);
+        expect(borrowSnap.data()?['reviewGraceEndsAt'], isNotNull);
+      },
+    );
 
     test('prevents duplicate reviews for the same borrow request', () async {
       await seedCompletedBorrow();

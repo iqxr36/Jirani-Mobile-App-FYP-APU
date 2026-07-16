@@ -7,6 +7,7 @@ import 'package:jirani/shared/data/repositories/verification_permission_reposito
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 420;
@@ -82,6 +83,7 @@ class _ResidentPushNotificationsSettingsViewState
         _showSnack(
           'Allow notifications in your device settings to receive alerts.',
         );
+        await openAppSettings();
         return;
       }
     }

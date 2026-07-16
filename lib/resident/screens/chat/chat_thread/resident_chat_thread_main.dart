@@ -33,47 +33,9 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
 
     final provider = context.read<ChatProvider>();
     final currentUserId = provider.currentUser?.uid ?? '';
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix-freeze',
-        hypothesisId: 'H6',
-        location: 'lib/views/chat/resident_chat_thread_view.dart:46',
-        message: 'Entering chat message watcher',
-        data: <String, Object?>{
-          'chatId': agentDebugId(widget.initialChat.id),
-          'hasCurrentUser': provider.currentUser != null,
-          'currentUserId': agentDebugId(currentUserId),
-          'participantCount': widget.initialChat.participantIds.length,
-        },
-      ),
-    );
-    // #endregion
     _messagesSub = provider.watchMessages(widget.initialChat.id).listen((
       messages,
     ) {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H5',
-          location: 'lib/views/chat/resident_chat_thread_view.dart:49',
-          message: 'Received chat messages before UI conversion',
-          data: <String, Object?>{
-            'chatId': agentDebugId(widget.initialChat.id),
-            'messageCount': messages.length,
-            'attachmentCount': messages
-                .where((message) => message.isImage || message.isFile)
-                .length,
-            'hasEmptyMediaUrl': messages.any(
-              (message) =>
-                  (message.isImage || message.isFile) &&
-                  message.mediaUrl.isEmpty,
-            ),
-          },
-        ),
-      );
-      // #endregion
       final chatMessages = messages
           .map((message) => message.toChatMessage(currentUserId: currentUserId))
           .toList(growable: false);
@@ -81,99 +43,9 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
         for (final message in messages) message.id: message,
       };
       _chatController.setMessages(chatMessages, animated: false);
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix-freeze',
-          hypothesisId: 'H7,H9',
-          location: 'lib/views/chat/resident_chat_thread_view.dart:82',
-          message: 'Chat messages converted and set on controller',
-          data: <String, Object?>{
-            'chatId': agentDebugId(widget.initialChat.id),
-            'messageCount': messages.length,
-            'convertedCount': chatMessages.length,
-            'lastMessageType': messages.isEmpty ? 'none' : messages.last.type,
-            'lastHasMediaUrl':
-                messages.isNotEmpty &&
-                (messages.last.isImage || messages.last.isFile) &&
-                messages.last.mediaUrl.isNotEmpty,
-          },
-        ),
-      );
-      // #endregion
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // #region agent log
-        unawaited(
-          agentDebugLog(
-            runId: 'pre-fix-freeze',
-            hypothesisId: 'H7',
-            location: 'lib/views/chat/resident_chat_thread_view.dart:101',
-            message: 'Post-frame reached after setting chat messages',
-            data: <String, Object?>{
-              'chatId': agentDebugId(widget.initialChat.id),
-              'messageCount': chatMessages.length,
-              'attachmentCount': messages
-                  .where((message) => message.isImage || message.isFile)
-                  .length,
-            },
-          ),
-        );
-        // #endregion
-      });
       final latestChat =
           provider.chatById(widget.initialChat.id) ?? widget.initialChat;
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix-freeze',
-          hypothesisId: 'H8',
-          location: 'lib/views/chat/resident_chat_thread_view.dart:99',
-          message: 'Scheduling markChatRead from message watcher',
-          data: <String, Object?>{
-            'chatId': agentDebugId(latestChat.id),
-            'currentUserId': agentDebugId(currentUserId),
-            'unreadForCurrentUser': latestChat.unreadCountFor(currentUserId),
-          },
-        ),
-      );
-      // #endregion
-      unawaited(
-        provider
-            .markChatRead(latestChat)
-            .then((_) {
-              // #region agent log
-              unawaited(
-                agentDebugLog(
-                  runId: 'pre-fix-freeze',
-                  hypothesisId: 'H8',
-                  location: 'lib/views/chat/resident_chat_thread_view.dart:132',
-                  message: 'markChatRead completed from message watcher',
-                  data: <String, Object?>{
-                    'chatId': agentDebugId(latestChat.id),
-                    'currentUserId': agentDebugId(currentUserId),
-                  },
-                ),
-              );
-              // #endregion
-            })
-            .catchError((Object error) {
-              // #region agent log
-              unawaited(
-                agentDebugLog(
-                  runId: 'pre-fix-freeze',
-                  hypothesisId: 'H8',
-                  location: 'lib/views/chat/resident_chat_thread_view.dart:147',
-                  message: 'markChatRead failed from message watcher',
-                  data: <String, Object?>{
-                    'chatId': agentDebugId(latestChat.id),
-                    'errorType': error.runtimeType.toString(),
-                    'error': error.toString(),
-                  },
-                ),
-              );
-              // #endregion
-            }),
-      );
+      unawaited(provider.markChatRead(latestChat));
     });
   }
 
@@ -239,22 +111,6 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
       }
 
       final bytes = await image.readAsBytes();
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H1,H3',
-          location: 'lib/views/chat/resident_chat_thread_view.dart:93',
-          message: 'Picked chat photo attachment',
-          data: <String, Object?>{
-            'byteLength': bytes.length,
-            'fileSize': fileSize,
-            'nameLength': image.name.length,
-            'extension': p.extension(image.name).toLowerCase(),
-          },
-        ),
-      );
-      // #endregion
       if (!mounted) return;
       await _previewAndSendAttachment(
         _PickedChatAttachment(
@@ -291,23 +147,6 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     final type = _isImageFile(file.name)
         ? AppConstants.chatMessageImage
         : AppConstants.chatMessageFile;
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H1,H3',
-        location: 'lib/views/chat/resident_chat_thread_view.dart:119',
-        message: 'Picked chat file attachment',
-        data: <String, Object?>{
-          'byteLength': bytes?.length,
-          'fileSize': file.size,
-          'hasLocalPath': localFilePath?.isNotEmpty == true,
-          'nameLength': file.name.length,
-          'extension': p.extension(file.name).toLowerCase(),
-        },
-      ),
-    );
-    // #endregion
     await _previewAndSendAttachment(
       _PickedChatAttachment(
         bytes: bytes,
@@ -335,25 +174,6 @@ class _ResidentChatThreadViewState extends State<ResidentChatThreadView> {
     final chat = provider.chatById(widget.initialChat.id) ?? widget.initialChat;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H1,H2,H3,H4',
-          location: 'lib/views/chat/resident_chat_thread_view.dart:157',
-          message: 'Sending confirmed chat attachment',
-          data: <String, Object?>{
-            'chatId': agentDebugId(chat.id),
-            'byteLength': attachment.bytes?.length,
-            'fileSize': attachment.fileSize,
-            'hasLocalPath': attachment.localFilePath?.isNotEmpty == true,
-            'nameLength': attachment.fileName.length,
-            'extension': p.extension(attachment.fileName).toLowerCase(),
-            'type': attachment.type,
-          },
-        ),
-      );
-      // #endregion
       final replyTo = _replyingTo;
       await provider.sendAttachmentMessage(
         chat: chat,

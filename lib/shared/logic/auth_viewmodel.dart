@@ -3,8 +3,7 @@ library;
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'
-    show FirebaseAuthException, PhoneAuthCredential, User;
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/core/utils/community_change.dart';
@@ -19,6 +18,7 @@ import 'package:jirani/shared/data/repositories/auth_repository.dart';
 import 'package:jirani/shared/data/repositories/chat_repository.dart';
 import 'package:jirani/shared/data/repositories/user_repository.dart';
 import 'package:jirani/shared/data/repositories/verification_repository.dart';
+import 'package:jirani/shared/utils/auth_error_messages.dart';
 
 part 'auth_viewmodel/auth_viewmodel_core.dart';
 part 'auth_viewmodel/auth_viewmodel_sign_in.dart';

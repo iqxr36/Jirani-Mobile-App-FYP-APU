@@ -10,6 +10,14 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
   }) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty) return;
+    final lengthError = Validators.validateMaxLength(
+      cleanText,
+      maxLength: AppConstants.maxLongTextLength,
+      fieldName: 'Message',
+    );
+    if (lengthError != null) {
+      throw Exception(lengthError);
+    }
     await _sendMessage(
       chat: chat,
       sender: sender,
@@ -55,28 +63,6 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
       },
     );
 
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H2,H3',
-        location: 'lib/services/chat_service.dart:216',
-        message: 'Starting chat attachment upload',
-        data: <String, Object?>{
-          'chatId': agentDebugId(chat.id),
-          'senderId': agentDebugId(sender.uid),
-          'byteLength': bytes?.length,
-          'fileSize': fileSize,
-          'hasLocalPath': localFilePath?.isNotEmpty == true,
-          'extension': extension.toLowerCase(),
-          'mimeType': mimeType ?? 'application/octet-stream',
-          'storagePathId': agentDebugId(storagePath),
-          'type': type,
-        },
-      ),
-    );
-    // #endregion
-
     try {
       final path = localFilePath;
       if (path != null && path.isNotEmpty) {
@@ -85,44 +71,9 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
         await ref.putData(bytes!, metadata);
       }
     } catch (error) {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H2,H3',
-          location: 'lib/services/chat_service.dart:241',
-          message: 'Chat attachment upload failed',
-          data: <String, Object?>{
-            'errorType': error.runtimeType.toString(),
-            'error': error.toString(),
-            'byteLength': bytes?.length,
-            'fileSize': fileSize,
-            'hasLocalPath': localFilePath?.isNotEmpty == true,
-            'extension': extension.toLowerCase(),
-            'mimeType': mimeType ?? 'application/octet-stream',
-          },
-        ),
-      );
-      // #endregion
       rethrow;
     }
     final url = await ref.getDownloadURL();
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H2,H4,H5',
-        location: 'lib/services/chat_service.dart:260',
-        message: 'Chat attachment upload succeeded',
-        data: <String, Object?>{
-          'chatId': agentDebugId(chat.id),
-          'downloadUrlLength': url.length,
-          'storagePathId': agentDebugId(storagePath),
-          'type': type,
-        },
-      ),
-    );
-    // #endregion
 
     await _sendMessage(
       chat: chat,
@@ -215,41 +166,9 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     required String currentUserId,
   }) async {
     final chatRef = _chats.doc(chat.id);
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H5',
-        location: 'lib/services/chat_service.dart:212',
-        message: 'Marking chat read',
-        data: <String, Object?>{
-          'chatId': agentDebugId(chat.id),
-          'currentUserId': agentDebugId(currentUserId),
-          'currentUserInParticipants': chat.participantIds.contains(
-            currentUserId,
-          ),
-          'participantCount': chat.participantIds.length,
-        },
-      ),
-    );
-    // #endregion
     try {
       await chatRef.update({'unreadCounts.$currentUserId': 0});
     } catch (error) {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H5',
-          location: 'lib/services/chat_service.dart:231',
-          message: 'markChatRead Firestore update failed',
-          data: <String, Object?>{
-            'errorType': error.runtimeType.toString(),
-            'error': error.toString(),
-          },
-        ),
-      );
-      // #endregion
       rethrow;
     }
 
@@ -298,25 +217,6 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
         : chatRef.collection(AppConstants.messagesCollection).doc(messageId);
     final now = FieldValue.serverTimestamp();
     final batch = _firestore.batch();
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H5',
-        location: 'lib/services/chat_service.dart:315',
-        message: 'Sending chat message batch',
-        data: <String, Object?>{
-          'chatId': agentDebugId(chat.id),
-          'senderId': agentDebugId(sender.uid),
-          'recipientId': agentDebugId(recipientId),
-          'senderInParticipants': chat.participantIds.contains(sender.uid),
-          'recipientInParticipants': chat.participantIds.contains(recipientId),
-          'participantCount': chat.participantIds.length,
-          'type': type,
-        },
-      ),
-    );
-    // #endregion
 
     batch.set(messageRef, {
       'chatId': chat.id,
@@ -347,20 +247,6 @@ mixin _ChatServiceMessagesMixin on _ChatServiceBase {
     try {
       await batch.commit();
     } catch (error) {
-      // #region agent log
-      unawaited(
-        agentDebugLog(
-          runId: 'pre-fix',
-          hypothesisId: 'H5',
-          location: 'lib/services/chat_service.dart:361',
-          message: 'sendMessage Firestore batch failed',
-          data: <String, Object?>{
-            'errorType': error.runtimeType.toString(),
-            'error': error.toString(),
-          },
-        ),
-      );
-      // #endregion
       rethrow;
     }
     // Chat message notifications are created server-side by Cloud Functions.

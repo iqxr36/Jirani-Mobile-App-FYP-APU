@@ -18,10 +18,12 @@ class ResidentGeofenceGate extends StatefulWidget {
     super.key,
     required this.user,
     required this.child,
+    this.gateService,
   });
 
   final AppUser user;
   final Widget child;
+  final GeofenceGateService? gateService;
 
   @override
   State<ResidentGeofenceGate> createState() => _ResidentGeofenceGateState();
@@ -29,17 +31,20 @@ class ResidentGeofenceGate extends StatefulWidget {
 
 class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
     with WidgetsBindingObserver {
-  final GeofenceGateService _gateService = GeofenceGateService();
+  late final GeofenceGateService _gateService;
 
   bool _checking = true;
   bool _insideBoundary = false;
   String? _message;
   GeofenceGateBlockReason? _blockReason;
+  bool _checkInProgress = false;
+  bool _waitingForSettings = false;
 
   @override
   /// Geofence feature lifecycle: starts the first boundary check after the widget is mounted.
   void initState() {
     super.initState();
+    _gateService = widget.gateService ?? GeofenceGateService();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_check()));
   }
@@ -65,80 +70,111 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
   @override
   /// Geofence feature lifecycle: re-checks the resident boundary when the app returns to the foreground.
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && _waitingForSettings) {
+      _waitingForSettings = false;
       unawaited(_check());
     }
   }
 
   /// Geofence feature: decides whether to show the protected resident app or the blocked community boundary screen.
   Future<void> _check() async {
-    if (!mounted) return;
-    if (!widget.user.isResident) {
-      setState(() {
-        _checking = false;
-        _insideBoundary = true;
-        _message = null;
-        _blockReason = null;
-      });
-      return;
-    }
-
-    final hasCommunity =
-        widget.user.communityId.trim().isNotEmpty ||
-        widget.user.communityName.trim().isNotEmpty;
-    if (!hasCommunity) {
-      setState(() {
-        _checking = false;
-        _insideBoundary = false;
-        _message = 'Choose your community before entering Jirani.';
-        _blockReason = GeofenceGateBlockReason.missingCommunity;
-      });
-      return;
-    }
-
-    final wasInsideBoundary = _insideBoundary;
-    setState(() {
-      _checking = !wasInsideBoundary;
-      _message = null;
-      _blockReason = null;
-    });
-
-    final result = await _gateService.checkResidentAccess(widget.user);
-
-    if (!mounted) return;
-    // Geofence feature: persist the first successful location verification so the user record reflects the approved location.
-    if (result.insideBoundary && !widget.user.locationVerified) {
-      try {
-        await context.read<AuthViewModel>().markLocationVerified();
-      } catch (_) {
-        if (!mounted) return;
+    if (!mounted || _checkInProgress) return;
+    _checkInProgress = true;
+    try {
+      if (!widget.user.isResident) {
         setState(() {
           _checking = false;
-          _insideBoundary = false;
-          _message = 'Could not save location verification. Try again.';
-          _blockReason = GeofenceGateBlockReason.checkFailed;
+          _insideBoundary = true;
+          _message = null;
+          _blockReason = null;
         });
         return;
       }
-    }
 
-    if (!mounted) return;
-    setState(() {
-      _checking = false;
-      _insideBoundary = result.insideBoundary;
-      _message = result.message;
-      _blockReason = result.blockReason;
-    });
+      final hasCommunity =
+          widget.user.communityId.trim().isNotEmpty ||
+          widget.user.communityName.trim().isNotEmpty;
+      if (!hasCommunity) {
+        setState(() {
+          _checking = false;
+          _insideBoundary = false;
+          _message = 'Choose your community before entering Jirani.';
+          _blockReason = GeofenceGateBlockReason.missingCommunity;
+        });
+        return;
+      }
+
+      final wasInsideBoundary = _insideBoundary;
+      setState(() {
+        _checking = !wasInsideBoundary;
+        _message = null;
+        _blockReason = null;
+      });
+
+      final result = await _gateService.checkResidentAccess(widget.user);
+
+      if (!mounted) return;
+      // Geofence feature: persist the first successful location verification so the user record reflects the approved location.
+      if (result.insideBoundary && !widget.user.locationVerified) {
+        try {
+          await context.read<AuthViewModel>().markLocationVerified();
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _checking = false;
+            _insideBoundary = false;
+            _message = 'Could not save location verification. Try again.';
+            _blockReason = GeofenceGateBlockReason.checkFailed;
+          });
+          return;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _insideBoundary = result.insideBoundary;
+        _message = result.message;
+        _blockReason = result.blockReason;
+      });
+    } finally {
+      _checkInProgress = false;
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    if (!mounted || _checkInProgress) return;
+    _checkInProgress = true;
+    setState(() => _checking = true);
+    try {
+      final result = await _gateService.requestForegroundLocationPermission();
+      if (!mounted) return;
+      if (result.blockReason == null) {
+        _checkInProgress = false;
+        await _check();
+        return;
+      }
+      setState(() {
+        _checking = false;
+        _insideBoundary = false;
+        _message = result.message;
+        _blockReason = result.blockReason;
+      });
+    } finally {
+      _checkInProgress = false;
+    }
   }
 
   /// Geofence feature: opens phone app settings after permission is permanently denied.
   Future<void> _openAppSettings() async {
-    await Geolocator.openAppSettings();
+    _waitingForSettings = await Geolocator.openAppSettings();
+    if (!_waitingForSettings && mounted) unawaited(_check());
   }
 
   /// Geofence feature: opens phone location settings when GPS/location services are turned off.
   Future<void> _openLocationSettings() async {
-    await Geolocator.openLocationSettings();
+    _waitingForSettings = await Geolocator.openLocationSettings();
+    if (!_waitingForSettings && mounted) unawaited(_check());
   }
 
   /// Geofence feature: opens community selection, then re-checks the new boundary after returning.
@@ -164,6 +200,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
           widget.user.communityId.trim().isNotEmpty ||
           widget.user.communityName.trim().isNotEmpty,
       onRetry: () => unawaited(_check()),
+      onRequestLocation: () => unawaited(_requestLocationPermission()),
       onOpenAppSettings: () => unawaited(_openAppSettings()),
       onOpenLocationSettings: () => unawaited(_openLocationSettings()),
       onChooseCommunity: () => unawaited(_chooseCommunity()),
@@ -179,6 +216,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
     required this.blockReason,
     required this.hasCommunity,
     required this.onRetry,
+    required this.onRequestLocation,
     required this.onOpenAppSettings,
     required this.onOpenLocationSettings,
     required this.onChooseCommunity,
@@ -189,6 +227,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
   final GeofenceGateBlockReason? blockReason;
   final bool hasCommunity;
   final VoidCallback onRetry;
+  final VoidCallback onRequestLocation;
   final VoidCallback onOpenAppSettings;
   final VoidCallback onOpenLocationSettings;
   final VoidCallback onChooseCommunity;
@@ -214,9 +253,8 @@ class _GeofenceBlockScreen extends StatelessWidget {
       GeofenceGateBlockReason.locationServicesOff => 'Open Location Settings',
       GeofenceGateBlockReason.permissionDenied => 'Allow Location',
       GeofenceGateBlockReason.permissionDeniedForever => 'Open App Settings',
-      GeofenceGateBlockReason.missingCommunity => hasCommunity
-          ? 'Change Community'
-          : 'Choose Community',
+      GeofenceGateBlockReason.missingCommunity =>
+        hasCommunity ? 'Change Community' : 'Choose Community',
       _ => 'Try Again',
     };
   }
@@ -227,8 +265,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
       GeofenceGateBlockReason.locationServicesOff =>
         Icons.location_disabled_rounded,
       GeofenceGateBlockReason.permissionDenied ||
-      GeofenceGateBlockReason.permissionDeniedForever =>
-        Icons.settings_rounded,
+      GeofenceGateBlockReason.permissionDeniedForever => Icons.settings_rounded,
       GeofenceGateBlockReason.missingCommunity => Icons.apartment_rounded,
       _ => Icons.refresh_rounded,
     };
@@ -238,7 +275,7 @@ class _GeofenceBlockScreen extends StatelessWidget {
   VoidCallback get _primaryAction {
     return switch (blockReason) {
       GeofenceGateBlockReason.locationServicesOff => onOpenLocationSettings,
-      GeofenceGateBlockReason.permissionDenied => onRetry,
+      GeofenceGateBlockReason.permissionDenied => onRequestLocation,
       GeofenceGateBlockReason.permissionDeniedForever => onOpenAppSettings,
       GeofenceGateBlockReason.missingCommunity => onChooseCommunity,
       _ => onRetry,

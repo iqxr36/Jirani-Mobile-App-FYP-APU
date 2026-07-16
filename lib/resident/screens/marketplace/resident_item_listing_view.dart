@@ -20,6 +20,7 @@ import 'package:jirani/resident/providers/review_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/borrow_request.dart';
 import 'package:jirani/shared/models/item_model.dart';
+import 'package:jirani/shared/services/device_permission_access.dart';
 import 'package:jirani/shared/widgets/jirani_background.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/utils/display_labels.dart';

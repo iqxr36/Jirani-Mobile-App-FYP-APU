@@ -7,7 +7,15 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -27,6 +35,21 @@ before(async () => {
 
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
+    await setDoc(doc(db, 'users', 'user-a'), {
+      role: 'resident',
+      verificationStatus: 'pending',
+      communityId: 'community-2',
+    });
+    await setDoc(doc(db, 'users', 'user-b'), {
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+    });
+    await setDoc(doc(db, 'users', 'user-c'), {
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+    });
     await setDoc(doc(db, 'chats', CHAT_ID), {
       participantIds: ['user-a', 'user-b'],
       participantLookup: { 'user-a': true, 'user-b': true },
@@ -119,5 +142,33 @@ describe('chat message updates', () => {
         text: 'hacked',
       }),
     );
+  });
+});
+
+describe('chat inbox queries', () => {
+  test('pending participant can query own chats after changing community', async () => {
+    const db = testEnv.authenticatedContext('user-a').firestore();
+    const ownChats = query(
+      collection(db, 'chats'),
+      where('participantLookup.user-a', '==', true),
+    );
+
+    await assertSucceeds(getDocs(ownChats));
+  });
+
+  test('resident cannot list chats without a participant filter', async () => {
+    const db = testEnv.authenticatedContext('user-b').firestore();
+
+    await assertFails(getDocs(collection(db, 'chats')));
+  });
+
+  test('non-participant cannot query another resident chats', async () => {
+    const db = testEnv.authenticatedContext('user-c').firestore();
+    const anotherResidentsChats = query(
+      collection(db, 'chats'),
+      where('participantLookup.user-a', '==', true),
+    );
+
+    await assertFails(getDocs(anotherResidentsChats));
   });
 });

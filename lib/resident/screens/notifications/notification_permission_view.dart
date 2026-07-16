@@ -4,6 +4,7 @@ import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/shared/data/repositories/verification_permission_repository.dart';
 import 'package:jirani/resident/screens/camera/camera_permission_view.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const Color _kBrandTeal = Color(0xFF006D77);
 const double _kMaxContentWidth = 390;
@@ -38,6 +39,29 @@ class _NotificationPermissionViewState
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const CameraPermissionView()),
     );
+  }
+
+  Future<void> _showNotificationSettingsDialog() async {
+    final shouldOpen = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Notifications Are Disabled'),
+        content: const Text(
+          'Enable notifications in app settings to receive messages, lending updates, service bookings, and community alerts.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Maybe Later'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+    if (shouldOpen == true) await openAppSettings();
   }
 
   // Notification permission feature: stores notification permission state and FCM token preference.
@@ -89,9 +113,9 @@ class _NotificationPermissionViewState
         );
         if (!mounted) return;
         _showSnack(
-          'Notifications are disabled. You can enable them later from settings.',
+          'Notifications remain disabled until you enable them in settings.',
         );
-        _completePermissionFlow();
+        await _showNotificationSettingsDialog();
       }
     } catch (_) {
       if (mounted) {

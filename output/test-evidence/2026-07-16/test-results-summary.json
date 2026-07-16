@@ -1,0 +1,43 @@
+{
+  "date": "2026-07-16",
+  "original_document": "C:\\Users\\Faisal\\Faisal's Files\\FYP\\FYP Part 2\\FYP Documentation\\MR_FAISAL_MOHAMMED_EZZADDIN_SAIF_AHMED_TP077402_APD3F2511SE _SE_IR.docx",
+  "original_sha256_before": "668e74b3ea5f9006ac93b39bb0bba416365102d2d883cb802e24368fa8a42eb7",
+  "working_copy": "C:\\Users\\Faisal\\Faisal's Files\\FYP\\FYP Part 2\\FYP System Flutter Source Code\\fyp_flutter_application\\output\\chapter5-working-copy\\MR_FAISAL_MOHAMMED_EZZADDIN_SAIF_AHMED_TP077402_APD3F2511SE_SE_IR_CHAPTER_5_WORKING_COPY.docx",
+  "automated_layers": {
+    "flutter": {
+      "executed": 156,
+      "passed": 156,
+      "failed": 0
+    },
+    "cloud_functions": {
+      "executed": 37,
+      "passed": 37,
+      "failed": 0
+    },
+    "firestore_storage": {
+      "executed": 118,
+      "passed": 118,
+      "failed": 0
+    },
+    "total": {
+      "executed": 311,
+      "passed": 311,
+      "failed": 0
+    }
+  },
+  "static_analysis": {
+    "diagnostics": 0
+  },
+  "prepared_cases": {
+    "total": 82,
+    "pass": 29,
+    "pending": 53,
+    "pending_with_partial_automation": 17,
+    "pending_without_direct_evidence": 36
+  },
+  "uat": {
+    "executed": false,
+    "participant_responses_recorded": 0,
+    "sus_scores_recorded": 0
+  }
+}

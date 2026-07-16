@@ -38,13 +38,19 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     final statuses = _uniqueValues(allRows.map((row) => row.status));
     final categories = _uniqueValues(allRows.map((row) => row.category));
 
-    final bool statusInvalid = _statusFilter != 'all' && !statuses.contains(_statusFilter);
-    final bool categoryInvalid = _categoryFilter != 'all' && !categories.contains(_categoryFilter);
+    final bool statusInvalid =
+        _statusFilter != 'all' && !statuses.contains(_statusFilter);
+    final bool categoryInvalid =
+        _categoryFilter != 'all' && !categories.contains(_categoryFilter);
 
     final safeStatusFilter = statusInvalid ? 'all' : _statusFilter;
     final safeCategoryFilter = categoryInvalid ? 'all' : _categoryFilter;
-    
-    final listingRows = _filteredRows(allRows, safeStatusFilter, safeCategoryFilter);
+
+    final listingRows = _filteredRows(
+      allRows,
+      safeStatusFilter,
+      safeCategoryFilter,
+    );
 
     if (statusInvalid || categoryInvalid) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -151,7 +157,8 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                   (listing) => AdminListingCard(
                     listing: listing,
                     onOpen: () => _openListing(listing),
-                    onArchive: () => _confirmModeration(listing, restore: false),
+                    onArchive: () =>
+                        _confirmModeration(listing, restore: false),
                     onRestore: () => _confirmModeration(listing, restore: true),
                   ),
                 )
@@ -187,14 +194,16 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   ) {
     final query = _searchController.text.trim().toLowerCase();
     return rows.where((row) {
-      final matchesType = _typeFilter == 'all' ||
+      final matchesType =
+          _typeFilter == 'all' ||
           (_typeFilter == 'items' && row.isItem) ||
           (_typeFilter == 'services' && row.isService);
       final matchesStatus =
           safeStatusFilter == 'all' || row.status == safeStatusFilter;
       final matchesCategory =
           safeCategoryFilter == 'all' || row.category == safeCategoryFilter;
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           row.title.toLowerCase().contains(query) ||
           row.owner.toLowerCase().contains(query) ||
           row.category.toLowerCase().contains(query) ||
@@ -288,8 +297,8 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     _showSnack(
       ok
           ? restore
-              ? 'Listing restored.'
-              : 'Listing removed from residents.'
+                ? 'Listing restored.'
+                : 'Listing removed from residents.'
           : admin.errorMessage ?? 'Listing moderation failed.',
     );
   }
@@ -305,9 +314,9 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -327,7 +336,7 @@ class _AdminListingDropdown extends StatelessWidget {
     return SizedBox(
       width: 170,
       child: DropdownButtonFormField<String>(
-        value: values.containsKey(value) ? value : values.keys.first,
+        initialValue: values.containsKey(value) ? value : values.keys.first,
         isDense: true,
         decoration: const InputDecoration(
           border: OutlineInputBorder(),

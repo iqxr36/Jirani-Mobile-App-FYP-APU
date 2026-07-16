@@ -448,6 +448,12 @@ class _ResidentLenderRequestDetailViewState
     );
     if (!mounted || source == null) return;
 
+    if (source == ImageSource.camera &&
+        !await DevicePermissionAccess.ensureCamera(context)) {
+      return;
+    }
+    if (!mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
     try {
       final picked = await _imagePicker.pickImage(
@@ -536,6 +542,12 @@ class _ResidentLenderRequestDetailViewState
       },
     );
     if (!mounted || source == null) return;
+
+    if (source == ImageSource.camera &&
+        !await DevicePermissionAccess.ensureCamera(context)) {
+      return;
+    }
+    if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -706,7 +718,6 @@ class _ResidentLenderRequestDetailViewState
       _showSnack(context, e.toString().replaceFirst('Exception: ', ''));
     }
   }
-
 }
 
 /// Marketplace lender UI: chooses the correct owner action card for the current transaction status.
@@ -814,7 +825,10 @@ class _LenderTransactionBody extends StatelessWidget {
           onReportMajorDamage: onReportMajorDamage,
         );
       case AppConstants.borrowStatusMinorIssuePending:
-        return _LenderMinorIssueWaitingCard(request: request, onOpenChat: onOpenChat);
+        return _LenderMinorIssueWaitingCard(
+          request: request,
+          onOpenChat: onOpenChat,
+        );
       case AppConstants.borrowStatusDisputed:
         return _LenderDisputedCard(request: request, onOpenChat: onOpenChat);
       case AppConstants.borrowStatusCompleted:
@@ -1121,7 +1135,8 @@ class _LenderReturnCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isGood = conditionAfter == AppConstants.borrowConditionAfterSame;
     final isMinor = conditionAfter == AppConstants.borrowConditionAfterMinor;
-    final isMajor = conditionAfter == AppConstants.borrowConditionAfterMajor ||
+    final isMajor =
+        conditionAfter == AppConstants.borrowConditionAfterMajor ||
         conditionAfter == AppConstants.borrowConditionAfterLost;
 
     return _GlassPanel(
@@ -1471,8 +1486,7 @@ class _LenderCompletedCard extends StatelessWidget {
                       Icons.star_rounded,
                       color: Color(0xFFF59E0B),
                     ),
-                    onRatingUpdate: (value) =>
-                        onRatingChanged(value.round()),
+                    onRatingUpdate: (value) => onRatingChanged(value.round()),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1784,10 +1798,9 @@ class _CodeTextField extends StatelessWidget {
         fontWeight: FontWeight.w900,
         letterSpacing: 0,
       ),
-      decoration: context.residentInputDecoration(
-        label: label,
-        hint: '0000',
-      ).copyWith(counterText: ''),
+      decoration: context
+          .residentInputDecoration(label: label, hint: '0000')
+          .copyWith(counterText: ''),
     );
   }
 }

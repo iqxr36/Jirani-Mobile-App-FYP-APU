@@ -30,13 +30,6 @@ const List<_Option> _handoverConditionOptions = [
   _Option('Damaged', AppConstants.borrowConditionBeforeDamaged),
 ];
 
-const List<_Option> _returnConditionOptions = [
-  _Option('Same condition', AppConstants.borrowConditionAfterSame),
-  _Option('Minor issue', AppConstants.borrowConditionAfterMinor),
-  _Option('Major damage', AppConstants.borrowConditionAfterMajor),
-  _Option('Lost', AppConstants.borrowConditionAfterLost),
-];
-
 const List<_Option> _returnInspectionOptions = [
   _Option('Item is Good', AppConstants.borrowConditionAfterSame),
   _Option('Report Minor Issue', AppConstants.borrowConditionAfterMinor),

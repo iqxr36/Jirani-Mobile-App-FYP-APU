@@ -240,9 +240,25 @@ class TrustCommunityApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-        ChangeNotifierProvider<ItemProvider>(create: (_) => ItemProvider()),
-        ChangeNotifierProvider<BorrowRequestProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, ItemProvider>(
+          create: (_) => ItemProvider(),
+          update: (_, auth, provider) {
+            final itemProvider = provider ?? ItemProvider();
+            if (auth.firebaseUser == null) {
+              itemProvider.resetForSignedOutUser();
+            }
+            return itemProvider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, BorrowRequestProvider>(
           create: (_) => BorrowRequestProvider(),
+          update: (_, auth, provider) {
+            final borrowProvider = provider ?? BorrowRequestProvider();
+            if (auth.firebaseUser == null) {
+              borrowProvider.resetForSignedOutUser();
+            }
+            return borrowProvider;
+          },
         ),
         ChangeNotifierProvider<ReviewProvider>(create: (_) => ReviewProvider()),
         ChangeNotifierProvider<ServiceProvider>(

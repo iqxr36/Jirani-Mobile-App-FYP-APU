@@ -542,7 +542,8 @@ class AdminProvider extends ChangeNotifier {
       serviceRequest.providerId,
       serviceRequest.requesterId,
     )) {
-      _errorMessage = 'This service dispute is outside your assigned community.';
+      _errorMessage =
+          'This service dispute is outside your assigned community.';
       notifyListeners();
       return;
     }
@@ -571,7 +572,8 @@ class AdminProvider extends ChangeNotifier {
       serviceRequest.providerId,
       serviceRequest.requesterId,
     )) {
-      _errorMessage = 'This service dispute is outside your assigned community.';
+      _errorMessage =
+          'This service dispute is outside your assigned community.';
       notifyListeners();
       return;
     }
@@ -623,6 +625,7 @@ class AdminProvider extends ChangeNotifier {
     required AppUser resident,
     required String adminUid,
     required String reason,
+    required DateTime? suspensionEndsAt,
   }) {
     return _runResidentAction(
       resident,
@@ -630,6 +633,7 @@ class AdminProvider extends ChangeNotifier {
         residentUid: resident.uid,
         adminUid: adminUid,
         reason: reason,
+        suspensionEndsAt: suspensionEndsAt,
       ),
     );
   }
@@ -645,6 +649,13 @@ class AdminProvider extends ChangeNotifier {
         residentUid: resident.uid,
         adminUid: adminUid,
       ),
+    );
+  }
+
+  Future<bool> allowDeletedResidentSignup({required AppUser resident}) {
+    return _runResidentAction(
+      resident,
+      () => _service.clearDeletedResidentRestriction(residentUid: resident.uid),
     );
   }
 
@@ -1007,8 +1018,7 @@ class AdminProvider extends ChangeNotifier {
     if (_communityId.isNotEmpty && resident.communityId == _communityId) {
       return true;
     }
-    if (_communityName.isNotEmpty &&
-        resident.communityName == _communityName) {
+    if (_communityName.isNotEmpty && resident.communityName == _communityName) {
       return true;
     }
     return false;

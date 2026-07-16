@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
@@ -24,19 +25,143 @@ class AuthRepository {
     FirebaseAuthService? authService,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
+    FirebaseFunctions? functions,
+    Future<void> Function(String email)? registrationEligibilityCheck,
+    Future<void> Function(String phoneNumber, String? excludeUid)?
+    phoneAvailabilityCheck,
+    Future<void> Function(Map<String, dynamic> payload)?
+    residentRegistrationFinalizer,
   }) : _authService = authService ?? FirebaseAuthService(),
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _storage = storage ?? FirebaseStorage.instance;
+       _storage = storage ?? FirebaseStorage.instance,
+       _functions = functions ?? FirebaseFunctions.instance,
+       _registrationEligibilityCheck = registrationEligibilityCheck,
+       _phoneAvailabilityCheck = phoneAvailabilityCheck,
+       _residentRegistrationFinalizer = residentRegistrationFinalizer;
 
   final FirebaseAuthService _authService;
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+  final FirebaseFunctions _functions;
+  final Future<void> Function(String email)? _registrationEligibilityCheck;
+  final Future<void> Function(String phoneNumber, String? excludeUid)?
+  _phoneAvailabilityCheck;
+  final Future<void> Function(Map<String, dynamic> payload)?
+  _residentRegistrationFinalizer;
   static const Duration _networkTimeout = Duration(seconds: 30);
 
   // Authentication feature: exposes Firebase session changes to AuthViewModel and AuthWrapper.
   Stream<User?> get authStateChanges => _authService.authStateChanges;
 
   User? get currentFirebaseUser => _authService.currentUser;
+  bool get currentUserUsesPassword => _authService.currentUserUsesPassword;
+
+  Future<void> checkRegistrationEligibility(String email) async {
+    final injectedCheck = _registrationEligibilityCheck;
+    if (injectedCheck != null) {
+      await injectedCheck(email.trim());
+      return;
+    }
+    await _functions.httpsCallable('checkResidentRegistrationEligibility').call(
+      {'email': email.trim()},
+    );
+  }
+
+  Future<void> checkPhoneAvailability(
+    String phoneNumber, {
+    String? excludeUid,
+  }) async {
+    final injectedCheck = _phoneAvailabilityCheck;
+    if (injectedCheck != null) {
+      await injectedCheck(phoneNumber.trim(), excludeUid);
+      return;
+    }
+    await _functions.httpsCallable('checkResidentPhoneAvailability').call({
+      'phoneNumber': phoneNumber.trim(),
+      if (excludeUid != null && excludeUid.isNotEmpty) 'excludeUid': excludeUid,
+    });
+  }
+
+  Future<String> updateResidentPhoneNumber(
+    String phoneNumber, {
+    bool markVerified = false,
+  }) async {
+    final result = await _functions
+        .httpsCallable('updateResidentPhoneNumber')
+        .call({
+          'phoneNumber': phoneNumber.trim(),
+          if (markVerified) 'markVerified': true,
+        });
+    final data = result.data;
+    if (data is Map && data['phoneNumber'] is String) {
+      return data['phoneNumber'] as String;
+    }
+    return Validators.normalizePhoneNumber(phoneNumber);
+  }
+
+  Future<void> _finalizeResidentRegistration({
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required bool termsAccepted,
+    required String communityId,
+    required String communityName,
+    String profileImageUrl = '',
+  }) async {
+    final payload = {
+      'firstName': firstName.trim(),
+      'lastName': lastName.trim(),
+      'phoneNumber': phoneNumber.trim(),
+      'termsAccepted': termsAccepted,
+      'communityId': communityId.trim(),
+      'communityName': communityName.trim(),
+      'profileImageUrl': profileImageUrl.trim(),
+    };
+    try {
+      await _invokeResidentRegistrationFinalizer(payload);
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code != 'unavailable' &&
+          error.code != 'deadline-exceeded' &&
+          error.code != 'internal') {
+        rethrow;
+      }
+      await _invokeResidentRegistrationFinalizer(payload);
+    }
+  }
+
+  Future<void> _invokeResidentRegistrationFinalizer(
+    Map<String, dynamic> payload,
+  ) async {
+    final injectedFinalizer = _residentRegistrationFinalizer;
+    if (injectedFinalizer != null) {
+      await injectedFinalizer(payload);
+      return;
+    }
+    await _functions.httpsCallable('finalizeResidentRegistration').call(payload);
+  }
+
+  bool _isDefinitiveRegistrationFailure(Object error) {
+    if (error is! FirebaseFunctionsException) return false;
+    return error.code != 'unavailable' &&
+        error.code != 'deadline-exceeded' &&
+        error.code != 'internal';
+  }
+
+  Future<void> reauthenticateForAccountDeletion({String? password}) async {
+    if (_authService.currentUserUsesPassword) {
+      final value = password ?? '';
+      if (value.isEmpty) throw Exception('Enter your password to continue.');
+      await _authService.reauthenticateWithPassword(value);
+      return;
+    }
+    final completed = await _authService.reauthenticateWithGoogle();
+    if (!completed) throw Exception('Google verification was cancelled.');
+  }
+
+  Future<void> deleteResidentAccount() async {
+    await _functions.httpsCallable('deleteResidentAccount').call();
+    await _authService.signOut();
+  }
 
   // Authentication feature: sends a Firebase password reset email for the login screen.
   Future<void> sendPasswordResetEmail(String email) {
@@ -254,10 +379,13 @@ class AuthRepository {
     required String profileImageUrl,
   }) async {
     try {
-      await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
-        'profileImageUrl': profileImageUrl.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection(AppConstants.adminsCollection)
+          .doc(uid)
+          .update({
+            'profileImageUrl': profileImageUrl.trim(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
     } on FirebaseException catch (e) {
       throw Exception(_adminProfileWriteFailureMessage(e, uid: uid));
     }
@@ -273,17 +401,20 @@ class AuthRepository {
   }) async {
     final trimmedPhone = phoneNumber.trim();
     try {
-      await _firestore.collection(AppConstants.adminsCollection).doc(uid).update({
-        'fullName': fullName.trim(),
-        'phoneNumber': trimmedPhone.isEmpty
-            ? ''
-            : Validators.normalizePhoneNumber(trimmedPhone),
-        'notificationPreferences': notificationPreferences.toMap(),
-        'themePresetId': themePresetId.trim().isEmpty
-            ? 'teal'
-            : themePresetId.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection(AppConstants.adminsCollection)
+          .doc(uid)
+          .update({
+            'fullName': fullName.trim(),
+            'phoneNumber': trimmedPhone.isEmpty
+                ? ''
+                : Validators.normalizePhoneNumber(trimmedPhone),
+            'notificationPreferences': notificationPreferences.toMap(),
+            'themePresetId': themePresetId.trim().isEmpty
+                ? 'teal'
+                : themePresetId.trim(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
     } on FirebaseException catch (e) {
       throw Exception(_adminProfileWriteFailureMessage(e, uid: uid));
     }
@@ -367,8 +498,8 @@ class AuthRepository {
 
     final trimmedFirstName = firstName.trim();
     final trimmedLastName = lastName.trim();
-    final fullName = '$trimmedFirstName $trimmedLastName'.trim();
     final normalizedPhoneNumber = Validators.normalizePhoneNumber(phoneNumber);
+    await checkRegistrationEligibility(email);
     final credential = await _authService.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -378,39 +509,28 @@ class AuthRepository {
     if (firebaseUser == null) {
       throw Exception('Unable to create user account.');
     }
+    try {
+      await _finalizeResidentRegistration(
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        phoneNumber: normalizedPhoneNumber,
+        termsAccepted: termsAccepted,
+        communityId: communityId,
+        communityName: communityName,
+      );
+    } catch (error) {
+      if (_isDefinitiveRegistrationFailure(error)) {
+        try {
+          await _authService.deleteCurrentUser();
+        } catch (_) {}
+      }
+      rethrow;
+    }
     await _authService.sendEmailVerification();
 
     final userDoc = _firestore
         .collection(AppConstants.usersCollection)
         .doc(firebaseUser.uid);
-
-    await userDoc.set({
-      'uid': firebaseUser.uid,
-      'firstName': trimmedFirstName,
-      'lastName': trimmedLastName,
-      'fullName': fullName,
-      'email': email.trim(),
-      'phoneNumber': normalizedPhoneNumber,
-      'role': AppConstants.roleResident,
-      'verificationStatus': AppConstants.verificationPending,
-      'emailVerified': _authService.isEmailVerified,
-      'phoneVerified': false,
-      'profileImageUrl': '',
-      'communityId': communityId.trim(),
-      'communityName': communityName.trim(),
-      'unitNumber': '',
-      'reputationScore': 0.0,
-      'totalReviews': 0,
-      'completedBorrowings': 0,
-      'completedLendings': 0,
-      'completedServices': 0,
-      'completedServicesProvided': 0,
-      'completedServicesRequested': 0,
-      'termsAccepted': termsAccepted,
-      'locationVerified': false,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
 
     final createdDoc = await userDoc.get();
     final data = createdDoc.data();
@@ -506,34 +626,26 @@ class AuthRepository {
       return existing;
     }
     final names = _splitName(preferredFullName);
-
-    await docRef.set({
-      'uid': firebaseUser.uid,
-      'firstName': names.$1,
-      'lastName': names.$2,
-      'fullName': preferredFullName,
-      'email': preferredEmail,
-      'phoneNumber': '',
-      'role': AppConstants.roleResident,
-      'verificationStatus': AppConstants.verificationPending,
-      'emailVerified': _authService.isEmailVerified,
-      'phoneVerified': false,
-      'profileImageUrl': firebaseUser.photoURL ?? '',
-      'communityId': '',
-      'communityName': '',
-      'unitNumber': '',
-      'reputationScore': 0.0,
-      'totalReviews': 0,
-      'completedBorrowings': 0,
-      'completedLendings': 0,
-      'completedServices': 0,
-      'completedServicesProvided': 0,
-      'completedServicesRequested': 0,
-      'termsAccepted': false,
-      'locationVerified': false,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await checkRegistrationEligibility(preferredEmail);
+      await _finalizeResidentRegistration(
+        firstName: names.$1,
+        lastName: names.$2,
+        phoneNumber: '',
+        termsAccepted: false,
+        communityId: '',
+        communityName: '',
+        profileImageUrl: firebaseUser.photoURL ?? '',
+      );
+    } catch (error) {
+      if (error is FirebaseFunctionsException &&
+          error.code == 'permission-denied') {
+        try {
+          await _authService.deleteCurrentUser();
+        } catch (_) {}
+      }
+      rethrow;
+    }
 
     const maxAttempts = 5;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
@@ -558,73 +670,6 @@ class AuthRepository {
     final parts = trimmed.split(RegExp(r'\s+'));
     if (parts.length == 1) return (parts.first, '');
     return (parts.first, parts.skip(1).join(' '));
-  }
-
-  // Phone verification feature: links an SMS code credential to the registered user and marks phoneVerified.
-  Future<void> linkRegisteredUserWithPhoneSms({
-    required String verificationId,
-    required String smsCode,
-    required String phoneNumber,
-  }) async {
-    final codeError = Validators.validateSixDigitCode(smsCode);
-    if (codeError != null) {
-      throw Exception(codeError);
-    }
-    final phoneError = Validators.validatePhone(phoneNumber);
-    if (phoneError != null) {
-      throw Exception(phoneError);
-    }
-    final user = _authService.currentUser;
-    if (user == null) {
-      throw Exception('Not signed in.');
-    }
-
-    final credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode.trim(),
-    );
-    await user.linkWithCredential(credential);
-
-    final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .set({
-          'phoneVerified': true,
-          'phoneNumber': normalizedPhone,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-    await _authService.reloadCurrentUser();
-  }
-
-  // Phone verification feature: links an already-built phone credential and updates the resident phone metadata.
-  Future<void> linkRegisteredUserWithPhoneCredential({
-    required PhoneAuthCredential credential,
-    required String phoneNumber,
-  }) async {
-    final phoneError = Validators.validatePhone(phoneNumber);
-    if (phoneError != null) {
-      throw Exception(phoneError);
-    }
-    final user = _authService.currentUser;
-    if (user == null) {
-      throw Exception('Not signed in.');
-    }
-
-    await user.linkWithCredential(credential);
-
-    final normalizedPhone = Validators.normalizePhoneNumber(phoneNumber);
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(user.uid)
-        .set({
-          'phoneVerified': true,
-          'phoneNumber': normalizedPhone,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-    await _authService.reloadCurrentUser();
   }
 
   // Authentication feature: signs the current Firebase user out.

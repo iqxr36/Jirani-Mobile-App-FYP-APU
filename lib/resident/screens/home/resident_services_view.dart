@@ -34,7 +34,6 @@ import 'package:pdfx/pdfx.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-
 part 'services/resident_services_browse.dart';
 part 'services/service_detail_view.dart';
 part 'services/service_transaction_view.dart';
@@ -84,15 +83,15 @@ class _ResidentMyServicesViewState extends State<ResidentMyServicesView> {
                           tooltip: 'Create service',
                           onTap: user == null
                               ? () => _showSnack(
-                                    context,
-                                    'Sign in before listing a service.',
-                                  )
+                                  context,
+                                  'Sign in before listing a service.',
+                                )
                               : () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          ResidentAddNewServiceView(user: user),
-                                    ),
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        ResidentAddNewServiceView(user: user),
                                   ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -137,7 +136,11 @@ class _ResidentMyServicesViewState extends State<ResidentMyServicesView> {
 }
 
 class ResidentAddNewServiceView extends StatefulWidget {
-  const ResidentAddNewServiceView({super.key, required this.user, this.service});
+  const ResidentAddNewServiceView({
+    super.key,
+    required this.user,
+    this.service,
+  });
 
   final AppUser user;
   final ServiceModel? service;
@@ -148,6 +151,8 @@ class ResidentAddNewServiceView extends StatefulWidget {
 }
 
 class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
+  final _detailsFormKey = GlobalKey<FormState>();
+  final _pricingFormKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
   final _price = TextEditingController();
@@ -179,8 +184,8 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
         : service.pricingMode;
     final amount =
         service.pricingMode == AppConstants.servicePricingModeFixedJob
-            ? service.fixedJobPrice ?? service.priceAmount
-            : service.hourlyRate ?? service.priceAmount;
+        ? service.fixedJobPrice ?? service.priceAmount
+        : service.hourlyRate ?? service.priceAmount;
     if (amount != null) _price.text = _serviceAmountText(amount);
     if (service.availableWeekdays.isNotEmpty &&
         service.availabilityEndMinutes > service.availabilityStartMinutes) {
@@ -362,10 +367,10 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                               label: _step == 0
                                   ? 'Next'
                                   : _submitting
-                                      ? 'Publishing...'
-                                      : _isEditing
-                                          ? 'Save'
-                                          : 'Publish',
+                                  ? 'Publishing...'
+                                  : _isEditing
+                                  ? 'Save'
+                                  : 'Publish',
                               onTap: _submitting
                                   ? null
                                   : () {
@@ -391,204 +396,201 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
   }
 
   Widget _detailsStep(BuildContext context) {
-    return Column(
-      key: const ValueKey('service-details'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _ServiceFormSectionLabel('Service Photos'),
-        const SizedBox(height: 8),
-        _ServicePhotoPickerPanel(
-          existingImageUrls: widget.service?.imageUrls ?? const <String>[],
-          photos: _jobPhotos,
-          onPickPhotos: _pickJobPhotos,
-          onRemovePhoto: (index) => setState(() => _jobPhotos.removeAt(index)),
-        ),
-        const SizedBox(height: 20),
-        const _ServiceFormSectionLabel('Service Details'),
-        const SizedBox(height: 8),
-        _ServiceFormGlassPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _title,
-                textInputAction: TextInputAction.next,
-                decoration: context.residentInputDecoration(
-                  label: 'Service Name',
-                  hint: 'e.g. Weekend math tutoring',
+    return Form(
+      key: _detailsFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _ServiceFormSectionLabel('Service Photos'),
+          const SizedBox(height: 8),
+          _ServicePhotoPickerPanel(
+            existingImageUrls: widget.service?.imageUrls ?? const <String>[],
+            photos: _jobPhotos,
+            onPickPhotos: _pickJobPhotos,
+            onRemovePhoto: (index) =>
+                setState(() => _jobPhotos.removeAt(index)),
+          ),
+          const SizedBox(height: 20),
+          const _ServiceFormSectionLabel('Service Details'),
+          const SizedBox(height: 8),
+          _ServiceFormGlassPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _title,
+                  textInputAction: TextInputAction.next,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: Validators.validateServiceTitle,
+                  decoration: context.residentInputDecoration(
+                    label: 'Service Name',
+                    hint: 'e.g. Weekend math tutoring',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _category,
-                      isExpanded: true,
-                      decoration: context.residentInputDecoration(
-                        label: 'Category',
-                        hint: 'Select category',
-                      ),
-                      items: _serviceCategories.entries
-                          .map(
-                            (entry) => DropdownMenuItem<String>(
-                              value: entry.key,
-                              child: Text(
-                                entry.value,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _category,
+                        isExpanded: true,
+                        decoration: context.residentInputDecoration(
+                          label: 'Category',
+                          hint: 'Select category',
+                        ),
+                        items: _serviceCategories.entries
+                            .map(
+                              (entry) => DropdownMenuItem<String>(
+                                value: entry.key,
+                                child: Text(
+                                  entry.value,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => setState(() {
-                        _category = value ?? _category;
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _pricingMode,
-                      isExpanded: true,
-                      decoration: context.residentInputDecoration(
-                        label: 'Pricing',
-                        hint: 'Select pricing',
+                            )
+                            .toList(),
+                        onChanged: (value) => setState(() {
+                          _category = value ?? _category;
+                        }),
                       ),
-                      items: const [
-                        DropdownMenuItem<String>(
-                          value: AppConstants.servicePricingModeHourly,
-                          child: Text(
-                            'Hourly',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        DropdownMenuItem<String>(
-                          value: AppConstants.servicePricingModeFixedJob,
-                          child: Text(
-                            'Fixed Job',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _pricingMode = value ?? _pricingMode;
-                        _price.clear();
-                      }),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _description,
-                minLines: 5,
-                maxLines: 7,
-                decoration: context.residentInputDecoration(
-                  label: 'Description',
-                  hint: 'Describe your experience, scope, and what is included.',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _pricingMode,
+                        isExpanded: true,
+                        decoration: context.residentInputDecoration(
+                          label: 'Pricing',
+                          hint: 'Select pricing',
+                        ),
+                        items: const [
+                          DropdownMenuItem<String>(
+                            value: AppConstants.servicePricingModeHourly,
+                            child: Text(
+                              'Hourly',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem<String>(
+                            value: AppConstants.servicePricingModeFixedJob,
+                            child: Text(
+                              'Fixed Job',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) => setState(() {
+                          _pricingMode = value ?? _pricingMode;
+                          _price.clear();
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _description,
+                  minLines: 5,
+                  maxLines: 7,
+                  maxLength: AppConstants.maxListingDescriptionLength,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: Validators.validateServiceDescription,
+                  decoration: context.residentInputDecoration(
+                    label: 'Description',
+                    hint:
+                        'Describe your experience, scope, and what is included.',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        const _ServiceFormSectionLabel('Availability'),
-        const SizedBox(height: 8),
-        _AvailabilityPicker(
-          selectedDays: _availableDays,
-          startTime: _startTime,
-          endTime: _endTime,
-          onToggleDay: _toggleAvailableDay,
-          onSetDays: _setAvailableDays,
-          onPickStart: _pickStartTime,
-          onPickEnd: _pickEndTime,
-        ),
-        const SizedBox(height: 20),
-        const _ServiceFormSectionLabel('Certificates'),
-        const SizedBox(height: 8),
-        _CertificatePickerSection(
-          existingNames: widget.service?.certificateNames ?? const <String>[],
-          existingUrls: widget.service?.certificateUrls ?? const <String>[],
-          certificates: _certificates,
-          onAdd: _pickCertificates,
-          onRemove: (index) => setState(
-            () => _certificates.removeAt(index),
+          const SizedBox(height: 20),
+          const _ServiceFormSectionLabel('Availability'),
+          const SizedBox(height: 8),
+          _AvailabilityPicker(
+            selectedDays: _availableDays,
+            startTime: _startTime,
+            endTime: _endTime,
+            onToggleDay: _toggleAvailableDay,
+            onSetDays: _setAvailableDays,
+            onPickStart: _pickStartTime,
+            onPickEnd: _pickEndTime,
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+          const _ServiceFormSectionLabel('Certificates'),
+          const SizedBox(height: 8),
+          _CertificatePickerSection(
+            existingNames: widget.service?.certificateNames ?? const <String>[],
+            existingUrls: widget.service?.certificateUrls ?? const <String>[],
+            certificates: _certificates,
+            onAdd: _pickCertificates,
+            onRemove: (index) => setState(() => _certificates.removeAt(index)),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _pricingStep(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser ?? widget.user;
-    return Column(
-      key: const ValueKey('service-pricing'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _ServiceFormSectionLabel('Service Pricing'),
-        const SizedBox(height: 8),
-        _ServiceFormGlassPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _price,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
-                decoration: context.residentInputDecoration(
-                  label: _isHourly
-                      ? 'Hourly rate (RM)'
-                      : 'Fixed job price (RM)',
-                  hint: '0.00',
-                ).copyWith(
-                  prefixIcon: Container(
-                    width: 44,
-                    alignment: Alignment.center,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      'RM',
-                      style: TextStyle(
-                        color: context.appInk,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+    return Form(
+      key: _pricingFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _ServiceFormSectionLabel('Service Pricing'),
+          const SizedBox(height: 8),
+          _ServiceFormGlassPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _price,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: residentBrandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _isHourly
-                      ? 'Hourly services are paid based on the duration selected by the requester.'
-                      : 'Payment is collected after you accept a request.',
-                  style: TextStyle(
-                    color: context.appMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) => Validators.validatePositiveAmount(
+                    value,
+                    fieldName: _isHourly ? 'Hourly rate' : 'Fixed job price',
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
+                  ],
+                  decoration: context
+                      .residentInputDecoration(
+                        label: _isHourly
+                            ? 'Hourly rate (RM)'
+                            : 'Fixed job price (RM)',
+                        hint: '0.00',
+                      )
+                      .copyWith(
+                        prefixIcon: Container(
+                          width: 44,
+                          alignment: Alignment.center,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.10),
+                            borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            'RM',
+                            style: TextStyle(
+                              color: context.appInk,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
                 ),
-              ),
-              if (!user.hasVerifiedPayoutAccount) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -596,7 +598,9 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    'Paid services need a verified payout account before publishing.',
+                    _isHourly
+                        ? 'Hourly services are paid based on the duration selected by the requester.'
+                        : 'Payment is collected after you accept a request.',
                     style: TextStyle(
                       color: context.appMuted,
                       fontSize: 12,
@@ -605,29 +609,49 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                _ServiceFormSecondaryButton(
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: 'Open Payments',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const PaymentMethodsView(),
+                if (!user.hasVerifiedPayoutAccount) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: residentBrandTeal.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'Paid services need a verified payout account before publishing.',
+                      style: TextStyle(
+                        color: context.appMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  _ServiceFormSecondaryButton(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Open Payments',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PaymentMethodsView(),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   void _continueToPricing() {
-    if (_title.text.trim().isEmpty ||
-        _description.text.trim().isEmpty ||
-        !_hasValidAvailability) {
-      _showSnack(context, 'Fill in the service details before continuing.');
+    if (!(_detailsFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    if (!_hasValidAvailability) {
+      _showSnack(context, 'Select valid availability before continuing.');
       return;
     }
     setState(() => _step = 1);
@@ -696,16 +720,17 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
             .where((file) => file.path != null)
             .take(remaining)
             .map(
-              (file) => _ServiceCertificateDraft(
-                name: file.name,
-                path: file.path!,
-              ),
+              (file) =>
+                  _ServiceCertificateDraft(name: file.name, path: file.path!),
             ),
       );
     });
   }
 
   Future<void> _publish() async {
+    if (!(_pricingFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
     final provider = context.read<AuthProvider>().currentUser ?? widget.user;
     final parsedPrice = double.tryParse(_price.text.trim());
     if (parsedPrice == null || parsedPrice <= 0) {
@@ -725,25 +750,27 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
       final service = widget.service;
       if (service == null) {
         await serviceProvider.createService(
-            provider: provider,
-            title: _title.text,
-            description: _description.text,
-            category: _category,
-            priceType: AppConstants.servicePriceTypeFixed,
-            priceAmount: parsedPrice,
-            pricingMode: _pricingMode,
-            hourlyRate: _isHourly ? parsedPrice : null,
-            fixedJobPrice: _isHourly ? null : parsedPrice,
-            availability: _availabilityText(context),
-            availableWeekdays: _availableDays,
-            availabilityStartTime: _startTime,
-            availabilityEndTime: _endTime,
-            imagePaths: _jobPhotos.map((photo) => photo.path).toList(),
-            certificatePaths:
-                _certificates.map((certificate) => certificate.path).toList(),
-            certificateNames:
-                _certificates.map((certificate) => certificate.name).toList(),
-          );
+          provider: provider,
+          title: _title.text,
+          description: _description.text,
+          category: _category,
+          priceType: AppConstants.servicePriceTypeFixed,
+          priceAmount: parsedPrice,
+          pricingMode: _pricingMode,
+          hourlyRate: _isHourly ? parsedPrice : null,
+          fixedJobPrice: _isHourly ? null : parsedPrice,
+          availability: _availabilityText(context),
+          availableWeekdays: _availableDays,
+          availabilityStartTime: _startTime,
+          availabilityEndTime: _endTime,
+          imagePaths: _jobPhotos.map((photo) => photo.path).toList(),
+          certificatePaths: _certificates
+              .map((certificate) => certificate.path)
+              .toList(),
+          certificateNames: _certificates
+              .map((certificate) => certificate.name)
+              .toList(),
+        );
       } else {
         await serviceProvider.updateService(
           provider: provider,
@@ -761,10 +788,12 @@ class _ResidentAddNewServiceViewState extends State<ResidentAddNewServiceView> {
           availabilityStartTime: _startTime,
           availabilityEndTime: _endTime,
           imagePaths: _jobPhotos.map((photo) => photo.path).toList(),
-          certificatePaths:
-              _certificates.map((certificate) => certificate.path).toList(),
-          certificateNames:
-              _certificates.map((certificate) => certificate.name).toList(),
+          certificatePaths: _certificates
+              .map((certificate) => certificate.path)
+              .toList(),
+          certificateNames: _certificates
+              .map((certificate) => certificate.name)
+              .toList(),
         );
       }
       if (!mounted) return;
@@ -900,8 +929,8 @@ class _AvailabilityPicker extends StatelessWidget {
     final summary = selectedDays.isEmpty
         ? 'Choose available days'
         : 'Available ${_availabilityDaySummary(selectedDays)}, '
-            '${localizations.formatTimeOfDay(startTime)} - '
-            '${localizations.formatTimeOfDay(endTime)}';
+              '${localizations.formatTimeOfDay(startTime)} - '
+              '${localizations.formatTimeOfDay(endTime)}';
 
     return _ServiceFormGlassPanel(
       child: Column(
@@ -988,11 +1017,7 @@ class _AvailabilityPicker extends StatelessWidget {
               );
               if (stackTimes) {
                 return Column(
-                  children: [
-                    startField,
-                    const SizedBox(height: 10),
-                    endField,
-                  ],
+                  children: [startField, const SizedBox(height: 10), endField],
                 );
               }
               return Row(
@@ -1014,7 +1039,9 @@ class _AvailabilityPicker extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: invalidTime || selectedDays.isEmpty
-                    ? Theme.of(context).colorScheme.error.withValues(alpha: 0.24)
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.error.withValues(alpha: 0.24)
                     : residentBrandTeal.withValues(alpha: 0.16),
               ),
             ),
@@ -1035,8 +1062,8 @@ class _AvailabilityPicker extends StatelessWidget {
                     selectedDays.isEmpty
                         ? 'Choose at least one available day.'
                         : invalidTime
-                            ? 'End time must be after start time.'
-                            : summary,
+                        ? 'End time must be after start time.'
+                        : summary,
                     style: TextStyle(
                       color: invalidTime || selectedDays.isEmpty
                           ? Theme.of(context).colorScheme.error
@@ -1166,10 +1193,9 @@ class _TimeChoiceField extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: InputDecorator(
-        decoration: context.residentInputDecoration(
-          label: label,
-          hint: 'Choose time',
-        ).copyWith(
+        decoration: context
+            .residentInputDecoration(label: label, hint: 'Choose time')
+            .copyWith(
               errorText: hasError ? '' : null,
               errorStyle: const TextStyle(height: 0, fontSize: 0),
             ),
@@ -1281,8 +1307,8 @@ class _ServicePhotoPickerPanel extends StatelessWidget {
           border: Border.all(
             color: _photoCount == 0
                 ? (isDark
-                    ? Theme.of(context).colorScheme.outlineVariant
-                    : Colors.black.withValues(alpha: 0.30))
+                      ? Theme.of(context).colorScheme.outlineVariant
+                      : Colors.black.withValues(alpha: 0.30))
                 : residentBrandTeal.withValues(alpha: 0.20),
           ),
           boxShadow: [
@@ -1415,11 +1441,11 @@ class _ServicePhotoThumb extends StatelessWidget {
             child: path != null
                 ? Image.file(File(path!), fit: BoxFit.cover)
                 : url != null && url!.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: url!, fit: BoxFit.cover)
-                    : const Icon(
-                        Icons.home_repair_service_outlined,
-                        color: residentBrandTeal,
-                      ),
+                ? CachedNetworkImage(imageUrl: url!, fit: BoxFit.cover)
+                : const Icon(
+                    Icons.home_repair_service_outlined,
+                    color: residentBrandTeal,
+                  ),
           ),
         ),
         if (onRemove != null)
@@ -1507,8 +1533,7 @@ class _CertificatePickerSection extends StatelessWidget {
             for (var i = 0; i < existingUrls.length; i += 1)
               Padding(
                 padding: EdgeInsets.only(
-                  bottom: i == existingUrls.length - 1 &&
-                          certificates.isEmpty
+                  bottom: i == existingUrls.length - 1 && certificates.isEmpty
                       ? 0
                       : 8,
                 ),
@@ -1753,11 +1778,7 @@ class _ServiceDangerButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: disabled ? context.appMuted : danger,
-                size: 20,
-              ),
+              Icon(icon, color: disabled ? context.appMuted : danger, size: 20),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -1798,7 +1819,10 @@ class _CertificateDraftTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.workspace_premium_outlined, color: residentBrandTeal),
+          const Icon(
+            Icons.workspace_premium_outlined,
+            color: residentBrandTeal,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1832,11 +1856,8 @@ class _CertificateLinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => _openCertificatePreview(
-        context: context,
-        name: name,
-        url: url,
-      ),
+      onTap: () =>
+          _openCertificatePreview(context: context, name: name, url: url),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -1847,7 +1868,10 @@ class _CertificateLinkTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.workspace_premium_outlined, color: residentBrandTeal),
+            const Icon(
+              Icons.workspace_premium_outlined,
+              color: residentBrandTeal,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -2075,10 +2099,7 @@ class _MyServicesSummary extends StatelessWidget {
               const SizedBox(width: 10),
               if (!compact) status,
               if (compact)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: status,
-                ),
+                Padding(padding: const EdgeInsets.only(top: 2), child: status),
             ],
           );
         },

@@ -46,10 +46,9 @@ mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
       _firebaseUser = _repository.currentFirebaseUser;
       _currentAdmin = null;
       _showEmailVerificationAfterRegister = false;
-      _showPhoneVerificationAfterRegister = false;
       _showAccountCreatedScreen = true;
       _successMessage =
-          'Account created. You can verify your email and phone later from your profile.';
+          'Account created. You can verify your email later from your profile.';
     } catch (e) {
       _errorMessage = _mapAuthError(e);
     } finally {
@@ -63,10 +62,9 @@ mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
     notifyListeners();
   }
 
-  /// After email verification succeeds, continue to the phone verification step.
+  /// After email verification succeeds (or is skipped), continue to the main resident flow.
   void exitEmailVerificationRegistrationFlow() {
     _showEmailVerificationAfterRegister = false;
-    _showPhoneVerificationAfterRegister = true;
     _showAccountCreatedScreen = false;
     notifyListeners();
   }
@@ -74,13 +72,5 @@ mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
   /// Lets new residents postpone email verification and continue onboarding.
   void skipEmailVerificationRegistrationFlow() {
     exitEmailVerificationRegistrationFlow();
-  }
-
-  /// After OTP step (success, back, or skip), continue to the geofence gate.
-  void exitPhoneVerificationRegistrationFlow() {
-    _showEmailVerificationAfterRegister = false;
-    _showPhoneVerificationAfterRegister = false;
-    _showAccountCreatedScreen = false;
-    notifyListeners();
   }
 }

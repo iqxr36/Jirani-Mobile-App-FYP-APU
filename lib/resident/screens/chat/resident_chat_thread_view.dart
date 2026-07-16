@@ -12,7 +12,6 @@ import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
-import 'package:jirani/core/utils/agent_debug_log.dart';
 import 'package:jirani/resident/screens/chat/chat_message_action_menu.dart';
 import 'package:jirani/resident/screens/chat/chat_report_sheet.dart';
 import 'package:jirani/resident/providers/chat_provider.dart';

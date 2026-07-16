@@ -7,7 +7,18 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, getDocs, query, collection, where, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -48,6 +59,16 @@ const baseService = {
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+
+function serviceForCreate(id, overrides = {}) {
+  return {
+    ...baseService,
+    id,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+}
 
 before(async () => {
   testEnv = await initializeTestEnvironment({
@@ -126,6 +147,68 @@ describe('service provider updates', () => {
     );
   });
 
+  test('provider can use the exact service text length limits', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        title: 't'.repeat(200),
+        description: 'd'.repeat(1000),
+        availability: 'a'.repeat(1000),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('provider cannot exceed the service title limit', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        title: 't'.repeat(201),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('provider cannot exceed the service description limit', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        description: 'd'.repeat(1001),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('provider cannot exceed the service availability limit', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        availability: 'a'.repeat(1001),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('provider cannot shorten a service name below 3 characters', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        title: 'ab',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('provider cannot shorten a service description below 12 characters', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'services', SERVICE_ID), {
+        description: 'd'.repeat(11),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
   test('provider cannot change pricing while service is inactive', async () => {
     const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
     await assertFails(
@@ -163,6 +246,79 @@ describe('service provider updates', () => {
         status: 'archived',
         updatedAt: new Date(),
       }),
+    );
+  });
+});
+
+describe('service creation validation', () => {
+  test('rejects a 2-character service name', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-title-too-short';
+    await assertFails(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, { title: 'ab' }),
+      ),
+    );
+  });
+
+  test('accepts a 3-character service name', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-title-boundary';
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, { title: 'abc' }),
+      ),
+    );
+  });
+
+  test('rejects an 11-character service description', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-description-too-short';
+    await assertFails(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, { description: 'd'.repeat(11) }),
+      ),
+    );
+  });
+
+  test('accepts a 12-character service description', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-description-boundary';
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, { description: 'd'.repeat(12) }),
+      ),
+    );
+  });
+
+  test('rejects a zero fixed-job price', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-zero-price';
+    await assertFails(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, { priceAmount: 0, fixedJobPrice: 0 }),
+      ),
+    );
+  });
+
+  test('rejects a negative hourly rate', async () => {
+    const db = testEnv.authenticatedContext(PROVIDER_ID).firestore();
+    const id = 'service-negative-price';
+    await assertFails(
+      setDoc(
+        doc(db, 'services', id),
+        serviceForCreate(id, {
+          priceAmount: -1,
+          pricingMode: 'hourly',
+          hourlyRate: -1,
+          fixedJobPrice: null,
+        }),
+      ),
     );
   });
 });

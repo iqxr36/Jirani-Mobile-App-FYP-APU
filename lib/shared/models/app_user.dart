@@ -31,6 +31,7 @@ class AppUser {
     this.payoutAccountMaskedIdentifier = '',
     this.suspendedReason = '',
     this.suspendedAt,
+    this.suspensionEndsAt,
     this.archivedAt,
     required this.completedBorrowings,
     required this.completedLendings,
@@ -70,6 +71,7 @@ class AppUser {
   final String payoutAccountMaskedIdentifier;
   final String suspendedReason;
   final DateTime? suspendedAt;
+  final DateTime? suspensionEndsAt;
   final DateTime? archivedAt;
   final int completedBorrowings;
   final int completedLendings;
@@ -85,9 +87,20 @@ class AppUser {
   bool get isVerifiedResident =>
       verificationStatus == AppConstants.verificationVerified;
   bool get isSuspended => accountStatus == AppConstants.accountStatusSuspended;
+  bool isSuspensionActiveAt(DateTime now) =>
+      isSuspended &&
+      (suspensionEndsAt == null || now.isBefore(suspensionEndsAt!));
+  bool get hasActiveSuspension => isSuspensionActiveAt(DateTime.now());
+  bool get hasExpiredSuspension =>
+      isSuspended &&
+      suspensionEndsAt != null &&
+      !DateTime.now().isBefore(suspensionEndsAt!);
   bool get isArchived => accountStatus == AppConstants.accountStatusArchived;
+  bool get isDeleted => accountStatus == AppConstants.accountStatusDeleted;
   bool get isActiveAccount =>
-      accountStatus.isEmpty || accountStatus == AppConstants.accountStatusActive;
+      accountStatus.isEmpty ||
+      accountStatus == AppConstants.accountStatusActive ||
+      hasExpiredSuspension;
   bool get isResident => role == AppConstants.roleResident;
   bool get isCommunityAdmin => role == AppConstants.roleCommunityAdmin;
   bool get isSystemAdmin => role == AppConstants.roleSystemAdmin;
@@ -132,6 +145,7 @@ class AppUser {
     String? payoutAccountMaskedIdentifier,
     String? suspendedReason,
     DateTime? suspendedAt,
+    DateTime? suspensionEndsAt,
     DateTime? archivedAt,
     int? completedBorrowings,
     int? completedLendings,
@@ -172,6 +186,7 @@ class AppUser {
           payoutAccountMaskedIdentifier ?? this.payoutAccountMaskedIdentifier,
       suspendedReason: suspendedReason ?? this.suspendedReason,
       suspendedAt: suspendedAt ?? this.suspendedAt,
+      suspensionEndsAt: suspensionEndsAt ?? this.suspensionEndsAt,
       archivedAt: archivedAt ?? this.archivedAt,
       completedBorrowings: completedBorrowings ?? this.completedBorrowings,
       completedLendings: completedLendings ?? this.completedLendings,
@@ -217,6 +232,8 @@ class AppUser {
       'payoutAccountMaskedIdentifier': payoutAccountMaskedIdentifier,
       'suspendedReason': suspendedReason,
       if (suspendedAt != null) 'suspendedAt': Timestamp.fromDate(suspendedAt!),
+      if (suspensionEndsAt != null)
+        'suspensionEndsAt': Timestamp.fromDate(suspensionEndsAt!),
       if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
       'completedBorrowings': completedBorrowings,
       'completedLendings': completedLendings,
@@ -273,6 +290,7 @@ class AppUser {
           (map['payoutAccountMaskedIdentifier'] as String?) ?? '',
       suspendedReason: (map['suspendedReason'] as String?) ?? '',
       suspendedAt: _parseOptionalDate(map['suspendedAt']),
+      suspensionEndsAt: _parseOptionalDate(map['suspensionEndsAt']),
       archivedAt: _parseOptionalDate(map['archivedAt']),
       completedBorrowings: _parseInt(map['completedBorrowings']),
       completedLendings: _parseInt(map['completedLendings']),

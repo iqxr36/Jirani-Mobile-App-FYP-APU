@@ -38,12 +38,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
       parent: _entryController,
       curve: Curves.easeOutCubic,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.04),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _entryController.forward();
   }
 
@@ -65,6 +63,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
     await auth.login(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
+      requireAdmin: true,
     );
     authDebugLog('[AdminLoginScreen] login call finished');
     if (!mounted) return;
@@ -114,7 +113,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           content: const Text('Password reset email sent.'),
         ),
       );
@@ -128,6 +129,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
     required Color primary,
     required bool compactHeader,
   }) {
+    final displayedError = _localError ?? auth.errorMessage;
     return AdminLoginFormCard(
       primary: primary,
       compactHeader: compactHeader,
@@ -188,13 +190,16 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                 onPressed: auth.isLoading ? null : () => _sendResetEmail(auth),
                 style: TextButton.styleFrom(
                   foregroundColor: primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
                 child: const Text('Forgot password?'),
               ),
             ),
-            if (_localError != null) ...[
-              AdminLoginErrorBanner(message: _localError!),
+            if (displayedError != null) ...[
+              AdminLoginErrorBanner(message: displayedError),
               const SizedBox(height: 16),
             ],
             FilledButton(
@@ -254,15 +259,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
       content = Row(
         children: [
           Expanded(
-            child: AdminLoginHeroPanel(
-              primary: primary,
-              secondary: secondary,
-            ),
+            child: AdminLoginHeroPanel(primary: primary, secondary: secondary),
           ),
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 32,
+                ),
                 child: _buildForm(
                   auth: auth,
                   primary: primary,
@@ -299,11 +304,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                 ),
               ),
               const SizedBox(height: 28),
-              _buildForm(
-                auth: auth,
-                primary: primary,
-                compactHeader: true,
-              ),
+              _buildForm(auth: auth, primary: primary, compactHeader: true),
             ],
           ),
         ),

@@ -58,7 +58,8 @@ class _ServiceTransactionViewState extends State<ServiceTransactionView> {
                             .requestStream(widget.initialRequest.id),
                         initialData: widget.initialRequest,
                         builder: (context, snapshot) {
-                          final request = snapshot.data ?? widget.initialRequest;
+                          final request =
+                              snapshot.data ?? widget.initialRequest;
                           return ResidentScreenTitleBar(
                             title: _transactionScreenTitle(
                               request: request,
@@ -189,11 +190,12 @@ class _ServiceTransactionViewState extends State<ServiceTransactionView> {
   Future<void> _generateCompletionCode(ServiceRequestModel request) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final code =
-          await context.read<services.ServiceProvider>().generateCompletionCode(
-                requestId: request.id,
-                requesterId: widget.user.uid,
-              );
+      final code = await context
+          .read<services.ServiceProvider>()
+          .generateCompletionCode(
+            requestId: request.id,
+            requesterId: widget.user.uid,
+          );
       if (!mounted) return;
       final cleanCode = code?.trim() ?? '';
       if (cleanCode.isEmpty) {
@@ -232,10 +234,10 @@ class _ServiceTransactionViewState extends State<ServiceTransactionView> {
     }
     try {
       await context.read<services.ServiceProvider>().submitCompletionCode(
-            requestId: request.id,
-            providerId: widget.user.uid,
-            code: code,
-          );
+        requestId: request.id,
+        providerId: widget.user.uid,
+        code: code,
+      );
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
@@ -441,8 +443,7 @@ class _ServiceTransactionHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 foregroundColor: residentBrandTeal,
-                backgroundColor:
-                    residentBrandTeal.withValues(alpha: 0.10),
+                backgroundColor: residentBrandTeal.withValues(alpha: 0.10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),
                 ),
@@ -450,13 +451,13 @@ class _ServiceTransactionHeader extends StatelessWidget {
               onPressed: personId.trim().isEmpty
                   ? null
                   : () => Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) => PublicResidentProfileView(
-                            userId: personId,
-                            fallbackName: personName,
-                          ),
+                      MaterialPageRoute<void>(
+                        builder: (_) => PublicResidentProfileView(
+                          userId: personId,
+                          fallbackName: personName,
                         ),
                       ),
+                    ),
               icon: const Icon(Icons.person_search_rounded, size: 18),
               label: const Text(
                 'View Profile',
@@ -613,10 +614,10 @@ class _ServiceActionPanel extends StatelessWidget {
               onTap: busy
                   ? null
                   : () => _confirmCancelServiceRequest(
-                        context,
-                        request: request,
-                        user: user,
-                      ),
+                      context,
+                      request: request,
+                      user: user,
+                    ),
             ),
           ],
         ),
@@ -647,13 +648,13 @@ class _ServiceActionPanel extends StatelessWidget {
                     onTap: busy
                         ? null
                         : () => _guard(
-                              context,
-                              () => serviceProvider.rejectServiceRequest(
-                                requestId: request.id,
-                                providerId: user.uid,
-                              ),
-                              successMessage: 'Booking rejected.',
+                            context,
+                            () => serviceProvider.rejectServiceRequest(
+                              requestId: request.id,
+                              providerId: user.uid,
                             ),
+                            successMessage: 'Booking rejected.',
+                          ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -664,13 +665,13 @@ class _ServiceActionPanel extends StatelessWidget {
                     onTap: busy
                         ? null
                         : () => _guard(
-                              context,
-                              () => serviceProvider.acceptServiceRequest(
-                                requestId: request.id,
-                                providerId: user.uid,
-                              ),
-                              successMessage: 'Booking accepted.',
+                            context,
+                            () => serviceProvider.acceptServiceRequest(
+                              requestId: request.id,
+                              providerId: user.uid,
                             ),
+                            successMessage: 'Booking accepted.',
+                          ),
                   ),
                 ),
               ],
@@ -687,11 +688,8 @@ class _ServiceActionPanel extends StatelessWidget {
         request: request,
         busy: busy,
         onPayment: () => _payForService(context, request),
-        onCancel: () => _confirmCancelServiceRequest(
-          context,
-          request: request,
-          user: user,
-        ),
+        onCancel: () =>
+            _confirmCancelServiceRequest(context, request: request, user: user),
       );
     }
 
@@ -747,12 +745,12 @@ class _ServiceActionPanel extends StatelessWidget {
             onTap: busy
                 ? null
                 : () => _guard(
-                      context,
-                      () => serviceProvider.completeServiceRequest(
-                        requestId: request.id,
-                        providerId: user.uid,
-                      ),
+                    context,
+                    () => serviceProvider.completeServiceRequest(
+                      requestId: request.id,
+                      providerId: user.uid,
                     ),
+                  ),
           ),
         ),
       );
@@ -801,7 +799,8 @@ class _ServiceActionPanel extends StatelessWidget {
 
     if (request.status ==
             AppConstants.serviceRequestStatusCompletedPayoutPending ||
-        request.status == AppConstants.serviceRequestStatusCompletedPayoutSent ||
+        request.status ==
+            AppConstants.serviceRequestStatusCompletedPayoutSent ||
         request.status == AppConstants.serviceRequestStatusCompleted) {
       return _CompletedPanel(
         request: request,
@@ -931,10 +930,7 @@ class _RequesterArrivalCodePanel extends StatelessWidget {
 }
 
 class _ServiceArrivalCodeDisplay extends StatelessWidget {
-  const _ServiceArrivalCodeDisplay({
-    required this.label,
-    required this.code,
-  });
+  const _ServiceArrivalCodeDisplay({required this.label, required this.code});
 
   final String label;
   final String code;
@@ -1225,16 +1221,10 @@ class _DisputedPanel extends StatelessWidget {
                 'This service is paused while admin reviews the dispute. Funds remain held until admin decides payout or refund.',
             child: Column(
               children: [
-                ResidentSummaryRow(
-                  label: 'Dispute type',
-                  value: typeLabel,
-                ),
+                ResidentSummaryRow(label: 'Dispute type', value: typeLabel),
                 if (details.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  ResidentSummaryRow(
-                    label: 'Details',
-                    value: details,
-                  ),
+                  ResidentSummaryRow(label: 'Details', value: details),
                 ],
                 if (request.providerDisputeStatement.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -1244,10 +1234,7 @@ class _DisputedPanel extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 8),
-                ResidentSummaryRow(
-                  label: 'Summary',
-                  value: summary,
-                ),
+                ResidentSummaryRow(label: 'Summary', value: summary),
               ],
             ),
           ),
@@ -1260,7 +1247,7 @@ class _DisputedPanel extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: evidenceUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final url = evidenceUrls[index];
                   return ClipRRect(
@@ -1363,7 +1350,9 @@ class _CompletedPanelState extends State<_CompletedPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Icon(
-            isPayoutSent ? Icons.check_circle_rounded : Icons.hourglass_top_rounded,
+            isPayoutSent
+                ? Icons.check_circle_rounded
+                : Icons.hourglass_top_rounded,
             color: isPayoutSent ? residentBrandTeal : residentWarmAccent,
             size: 46,
           ),
@@ -1382,11 +1371,11 @@ class _CompletedPanelState extends State<_CompletedPanel> {
             widget.requesterView
                 ? 'Completion was verified face to face.'
                 : isPayoutSent
-                    ? widget.request.settlementMode ==
-                            AppConstants.settlementModeSimulated
-                        ? 'Test payout recorded for this completed service.'
-                        : 'The service payout has been sent.'
-                    : 'Completion is verified and payout is being processed.',
+                ? widget.request.settlementMode ==
+                          AppConstants.settlementModeSimulated
+                      ? 'Test payout recorded for this completed service.'
+                      : 'The service payout has been sent.'
+                : 'Completion is verified and payout is being processed.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.appMuted,
@@ -1478,7 +1467,9 @@ class _ServiceReviewCard extends StatelessWidget {
             builder: (context, provider, _) {
               return ResidentPrimaryButton(
                 icon: Icons.rate_review_rounded,
-                label: provider.isSubmitting ? 'Submitting...' : 'Submit Review',
+                label: provider.isSubmitting
+                    ? 'Submitting...'
+                    : 'Submit Review',
                 onTap: provider.isSubmitting ? null : onSubmit,
               );
             },
@@ -1525,11 +1516,13 @@ Future<void> _showDisputeDialog(
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             final detailsRequired = serviceDisputeDetailsRequired(selectedType);
-            final canSubmit = selectedType.isNotEmpty &&
+            final canSubmit =
+                selectedType.isNotEmpty &&
                 (!detailsRequired || detailsController.text.trim().isNotEmpty);
             final screenWidth = MediaQuery.sizeOf(dialogContext).width;
-            final maxDialogWidth =
-                JiraniResponsive.maxWidth(JiraniContentWidth.dialog);
+            final maxDialogWidth = JiraniResponsive.maxWidth(
+              JiraniContentWidth.dialog,
+            );
             final dialogWidth = screenWidth - 48 < maxDialogWidth
                 ? screenWidth - 48
                 : maxDialogWidth;
@@ -1568,7 +1561,9 @@ Future<void> _showDisputeDialog(
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: selectedType.isEmpty ? null : selectedType,
+                        initialValue: selectedType.isEmpty
+                            ? null
+                            : selectedType,
                         isExpanded: true,
                         decoration: context.residentInputDecoration(
                           label: 'Dispute type',
@@ -1621,7 +1616,9 @@ Future<void> _showDisputeDialog(
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
-                        onPressed: proofPaths.length >= 5 ? null : pickProofPhotos,
+                        onPressed: proofPaths.length >= 5
+                            ? null
+                            : pickProofPhotos,
                         icon: const Icon(Icons.add_photo_alternate_outlined),
                         label: Text(
                           proofPaths.isEmpty
@@ -1636,7 +1633,8 @@ Future<void> _showDisputeDialog(
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: proofPaths.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               return Stack(
                                 children: [
@@ -1701,12 +1699,12 @@ Future<void> _showDisputeDialog(
 
     await _guard(pageContext, () async {
       await pageContext.read<services.ServiceProvider>().disputeServiceRequest(
-            requestId: requestId,
-            requesterId: requesterId,
-            disputeType: selectedType,
-            details: detailsController.text.trim(),
-            localProofPaths: proofPaths,
-          );
+        requestId: requestId,
+        requesterId: requesterId,
+        disputeType: selectedType,
+        details: detailsController.text.trim(),
+        localProofPaths: proofPaths,
+      );
     });
   } finally {
     detailsController.dispose();
@@ -1729,8 +1727,8 @@ Future<void> _showServiceDisputeEvidenceDialog(
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             final statement = statementController.text.trim();
-            final canSubmit = proofPaths.isNotEmpty ||
-                (isProvider && statement.isNotEmpty);
+            final canSubmit =
+                proofPaths.isNotEmpty || (isProvider && statement.isNotEmpty);
             Future<void> pickProofPhotos() async {
               final remaining = 5 - proofPaths.length;
               if (remaining <= 0) return;
@@ -1768,7 +1766,9 @@ Future<void> _showServiceDisputeEvidenceDialog(
                       const SizedBox(height: 12),
                     ],
                     OutlinedButton.icon(
-                      onPressed: proofPaths.length >= 5 ? null : pickProofPhotos,
+                      onPressed: proofPaths.length >= 5
+                          ? null
+                          : pickProofPhotos,
                       icon: const Icon(Icons.add_photo_alternate_outlined),
                       label: Text(
                         proofPaths.isEmpty
@@ -1783,7 +1783,7 @@ Future<void> _showServiceDisputeEvidenceDialog(
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: proofPaths.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             return Stack(
                               children: [
@@ -1927,7 +1927,8 @@ Future<void> _payForService(
       );
     case AppConstants.paymentStatusFailed:
       return (
-        message: provider.errorMessage ??
+        message:
+            provider.errorMessage ??
             'Payment failed. Please try another Xendit payment method.',
         duration: const Duration(seconds: 5),
       );

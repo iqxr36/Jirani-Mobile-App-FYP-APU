@@ -70,12 +70,14 @@ extension ResidentSurfaceTokens on BuildContext {
   InputDecoration residentInputDecoration({
     required String label,
     required String hint,
+    String? helperText,
     double borderRadius = 16,
   }) {
     final scheme = residentScheme;
     return InputDecoration(
       labelText: label,
       hintText: hint,
+      helperText: helperText,
       filled: true,
       fillColor: isDarkUi
           ? scheme.surfaceContainerHighest
@@ -94,6 +96,11 @@ extension ResidentSurfaceTokens on BuildContext {
       ),
       labelStyle: TextStyle(color: appMuted),
       hintStyle: TextStyle(color: appMuted.withValues(alpha: 0.72)),
+      helperStyle: TextStyle(
+        color: appMuted.withValues(alpha: 0.9),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }

@@ -23,6 +23,42 @@ void main() {
       expect(find.text('A'), findsNothing);
     });
 
+    testWidgets('keeps image preview inside a square oval clip after rebuild', (
+      tester,
+    ) async {
+      final previewBytes = Uint8List.fromList(_transparentPngBytes);
+
+      await tester.pumpWidget(
+        _avatarHost(
+          AdminAvatar(name: 'Admin User', previewBytes: previewBytes),
+        ),
+      );
+      await tester.pumpWidget(
+        _avatarHost(
+          AdminAvatar(
+            name: 'Admin User',
+            imageUrl: 'https://example.com/avatar.jpg',
+            previewBytes: previewBytes,
+          ),
+        ),
+      );
+
+      final imageFinder = find.byType(Image);
+      final clipFinder = find.ancestor(
+        of: imageFinder,
+        matching: find.byType(ClipOval),
+      );
+      final shellFinder = find.descendant(
+        of: clipFinder,
+        matching: find.byType(SizedBox),
+      );
+
+      expect(clipFinder, findsOneWidget);
+      final shell = tester.widget<SizedBox>(shellFinder.first);
+      expect(shell.width, 36);
+      expect(shell.height, 36);
+    });
+
     testWidgets('renders remote image when URL is present', (tester) async {
       await tester.pumpWidget(
         _avatarHost(

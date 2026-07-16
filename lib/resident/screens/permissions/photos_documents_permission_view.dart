@@ -75,27 +75,25 @@ class _PhotosDocumentsPermissionViewState
         return;
       }
 
+      // Documents are selected through the platform document picker and do
+      // not require broad storage access. Only request photo-library access.
       final photosStatus = await Permission.photos.request();
-      final storageStatus = await Permission.storage.request();
-      final statuses = [photosStatus, storageStatus];
-      final authorized = statuses.any(
-        (status) => status.isGranted || status.isLimited,
-      );
-      final blocked = statuses.any((status) => status.isPermanentlyDenied);
+      final authorized = photosStatus.isGranted || photosStatus.isLimited;
+      final blocked = photosStatus.isPermanentlyDenied;
 
       await _savePreference(
-        enabled: authorized,
-        status: authorized ? 'authorized' : 'denied',
+        enabled: true,
+        status: authorized ? 'authorized' : 'documentsOnly',
       );
       if (!mounted) return;
 
       if (blocked && !authorized) {
         _showSnack(
-          'Photos and document access is blocked. You can enable it in device settings.',
+          'Photo access is blocked. Documents can still be selected with the system picker; enable photos in device settings for gallery uploads.',
         );
       } else if (!authorized) {
         _showSnack(
-          'Photos and document access was not granted. You can still choose files later from the picker.',
+          'Photo access was not granted. You can still choose documents with the system picker.',
         );
       }
       await _completePermissionStep();
@@ -139,6 +137,11 @@ class _PhotosDocumentsPermissionViewState
           Image.asset(
             'assets/perm4.png',
             fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => Icon(
+              Icons.folder_copy_outlined,
+              size: 92,
+              color: softTeal,
+            ),
           ),
           Container(
             width: 136,

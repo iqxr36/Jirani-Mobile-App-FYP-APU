@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -16,6 +16,10 @@ const PROJECT_ID = 'jirani-user-privacy-rules-test';
 const OWNER_ID = 'owner-user';
 const NEIGHBOR_ID = 'neighbor-user';
 const OTHER_COMMUNITY_ID = 'other-community-user';
+const COMMUNITY_ADMIN_ID = 'community-admin';
+const SUSPENDED_ID = 'suspended-resident';
+const INDEFINITE_SUSPENSION_ID = 'indefinite-suspension-resident';
+const EXPIRED_SUSPENSION_ID = 'expired-suspension-resident';
 
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
 let testEnv;
@@ -64,6 +68,46 @@ before(async () => {
       firstName: 'Other',
       lastName: 'Community',
       updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'users', SUSPENDED_ID), {
+      uid: SUSPENDED_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      accountStatus: 'suspended',
+      suspensionEndsAt: new Date('2035-01-01T00:00:00.000Z'),
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'users', EXPIRED_SUSPENSION_ID), {
+      uid: EXPIRED_SUSPENSION_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      accountStatus: 'suspended',
+      suspensionEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'users', INDEFINITE_SUSPENSION_ID), {
+      uid: INDEFINITE_SUSPENSION_ID,
+      role: 'resident',
+      verificationStatus: 'verified',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      accountStatus: 'suspended',
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'admins', COMMUNITY_ADMIN_ID), {
+      uid: COMMUNITY_ADMIN_ID,
+      role: 'communityAdmin',
+      communityId: 'community-1',
+      isActive: true,
+    });
+    await setDoc(doc(db, 'borrowRequests', 'private-borrow-request'), {
+      ownerId: OWNER_ID,
+      borrowerId: NEIGHBOR_ID,
+      communityId: 'community-1',
     });
 
     await setDoc(doc(db, 'publicProfiles', OWNER_ID), {
@@ -120,6 +164,80 @@ describe('private user profile access', () => {
   test('resident can read own private user document', async () => {
     const db = testEnv.authenticatedContext(OWNER_ID).firestore();
     await assertSucceeds(getDoc(doc(db, 'users', OWNER_ID)));
+  });
+
+  test('resident cannot create a profile without server registration', async () => {
+    const db = testEnv.authenticatedContext('new-resident').firestore();
+    await assertFails(setDoc(doc(db, 'users', 'new-resident'), {
+      uid: 'new-resident',
+      role: 'resident',
+      verificationStatus: 'pending',
+    }));
+  });
+
+  test('resident cannot write phoneNumber directly to own profile', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'users', OWNER_ID), {
+        phoneNumber: '+60999999999',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('community admin can read a private user in their community', async () => {
+    const db = testEnv.authenticatedContext(COMMUNITY_ADMIN_ID).firestore();
+    await assertSucceeds(getDoc(doc(db, 'users', OWNER_ID)));
+  });
+
+  test('community admin cannot read a private user in another community', async () => {
+    const db = testEnv.authenticatedContext(COMMUNITY_ADMIN_ID).firestore();
+    await assertFails(getDoc(doc(db, 'users', OTHER_COMMUNITY_ID)));
+  });
+
+  test('unrelated resident cannot read a borrow request', async () => {
+    const db = testEnv.authenticatedContext(OTHER_COMMUNITY_ID).firestore();
+    await assertFails(
+      getDoc(doc(db, 'borrowRequests', 'private-borrow-request')),
+    );
+  });
+
+  test('unknown collection writes are denied by default', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertFails(setDoc(doc(db, 'unknownCollection', 'record-1'), {
+      value: true,
+    }));
+  });
+});
+
+describe('suspension restriction privacy', () => {
+  test('resident with an active timed suspension cannot access community profiles', async () => {
+    const db = testEnv.authenticatedContext(SUSPENDED_ID).firestore();
+    await assertFails(getDoc(doc(db, 'publicProfiles', OWNER_ID)));
+  });
+
+  test('resident can access community profiles after a timed suspension expires', async () => {
+    const db = testEnv.authenticatedContext(EXPIRED_SUSPENSION_ID).firestore();
+    await assertSucceeds(getDoc(doc(db, 'publicProfiles', OWNER_ID)));
+  });
+
+  test('resident with an indefinite suspension remains blocked', async () => {
+    const db = testEnv.authenticatedContext(INDEFINITE_SUSPENSION_ID).firestore();
+    await assertFails(getDoc(doc(db, 'publicProfiles', OWNER_ID)));
+  });
+
+  test('resident cannot read or write server-only email restrictions', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    const ref = doc(db, 'residentEmailRestrictions', 'email-hash');
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, { blocked: true }));
+  });
+
+  test('resident cannot read or write server-only phone registry', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    const ref = doc(db, 'residentPhoneNumbers', 'phone-hash');
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, { uid: OWNER_ID, normalizedPhone: '+60123456789' }));
   });
 });
 

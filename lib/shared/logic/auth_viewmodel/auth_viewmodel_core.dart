@@ -54,7 +54,6 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   String _adminProfileImageBytesUrl = '';
   bool _showEmailVerificationAfterRegister = false;
   bool _showAccountCreatedScreen = false;
-  bool _showPhoneVerificationAfterRegister = false;
 
   User? get firebaseUser => _firebaseUser;
   bool get isAuthBootstrapComplete => _authBootstrapComplete;
@@ -78,8 +77,6 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   bool get showEmailVerificationAfterRegister =>
       _showEmailVerificationAfterRegister;
   bool get showAccountCreatedScreen => _showAccountCreatedScreen;
-  bool get showPhoneVerificationAfterRegister =>
-      _showPhoneVerificationAfterRegister;
 
   /// Auth/profile feature: reloads resident/admin Firestore profiles while preserving the last good profile on failure.
   Future<void> refreshCurrentUser() async {
@@ -144,7 +141,6 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       _adminProfileImageErrorMessage = null;
       _showEmailVerificationAfterRegister = false;
       _showAccountCreatedScreen = false;
-      _showPhoneVerificationAfterRegister = false;
       _authBootstrapComplete = true;
       notifyListeners();
       return;
@@ -336,42 +332,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   }
 
   /// Auth UX: converts Firebase/social sign-in exceptions into readable messages.
-  String _mapAuthError(Object e) {
-    if (e is FirebaseAuthException) {
-      switch (e.code) {
-        case 'account-exists-with-different-credential':
-          return 'This email is already linked to another sign-in method.';
-        case 'network-request-failed':
-          return 'Network error. Please try again.';
-        case 'user-disabled':
-          return 'This account has been disabled.';
-        case 'invalid-credential':
-          return 'Sign-in failed. Please try again.';
-        case 'user-not-found':
-        case 'wrong-password':
-          return e.message ?? 'Sign-in failed.';
-        case 'email-already-in-use':
-          return 'This email is already used by another account.';
-        case 'invalid-email':
-          return 'Enter a valid email address.';
-        case 'requires-recent-login':
-          return 'For security, please log out and log in again before changing your email.';
-      }
-      return e.message ?? e.code;
-    }
-    if (e is FirebaseException) {
-      if (e.code == 'permission-denied') {
-        return 'Permission denied. Check that your admin profile and deployed '
-            'Firestore security rules are configured correctly.';
-      }
-      return e.message ?? e.code;
-    }
-    final raw = e.toString().replaceFirst('Exception: ', '').trim();
-    if (raw.contains('Network error')) {
-      return raw;
-    }
-    return raw;
-  }
+  String _mapAuthError(Object e) => mapAuthErrorMessage(e);
 
   @override
   void dispose() {

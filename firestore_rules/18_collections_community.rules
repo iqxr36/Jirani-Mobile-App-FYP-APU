@@ -5,7 +5,7 @@
         (
           isVerifiedResident() &&
           resource.data.communityId == myUserDoc().data.communityId &&
-          resource.data.status == 'published'
+          resource.data.status in ['published', 'expired']
         )
       );
       allow create: if validCommunityPostCreate(postId);

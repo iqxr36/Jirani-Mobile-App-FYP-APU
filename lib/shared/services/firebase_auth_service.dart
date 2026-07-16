@@ -26,6 +26,11 @@ class FirebaseAuthService {
 
   User? get currentUser => _firebaseAuth.currentUser;
   bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
+  bool get currentUserUsesPassword =>
+      _firebaseAuth.currentUser?.providerData.any(
+        (provider) => provider.providerId == EmailAuthProvider.PROVIDER_ID,
+      ) ??
+      false;
 
   /// Auth feature: signs a resident/admin in with Firebase email and password.
   Future<UserCredential> signInWithEmailAndPassword({
@@ -84,6 +89,39 @@ class FirebaseAuthService {
   /// Auth verification: reloads the Firebase user so email/phone verification flags are fresh.
   Future<void> reloadCurrentUser() async {
     await _firebaseAuth.currentUser?.reload();
+  }
+
+  Future<void> reauthenticateWithPassword(String password) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email?.trim() ?? '';
+    if (user == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'You must be signed in to continue.',
+      );
+    }
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: password),
+    );
+  }
+
+  Future<bool> reauthenticateWithGoogle() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return false;
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return false;
+    final googleAuth = await googleUser.authentication;
+    await user.reauthenticateWithCredential(
+      GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      ),
+    );
+    return true;
+  }
+
+  Future<void> deleteCurrentUser() async {
+    await _firebaseAuth.currentUser?.delete();
   }
 
   /// Google OAuth via [GoogleSignIn]. Returns `null` if the user closed the picker.

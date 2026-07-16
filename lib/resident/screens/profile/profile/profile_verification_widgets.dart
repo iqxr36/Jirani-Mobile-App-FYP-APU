@@ -82,12 +82,10 @@ class _IdentityVerificationPanel extends StatelessWidget {
   const _IdentityVerificationPanel({
     required this.user,
     required this.onVerifyEmail,
-    required this.onVerifyPhone,
   });
 
   final AppUser? user;
   final VoidCallback? onVerifyEmail;
-  final VoidCallback? onVerifyPhone;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +93,6 @@ class _IdentityVerificationPanel extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final email = user?.email.trim() ?? '';
     final pendingEmail = user?.pendingEmail.trim() ?? '';
-    final phone = user?.phoneNumber.trim() ?? '';
     final emailValue = user?.hasPendingEmailChange == true
         ? '$email\nPending confirmation: $pendingEmail'
         : (email.isEmpty ? 'No email saved' : email);
@@ -113,31 +110,13 @@ class _IdentityVerificationPanel extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.all(10),
-      child: Column(
-        children: [
-          _IdentityVerificationRow(
-            icon: Icons.mark_email_read_outlined,
-            title: 'Email Address',
-            value: emailValue,
-            verified: user?.emailVerified ?? false,
-            actionLabel: 'Verify now',
-            onTap: onVerifyEmail,
-          ),
-          Divider(
-            height: 14,
-            color: isDark
-                ? scheme.outlineVariant
-                : Colors.black.withValues(alpha: 0.08),
-          ),
-          _IdentityVerificationRow(
-            icon: Icons.sms_outlined,
-            title: 'Phone Number',
-            value: phone.isEmpty ? 'No phone saved' : phone,
-            verified: user?.phoneVerified ?? false,
-            actionLabel: phone.isEmpty ? 'Add first' : 'Verify now',
-            onTap: onVerifyPhone,
-          ),
-        ],
+      child: _IdentityVerificationRow(
+        icon: Icons.mark_email_read_outlined,
+        title: 'Email Address',
+        value: emailValue,
+        verified: user?.emailVerified ?? false,
+        actionLabel: 'Verify now',
+        onTap: onVerifyEmail,
       ),
     );
   }

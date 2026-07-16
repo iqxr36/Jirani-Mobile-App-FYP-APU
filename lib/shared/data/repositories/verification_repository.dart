@@ -273,6 +273,7 @@ class VerificationRepository {
             'storageBucket': storageBucket,
             'residentId': uid,
             'residentEmail': appUser.email,
+            'createdAt': FieldValue.serverTimestamp(),
             'uploadedAt': FieldValue.serverTimestamp(),
             'submittedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),

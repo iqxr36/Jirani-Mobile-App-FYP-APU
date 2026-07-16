@@ -256,6 +256,8 @@ class _ResidentEditProfileViewState extends State<ResidentEditProfileView> {
                                     decoration: context.residentInputDecoration(
                                       label: 'Phone number',
                                       hint: '+60...',
+                                      helperText:
+                                          'Must be unique. Already-used numbers cannot be saved.',
                                     ),
                                     validator: Validators.validatePhone,
                                   ),

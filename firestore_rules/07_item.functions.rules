@@ -62,11 +62,19 @@
           'adminModeratedAt',
           'updatedAt',
         ]) &&
-        request.resource.data.title is string &&
-        request.resource.data.description is string &&
+        isBoundedString(request.resource.data.title, 3, maxItemTitleLength()) &&
+        isBoundedString(
+          request.resource.data.description,
+          minItemDescriptionLength(),
+          maxListingDescriptionLength()
+        ) &&
         request.resource.data.category is string &&
         request.resource.data.condition is string &&
-        request.resource.data.pickupInstructions is string &&
+        isBoundedString(
+          request.resource.data.pickupInstructions,
+          0,
+          maxPickupInstructionsLength()
+        ) &&
         request.resource.data.imageUrls is list;
     }
 
@@ -144,10 +152,15 @@
         data.communityId == myUserDoc().data.communityId &&
         data.communityName == myUserDoc().data.communityName &&
         data.title is string &&
+        data.title.size() >= 3 &&
+        data.title.size() <= maxItemTitleLength() &&
         data.description is string &&
+        data.description.size() >= minItemDescriptionLength() &&
+        data.description.size() <= maxListingDescriptionLength() &&
         data.category is string &&
         data.condition is string &&
         data.pickupInstructions is string &&
+        data.pickupInstructions.size() <= maxPickupInstructionsLength() &&
         data.imageUrls is list &&
         data.imageUrls.size() > 0 &&
         data.lendingType is string &&

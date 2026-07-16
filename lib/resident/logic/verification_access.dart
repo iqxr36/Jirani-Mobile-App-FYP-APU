@@ -10,14 +10,19 @@ bool residentHasFullAppAccess(AppUser? user) =>
     user.isVerifiedResident &&
     user.locationVerified;
 
+// Verification access feature: gates protected Firestore listeners behind the same rule as locked UI.
+bool residentCanStartProtectedListeners(AppUser? user) =>
+    residentHasFullAppAccess(user);
+
 // Verification access feature: builds the blocked-action message based on account and verification state.
 String residentAccessMessage(AppUser? user) {
   if (user == null) {
     return verificationStatusMessage(AppConstants.verificationPending);
   }
+  if (user.hasActiveSuspension) {
+    return 'Your account is suspended. Check the suspension notice for the access return time.';
+  }
   switch (user.accountStatus) {
-    case AppConstants.accountStatusSuspended:
-      return 'Your account is suspended. Contact community admin for assistance.';
     case AppConstants.accountStatusArchived:
       return 'Your account is archived. Contact community admin if you need access restored.';
     default:

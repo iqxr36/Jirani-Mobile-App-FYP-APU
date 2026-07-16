@@ -167,7 +167,9 @@ class ResidentDirectoryExporter {
     for (var col = 0; col < ResidentExportRow.headers.length; col++) {
       sheet
           .cell(CellIndex.indexByColumnRow(rowIndex: 0, columnIndex: col))
-          .cellStyle = CellStyle(bold: true);
+          .cellStyle = CellStyle(
+        bold: true,
+      );
     }
 
     for (final row in rows) {
@@ -185,7 +187,10 @@ class ResidentDirectoryExporter {
     return Uint8List.fromList(encoded);
   }
 
-  Future<Uint8List> _buildPdf(List<ResidentExportRow> rows, int recordCount) async {
+  Future<Uint8List> _buildPdf(
+    List<ResidentExportRow> rows,
+    int recordCount,
+  ) async {
     final exportedLabel = DateFormat('yyyy-MM-dd HH:mm').format(_exportedAt);
     final doc = pw.Document();
 
@@ -196,10 +201,7 @@ class ResidentDirectoryExporter {
         build: (context) => [
           pw.Text(
             'Jirani Resident Directory Export',
-            style: pw.TextStyle(
-              fontSize: 18,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 8),
           pw.Text('Exported: $exportedLabel'),
@@ -209,10 +211,13 @@ class ResidentDirectoryExporter {
           if (filterSummary != null && filterSummary!.trim().isNotEmpty)
             pw.Text('Filters: ${filterSummary!.trim()}'),
           pw.SizedBox(height: 16),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: ResidentExportRow.headers,
             data: rows.map((row) => row.values).toList(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 9,
+            ),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
             cellAlignment: pw.Alignment.centerLeft,
             cellStyle: const pw.TextStyle(fontSize: 9),

@@ -9,7 +9,6 @@ class _ProfileCard extends StatelessWidget {
     required this.isPhotoUpdating,
     required this.onVerificationStatus,
     required this.onVerifyEmail,
-    required this.onVerifyPhone,
     required this.onMyItems,
     required this.onRatings,
     required this.onMyServices,
@@ -24,7 +23,6 @@ class _ProfileCard extends StatelessWidget {
   final bool isPhotoUpdating;
   final VoidCallback onVerificationStatus;
   final VoidCallback? onVerifyEmail;
-  final VoidCallback? onVerifyPhone;
   final VoidCallback onMyItems;
   final VoidCallback onRatings;
   final VoidCallback onMyServices;
@@ -193,7 +191,6 @@ class _ProfileCard extends StatelessWidget {
           _IdentityVerificationPanel(
             user: user,
             onVerifyEmail: onVerifyEmail,
-            onVerifyPhone: onVerifyPhone,
           ),
           const SizedBox(height: 17),
           Divider(

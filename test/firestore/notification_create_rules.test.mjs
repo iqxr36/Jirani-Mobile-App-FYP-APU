@@ -4,14 +4,17 @@ import { fileURLToPath } from 'node:url';
 import { after, before, describe, test } from 'node:test';
 import {
   assertFails,
+  assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
   addDoc,
   collection,
   doc,
+  getDoc,
   setDoc,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +50,15 @@ before(async () => {
       communityId: 'community-1',
       updatedAt: now,
     });
+    await setDoc(doc(db, 'notifications', 'notification-1'), {
+      userId: RECIPIENT_ID,
+      actorId: SENDER_ID,
+      type: 'chatMessage',
+      title: 'Hello',
+      body: 'Test message',
+      read: false,
+      createdAt: now,
+    });
   });
 });
 
@@ -68,5 +80,17 @@ describe('notification create rules', () => {
         createdAt: Timestamp.now(),
       }),
     );
+  });
+
+  test('notification owner can mark it as read', async () => {
+    const db = testEnv.authenticatedContext(RECIPIENT_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'notifications', 'notification-1'), { read: true }),
+    );
+  });
+
+  test("resident cannot read another user's notification", async () => {
+    const db = testEnv.authenticatedContext(SENDER_ID).firestore();
+    await assertFails(getDoc(doc(db, 'notifications', 'notification-1')));
   });
 });

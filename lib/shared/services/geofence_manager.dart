@@ -63,6 +63,16 @@ class GeofenceManager {
 
   /// Geofence feature: replaces old zones with active Firestore communities so enter/exit callbacks match current data.
   Future<void> startGeofencing(List<CommunityModel> communities) async {
+    final hasForeground = await hasForegroundLocationPermission();
+    final hasBackground = await hasBackgroundLocationPermission();
+    if (!hasForeground || !hasBackground) {
+      debugPrint(
+        'Gatekeeper: native monitoring was not started because foreground '
+        'and background location permissions are required.',
+      );
+      return;
+    }
+
     try {
       await initialize();
       await NativeGeofenceManager.instance.removeAllGeofences();

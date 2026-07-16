@@ -1,3 +1,5 @@
+import 'package:jirani/core/constants/app_constants.dart';
+
 class Validators {
   Validators._();
 
@@ -37,6 +39,18 @@ class Validators {
   }) {
     if ((value ?? '').trim().isEmpty) {
       return '$fieldName is required.';
+    }
+    return null;
+  }
+
+  static String? validateMaxLength(
+    String? value, {
+    required int maxLength,
+    String fieldName = 'Field',
+  }) {
+    final text = value ?? '';
+    if (text.length > maxLength) {
+      return '$fieldName must be at most $maxLength characters.';
     }
     return null;
   }
@@ -153,7 +167,11 @@ class Validators {
     if (title.length < 3) {
       return 'Item title is too short.';
     }
-    return null;
+    return validateMaxLength(
+      title,
+      maxLength: AppConstants.maxItemTitleLength,
+      fieldName: 'Item title',
+    );
   }
 
   static String? validateDescription(String? value) {
@@ -161,10 +179,86 @@ class Validators {
     if (description.isEmpty) {
       return 'Description is required.';
     }
-    if (description.length < 10) {
-      return 'Description should be at least 10 characters.';
+    if (description.length < AppConstants.minItemDescriptionLength) {
+      return 'Description should be at least '
+          '${AppConstants.minItemDescriptionLength} characters.';
     }
-    return null;
+    return validateMaxLength(
+      description,
+      maxLength: AppConstants.maxListingDescriptionLength,
+      fieldName: 'Description',
+    );
+  }
+
+  static String? validatePickupInstructions(String? value) {
+    return validateMaxLength(
+      value,
+      maxLength: AppConstants.maxPickupInstructionsLength,
+      fieldName: 'Pickup instructions',
+    );
+  }
+
+  static String? validateServiceTitle(String? value) {
+    return _validateRequiredBoundedText(
+      value,
+      fieldName: 'Service name',
+      minLength: AppConstants.minServiceTitleLength,
+      maxLength: AppConstants.maxShortTextLength,
+    );
+  }
+
+  static String? validateServiceDescription(String? value) {
+    return _validateRequiredBoundedText(
+      value,
+      fieldName: 'Service description',
+      minLength: AppConstants.minServiceDescriptionLength,
+      maxLength: AppConstants.maxListingDescriptionLength,
+    );
+  }
+
+  static String? validateServiceAvailability(String? value) {
+    return _validateRequiredBoundedText(
+      value,
+      fieldName: 'Service availability',
+      maxLength: AppConstants.maxMediumTextLength,
+    );
+  }
+
+  static String? _validateRequiredBoundedText(
+    String? value, {
+    required String fieldName,
+    int minLength = 1,
+    required int maxLength,
+  }) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return '$fieldName is required.';
+    if (text.length < minLength) {
+      return '$fieldName must be at least $minLength characters.';
+    }
+    return validateMaxLength(text, maxLength: maxLength, fieldName: fieldName);
+  }
+
+  static String? validateOptionalMessage(
+    String? value, {
+    String fieldName = 'Message',
+  }) {
+    final message = value?.trim() ?? '';
+    if (message.isEmpty) return null;
+    return validateMaxLength(
+      message,
+      maxLength: AppConstants.maxMediumTextLength,
+      fieldName: fieldName,
+    );
+  }
+
+  static String? validateReviewComment(String? value) {
+    final comment = value?.trim() ?? '';
+    if (comment.isEmpty) return null;
+    return validateMaxLength(
+      comment,
+      maxLength: AppConstants.maxReviewCommentLength,
+      fieldName: 'Review comment',
+    );
   }
 
   static String? validateFourDigitCode(String? value) {

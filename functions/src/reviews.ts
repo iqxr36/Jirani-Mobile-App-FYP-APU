@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {buildReviewDocId, buildServiceReviewDocId} from "./review_publish";
+import {MAX_REVIEW_COMMENT_LENGTH} from "./account_lifecycle";
 import {recalculateTrustScoreForUser} from "./trust_score";
 
 type DocumentData = admin.firestore.DocumentData;
@@ -34,6 +35,17 @@ function asRecord(data: unknown): Record<string, unknown> {
 function readString(data: Record<string, unknown>, key: string): string {
   const value = data[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function readComment(data: Record<string, unknown>): string {
+  const comment = readString(data, "comment");
+  if (comment.length > MAX_REVIEW_COMMENT_LENGTH) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Comment must be at most ${MAX_REVIEW_COMMENT_LENGTH} characters.`,
+    );
+  }
+  return comment;
 }
 
 function readRating(data: Record<string, unknown>): number {
@@ -97,7 +109,7 @@ export const createMarketplaceReview = onCall(async (request) => {
   const borrowRequestId = readString(input, "borrowRequestId");
   const reviewerName = readString(input, "reviewerName");
   const role = readString(input, "role");
-  const comment = readString(input, "comment");
+  const comment = readComment(input);
   const rating = readRating(input);
 
   if (!borrowRequestId) {
@@ -167,7 +179,7 @@ export const createServiceReview = onCall(async (request) => {
   const input = asRecord(request.data);
   const serviceRequestId = readString(input, "serviceRequestId");
   const reviewerName = readString(input, "reviewerName");
-  const comment = readString(input, "comment");
+  const comment = readComment(input);
   const rating = readRating(input);
 
   if (!serviceRequestId) {

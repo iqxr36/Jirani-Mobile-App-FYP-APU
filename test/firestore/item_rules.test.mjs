@@ -14,6 +14,7 @@ import {
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -87,6 +88,14 @@ before(async () => {
       communityName: 'Other Place',
       updatedAt: new Date(),
     });
+    await setDoc(doc(db, 'users', 'unverified-user'), {
+      uid: 'unverified-user',
+      role: 'resident',
+      verificationStatus: 'pending',
+      communityId: 'community-1',
+      communityName: 'Palm Grove',
+      updatedAt: new Date(),
+    });
     await setDoc(doc(db, 'publicProfiles', OWNER_ID), {
       uid: OWNER_ID,
       role: 'resident',
@@ -117,6 +126,10 @@ before(async () => {
       title: 'Saw',
       isArchived: true,
       status: 'available',
+    });
+    await setDoc(doc(db, 'items', 'item-boundary'), {
+      ...baseItem,
+      title: 'Boundary item',
     });
   });
 });
@@ -220,7 +233,39 @@ describe('item owner updates', () => {
   });
 });
 
-describe('item delete and neighbor access', () => {
+describe('item validation, delete and neighbor access', () => {
+  test('unverified resident cannot create a marketplace item', async () => {
+    const db = testEnv.authenticatedContext('unverified-user').firestore();
+    await assertFails(
+      setDoc(doc(db, 'items', 'unverified-item'), {
+        ...baseItem,
+        ownerId: 'unverified-user',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('owner can use the exact 1000-character item description limit', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'items', 'item-boundary'), {
+        description: 'd'.repeat(1000),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  test('owner cannot exceed the item description limit', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'items', 'item-boundary'), {
+        description: 'd'.repeat(1001),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
   test('owner cannot delete their item', async () => {
     const db = testEnv.authenticatedContext(OWNER_ID).firestore();
     await assertFails(deleteDoc(doc(db, 'items', ITEM_ID)));
@@ -252,6 +297,22 @@ describe('item delete and neighbor access', () => {
           where('isArchived', '==', false),
         ),
       ),
+    );
+  });
+
+  test('item description rejects 11 characters and accepts 12', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'items', 'item-boundary'), {
+        description: 'x'.repeat(11),
+        updatedAt: new Date(),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, 'items', 'item-boundary'), {
+        description: 'x'.repeat(12),
+        updatedAt: new Date(),
+      }),
     );
   });
 

@@ -5,22 +5,6 @@ mixin _ChatServiceQueriesMixin on _ChatServiceBase {
   Stream<List<ChatModel>> watchChats(AppUser currentUser) {
     final currentUserId = currentUser.uid;
     final communityId = currentUser.communityId.trim();
-    // #region agent log
-    unawaited(
-      agentDebugLog(
-        runId: 'pre-fix',
-        hypothesisId: 'H3',
-        location: 'lib/services/chat_service.dart:34',
-        message: 'Starting chat inbox Firestore query',
-        data: <String, Object?>{
-          'currentUserId': agentDebugId(currentUserId),
-          'queryField': 'participantLookup.<uid>',
-          'communityId': agentDebugId(communityId),
-          'collection': AppConstants.chatsCollection,
-        },
-      ),
-    );
-    // #endregion
     return _chats
         .where('participantLookup.$currentUserId', isEqualTo: true)
         .snapshots()

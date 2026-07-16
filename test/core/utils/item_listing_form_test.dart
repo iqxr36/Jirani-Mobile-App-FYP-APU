@@ -27,6 +27,49 @@ void main() {
       );
     });
 
+    test('description boundary matches Firestore rules', () {
+      expect(
+        ItemListingFormValidator.validateDetails(
+          title: 'Drill',
+          category: 'tools',
+          condition: 'good',
+          description: 'a' * 11,
+          imageCount: 1,
+        ),
+        isNotNull,
+      );
+      expect(
+        ItemListingFormValidator.validateDetails(
+          title: 'Drill',
+          category: 'tools',
+          condition: 'good',
+          description: 'a' * 12,
+          imageCount: 1,
+        ),
+        isNull,
+      );
+      expect(
+        ItemListingFormValidator.validateDetails(
+          title: 'Drill',
+          category: 'tools',
+          condition: 'good',
+          description: 'a' * 1000,
+          imageCount: 1,
+        ),
+        isNull,
+      );
+      expect(
+        ItemListingFormValidator.validateDetails(
+          title: 'Drill',
+          category: 'tools',
+          condition: 'good',
+          description: 'a' * 1001,
+          imageCount: 1,
+        ),
+        isNotNull,
+      );
+    });
+
     test('parses valid money amounts and rejects invalid amounts', () {
       expect(ItemListingFormValidator.parseAmount('25'), 25);
       expect(ItemListingFormValidator.parseAmount('1,250.50'), 1250.50);

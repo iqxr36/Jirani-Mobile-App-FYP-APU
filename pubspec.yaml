@@ -94,8 +94,6 @@ dependencies:
   # Sign in
   google_sign_in: ^6.2.2
 
-  # Payments
-
   # API requests
   http: ^1.6.0
 
@@ -121,6 +119,7 @@ dev_dependencies:
     sdk: flutter
   fake_cloud_firestore: ^4.1.1
   firebase_auth_mocks: ^0.15.2
+  firebase_core_platform_interface: ^7.1.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -159,6 +158,7 @@ flutter:
     # - "assets/Android-app-logo-dark-mode-draw(1).PNG"
     - assets/perm1.png
     - assets/perm2.png
+    - assets/perm4.png
     - assets/cam-perm.png
     - "assets/Home Services(1)-Photoroom.png"
     - "assets/Share Items-Photoroom.png"

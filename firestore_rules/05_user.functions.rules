@@ -7,8 +7,6 @@
         'fullName',
         'email',
         'pendingEmail',
-        'phoneNumber',
-        'phoneVerified',
         'emailVerified',
         'profileImageUrl',
         'communityId',

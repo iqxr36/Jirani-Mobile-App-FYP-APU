@@ -1,5 +1,7 @@
 library;
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:jirani/core/constants/app_constants.dart';
@@ -8,7 +10,6 @@ import 'package:jirani/resident/providers/theme_provider.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/resident/screens/auth/email_verification_view.dart';
-import 'package:jirani/resident/screens/auth/phone_verification_view.dart';
 import 'package:jirani/resident/screens/home/resident_services_view.dart';
 import 'package:jirani/resident/screens/marketplace/resident_item_listing_view.dart';
 import 'package:jirani/resident/screens/profile/resident_edit_profile_view.dart';

@@ -99,7 +99,9 @@
         chatParticipantById(chatId) &&
         chatBelongsToMyCommunity(chatId) &&
         data.chatId == chatId &&
-        data.senderId == request.auth.uid;
+        data.senderId == request.auth.uid &&
+        data.text is string &&
+        data.text.size() <= maxLongTextLength();
     }
 
     function validChatMessageReadUpdate(chatId) {

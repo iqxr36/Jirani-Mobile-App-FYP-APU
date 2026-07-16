@@ -100,8 +100,17 @@ class NetworkStatusProvider extends ChangeNotifier {
     }
 
     final previousStatus = _status;
-    final hasInternet = await _connectivityChecker.check();
-    if (hasInternet) {
+    final osResults = await _checkConnectivity();
+    final hasNetworkInterface = InternetConnectivityChecker.hasNetworkInterface(
+      osResults,
+    );
+    final hasInternet =
+        hasNetworkInterface &&
+        await _connectivityChecker.check(connectivityResults: osResults);
+    if (!hasNetworkInterface) {
+      _consecutiveProbeFailures = 0;
+      _status = NetworkStatus.offline;
+    } else if (hasInternet) {
       _consecutiveProbeFailures = 0;
       _status = NetworkStatus.online;
     } else {

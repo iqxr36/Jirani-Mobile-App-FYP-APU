@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:jirani/core/constants/app_constants.dart';
+import 'package:jirani/resident/logic/verification_access.dart';
 import 'package:jirani/shared/data/repositories/connection_repository.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/connection_model.dart';
@@ -56,18 +57,21 @@ class ConnectionProvider extends ChangeNotifier {
   void watchForUser(AppUser? user, {bool force = false}) {
     final sameUser = user?.uid == _currentUser?.uid;
     final sameCommunity = user?.communityId == _currentUser?.communityId;
-    if (!force && sameUser && sameCommunity) return;
+    final sameAccess =
+        residentCanStartProtectedListeners(user) ==
+        residentCanStartProtectedListeners(_currentUser);
+    if (!force && sameUser && sameCommunity && sameAccess) return;
     _currentUser = user;
     _cancelSubscriptions();
 
     if (user == null) {
-      _communityResidents = const <AppUser>[];
-      _connections = const <ConnectionModel>[];
-      _incomingRequests = const <ConnectionModel>[];
-      _outgoingRequests = const <ConnectionModel>[];
-      _streamErrors.clear();
-      _isLoading = false;
-      _errorMessage = null;
+      _resetState();
+      notifyListeners();
+      return;
+    }
+
+    if (!residentCanStartProtectedListeners(user)) {
+      _resetState();
       notifyListeners();
       return;
     }
@@ -259,6 +263,17 @@ class ConnectionProvider extends ChangeNotifier {
   // Neighbor connection UI state: exposes the first active stream error through the shared error getter.
   void _refreshErrorMessage() {
     _errorMessage = _streamErrors.isEmpty ? null : _streamErrors.values.first;
+  }
+
+  // Neighbor connection feature: clears resident/connection state when the user signs out or lacks access.
+  void _resetState() {
+    _communityResidents = const <AppUser>[];
+    _connections = const <ConnectionModel>[];
+    _incomingRequests = const <ConnectionModel>[];
+    _outgoingRequests = const <ConnectionModel>[];
+    _streamErrors.clear();
+    _isLoading = false;
+    _errorMessage = null;
   }
 
   // Neighbor connection feature: stops resident/connection listeners when the signed-in user changes.

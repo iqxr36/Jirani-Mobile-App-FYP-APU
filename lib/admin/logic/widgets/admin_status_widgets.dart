@@ -269,7 +269,9 @@ class AdminAvatar extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
-            webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+            // HTML platform-view images can escape ClipOval while the admin
+            // header rebuilds during sidebar navigation.
+            webHtmlElementStrategy: WebHtmlElementStrategy.never,
             errorBuilder: (context, error, stackTrace) {
               _notifyImageError(error);
               return _initialsFallback(radius, initial);
@@ -307,11 +309,7 @@ class AdminAvatar extends StatelessWidget {
 
   Widget _avatarShell({required double radius, required Widget child}) {
     return ClipOval(
-      child: SizedBox(
-        width: radius * 2,
-        height: radius * 2,
-        child: child,
-      ),
+      child: SizedBox(width: radius * 2, height: radius * 2, child: child),
     );
   }
 
@@ -332,11 +330,7 @@ class AdminAvatar extends StatelessWidget {
 }
 
 class AdminIdentityCell extends StatelessWidget {
-  const AdminIdentityCell({
-    super.key,
-    required this.name,
-    this.imageUrl = '',
-  });
+  const AdminIdentityCell({super.key, required this.name, this.imageUrl = ''});
 
   final String name;
   final String imageUrl;

@@ -44,10 +44,16 @@ class CommunityPostModel {
 
   bool get isPublished => status == AppConstants.communityPostStatusPublished;
   bool get isDraft => status == AppConstants.communityPostStatusDraft;
+  bool get isStatusExpired =>
+      status == AppConstants.communityPostStatusExpired;
   bool get isScheduled => isDraft && scheduledPublishAt != null;
-  bool get isExpired =>
+  bool get isExpiredBySchedule =>
       expiresAt != null && !DateTime.now().isBefore(expiresAt!);
-  bool get isVisibleToResidents => isPublished && !isExpired;
+  bool get isExpired => isStatusExpired || isExpiredBySchedule;
+  /// Live feed: only actively published posts that have not hit [expiresAt].
+  bool get isVisibleToResidents => isPublished && !isExpiredBySchedule;
+  /// Notification deep links: published or historically expired posts.
+  bool get isReadableByResidents => isPublished || isStatusExpired;
 
   /// Community news UI: maps post type constants to readable labels.
   String get displayCategory {

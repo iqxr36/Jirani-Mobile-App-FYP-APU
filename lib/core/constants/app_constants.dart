@@ -3,6 +3,24 @@ class AppConstants {
 
   static const String appName = 'Jirani';
 
+  // Shared input length limits (mirror firestore_rules/00a_validation.functions.rules)
+  static const int maxPersonNameLength = 60;
+  static const int maxPhoneLength = 16;
+  static const int maxShortTextLength = 200;
+  static const int maxMediumTextLength = 1000;
+  static const int maxLongTextLength = 5000;
+  static const int minItemDescriptionLength = 12;
+  static const int minServiceTitleLength = 3;
+  static const int minServiceDescriptionLength = 12;
+  static const int maxListingDescriptionLength = 1000;
+  static const int maxItemTitleLength = 120;
+  static const int maxPickupInstructionsLength = 500;
+  static const int maxUnitNumberLength = 20;
+  static const int maxProfileImageUrlLength = 2048;
+  static const int maxReviewCommentLength = 1000;
+
+  static const String residentPhoneNumbersCollection = 'residentPhoneNumbers';
+
   // Roles
   static const String roleResident = 'resident';
   static const String roleCommunityAdmin = 'communityAdmin';
@@ -23,6 +41,7 @@ class AppConstants {
   static const String accountStatusActive = 'active';
   static const String accountStatusSuspended = 'suspended';
   static const String accountStatusArchived = 'archived';
+  static const String accountStatusDeleted = 'deleted';
 
   /// OCR processing statuses for verification request documents.
   static const String ocrStatusPending = 'pending';
@@ -42,7 +61,8 @@ class AppConstants {
   static const String storageResidentDocumentsPath = 'resident_documents';
   static const String storageItemImagesPath = 'item_images';
   static const String storageServiceMediaPath = 'service_media';
-  static const String storageServiceDisputeProofsPath = 'service_dispute_proofs';
+  static const String storageServiceDisputeProofsPath =
+      'service_dispute_proofs';
   static const String storageProfileImagesPath = 'profile_images';
 
   /// Borrow request proof images: borrow_request_proofs/{requestId}/{uid}/...
@@ -110,8 +130,7 @@ class AppConstants {
   static const String notificationTypeChatMessage = 'chatMessage';
   static const String notificationTypeAdminWarning = 'adminWarning';
   static const String notificationTypeConnectionRequest = 'connectionRequest';
-  static const String notificationTypeConnectionAccepted =
-      'connectionAccepted';
+  static const String notificationTypeConnectionAccepted = 'connectionAccepted';
   static const String notificationTypeBorrowRequest = 'borrowRequest';
   static const String notificationTypeBorrowApproved = 'borrowApproved';
   static const String notificationTypeBorrowRejected = 'borrowRejected';
@@ -122,15 +141,19 @@ class AppConstants {
   static const String notificationTypeServiceRequest = 'serviceRequest';
   static const String notificationTypeServiceAccepted = 'serviceAccepted';
   static const String notificationTypeServiceRejected = 'serviceRejected';
-  static const String notificationTypeServicePaymentReceived = 'servicePaymentReceived';
+  static const String notificationTypeServicePaymentReceived =
+      'servicePaymentReceived';
   static const String notificationTypeServiceArrivalCode = 'serviceArrivalCode';
-  static const String notificationTypeServiceArrivalVerified = 'serviceArrivalVerified';
+  static const String notificationTypeServiceArrivalVerified =
+      'serviceArrivalVerified';
   static const String notificationTypeServiceCompleted = 'serviceCompleted';
   static const String notificationTypeServiceDisputed = 'serviceDisputed';
   static const String notificationTypeServicePayoutSent = 'servicePayoutSent';
-  static const String notificationTypeServicePayoutFailed = 'servicePayoutFailed';
+  static const String notificationTypeServicePayoutFailed =
+      'servicePayoutFailed';
   static const String notificationTypeServiceRefunded = 'serviceRefunded';
-  static const String notificationTypeServiceAdminResolved = 'serviceAdminResolved';
+  static const String notificationTypeServiceAdminResolved =
+      'serviceAdminResolved';
   static const String notificationTypeCommunityNews = 'communityNews';
   static const String notificationTypeCommunityEvent = 'communityEvent';
   static const String notificationTypeMaintenanceNotice = 'maintenanceNotice';
@@ -142,14 +165,18 @@ class AppConstants {
   static const String notificationTypeVerificationOcrReview =
       'verificationOcrReview';
   static const String notificationTypeAdminReport = 'adminReport';
-  static const String notificationTypeMarketplaceListingArchived = 'marketplaceListingArchived';
-  static const String notificationTypeMarketplaceListingRestored = 'marketplaceListingRestored';
+  static const String notificationTypeMarketplaceListingArchived =
+      'marketplaceListingArchived';
+  static const String notificationTypeMarketplaceListingRestored =
+      'marketplaceListingRestored';
   static const String notificationTypeNeighborNewItem = 'neighborNewItem';
   static const String notificationTypeNeighborNewService = 'neighborNewService';
-  static const String notificationTypeNeighborTrustWarning = 'neighborTrustWarning';
+  static const String notificationTypeNeighborTrustWarning =
+      'neighborTrustWarning';
 
   // User notification preferences
-  static const String userNeighborUpdatesEnabledField = 'neighborUpdatesEnabled';
+  static const String userNeighborUpdatesEnabledField =
+      'neighborUpdatesEnabled';
 
   // Community post types and statuses
   static const String communityPostTypeNews = 'news';
@@ -159,6 +186,7 @@ class AppConstants {
   static const String communityPostTypeMaintenance = 'maintenance';
   static const String communityPostStatusDraft = 'draft';
   static const String communityPostStatusPublished = 'published';
+  static const String communityPostStatusExpired = 'expired';
 
   // Chat message types
   static const String chatMessageText = 'text';
@@ -199,13 +227,14 @@ class AppConstants {
   static const String borrowStatusDisputed = 'disputed';
   static const String borrowStatusCompleted = 'completed';
 
-// Marketplace payments
+  // Marketplace payments
   static const String paymentStatusPending = 'pending';
   static const String paymentStatusCompleted = 'completed';
   static const String paymentStatusSucceeded = 'succeeded';
   static const String paymentStatusFailed = 'failed';
   static const String paymentStatusCancelled = 'cancelled';
   static const String paymentStatusRefunded = 'refunded';
+
   /// User left hosted checkout before provider confirmation.
   static const String paymentStatusFlowCancelled = 'flowCancelled';
   static const String paymentProviderManualV1 = 'manual_v1';
@@ -236,8 +265,7 @@ class AppConstants {
   static const String damageDecisionAdminFullRefund = 'admin_full_refund';
   static const String damageDecisionAdminPartialDeduction =
       'admin_partial_deduction';
-  static const String damageDecisionAdminFullDeduction =
-      'admin_full_deduction';
+  static const String damageDecisionAdminFullDeduction = 'admin_full_deduction';
 
   static const String manualPayoutStatusNotReady = 'not_ready';
   static const String manualPayoutStatusBlocked = 'blocked';
@@ -317,14 +345,11 @@ class AppConstants {
   ];
 
   // Services catalog (Phase 6)
-  static const String serviceCategoryHomeCleaningUpkeep =
-      'homeCleaningUpkeep';
-  static const String serviceCategoryRepairsMaintenance =
-      'repairsMaintenance';
+  static const String serviceCategoryHomeCleaningUpkeep = 'homeCleaningUpkeep';
+  static const String serviceCategoryRepairsMaintenance = 'repairsMaintenance';
   static const String serviceCategoryAssemblyLabor = 'assemblyLabor';
   static const String serviceCategoryTutoringEducation = 'tutoringEducation';
-  static const String serviceCategoryAssistanceErrands =
-      'assistanceErrands';
+  static const String serviceCategoryAssistanceErrands = 'assistanceErrands';
   static const String serviceCategoryItTechSetup = 'itTechSetup';
   static const String serviceCategoryHomeCookingMealPrep =
       'homeCookingMealPrep';

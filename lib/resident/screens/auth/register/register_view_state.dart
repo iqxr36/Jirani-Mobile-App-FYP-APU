@@ -121,9 +121,19 @@ class _RegisterViewState extends State<RegisterView> {
     super.initState();
     _guidelinesTap = TapGestureRecognizer();
     _termsTap = TapGestureRecognizer();
-    _guidelinesTap.onTap = () {};
-    _termsTap.onTap = () {};
+    _guidelinesTap.onTap = () =>
+        _openLegalDocument(JiraniLegalDocument.communityGuidelines);
+    _termsTap.onTap = () =>
+        _openLegalDocument(JiraniLegalDocument.termsOfService);
     _loadActiveCommunities();
+  }
+
+  void _openLegalDocument(JiraniLegalDocument document) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => JiraniLegalDocumentView(document: document),
+      ),
+    );
   }
 
   @override
@@ -237,9 +247,8 @@ class _RegisterViewState extends State<RegisterView> {
                             onSelectCommunity: _selectCommunity,
                           ),
                           acceptedTerms: _acceptedTerms,
-                          onAcceptedTermsChanged: (v) => setState(
-                            () => _acceptedTerms = v ?? false,
-                          ),
+                          onAcceptedTermsChanged: (v) =>
+                              setState(() => _acceptedTerms = v ?? false),
                           guidelinesTap: _guidelinesTap,
                           termsTap: _termsTap,
                           onSubmit: _submit,

@@ -394,6 +394,20 @@ class BorrowRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Auth lifecycle: cancels borrow streams when the resident signs out or deletes their account.
+  void resetForSignedOutUser() {
+    _mySub?.cancel();
+    _mySub = null;
+    _incomingSub?.cancel();
+    _incomingSub = null;
+    _myBorrowRequests = const <BorrowRequest>[];
+    _incomingRequests = const <BorrowRequest>[];
+    _selectedRequest = null;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _mySub?.cancel();

@@ -8,8 +8,7 @@
         );
 
       allow create: if signedIn() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == 'submitted';
+        validVerificationCreate(request.resource.data);
 
       allow update: if isAdmin() ||
         (
