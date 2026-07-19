@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : verification_locked_overlay.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Saturday,13-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'package:flutter/material.dart';
 import 'package:jirani/resident/logic/verification_access.dart';
 import 'package:jirani/shared/models/app_user.dart';

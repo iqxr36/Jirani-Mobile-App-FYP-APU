@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 10_collections_users.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
     // --- users collection ---
     match /users/{uid} {
       allow get: if isOwner(uid) ||
@@ -41,6 +47,19 @@
       // during registration and location verification. Keep writes admin-only.
       allow get, list: if true;
       allow write: if isAdmin();
+    }
+
+    match /communitySupportContacts/{communityId} {
+      allow get: if isSystemAdmin() ||
+        adminCanAccessCommunity(communityId) ||
+        (
+          hasProfile() &&
+          myUserDoc().data.communityId == communityId
+        );
+      allow list: if false;
+      allow create, update: if adminCanAccessCommunity(communityId) &&
+        validCommunitySupportContact(communityId);
+      allow delete: if isSystemAdmin();
     }
 
     // Phone uniqueness registry — written only by Cloud Functions (Admin SDK).

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : extracted_document_data.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Saturday,13-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
 /// Verification OCR feature: supported document categories extracted from residency proof uploads.
 enum DocumentType {
   tenancyAgreement,

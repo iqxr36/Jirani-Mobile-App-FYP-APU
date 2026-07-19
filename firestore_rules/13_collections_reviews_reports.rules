@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 13_collections_reviews_reports.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
     // --- reviews and reports collections ---
     match /reviews/{reviewId} {
       allow get: if signedIn() &&

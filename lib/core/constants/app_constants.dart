@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : app_constants.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,30-April-2026
+// Last Edited on  : Saturday,18-July-2026
+
 class AppConstants {
   AppConstants._();
 
@@ -102,6 +108,8 @@ class AppConstants {
   static const String publicProfilesCollection = 'publicProfiles';
   static const String itemsCollection = 'items';
   static const String communitiesCollection = 'communities';
+  static const String communitySupportContactsCollection =
+      'communitySupportContacts';
   static const String verificationRequestsCollection = 'verificationRequests';
   static const String reportsCollection = 'reports';
   static const String borrowRequestsCollection = 'borrowRequests';

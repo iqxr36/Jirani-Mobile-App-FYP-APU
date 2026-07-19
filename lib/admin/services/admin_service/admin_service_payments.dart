@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : admin_service_payments.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Tuesday,30-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
 part of '../admin_service.dart';
 
 // Admin payments feature: calls backend Functions for deposit refunds/deductions and manual payout state.

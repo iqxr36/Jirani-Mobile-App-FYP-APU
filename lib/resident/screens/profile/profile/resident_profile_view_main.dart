@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : resident_profile_view_main.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
 part of '../resident_profile_view.dart';
 
 // Resident profile feature: main profile hub for verification, listings, reviews, payment methods, settings, and logout.
@@ -34,7 +40,7 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
               onPushNotifications: _openPushNotifications,
               onPrivacy: _openPrivacySafety,
               onPaymentMethods: _openPaymentMethods,
-              onHelp: () => _showUnavailable('Help & Support'),
+              onHelp: _openHelpSupport,
               onDeleteAccount: _showDeleteAccountDialog,
             );
           },
@@ -190,6 +196,14 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     );
   }
 
+  void _openHelpSupport() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const ResidentHelpSupportView(),
+      ),
+    );
+  }
+
   Future<void> _refreshProfileStats({bool showIndicator = true}) async {
     if (_profileStatsRefreshing) return;
     if (showIndicator) {
@@ -304,13 +318,6 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
         ),
       ),
     );
-  }
-
-  // Resident profile feature: shows a placeholder message for not-yet-built profile destinations.
-  void _showUnavailable(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label is not available yet.')));
   }
 
   @override

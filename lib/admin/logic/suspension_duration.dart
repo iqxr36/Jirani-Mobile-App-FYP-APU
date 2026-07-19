@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : suspension_duration.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,16-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
 enum SuspensionDuration {
   oneDay('1 day', Duration(days: 1)),
   threeDays('3 days', Duration(days: 3)),

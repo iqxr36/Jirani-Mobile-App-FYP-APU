@@ -1,3 +1,11 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : admin_settings_screen.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Sunday,14-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jirani/admin/logic/theme/admin_colors.dart';
@@ -11,6 +19,8 @@ import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/logic/auth_viewmodel.dart';
 import 'package:jirani/shared/models/admin_notification_preferences.dart';
 import 'package:jirani/shared/models/admin_user.dart';
+import 'package:jirani/shared/models/community_support_contact.dart';
+import 'package:jirani/shared/services/community_support_contact_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -18,7 +28,9 @@ const int _kMaxProfileImageBytes = 5 * 1024 * 1024;
 
 // Admin settings UI feature: manages admin profile, security, and notification preferences.
 class AdminSettingsScreen extends StatefulWidget {
-  const AdminSettingsScreen({super.key});
+  const AdminSettingsScreen({super.key, this.supportContactService});
+
+  final CommunitySupportContactService? supportContactService;
 
   @override
   State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
@@ -26,14 +38,25 @@ class AdminSettingsScreen extends StatefulWidget {
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _supportFormKey = GlobalKey<FormState>();
   final _imagePicker = ImagePicker();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _supportNameController = TextEditingController();
+  final _supportEmailController = TextEditingController();
+  final _supportPhoneController = TextEditingController();
+
+  late final CommunitySupportContactService _supportContactService =
+      widget.supportContactService ?? CommunitySupportContactService();
 
   bool _initialized = false;
   bool _profileImageSaving = false;
   bool _passwordSending = false;
   bool _settingsSaving = false;
+  bool _supportContactInitialized = false;
+  bool _supportContactLoading = false;
+  bool _supportContactSaving = false;
+  String? _supportContactError;
   Uint8List? _localProfilePreview;
   bool _verificationAlerts = true;
   bool _reportEscalations = true;
@@ -44,6 +67,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
+    _supportNameController.dispose();
+    _supportEmailController.dispose();
+    _supportPhoneController.dispose();
     super.dispose();
   }
 
@@ -57,6 +83,74 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     _reportEscalations = prefs.reportEscalations;
     _serviceDisputeAlerts = prefs.serviceDisputeAlerts;
     _selectedThemePresetId = AdminThemePreset.byId(admin.themePresetId).id;
+    if (admin.isCommunityAdmin && admin.communityId.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_loadSupportContact(admin));
+      });
+    }
+  }
+
+  Future<void> _loadSupportContact(AdminUser admin) async {
+    if (_supportContactInitialized) return;
+    _supportContactInitialized = true;
+    _supportNameController.text = admin.fullName;
+    _supportEmailController.text = admin.email;
+    _supportPhoneController.text = admin.phoneNumber;
+    setState(() {
+      _supportContactLoading = true;
+      _supportContactError = null;
+    });
+    try {
+      final contact = await _supportContactService.fetchForCommunity(
+        admin.communityId,
+      );
+      if (!mounted) return;
+      if (contact != null) {
+        _supportNameController.text = contact.contactName;
+        _supportEmailController.text = contact.email;
+        _supportPhoneController.text = contact.phoneNumber;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      _supportContactError =
+          'Could not load the public support contact. Check your connection and retry.';
+    } finally {
+      if (mounted) setState(() => _supportContactLoading = false);
+    }
+  }
+
+  Future<void> _saveSupportContact(AdminUser admin) async {
+    if (!(_supportFormKey.currentState?.validate() ?? false) ||
+        _supportContactSaving) {
+      return;
+    }
+    setState(() {
+      _supportContactSaving = true;
+      _supportContactError = null;
+    });
+    try {
+      await _supportContactService.saveForCommunity(
+        CommunitySupportContact(
+          communityId: admin.communityId,
+          contactName: _supportNameController.text,
+          email: _supportEmailController.text,
+          phoneNumber: Validators.normalizePhoneNumber(
+            _supportPhoneController.text,
+          ),
+          updatedBy: admin.uid,
+        ),
+      );
+      if (!mounted) return;
+      _showSnack('Resident support contact saved.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _supportContactError =
+            'Could not save the resident support contact. Check your access and try again.';
+      });
+    } finally {
+      if (mounted) setState(() => _supportContactSaving = false);
+    }
   }
 
   void _showSnack(String message, {bool isError = false}) {
@@ -312,6 +406,100 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (admin.isCommunityAdmin &&
+                    admin.communityId.trim().isNotEmpty) ...[
+                  _AdminSettingsCard(
+                    icon: Icons.support_agent_rounded,
+                    title: 'Resident Support Contact',
+                    subtitle:
+                        'These details are visible to residents in ${admin.assignedCommunityLabel}.',
+                    child: Form(
+                      key: _supportFormKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_supportContactLoading)
+                            const LinearProgressIndicator(minHeight: 2),
+                          if (_supportContactLoading)
+                            const SizedBox(height: 16),
+                          TextFormField(
+                            key: const Key('support-contact-name'),
+                            controller: _supportNameController,
+                            enabled: !_supportContactLoading,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              label: 'Public contact name',
+                              helper: 'Use the name residents should ask for.',
+                            ),
+                            validator: Validators.validateFullName,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            key: const Key('support-contact-email'),
+                            controller: _supportEmailController,
+                            enabled: !_supportContactLoading,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              label: 'Support email',
+                              hint: 'support@example.com',
+                            ),
+                            validator: Validators.validateEmail,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            key: const Key('support-contact-phone'),
+                            controller: _supportPhoneController,
+                            enabled: !_supportContactLoading,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.done,
+                            decoration: _fieldDecoration(
+                              label: 'Support phone number',
+                              hint: '+60...',
+                              helper: 'Include the country code.',
+                            ),
+                            validator: Validators.validatePhone,
+                            onFieldSubmitted: (_) =>
+                                unawaited(_saveSupportContact(admin)),
+                          ),
+                          if (_supportContactError != null) ...[
+                            const SizedBox(height: 12),
+                            AdminInlineAlert(message: _supportContactError!),
+                          ],
+                          const SizedBox(height: 16),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: FilledButton.icon(
+                              key: const Key('save-support-contact'),
+                              onPressed: _supportContactLoading ||
+                                      _supportContactSaving
+                                  ? null
+                                  : () =>
+                                      unawaited(_saveSupportContact(admin)),
+                              style: AdminButtonStyles.primaryFilled(context),
+                              icon: _supportContactSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.publish_rounded),
+                              label: Text(
+                                _supportContactSaving
+                                    ? 'Saving...'
+                                    : 'Save Public Contact',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _AdminSettingsCard(
                   icon: Icons.badge_outlined,
                   title: 'Account',

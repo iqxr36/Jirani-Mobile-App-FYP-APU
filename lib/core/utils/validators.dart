@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : validators.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,30-April-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'package:jirani/core/constants/app_constants.dart';
 
 class Validators {

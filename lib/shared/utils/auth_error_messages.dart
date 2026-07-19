@@ -1,5 +1,26 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : auth_error_messages.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,16-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+const String loginCredentialFailureMessage =
+    'The email or password is incorrect. Check both and try again. '
+    'If you forgot your password, use Forgot Password.';
+
+/// Login UX: explains credential failures without revealing whether an email
+/// address is registered. Other authentication flows keep their own messages.
+String mapLoginErrorMessage(Object error) {
+  if (error is FirebaseAuthException &&
+      const {'invalid-credential', 'wrong-password', 'user-not-found'}
+          .contains(error.code)) {
+    return loginCredentialFailureMessage;
+  }
+  return mapAuthErrorMessage(error);
+}
 
 /// Auth UX: converts Firebase auth and callable errors into readable messages.
 ///

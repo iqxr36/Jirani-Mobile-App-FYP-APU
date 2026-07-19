@@ -3,7 +3,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-// --- Firestore rules modules (table of contents) ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 00_index.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Firestore rules modules (table of contents) ---
     // Edit source fragments under firestore_rules/*.rules, then rebuild:
     //   node scripts/build_firestore_rules.mjs
     //
@@ -28,7 +34,13 @@ service cloud.firestore {
     //   17_community_post.functions.rules   — community post validation helpers
     //   18_collections_community.rules      — communityPosts and default deny
 
-// --- Shared input length limits (mirror lib/core/constants/app_constants.dart) ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 00a_validation.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,16-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Shared input length limits (mirror lib/core/constants/app_constants.dart) ---
     function maxPersonNameLength() {
       return 60;
     }
@@ -156,7 +168,13 @@ service cloud.firestore {
         data.createdAt == request.time;
     }
 
-// --- Core auth/admin/resident helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 01_core.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Core auth/admin/resident helpers ---
     function signedIn() {
       return request.auth != null;
     }
@@ -239,6 +257,30 @@ service cloud.firestore {
       return status in ['verified', 'approved'];
     }
 
+    function validCommunitySupportContact(communityId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'communityId',
+          'contactName',
+          'email',
+          'phoneNumber',
+          'updatedBy',
+          'updatedAt',
+        ]) &&
+        data.communityId == communityId &&
+        data.contactName is string &&
+        data.contactName.size() > 0 &&
+        data.contactName.size() <= 60 &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.email.size() <= 254 &&
+        data.phoneNumber is string &&
+        data.phoneNumber.size() > 0 &&
+        data.phoneNumber.size() <= 16 &&
+        data.updatedBy == request.auth.uid &&
+        data.updatedAt == request.time;
+    }
+
     function residentAccountCanAccess(data) {
       return !('accountStatus' in data) ||
         data.accountStatus == 'active' ||
@@ -267,7 +309,13 @@ service cloud.firestore {
         data.communityId == myUserDoc().data.communityId;
     }
 
-// --- Connection participant helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 02_connection.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Connection participant helpers ---
     function isValidConnectionParticipants(data) {
       return data.participants is list &&
         data.participants.size() == 2 &&
@@ -345,7 +393,13 @@ service cloud.firestore {
         );
     }
 
-// --- Chat participant helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 03_chat.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Chat participant helpers ---
     function isValidChatParticipants(data) {
       return data.participantIds is list &&
         data.participantIds.size() == 2 &&
@@ -472,7 +526,13 @@ service cloud.firestore {
         (request.auth.uid in before || after.size() == before.size() + 1);
     }
 
-// --- Borrow request helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 04_borrow.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Borrow request helpers ---
     //
     // Borrow status state machine (primary path):
     //   pending ──owner approve──► approved ──borrower pay──► approved+paid
@@ -998,7 +1058,13 @@ service cloud.firestore {
         participantCanSubmitBorrowReview();
     }
 
-// --- User profile update helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 05_user.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- User profile update helpers ---
     function ownSafeUserUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -1047,7 +1113,13 @@ service cloud.firestore {
         request.resource.data.updatedAt == request.time;
     }
 
-// --- Borrow completion counter helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 06_completion.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Borrow completion counter helpers ---
     function validBorrowCompletionCounterUpdate(userId) {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let requestId = request.resource.data.lastCompletedBorrowRequestId;
@@ -1106,7 +1178,13 @@ service cloud.firestore {
         request.resource.data.updatedAt == request.time;
     }
 
-// --- Item listing helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 07_item.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Item listing helpers ---
     function itemOwner() {
       return signedIn() && resource.data.ownerId == request.auth.uid;
     }
@@ -1303,7 +1381,13 @@ service cloud.firestore {
         );
     }
 
-// --- Service listing helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 08_service.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Service listing helpers ---
     function serviceProvider() {
       return signedIn() && resource.data.providerId == request.auth.uid;
     }
@@ -1740,7 +1824,13 @@ service cloud.firestore {
         data.updatedAt == request.time;
     }
 
-// --- Review and profile image helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 09_review.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Review and profile image helpers ---
     function validAdminNotificationPreferences(prefs) {
       return prefs is map &&
         prefs.keys().hasOnly([
@@ -1889,7 +1979,13 @@ service cloud.firestore {
         data.communityId == myUserDoc().data.communityId;
     }
 
-// --- users collection ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 10_collections_users.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- users collection ---
     match /users/{uid} {
       allow get: if isOwner(uid) ||
         isSystemAdmin() ||
@@ -1934,12 +2030,31 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /communitySupportContacts/{communityId} {
+      allow get: if isSystemAdmin() ||
+        adminCanAccessCommunity(communityId) ||
+        (
+          hasProfile() &&
+          myUserDoc().data.communityId == communityId
+        );
+      allow list: if false;
+      allow create, update: if adminCanAccessCommunity(communityId) &&
+        validCommunitySupportContact(communityId);
+      allow delete: if isSystemAdmin();
+    }
+
     // Phone uniqueness registry — written only by Cloud Functions (Admin SDK).
     match /residentPhoneNumbers/{phoneHash} {
       allow read, write: if false;
     }
 
-// --- verificationRequests collection ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 11_collections_verification.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- verificationRequests collection ---
     match /verificationRequests/{requestId} {
       allow read: if signedIn() &&
         (
@@ -1981,7 +2096,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-// --- items collection (marketplace) ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 12_collections_marketplace.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- items collection (marketplace) ---
     match /items/{itemId} {
       allow read: if canReadMarketplaceItem();
       allow create: if validItemCreate();
@@ -2028,7 +2149,13 @@ service cloud.firestore {
       allow update: if isAdmin() || validServiceRequestUpdate();
     }
 
-// --- reviews and reports collections ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 13_collections_reviews_reports.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- reviews and reports collections ---
     match /reviews/{reviewId} {
       allow get: if signedIn() &&
         (
@@ -2068,7 +2195,13 @@ service cloud.firestore {
       allow create, update, delete: if isSystemAdmin();
     }
 
-// --- connections collection ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 14_collections_connections.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- connections collection ---
     match /connections/{connectionId} {
       allow get: if connectionParticipant(resource.data) ||
         adminCanAccessCommunity(resource.data.communityId);
@@ -2101,7 +2234,13 @@ service cloud.firestore {
         adminCanAccessCommunity(resource.data.communityId);
     }
 
-// --- chats collection ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 15_collections_chat.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- chats collection ---
     match /chats/{chatId} {
       allow get: if chatParticipant(resource.data) ||
         (isVerifiedResident() &&
@@ -2123,7 +2262,13 @@ service cloud.firestore {
       }
     }
 
-// --- notifications collection ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 16_collections_notifications.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- notifications collection ---
     match /notifications/{notificationId} {
       allow read, update, delete: if signedIn() &&
         resource.data.userId == request.auth.uid;
@@ -2131,7 +2276,13 @@ service cloud.firestore {
       allow create: if isAdmin();
     }
 
-// --- Community post validation helpers ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 17_community_post.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- Community post validation helpers ---
     function validCommunityPostType(type) {
       return type in ['news', 'announcement', 'warning', 'event', 'maintenance'];
     }
@@ -2282,7 +2433,13 @@ service cloud.firestore {
         communityPostCoverReplaceUpdate();
     }
 
-// --- communityPosts and default deny ---
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 18_collections_community.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
+    // --- communityPosts and default deny ---
     match /communityPosts/{postId} {
       allow read: if signedIn() && (
         adminCanAccessCommunity(resource.data.communityId) ||

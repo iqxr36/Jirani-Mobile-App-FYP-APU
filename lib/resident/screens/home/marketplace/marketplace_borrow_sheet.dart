@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : marketplace_borrow_sheet.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
 part of '../resident_marketplace_view.dart';
 
 // Marketplace borrow feature: bottom sheet for choosing dates/times/mode and submitting a borrow request.

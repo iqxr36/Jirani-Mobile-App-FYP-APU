@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : 01_core.functions.rules (Firestore rules file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,26-June-2026
+// Last Edited on  : Saturday,18-July-2026
+
     // --- Core auth/admin/resident helpers ---
     function signedIn() {
       return request.auth != null;
@@ -79,6 +85,30 @@
 
     function hasVerifiedResidentStatus(status) {
       return status in ['verified', 'approved'];
+    }
+
+    function validCommunitySupportContact(communityId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'communityId',
+          'contactName',
+          'email',
+          'phoneNumber',
+          'updatedBy',
+          'updatedAt',
+        ]) &&
+        data.communityId == communityId &&
+        data.contactName is string &&
+        data.contactName.size() > 0 &&
+        data.contactName.size() <= 60 &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.email.size() <= 254 &&
+        data.phoneNumber is string &&
+        data.phoneNumber.size() > 0 &&
+        data.phoneNumber.size() <= 16 &&
+        data.updatedBy == request.auth.uid &&
+        data.updatedAt == request.time;
     }
 
     function residentAccountCanAccess(data) {

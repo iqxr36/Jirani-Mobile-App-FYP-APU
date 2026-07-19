@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : admin_status_widgets_test.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Friday,10-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';

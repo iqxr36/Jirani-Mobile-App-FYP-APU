@@ -1,9 +1,36 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : resident_settings_view_test.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,16-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/resident/screens/legal/legal_document_view.dart';
 import 'package:jirani/resident/screens/profile/resident_settings_view.dart';
 
 void main() {
+  testWidgets('invokes help and support navigation callback', (tester) async {
+    var helpTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ResidentSettingsView(
+          darkTheme: false,
+          onDarkThemeChanged: (_) {},
+          onPushNotifications: () {},
+          onPrivacy: () {},
+          onPaymentMethods: () {},
+          onHelp: () => helpTapped = true,
+          onDeleteAccount: () {},
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Help & Support'), 300);
+    await tester.tap(find.text('Help & Support'));
+    expect(helpTapped, isTrue);
+  });
+
   testWidgets('danger zone exposes delete account action', (tester) async {
     var deleteTapped = false;
     await tester.pumpWidget(

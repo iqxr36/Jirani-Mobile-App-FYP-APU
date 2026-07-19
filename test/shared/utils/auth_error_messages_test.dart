@@ -1,9 +1,39 @@
+// Programmer Name : Mr. Faisal Mohammed Ezzaddin Saif Ahmed
+// Programme Name  : auth_error_messages_test.dart (Dart source file)
+// Description     : Jirani - a community trust marketplace for verified residents to borrow items, offer services, connect with neighbors, and build reputation.
+// First Written on: Thursday,16-July-2026
+// Last Edited on  : Saturday,18-July-2026
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jirani/shared/utils/auth_error_messages.dart';
 
 void main() {
+  group('mapLoginErrorMessage', () {
+    for (final code in const [
+      'invalid-credential',
+      'wrong-password',
+      'user-not-found',
+    ]) {
+      test('maps $code to the detailed credential message', () {
+        final message = mapLoginErrorMessage(
+          FirebaseAuthException(code: code),
+        );
+
+        expect(message, loginCredentialFailureMessage);
+      });
+    }
+
+    test('keeps specific non-credential authentication messages', () {
+      final message = mapLoginErrorMessage(
+        FirebaseAuthException(code: 'network-request-failed'),
+      );
+
+      expect(message, 'Network error. Please try again.');
+    });
+  });
+
   group('mapAuthErrorMessage', () {
     test('maps undeployed delete callable not-found', () {
       final message = mapAuthErrorMessage(
