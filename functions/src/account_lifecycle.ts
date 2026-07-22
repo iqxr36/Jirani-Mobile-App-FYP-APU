@@ -9,6 +9,7 @@ import * as admin from "firebase-admin";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 
 const USERS = "users";
+const ADMINS = "admins";
 const RESTRICTIONS = "residentEmailRestrictions";
 const PHONE_REGISTRY = "residentPhoneNumbers";
 const ACCOUNT_ACTIVE = "active";
@@ -135,6 +136,54 @@ function validateProfileImageUrl(value: string): string {
     throw new HttpsError("invalid-argument", "Profile image URL is too long.");
   }
   return url;
+}
+
+export function validateResidentRegistrationInput(data: unknown): {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  communityId: string;
+  communityName: string;
+  profileImageUrl: string;
+  termsAccepted: true;
+} {
+  const firstName = validatePersonName(
+    requiredString(data, "firstName"),
+    "First name",
+  );
+  const lastName = validatePersonName(
+    requiredString(data, "lastName"),
+    "Last name",
+  );
+  const phoneNumber = validateResidentPhone(
+    requiredString(data, "phoneNumber"),
+  );
+  const communityId = requiredString(data, "communityId");
+  const communityName = requiredString(data, "communityName");
+  const profileImageUrl = validateProfileImageUrl(
+    requiredString(data, "profileImageUrl"),
+  );
+  if (!communityId) {
+    throw new HttpsError("invalid-argument", "Community is required.");
+  }
+  if (!communityName) {
+    throw new HttpsError("invalid-argument", "Community name is required.");
+  }
+  if ((data as Record<string, unknown> | null)?.termsAccepted !== true) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Accept the terms and conditions to continue.",
+    );
+  }
+  return {
+    firstName,
+    lastName,
+    phoneNumber,
+    communityId,
+    communityName,
+    profileImageUrl,
+    termsAccepted: true,
+  };
 }
 
 async function isEmailRestricted(
@@ -493,37 +542,17 @@ export const finalizeResidentRegistration = onCall(async (request) => {
     );
   }
 
-  const firstName = validatePersonName(
-    requiredString(request.data, "firstName"),
-    "First name",
-  );
-  const lastName = validatePersonName(
-    requiredString(request.data, "lastName"),
-    "Last name",
-  );
-  const phoneRaw = requiredString(request.data, "phoneNumber");
-  const phoneNumber = phoneRaw ? validateResidentPhone(phoneRaw) : "";
-  const communityId = requiredString(request.data, "communityId");
-  const communityName = requiredString(request.data, "communityName");
-  const profileImageUrl = validateProfileImageUrl(
-    requiredString(request.data, "profileImageUrl"),
-  );
-  if (!communityId) {
-    throw new HttpsError("invalid-argument", "Community is required.");
-  }
-  if (!communityName) {
-    throw new HttpsError("invalid-argument", "Community name is required.");
-  }
+  const {
+    firstName,
+    lastName,
+    phoneNumber,
+    communityId,
+    communityName,
+    profileImageUrl,
+    termsAccepted,
+  } = validateResidentRegistrationInput(request.data);
 
-  const termsAccepted = request.data?.termsAccepted === true;
-  const signInProvider = request.auth?.token.firebase?.sign_in_provider;
-  if (!termsAccepted && signInProvider === "password") {
-    throw new HttpsError("failed-precondition", "Accept the terms and conditions to continue.");
-  }
-
-  if (phoneNumber) {
-    await assertPhoneAvailable(db, phoneNumber, uid);
-  }
+  await assertPhoneAvailable(db, phoneNumber, uid);
 
   const userRecord = await admin.auth().getUser(uid);
   const profile = {
@@ -555,6 +584,7 @@ export const finalizeResidentRegistration = onCall(async (request) => {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
   const userRef = db.collection(USERS).doc(uid);
+  const adminRef = db.collection(ADMINS).doc(uid);
   const created = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(userRef);
     if (existing.exists) {
@@ -565,30 +595,36 @@ export const finalizeResidentRegistration = onCall(async (request) => {
       throw new HttpsError("already-exists", "A conflicting resident profile already exists.");
     }
 
-    const registryRef = phoneNumber ?
-      db.collection(PHONE_REGISTRY).doc(residentPhoneHash(phoneNumber)) :
-      null;
-    const registrySnap = registryRef ? await transaction.get(registryRef) : null;
+    const adminProfile = await transaction.get(adminRef);
+    if (adminProfile.exists) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This Google account belongs to an administrator. Use the web admin portal.",
+      );
+    }
+
+    const registryRef = db.collection(PHONE_REGISTRY).doc(
+      residentPhoneHash(phoneNumber),
+    );
+    const registrySnap = await transaction.get(registryRef);
     if (registrySnap?.exists && registrySnap.data()?.uid !== uid) {
       throw new HttpsError("already-exists", PHONE_TAKEN_MESSAGE);
     }
 
     transaction.create(userRef, profile);
-    if (registryRef && phoneNumber) {
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      transaction.set(
-        registryRef,
-        {
-          uid,
-          normalizedPhone: phoneNumber,
-          createdAt: registrySnap?.exists ?
-            registrySnap.data()?.createdAt ?? now :
-            now,
-          updatedAt: now,
-        },
-        {merge: true},
-      );
-    }
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    transaction.set(
+      registryRef,
+      {
+        uid,
+        normalizedPhone: phoneNumber,
+        createdAt: registrySnap.exists ?
+          registrySnap.data()?.createdAt ?? now :
+          now,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
     return true;
   });
   return {created};

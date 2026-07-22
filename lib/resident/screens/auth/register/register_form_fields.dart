@@ -20,29 +20,17 @@ Widget _buildRegisterFieldGroup({
   List<TextInputFormatter>? inputFormatters,
   bool enabled = true,
 }) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: _registerLabelStyle(context)),
-      const SizedBox(height: 6),
-      TextFormField(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        inputFormatters: inputFormatters,
-        textInputAction: textInputAction,
-        style: TextStyle(fontSize: 15, color: context.appInk),
-        onFieldSubmitted: onFieldSubmitted != null
-            ? (_) => onFieldSubmitted()
-            : null,
-        decoration: _registerInputDecoration(
-          context,
-          hint: hint,
-          suffixIcon: suffixIcon,
-        ),
-        validator: validator,
-      ),
-    ],
+  return ResidentRegistrationField(
+    label: label,
+    controller: controller,
+    hint: hint,
+    keyboardType: keyboardType,
+    obscureText: obscureText,
+    suffixIcon: suffixIcon,
+    textInputAction: textInputAction,
+    onFieldSubmitted: onFieldSubmitted,
+    validator: validator,
+    inputFormatters: inputFormatters,
+    enabled: enabled,
   );
 }

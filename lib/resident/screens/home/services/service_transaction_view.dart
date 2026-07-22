@@ -514,7 +514,7 @@ class _ServiceLedgerPanel extends StatelessWidget {
                   requesterView ? 'Payment' : 'Provider Payout',
                   style: TextStyle(
                     color: context.appInk,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -530,32 +530,44 @@ class _ServiceLedgerPanel extends StatelessWidget {
           ResidentSummaryRow(
             label: requesterView ? 'Amount held' : 'Service amount',
             value: request.amount == null ? 'Free' : _money(total),
+            compact: true,
           ),
           if (request.isHourlyService) ...[
             const SizedBox(height: 8),
             ResidentSummaryRow(
               label: 'Booked duration',
               value:
-                  '${request.durationHours} h at ${_money(request.hourlyRate!)} / hour',
+                  '${request.durationHours} ${request.durationHours == 1 ? 'hour' : 'hours'}',
+              compact: true,
+            ),
+            const SizedBox(height: 8),
+            ResidentSummaryRow(
+              label: 'Hourly rate',
+              value: '${_money(request.hourlyRate!)} / hour',
+              compact: true,
             ),
           ],
-          const SizedBox(height: 8),
-          ResidentSummaryRow(
-            label: 'Platform fee',
-            value: _money(request.platformFeeAmount),
-          ),
+          if (request.platformFeeAmount > 0) ...[
+            const SizedBox(height: 8),
+            ResidentSummaryRow(
+              label: 'Platform fee',
+              value: _money(request.platformFeeAmount),
+              compact: true,
+            ),
+          ],
           const Divider(height: 24),
           ResidentSummaryRow(
             label: requesterView ? 'Total paid' : 'Expected payout',
             value: request.amount == null ? 'Free' : _money(payout),
             emphasized: true,
+            compact: true,
           ),
           const SizedBox(height: 8),
           Text(
             _ledgerMessage(request, requesterView),
             style: TextStyle(
               color: context.appMuted,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               height: 1.35,
             ),
@@ -843,11 +855,11 @@ class _ProviderArrivalCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelLabel('Handover Completion'),
+          const _PanelLabel('Arrival Code'),
           const SizedBox(height: 12),
           ResidentTrackingStepCard(
             icon: Icons.pin_rounded,
-            title: hasCode ? 'Arrival Code' : 'Arrive / Handover',
+            title: 'Arrival Code',
             message: hasCode
                 ? 'Show or read this code to the requester after arriving. The service starts when they enter it.'
                 : 'Generate this when you are physically with the requester and ready to begin the service.',
@@ -855,7 +867,7 @@ class _ProviderArrivalCodePanel extends StatelessWidget {
                 ? null
                 : ResidentPrimaryButton(
                     icon: Icons.qr_code_2_rounded,
-                    label: busy ? 'Starting...' : 'Arrive / Handover',
+                    label: busy ? 'Generating...' : 'Generate Arrival Code',
                     onTap: busy ? null : onGenerateArrivalCode,
                   ),
             child: hasCode
@@ -897,11 +909,11 @@ class _RequesterArrivalCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelLabel('Confirm Arrival'),
+          const _PanelLabel('Arrival Code'),
           const SizedBox(height: 12),
           ResidentTrackingStepCard(
             icon: Icons.pin_rounded,
-            title: 'Enter arrival code',
+            title: 'Arrival Code',
             message:
                 'The provider has arrived. Enter the 4-digit code from their screen when they are ready to begin.',
             action: ResidentPrimaryButton(
@@ -1015,11 +1027,11 @@ class _RequesterCompletionCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelLabel('Work Completion'),
+          const _PanelLabel('Completion Code'),
           const SizedBox(height: 12),
           ResidentTrackingStepCard(
             icon: Icons.task_alt_rounded,
-            title: hasCode ? 'Completion Code' : 'Approve completed work',
+            title: 'Completion Code',
             message: hasCode
                 ? 'Give this code to the provider after you approve the completed service. Payout starts when they enter it.'
                 : 'Inspect the work. Generate the completion code only when you are satisfied.',
@@ -1074,11 +1086,11 @@ class _ProviderCompletionCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _PanelLabel('Proof of Work'),
+          const _PanelLabel('Completion Code'),
           const SizedBox(height: 12),
           ResidentTrackingStepCard(
             icon: Icons.pin_rounded,
-            title: 'Enter completion code',
+            title: 'Completion Code',
             message:
                 'After the requester approves the work, enter their 4-digit completion code to release payout.',
             action: ResidentPrimaryButton(
@@ -1174,7 +1186,7 @@ class _CheckoutPanel extends StatelessWidget {
                 'Xendit will open a secure checkout page with Malaysian payment options. Your payment is held until completion is verified.',
             action: ResidentPrimaryButton(
               icon: Icons.lock_rounded,
-              label: busy ? 'Opening checkout...' : 'Pay with Xendit',
+              label: busy ? 'Opening checkout...' : 'Pay Now',
               onTap: busy ? null : onPayment,
             ),
           ),

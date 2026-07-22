@@ -29,10 +29,18 @@ class _ReviewsContent extends StatelessWidget {
         final borrowingReviews = reviews
             .where((r) => r.role == AppConstants.reviewRoleOwnerToBorrower)
             .toList();
+        final serviceProvidingReviews = reviews
+            .where(
+              (r) =>
+                  r.role ==
+                  AppConstants.reviewRoleServiceRequesterToProvider,
+            )
+            .toList();
         final filtered = switch (selectedTab) {
           _ReviewTab.all => reviews,
           _ReviewTab.lending => lendingReviews,
           _ReviewTab.borrowing => borrowingReviews,
+          _ReviewTab.services => serviceProvidingReviews,
         };
 
         return Column(
@@ -45,6 +53,7 @@ class _ReviewsContent extends StatelessWidget {
               reviews: reviews,
               lendingReviews: lendingReviews,
               borrowingReviews: borrowingReviews,
+              serviceProvidingReviews: serviceProvidingReviews,
             ),
             const SizedBox(height: 14),
             _BlindReviewNotice(isTrusted: user.trustedResident),

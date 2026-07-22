@@ -238,7 +238,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
                         icon: Icons.check_rounded,
                         label: provider.isLoading
                             ? 'Sending...'
-                            : 'Confirm to Checkout',
+                            : 'Borrow Item',
                         onTap: provider.isLoading ? null : _submitRequest,
                       );
                     },

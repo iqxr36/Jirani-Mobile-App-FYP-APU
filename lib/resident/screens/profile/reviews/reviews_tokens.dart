@@ -12,7 +12,7 @@ const double _kMaxContentWidth = 440;
 
 final DateFormat _reviewDateFormat = DateFormat('MMM d, yyyy');
 
-enum _ReviewTab { all, lending, borrowing }
+enum _ReviewTab { all, lending, borrowing, services }
 
 double _averageRating(List<ReviewModel> reviews) {
   if (reviews.isEmpty) return 0;

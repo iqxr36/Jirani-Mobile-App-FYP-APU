@@ -67,16 +67,7 @@ class ServiceDetailView extends StatelessWidget {
                                 const ResidentStatusPill(label: 'Available'),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _categoryLabel(service.category),
-                              style: TextStyle(
-                                color: context.appMuted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Text(
                               service.availability.trim().isEmpty
                                   ? 'Availability is confirmed after request.'
@@ -99,16 +90,19 @@ class ServiceDetailView extends StatelessWidget {
                               label: 'Price',
                               value: _priceLabel(service),
                               emphasized: true,
+                              valueTextAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
                             ResidentSummaryRow(
                               label: 'Pricing mode',
                               value: _priceTypeLabel(service),
+                              valueTextAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
                             ResidentSummaryRow(
                               label: 'Category',
                               value: _categoryLabel(service.category),
+                              valueTextAlign: TextAlign.start,
                             ),
                           ],
                         ),

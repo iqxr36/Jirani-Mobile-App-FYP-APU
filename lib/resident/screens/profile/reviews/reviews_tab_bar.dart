@@ -38,6 +38,11 @@ class _ReviewTabBar extends StatelessWidget {
             selected: selected == _ReviewTab.borrowing,
             onTap: () => onChanged(_ReviewTab.borrowing),
           ),
+          _TabButton(
+            label: 'Services',
+            selected: selected == _ReviewTab.services,
+            onTap: () => onChanged(_ReviewTab.services),
+          ),
         ],
       ),
     );

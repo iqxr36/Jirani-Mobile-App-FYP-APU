@@ -25,6 +25,24 @@ import 'package:jirani/shared/models/admin_notification_preferences.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/services/firebase_auth_service.dart';
 
+enum GoogleSignInStatus { cancelled, existingResident, registrationRequired }
+
+class GoogleSignInResult {
+  const GoogleSignInResult._(this.status, this.user);
+
+  const GoogleSignInResult.cancelled()
+    : this._(GoogleSignInStatus.cancelled, null);
+
+  const GoogleSignInResult.registrationRequired()
+    : this._(GoogleSignInStatus.registrationRequired, null);
+
+  const GoogleSignInResult.existingResident(AppUser user)
+    : this._(GoogleSignInStatus.existingResident, user);
+
+  final GoogleSignInStatus status;
+  final AppUser? user;
+}
+
 // Authentication data layer: coordinates Firebase Auth sessions with users/{uid} and admins/{uid} profile documents.
 class AuthRepository {
   AuthRepository({
@@ -143,7 +161,9 @@ class AuthRepository {
       await injectedFinalizer(payload);
       return;
     }
-    await _functions.httpsCallable('finalizeResidentRegistration').call(payload);
+    await _functions
+        .httpsCallable('finalizeResidentRegistration')
+        .call(payload);
   }
 
   bool _isDefinitiveRegistrationFailure(Object error) {
@@ -591,13 +611,13 @@ class AuthRepository {
     authDebugLog('[AuthRepository.login] firebase user reloaded');
   }
 
-  // Authentication feature: signs in with Google and creates the resident profile if this OAuth user is new.
-  Future<AppUser?> signInWithGoogle() async {
+  // Authentication feature: signs in with Google and reports whether resident registration is still required.
+  Future<GoogleSignInResult> signInWithGoogle() async {
     authDebugLog('[AuthRepository.signInWithGoogle] started');
     final credential = await _authService.signInWithGoogle();
     if (credential == null) {
       authDebugLog('[AuthRepository.signInWithGoogle] cancelled');
-      return null;
+      return const GoogleSignInResult.cancelled();
     }
     final firebaseUser = credential.user;
     if (firebaseUser == null) {
@@ -605,49 +625,86 @@ class AuthRepository {
     }
     await _authService.reloadCurrentUser();
     final refreshed = _authService.currentUser ?? firebaseUser;
-    final appUser = await _ensureResidentProfileAfterOAuth(
-      refreshed,
-      preferredFullName: refreshed.displayName?.trim() ?? '',
-      preferredEmail: refreshed.email?.trim() ?? '',
-    );
+    final userDoc = await _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(refreshed.uid)
+        .get();
+    final data = userDoc.data();
+    if (data != null) {
+      if ((data['role'] as String?) != AppConstants.roleResident) {
+        throw Exception('This Google account is not a resident account.');
+      }
+      final appUser = AppUser.fromMap(data);
+      authDebugLog('[AuthRepository.signInWithGoogle] existing resident');
+      return GoogleSignInResult.existingResident(appUser);
+    }
+
+    final adminDoc = await _firestore
+        .collection(AppConstants.adminsCollection)
+        .doc(refreshed.uid)
+        .get();
+    if (adminDoc.exists) {
+      throw Exception(
+        'This Google account belongs to an administrator. Use the web admin portal.',
+      );
+    }
     authDebugLog('[AuthRepository.signInWithGoogle] done');
-    return appUser;
+    return const GoogleSignInResult.registrationRequired();
   }
 
-  // OAuth profile feature: creates users/{uid} for first-time Google users or returns the existing profile.
-  Future<AppUser> _ensureResidentProfileAfterOAuth(
-    User firebaseUser, {
-    required String preferredFullName,
-    required String preferredEmail,
+  // OAuth registration feature: completes the resident fields Google cannot provide and creates users/{uid}.
+  Future<AppUser> completeGoogleRegistration({
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required bool termsAccepted,
+    required String communityId,
+    required String communityName,
   }) async {
+    final firebaseUser = _authService.currentUser;
+    if (firebaseUser == null) {
+      throw Exception('Your Google session expired. Sign in again.');
+    }
+    final validationError =
+        Validators.validateFirstName(firstName) ??
+        Validators.validateLastName(lastName) ??
+        Validators.validatePhone(phoneNumber);
+    if (validationError != null) throw Exception(validationError);
+    if (!termsAccepted) {
+      throw Exception('Accept the terms and conditions to continue.');
+    }
+    if (communityId.trim().isEmpty || communityName.trim().isEmpty) {
+      throw Exception('Select your community to continue.');
+    }
+
     final docRef = _firestore
         .collection(AppConstants.usersCollection)
         .doc(firebaseUser.uid);
     final snap = await docRef.get();
     if (snap.exists && snap.data() != null) {
-      final existing = AppUser.fromMap(snap.data()!);
-      if (existing.role.trim().isEmpty) {
-        throw Exception('User role is missing. Please contact support.');
+      final data = snap.data()!;
+      if ((data['role'] as String?) != AppConstants.roleResident) {
+        throw Exception('A conflicting account profile already exists.');
       }
-      return existing;
+      return AppUser.fromMap(data);
     }
-    final names = _splitName(preferredFullName);
+
     try {
-      await checkRegistrationEligibility(preferredEmail);
+      await checkRegistrationEligibility(firebaseUser.email?.trim() ?? '');
       await _finalizeResidentRegistration(
-        firstName: names.$1,
-        lastName: names.$2,
-        phoneNumber: '',
-        termsAccepted: false,
-        communityId: '',
-        communityName: '',
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: Validators.normalizePhoneNumber(phoneNumber),
+        termsAccepted: termsAccepted,
+        communityId: communityId,
+        communityName: communityName,
         profileImageUrl: firebaseUser.photoURL ?? '',
       );
     } catch (error) {
       if (error is FirebaseFunctionsException &&
           error.code == 'permission-denied') {
         try {
-          await _authService.deleteCurrentUser();
+          await _authService.signOut();
         } catch (_) {}
       }
       rethrow;
@@ -666,16 +723,6 @@ class AuthRepository {
     }
 
     throw Exception('Could not create your profile. Please try again.');
-  }
-
-  // OAuth profile feature: splits provider displayName into first and last name fields for users/{uid}.
-  (String, String) _splitName(String fullName) {
-    final trimmed = fullName.trim();
-    if (trimmed.isEmpty) return ('', '');
-
-    final parts = trimmed.split(RegExp(r'\s+'));
-    if (parts.length == 1) return (parts.first, '');
-    return (parts.first, parts.skip(1).join(' '));
   }
 
   // Authentication feature: signs the current Firebase user out.

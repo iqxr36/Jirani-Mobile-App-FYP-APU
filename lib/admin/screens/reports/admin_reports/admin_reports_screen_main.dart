@@ -19,6 +19,7 @@ class AdminReportsScreen extends StatefulWidget {
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
   String? _selectedReportId;
   _ReportInboxFilter _inboxFilter = _ReportInboxFilter.open;
+  _ReportPriorityFilter _priorityFilter = _ReportPriorityFilter.all;
   final ScrollController _detailScrollController = ScrollController();
   final ScrollController _inboxScrollController = ScrollController();
 
@@ -36,6 +37,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       setState(() {
         _selectedReportId = nextId;
         _inboxFilter = _ReportInboxFilter.open;
+        _priorityFilter = _ReportPriorityFilter.all;
       });
     }
   }
@@ -45,6 +47,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     if (_inboxFilter == filter) return;
     setState(() {
       _inboxFilter = filter;
+      _selectedReportId = null;
+    });
+  }
+
+  void _setPriorityFilter(_ReportPriorityFilter filter) {
+    if (_priorityFilter == filter) return;
+    setState(() {
+      _priorityFilter = filter;
       _selectedReportId = null;
     });
   }
@@ -64,10 +74,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   List<ReportModel> _filteredReports(List<ReportModel> reports) {
     return reports.where((report) {
-      return switch (_inboxFilter) {
+      final matchesInbox = switch (_inboxFilter) {
         _ReportInboxFilter.open => _isOpenReport(report),
         _ReportInboxFilter.completed => _isCompletedReport(report),
       };
+      final priority = adminReportRowFromReport(report).priority;
+      final matchesPriority = switch (_priorityFilter) {
+        _ReportPriorityFilter.all => true,
+        _ReportPriorityFilter.high => priority == 'High',
+        _ReportPriorityFilter.medium => priority == 'Med',
+        _ReportPriorityFilter.low => priority == 'Low',
+      };
+      return matchesInbox && matchesPriority;
     }).toList();
   }
 
@@ -100,7 +118,17 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           subtitle:
               'Inbox-style triage for disputes, misuse, damaged items, and evidence.',
           controls: [
-            const AdminFilterChipButton(label: 'Priority'),
+            AdminFilterDropdown<_ReportPriorityFilter>(
+              label: 'Priority',
+              value: _priorityFilter,
+              values: const {
+                _ReportPriorityFilter.all: 'All priorities',
+                _ReportPriorityFilter.high: 'High',
+                _ReportPriorityFilter.medium: 'Medium',
+                _ReportPriorityFilter.low: 'Low',
+              },
+              onChanged: _setPriorityFilter,
+            ),
             AdminFilterChipButton(
               label: 'Open',
               selected: _inboxFilter == _ReportInboxFilter.open,
@@ -126,16 +154,26 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         else if (filteredReports.isEmpty)
           AdminPanel(
             title: 'Report Inbox',
-            child: AdminEmptyPanelMessage(
-              icon: _inboxFilter == _ReportInboxFilter.open
-                  ? Icons.inbox_rounded
-                  : Icons.task_alt_rounded,
-              title: _inboxFilter == _ReportInboxFilter.open
-                  ? 'No open reports'
-                  : 'No completed reports',
-              body: _inboxFilter == _ReportInboxFilter.open
-                  ? 'The triage queue is clear. Resolved and dismissed reports are under Completed.'
-                  : 'Resolved and dismissed reports will appear here after admin action.',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AdminEmptyPanelMessage(
+                  icon: _inboxFilter == _ReportInboxFilter.open
+                      ? Icons.inbox_rounded
+                      : Icons.task_alt_rounded,
+                  title: _emptyReportTitle,
+                  body: _emptyReportBody,
+                ),
+                if (_priorityFilter != _ReportPriorityFilter.all) ...[
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _setPriorityFilter(_ReportPriorityFilter.all),
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    label: const Text('Clear priority filter'),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ],
             ),
           )
         else
@@ -199,10 +237,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   adminProvider,
                   selectedServiceRequest,
                 ),
-                canDismissServiceDisputeReport:
-                    adminProvider.canDismissServiceDisputeReport(
-                  selectedServiceRequest,
-                ),
+                canDismissServiceDisputeReport: adminProvider
+                    .canDismissServiceDisputeReport(selectedServiceRequest),
                 serviceDisputeUnderReview: _isServiceDisputeUnderReview(
                   activeReport,
                   adminProvider,
@@ -211,33 +247,32 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 onResolveBorrower: selectedRequest == null
                     ? null
                     : () => _resolveDispute(
-                          context,
-                          report: activeReport,
-                          request: selectedRequest,
-                          resolveForBorrower: true,
-                        ),
+                        context,
+                        report: activeReport,
+                        request: selectedRequest,
+                        resolveForBorrower: true,
+                      ),
                 onResolveLender: selectedRequest == null
                     ? null
                     : () => _resolveDispute(
-                          context,
-                          report: activeReport,
-                          request: selectedRequest,
-                          resolveForBorrower: false,
-                        ),
-                onStartServiceDisputeReview: _canStartServiceDisputeReview(
+                        context,
+                        report: activeReport,
+                        request: selectedRequest,
+                        resolveForBorrower: false,
+                      ),
+                onStartServiceDisputeReview:
+                    _canStartServiceDisputeReview(
                       activeReport,
                       adminProvider,
                       selectedServiceRequest,
                     )
                     ? () => _startServiceDisputeReview(
-                          context,
-                          report: activeReport,
-                        )
+                        context,
+                        report: activeReport,
+                      )
                     : null,
-                onDismissReport: () => _dismissReport(
-                  context,
-                  report: activeReport,
-                ),
+                onDismissReport: () =>
+                    _dismissReport(context, report: activeReport),
                 onIssueWarning: () => _issueWarning(
                   context,
                   report: activeReport,
@@ -279,6 +314,28 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           ),
       ],
     );
+  }
+
+  String get _emptyReportTitle {
+    final inboxLabel = _inboxFilter == _ReportInboxFilter.open
+        ? 'open'
+        : 'completed';
+    final priorityLabel = switch (_priorityFilter) {
+      _ReportPriorityFilter.all => '',
+      _ReportPriorityFilter.high => 'high-priority ',
+      _ReportPriorityFilter.medium => 'medium-priority ',
+      _ReportPriorityFilter.low => 'low-priority ',
+    };
+    return 'No $priorityLabel$inboxLabel reports';
+  }
+
+  String get _emptyReportBody {
+    if (_priorityFilter != _ReportPriorityFilter.all) {
+      return 'No reports match this priority and status. Try another filter.';
+    }
+    return _inboxFilter == _ReportInboxFilter.open
+        ? 'The triage queue is clear. Resolved and dismissed reports are under Completed.'
+        : 'Resolved and dismissed reports will appear here after admin action.';
   }
 
   ReportModel? _selectedReport(List<ReportModel> reports) {
@@ -491,9 +548,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            resolveForBorrower
-                ? 'Resolve for Borrower'
-                : 'Resolve for Lender',
+            resolveForBorrower ? 'Resolve for Borrower' : 'Resolve for Lender',
           ),
           content: TextField(
             controller: controller,

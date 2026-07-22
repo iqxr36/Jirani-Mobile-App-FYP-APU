@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jirani/resident/logic/resident_surface_tokens.dart';
 import 'package:jirani/resident/screens/legal/legal_document_view.dart';
+import 'package:jirani/resident/screens/auth/resident_registration_ui.dart';
 import 'package:jirani/core/utils/responsive.dart';
 import 'package:jirani/core/utils/validators.dart';
 import 'package:jirani/shared/models/community_model.dart';

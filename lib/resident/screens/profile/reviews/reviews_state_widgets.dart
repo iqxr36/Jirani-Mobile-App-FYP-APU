@@ -17,6 +17,7 @@ class _EmptyReviewState extends StatelessWidget {
       _ReviewTab.all => 'No published reviews yet',
       _ReviewTab.lending => 'No lending reviews yet',
       _ReviewTab.borrowing => 'No borrowing reviews yet',
+      _ReviewTab.services => 'No service reviews yet',
     };
     return _StatePanel(
       icon: Icons.rate_review_outlined,
@@ -34,7 +35,7 @@ class _LoadingState extends StatelessWidget {
     return const _StatePanel(
       icon: Icons.hourglass_empty_rounded,
       title: 'Loading reviews',
-      message: 'Checking published marketplace feedback.',
+      message: 'Checking published community feedback.',
     );
   }
 }

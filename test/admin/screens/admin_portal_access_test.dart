@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jirani/admin/logic/widgets/admin_login_widgets.dart';
 import 'package:jirani/admin/providers/admin_theme_provider.dart';
 import 'package:jirani/admin/screens/admin_dashboard_screen.dart';
 import 'package:jirani/admin/screens/auth/admin_login_screen.dart';
@@ -26,6 +27,54 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('admin portal access', () {
+    testWidgets('full-height desktop login shows the complete hero', (
+      tester,
+    ) async {
+      await _pumpAdminLoginAtSize(tester, const Size(1440, 900));
+
+      expect(find.byType(AdminLoginHeroPanel), findsOneWidget);
+      expect(find.text('Verified access'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AdminLoginHeroPanel),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('short desktop login uses compact hero without scrolling', (
+      tester,
+    ) async {
+      await _pumpAdminLoginAtSize(tester, const Size(1366, 768));
+
+      expect(find.byType(AdminLoginHeroPanel), findsOneWidget);
+      expect(find.text('Verified access'), findsNothing);
+      expect(find.text('Resident verification'), findsOneWidget);
+      expect(find.text('Live community insights'), findsOneWidget);
+      expect(find.text('Secure by design'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AdminLoginHeroPanel),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('very short wide login falls back to single-column scrolling', (
+      tester,
+    ) async {
+      await _pumpAdminLoginAtSize(tester, const Size(1280, 640));
+
+      expect(find.byType(AdminLoginHeroPanel), findsNothing);
+      expect(find.text('Secure admin access'), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     test('admin login rejects and signs out a resident account', () async {
       final resident = _residentUser();
       final repository = _PortalAuthRepository(resident);
@@ -143,6 +192,32 @@ void main() {
       expect(find.text('Community safety review.'), findsOneWidget);
     });
   });
+}
+
+Future<void> _pumpAdminLoginAtSize(WidgetTester tester, Size size) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  SharedPreferences.setMockInitialValues(const {});
+  final resident = _residentUser();
+  final repository = _PortalAuthRepository(resident);
+  final viewModel = _portalViewModel(repository: repository);
+  final themeProvider = AdminThemeProvider();
+  addTearDown(viewModel.dispose);
+  addTearDown(themeProvider.dispose);
+
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthViewModel>.value(value: viewModel),
+        ChangeNotifierProvider<AdminThemeProvider>.value(value: themeProvider),
+      ],
+      child: const MaterialApp(home: AdminLoginScreen()),
+    ),
+  );
+  await tester.pump();
 }
 
 AuthViewModel _portalViewModel({

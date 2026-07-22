@@ -19,8 +19,24 @@ import 'package:provider/provider.dart';
 
 /// Admin payments screen: monitors marketplace deposits, unresolved disputes, manual payouts, and the platform ledger.
 // Admin transactions UI feature: shows marketplace payments, deposit resolutions, and manual lender payouts.
-class AdminTransactionsScreen extends StatelessWidget {
+class AdminTransactionsScreen extends StatefulWidget {
   const AdminTransactionsScreen({super.key});
+
+  @override
+  State<AdminTransactionsScreen> createState() =>
+      _AdminTransactionsScreenState();
+}
+
+enum _TransactionDateFilter { all, last7Days, last30Days, last90Days }
+
+enum _TransactionTypeFilter { all, borrow, taskService }
+
+class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
+  static const _allStatuses = 'all';
+
+  _TransactionDateFilter _dateFilter = _TransactionDateFilter.all;
+  _TransactionTypeFilter _typeFilter = _TransactionTypeFilter.all;
+  String _statusFilter = _allStatuses;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +45,26 @@ class AdminTransactionsScreen extends StatelessWidget {
       admin.borrowRequests,
       admin.serviceRequests,
     );
+    final statuses =
+        transactionRows
+            .map((row) => row.status.trim())
+            .where((status) => status.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final statusInvalid =
+        _statusFilter != _allStatuses && !statuses.contains(_statusFilter);
+    final safeStatusFilter = statusInvalid ? _allStatuses : _statusFilter;
+    final filteredTransactionRows = _filteredTransactionRows(
+      transactionRows,
+      statusFilter: safeStatusFilter,
+      now: DateTime.now(),
+    );
+    if (statusInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _statusFilter = _allStatuses);
+      });
+    }
     final depositQueue = admin.borrowRequests
         .where(_needsDepositResolution)
         .toList();
@@ -39,8 +75,10 @@ class AdminTransactionsScreen extends StatelessWidget {
         .where(_isStuckManualPayout)
         .length;
     final serviceDisputeQueue = admin.serviceRequests
-        .where((request) =>
-            request.status == AppConstants.serviceRequestStatusDisputed)
+        .where(
+          (request) =>
+              request.status == AppConstants.serviceRequestStatusDisputed,
+        )
         .toList();
 
     return AdminPageScroll(
@@ -49,33 +87,60 @@ class AdminTransactionsScreen extends StatelessWidget {
           title: 'Transactions Monitoring',
           subtitle:
               'Audit borrow deposits, task service payments, disputes, and completion status.',
-          controls: const [
-            AdminFilterChipButton(label: 'Date Range'),
-            AdminFilterChipButton(label: 'Type'),
-            AdminFilterChipButton(label: 'Status'),
+          controls: [
+            AdminFilterDropdown<_TransactionDateFilter>(
+              label: 'Date range',
+              value: _dateFilter,
+              values: const {
+                _TransactionDateFilter.all: 'All time',
+                _TransactionDateFilter.last7Days: 'Last 7 days',
+                _TransactionDateFilter.last30Days: 'Last 30 days',
+                _TransactionDateFilter.last90Days: 'Last 90 days',
+              },
+              onChanged: (value) => setState(() => _dateFilter = value),
+            ),
+            AdminFilterDropdown<_TransactionTypeFilter>(
+              label: 'Type',
+              value: _typeFilter,
+              values: const {
+                _TransactionTypeFilter.all: 'All types',
+                _TransactionTypeFilter.borrow: 'Borrow',
+                _TransactionTypeFilter.taskService: 'Task Service',
+              },
+              onChanged: (value) => setState(() => _typeFilter = value),
+            ),
+            AdminFilterDropdown<String>(
+              label: 'Status',
+              value: safeStatusFilter,
+              values: {
+                _allStatuses: 'All statuses',
+                for (final status in statuses) status: status,
+              },
+              onChanged: (value) => setState(() => _statusFilter = value),
+            ),
           ],
         ),
         const SizedBox(height: 20),
         _DepositResolutionPanel(requests: depositQueue),
         const SizedBox(height: 20),
-        _ManualPayoutPanel(
-          requests: payoutQueue,
-          stuckCount: stuckPayoutCount,
-        ),
+        _ManualPayoutPanel(requests: payoutQueue, stuckCount: stuckPayoutCount),
         const SizedBox(height: 20),
         _ServiceDisputePanel(requests: serviceDisputeQueue),
         const SizedBox(height: 20),
         AdminPanel(
           title: 'Platform Ledger',
-          action: '${transactionRows.length} records',
+          action: _hasActiveFilters
+              ? '${filteredTransactionRows.length} of ${transactionRows.length} records'
+              : '${transactionRows.length} records',
           padding: EdgeInsets.zero,
           child: transactionRows.isEmpty
               ? const AdminEmptyPanelMessage(
                   icon: Icons.receipt_long_rounded,
                   title: 'No transactions found',
-                  body:
-                      'Borrow and task service requests will appear here.',
+                  body: 'Borrow and task service requests will appear here.',
                 )
+              : filteredTransactionRows.isEmpty
+              ? _FilteredLedgerEmptyState(onClearFilters: _clearFilters)
               : SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
@@ -92,7 +157,7 @@ class AdminTransactionsScreen extends StatelessWidget {
                       DataColumn(label: Text('Deposit')),
                       DataColumn(label: Text('Status')),
                     ],
-                    rows: transactionRows
+                    rows: filteredTransactionRows
                         .map(
                           (tx) => DataRow(
                             cells: [
@@ -117,6 +182,52 @@ class AdminTransactionsScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  bool get _hasActiveFilters =>
+      _dateFilter != _TransactionDateFilter.all ||
+      _typeFilter != _TransactionTypeFilter.all ||
+      _statusFilter != _allStatuses;
+
+  List<AdminTransactionRow> _filteredTransactionRows(
+    List<AdminTransactionRow> rows, {
+    required String statusFilter,
+    required DateTime now,
+  }) {
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final earliestDate = switch (_dateFilter) {
+      _TransactionDateFilter.all => null,
+      _TransactionDateFilter.last7Days => startOfToday.subtract(
+        const Duration(days: 6),
+      ),
+      _TransactionDateFilter.last30Days => startOfToday.subtract(
+        const Duration(days: 29),
+      ),
+      _TransactionDateFilter.last90Days => startOfToday.subtract(
+        const Duration(days: 89),
+      ),
+    };
+
+    return rows.where((row) {
+      final matchesDate =
+          earliestDate == null || !row.createdAt.isBefore(earliestDate);
+      final matchesType = switch (_typeFilter) {
+        _TransactionTypeFilter.all => true,
+        _TransactionTypeFilter.borrow => row.type == 'Borrow',
+        _TransactionTypeFilter.taskService => row.type == 'Task Service',
+      };
+      final matchesStatus =
+          statusFilter == _allStatuses || row.status == statusFilter;
+      return matchesDate && matchesType && matchesStatus;
+    }).toList();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _dateFilter = _TransactionDateFilter.all;
+      _typeFilter = _TransactionTypeFilter.all;
+      _statusFilter = _allStatuses;
+    });
   }
 
   /// Admin payments: filters provider-paid disputed requests that still need a deposit refund/deduction decision.
@@ -147,9 +258,38 @@ class AdminTransactionsScreen extends StatelessWidget {
       AppConstants.depositStatusDeducted,
       AppConstants.depositStatusNotRequired,
     };
-    return request.manualPayoutStatus == AppConstants.manualPayoutStatusBlocked &&
+    return request.manualPayoutStatus ==
+            AppConstants.manualPayoutStatusBlocked &&
         resolved.contains(request.depositStatus) &&
         request.lenderTotalEarning > 0;
+  }
+}
+
+class _FilteredLedgerEmptyState extends StatelessWidget {
+  const _FilteredLedgerEmptyState({required this.onClearFilters});
+
+  final VoidCallback onClearFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdminEmptyPanelMessage(
+            icon: Icons.filter_alt_off_rounded,
+            title: 'No matching transactions',
+            body: 'Try another date range, type, or status.',
+          ),
+          OutlinedButton.icon(
+            onPressed: onClearFilters,
+            icon: const Icon(Icons.restart_alt_rounded),
+            label: const Text('Clear filters'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -260,10 +400,10 @@ class _ServiceDisputeCard extends StatelessWidget {
                 onTap: admin.isLoading
                     ? null
                     : () => _startServiceDisputeReview(
-                          context,
-                          report: linkedReport,
-                          reopening: isReopenReview,
-                        ),
+                        context,
+                        report: linkedReport,
+                        reopening: isReopenReview,
+                      ),
               ),
             _AdminActionButton(
               label: 'Force Payout',
@@ -271,10 +411,10 @@ class _ServiceDisputeCard extends StatelessWidget {
               onTap: admin.isLoading || !canResolve
                   ? null
                   : () => _showServiceResolutionDialog(
-                        context,
-                        request,
-                        refund: false,
-                      ),
+                      context,
+                      request,
+                      refund: false,
+                    ),
             ),
             _AdminActionButton(
               label: 'Refund',
@@ -283,10 +423,10 @@ class _ServiceDisputeCard extends StatelessWidget {
               onTap: admin.isLoading || !canResolve
                   ? null
                   : () => _showServiceResolutionDialog(
-                        context,
-                        request,
-                        refund: true,
-                      ),
+                      context,
+                      request,
+                      refund: true,
+                    ),
             ),
           ],
         ),
@@ -430,7 +570,8 @@ class _DepositResolutionCard extends StatelessWidget {
       statusLabel: request.depositStatus.isEmpty
           ? borrowRequestStatusLabel(request.status)
           : depositStatusLabel(request.depositStatus),
-      statusColor: request.depositStatus == AppConstants.depositStatusRefundFailed
+      statusColor:
+          request.depositStatus == AppConstants.depositStatusRefundFailed
           ? AdminColors.danger
           : AdminColors.warning,
       children: [
@@ -453,10 +594,10 @@ class _DepositResolutionCard extends StatelessWidget {
               onTap: admin.isLoading
                   ? null
                   : () => _showDepositDialog(
-                        context,
-                        request,
-                        AppConstants.depositResolutionFullRefund,
-                      ),
+                      context,
+                      request,
+                      AppConstants.depositResolutionFullRefund,
+                    ),
             ),
             _AdminActionButton(
               label: 'Partial Deduction',
@@ -464,10 +605,10 @@ class _DepositResolutionCard extends StatelessWidget {
               onTap: admin.isLoading
                   ? null
                   : () => _showDepositDialog(
-                        context,
-                        request,
-                        AppConstants.depositResolutionPartialDeduction,
-                      ),
+                      context,
+                      request,
+                      AppConstants.depositResolutionPartialDeduction,
+                    ),
             ),
             _AdminActionButton(
               label: 'Full Deduction',
@@ -476,10 +617,10 @@ class _DepositResolutionCard extends StatelessWidget {
               onTap: admin.isLoading
                   ? null
                   : () => _showDepositDialog(
-                        context,
-                        request,
-                        AppConstants.depositResolutionFullDeduction,
-                      ),
+                      context,
+                      request,
+                      AppConstants.depositResolutionFullDeduction,
+                    ),
             ),
           ],
         ),
@@ -499,8 +640,8 @@ class _DepositResolutionCard extends StatelessWidget {
     final deductionController = TextEditingController(
       text: decision == AppConstants.depositResolutionPartialDeduction
           ? ((request.minorDeductionAmount ?? 0) > 0
-              ? (request.minorDeductionAmount ?? 0).toStringAsFixed(2)
-              : '')
+                ? (request.minorDeductionAmount ?? 0).toStringAsFixed(2)
+                : '')
           : '',
     );
     try {
@@ -589,10 +730,7 @@ class _DepositResolutionCard extends StatelessWidget {
 /// Admin payouts UI: lists lender earnings that must be paid manually.
 // Admin payout UI feature: groups lender manual payouts waiting for collection or already paid.
 class _ManualPayoutPanel extends StatelessWidget {
-  const _ManualPayoutPanel({
-    required this.requests,
-    required this.stuckCount,
-  });
+  const _ManualPayoutPanel({required this.requests, required this.stuckCount});
 
   final List<BorrowRequest> requests;
   final int stuckCount;
@@ -615,7 +753,8 @@ class _ManualPayoutPanel extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: _AdminActionButton(
-                label: 'Repair $stuckCount stuck payout${stuckCount == 1 ? '' : 's'}',
+                label:
+                    'Repair $stuckCount stuck payout${stuckCount == 1 ? '' : 's'}',
                 icon: Icons.build_circle_outlined,
                 onTap: admin.isLoading
                     ? null
@@ -652,10 +791,7 @@ class _ManualPayoutPanel extends StatelessWidget {
 /// Admin payouts UI: one lender payout card showing item fee, damage deduction, and mark-paid action.
 // Admin payout UI feature: shows one lender payout and opens the mark-paid dialog.
 class _ManualPayoutCard extends StatelessWidget {
-  const _ManualPayoutCard({
-    required this.request,
-    required this.isLoading,
-  });
+  const _ManualPayoutCard({required this.request, required this.isLoading});
 
   final BorrowRequest request;
   final bool isLoading;
@@ -664,7 +800,8 @@ class _ManualPayoutCard extends StatelessWidget {
   /// Admin payouts UI: renders payout amount details and action button for one lender.
   Widget build(BuildContext context) {
     final isReady =
-        request.manualPayoutStatus == AppConstants.manualPayoutStatusPendingManual;
+        request.manualPayoutStatus ==
+        AppConstants.manualPayoutStatusPendingManual;
     final isSimulated =
         request.settlementMode == AppConstants.settlementModeSimulated;
     return _AdminPaymentCard(

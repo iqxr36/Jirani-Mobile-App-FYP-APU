@@ -256,12 +256,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
     final themeProvider = context.watch<AdminThemeProvider>();
     final primary = themeProvider.preset.primary;
     final secondary = themeProvider.preset.secondary;
-    final width = MediaQuery.sizeOf(context).width;
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
     final isWide = JiraniResponsive.isAdminWide(width);
+    final useSplitLayout = isWide && size.height >= 680;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     Widget content;
-    if (isWide) {
+    if (useSplitLayout) {
       content = Row(
         children: [
           Expanded(

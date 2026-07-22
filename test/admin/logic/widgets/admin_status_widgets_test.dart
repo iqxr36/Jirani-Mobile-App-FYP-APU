@@ -9,9 +9,121 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jirani/admin/logic/widgets/admin_layout_widgets.dart';
 import 'package:jirani/admin/logic/widgets/admin_status_widgets.dart';
 
 void main() {
+  group('Admin filters', () {
+    testWidgets('dropdown shows its label and reports selected values', (
+      tester,
+    ) async {
+      var selected = 'all';
+
+      await tester.pumpWidget(
+        _filterHost(
+          StatefulBuilder(
+            builder: (context, setState) {
+              return AdminFilterDropdown<String>(
+                label: 'Type',
+                value: selected,
+                values: const {
+                  'all': 'All types',
+                  'borrow': 'Borrow',
+                  'service': 'Task Service',
+                },
+                onChanged: (value) => setState(() => selected = value),
+              );
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Type'), findsOneWidget);
+      expect(find.text('All types'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Borrow').last);
+      await tester.pumpAndSettle();
+
+      expect(selected, 'borrow');
+      expect(find.text('Borrow'), findsOneWidget);
+    });
+
+    testWidgets('chip without a callback is genuinely disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _filterHost(const AdminFilterChipButton(label: 'Priority')),
+      );
+
+      final button = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('dropdown keeps a 48dp minimum interactive height', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _filterHost(
+          AdminFilterDropdown<String>(
+            label: 'Status',
+            value: 'all',
+            values: const {'all': 'All statuses'},
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSize(find.byType(AdminFilterDropdown<String>)).height,
+        greaterThanOrEqualTo(48),
+      );
+    });
+
+    testWidgets('control bar filters wrap without overflow', (tester) async {
+      for (final size in const [Size(375, 700), Size(1440, 900)]) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AdminControlBar(
+                title: 'Transactions Monitoring',
+                subtitle: 'Ledger filters',
+                controls: [
+                  AdminFilterDropdown<String>(
+                    label: 'Date range',
+                    value: 'all',
+                    values: const {'all': 'All time'},
+                    onChanged: (_) {},
+                  ),
+                  AdminFilterDropdown<String>(
+                    label: 'Type',
+                    value: 'all',
+                    values: const {'all': 'All types'},
+                    onChanged: (_) {},
+                  ),
+                  AdminFilterDropdown<String>(
+                    label: 'Status',
+                    value: 'all',
+                    values: const {'all': 'All statuses'},
+                    onChanged: (_) {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+      }
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    });
+  });
+
   group('AdminAvatar', () {
     testWidgets('renders memory preview before remote image', (tester) async {
       await tester.pumpWidget(
@@ -182,5 +294,13 @@ const _transparentPngBytes = <int>[
 Widget _avatarHost(Widget child) {
   return MaterialApp(
     home: Scaffold(body: Center(child: child)),
+  );
+}
+
+Widget _filterHost(Widget child) {
+  return MaterialApp(
+    home: Scaffold(
+      body: Center(child: SizedBox(width: 320, child: child)),
+    ),
   );
 }

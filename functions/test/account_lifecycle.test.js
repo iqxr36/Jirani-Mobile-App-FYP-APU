@@ -7,6 +7,7 @@ const {
   normalizeResidentPhone,
   residentPhoneHash,
   validateResidentPhone,
+  validateResidentRegistrationInput,
   assertPhoneAvailable,
 } = require("../lib/account_lifecycle");
 const {HttpsError} = require("firebase-functions/v2/https");
@@ -82,6 +83,47 @@ test("validateResidentPhone rejects numbers without country code", () => {
   assert.throws(
     () => validateResidentPhone("60123456789"),
     (error) => error instanceof HttpsError && error.code === "invalid-argument",
+  );
+});
+
+test("resident registration accepts complete Google resident fields", () => {
+  const fields = validateResidentRegistrationInput({
+    firstName: "Google",
+    lastName: "Resident",
+    phoneNumber: "+60 12-345 6789",
+    communityId: "community-1",
+    communityName: "One South",
+    profileImageUrl: "https://example.com/avatar.png",
+    termsAccepted: true,
+  });
+
+  assert.equal(fields.phoneNumber, "+60123456789");
+  assert.equal(fields.communityId, "community-1");
+  assert.equal(fields.termsAccepted, true);
+});
+
+test("resident registration rejects missing phone, community, and terms", () => {
+  const valid = {
+    firstName: "Google",
+    lastName: "Resident",
+    phoneNumber: "+60123456789",
+    communityId: "community-1",
+    communityName: "One South",
+    profileImageUrl: "",
+    termsAccepted: true,
+  };
+
+  assert.throws(
+    () => validateResidentRegistrationInput({...valid, phoneNumber: ""}),
+    (error) => error instanceof HttpsError && error.code === "invalid-argument",
+  );
+  assert.throws(
+    () => validateResidentRegistrationInput({...valid, communityId: ""}),
+    (error) => error instanceof HttpsError && error.code === "invalid-argument",
+  );
+  assert.throws(
+    () => validateResidentRegistrationInput({...valid, termsAccepted: false}),
+    (error) => error instanceof HttpsError && error.code === "failed-precondition",
   );
 });
 

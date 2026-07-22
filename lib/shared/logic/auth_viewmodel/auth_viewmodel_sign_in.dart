@@ -40,6 +40,7 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
       }
       authDebugLog('[AuthProvider.login] Repository login success');
       _firebaseUser = _repository.currentFirebaseUser;
+      _needsGoogleRegistration = false;
       authDebugLog('[AuthProvider.login] firebase session established');
       authDebugLog(
         '[AuthProvider.login] loaded userRole=${_currentUser?.role} adminRole=${_currentAdmin?.role}',
@@ -89,13 +90,15 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
     _profileErrorMessage = null;
 
     try {
-      final user = await _repository.signInWithGoogle();
-      if (user == null) {
-        return;
-      }
-      _currentUser = user;
+      final result = await _repository.signInWithGoogle();
+      if (result.status == GoogleSignInStatus.cancelled) return;
+
+      _currentUser = result.user;
       _currentAdmin = null;
       _firebaseUser = _repository.currentFirebaseUser;
+      _needsGoogleRegistration =
+          result.status == GoogleSignInStatus.registrationRequired;
+      _profileErrorMessage = null;
       _showAccountCreatedScreen = false;
     } catch (e) {
       authDebugLogError('[AuthProvider.signInWithGoogle]', e);
@@ -116,6 +119,7 @@ mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
       _currentAdmin = null;
       _firebaseUser = null;
       _showAccountCreatedScreen = false;
+      _needsGoogleRegistration = false;
       _successMessage = null;
       _profileErrorMessage = null;
     } catch (e) {

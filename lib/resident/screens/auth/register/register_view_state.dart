@@ -214,7 +214,6 @@ class _RegisterViewState extends State<RegisterView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _RegisterHeader(
-                          textTheme: textTheme,
                           loading: loading,
                           onBack: () {
                             vm.clearError();
@@ -244,7 +243,6 @@ class _RegisterViewState extends State<RegisterView> {
                                 !_obscureConfirmPassword,
                           ),
                           communityPicker: _buildRegisterCommunityPicker(
-                            context: context,
                             enabled: !loading,
                             communitiesLoading: _communitiesLoading,
                             communitiesError: _communitiesError,

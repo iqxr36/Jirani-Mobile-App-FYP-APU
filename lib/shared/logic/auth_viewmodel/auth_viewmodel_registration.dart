@@ -62,6 +62,62 @@ mixin _AuthViewModelRegistrationMixin on _AuthViewModelBase {
     }
   }
 
+  /// Google registration: collects resident-only fields before creating users/{uid}.
+  Future<void> completeGoogleRegistration({
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required bool termsAccepted,
+    required String communityId,
+    required String communityName,
+  }) async {
+    final validationError =
+        Validators.validateFirstName(firstName) ??
+        Validators.validateLastName(lastName) ??
+        Validators.validatePhone(phoneNumber);
+    if (validationError != null) {
+      _setValidationError(validationError);
+      return;
+    }
+    if (communityId.trim().isEmpty || communityName.trim().isEmpty) {
+      _setValidationError('Select your community to continue.');
+      return;
+    }
+    if (!termsAccepted) {
+      _setValidationError('Accept the terms and conditions to continue.');
+      return;
+    }
+
+    _setLoading(true);
+    clearError(notify: false);
+    _successMessage = null;
+    _profileErrorMessage = null;
+    try {
+      _currentUser = await _repository.completeGoogleRegistration(
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        termsAccepted: termsAccepted,
+        communityId: communityId,
+        communityName: communityName,
+      );
+      _firebaseUser = _repository.currentFirebaseUser;
+      _currentAdmin = null;
+      _needsGoogleRegistration = false;
+      _showEmailVerificationAfterRegister = false;
+      _showAccountCreatedScreen = true;
+      _successMessage = 'Your resident account has been created.';
+    } catch (e) {
+      _errorMessage = _mapAuthError(e);
+      if (_repository.currentFirebaseUser == null) {
+        _firebaseUser = null;
+        _needsGoogleRegistration = false;
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Auth onboarding: hides the account-created confirmation after the resident continues.
   void dismissAccountCreatedScreen() {
     _showAccountCreatedScreen = false;

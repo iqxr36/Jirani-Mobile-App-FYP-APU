@@ -47,12 +47,14 @@ class _ScorePanel extends StatelessWidget {
     required this.reviews,
     required this.lendingReviews,
     required this.borrowingReviews,
+    required this.serviceProvidingReviews,
   });
 
   final AppUser user;
   final List<ReviewModel> reviews;
   final List<ReviewModel> lendingReviews;
   final List<ReviewModel> borrowingReviews;
+  final List<ReviewModel> serviceProvidingReviews;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +120,15 @@ class _ScorePanel extends StatelessWidget {
               _MetricTile(
                 label: 'As Borrower',
                 value: _metricValue(borrowingReviews),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _MetricTile(
+                label: 'As Provider',
+                value: _metricValue(serviceProvidingReviews),
               ),
               const SizedBox(width: 8),
               _MetricTile(label: 'Total', value: '${reviews.length}'),

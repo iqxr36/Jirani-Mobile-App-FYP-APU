@@ -60,6 +60,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   String _adminProfileImageBytesUrl = '';
   bool _showEmailVerificationAfterRegister = false;
   bool _showAccountCreatedScreen = false;
+  bool _needsGoogleRegistration = false;
 
   User? get firebaseUser => _firebaseUser;
   bool get isAuthBootstrapComplete => _authBootstrapComplete;
@@ -83,6 +84,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
   bool get showEmailVerificationAfterRegister =>
       _showEmailVerificationAfterRegister;
   bool get showAccountCreatedScreen => _showAccountCreatedScreen;
+  bool get needsGoogleRegistration => _needsGoogleRegistration;
 
   /// Auth/profile feature: reloads resident/admin Firestore profiles while preserving the last good profile on failure.
   Future<void> refreshCurrentUser() async {
@@ -96,8 +98,14 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       if (_currentUser == null && _currentAdmin == null) {
         _currentUser = previousUser;
         _currentAdmin = previousAdmin;
-        _profileErrorMessage ??= _missingProfileMessage();
+        if (previousUser != null || previousAdmin != null) {
+          _needsGoogleRegistration = false;
+          _profileErrorMessage ??= _missingProfileMessage();
+        } else {
+          _syncMissingProfileRoute();
+        }
       } else {
+        _needsGoogleRegistration = false;
         _profileErrorMessage = null;
       }
       notifyListeners();
@@ -147,6 +155,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       _adminProfileImageErrorMessage = null;
       _showEmailVerificationAfterRegister = false;
       _showAccountCreatedScreen = false;
+      _needsGoogleRegistration = false;
       _authBootstrapComplete = true;
       notifyListeners();
       return;
@@ -164,9 +173,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       authDebugLog(
         '[AuthProvider._onAuthStateChanged] Firestore profile fetch done userRole=${_currentUser?.role} adminRole=${_currentAdmin?.role}',
       );
-      _profileErrorMessage = _currentUser == null && _currentAdmin == null
-          ? _missingProfileMessage()
-          : null;
+      _syncMissingProfileRoute();
       _showAccountCreatedScreen =
           _showAccountCreatedScreen &&
           _needsLocationVerificationPrompt(_currentUser);
@@ -174,6 +181,7 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
       authDebugLogError('[AuthProvider._onAuthStateChanged]', e);
       _currentUser = null;
       _currentAdmin = null;
+      _needsGoogleRegistration = false;
       _profileErrorMessage = e.toString();
     } finally {
       _profileLoading = false;
@@ -217,6 +225,24 @@ abstract class _AuthViewModelBase extends ChangeNotifier {
 
     _currentAdmin = null;
     _currentUser = await _repository.getCurrentAppUser();
+  }
+
+  void _syncMissingProfileRoute() {
+    if (_currentUser != null || _currentAdmin != null) {
+      _needsGoogleRegistration = false;
+      _profileErrorMessage = null;
+      return;
+    }
+    final firebaseUser = _firebaseUser ?? _repository.currentFirebaseUser;
+    _needsGoogleRegistration =
+        !kIsWeb &&
+        firebaseUser != null &&
+        firebaseUser.providerData.any(
+          (provider) => provider.providerId == 'google.com',
+        );
+    _profileErrorMessage = _needsGoogleRegistration
+        ? null
+        : _missingProfileMessage();
   }
 
   AdminUser? _mergeAdminProfileImage({

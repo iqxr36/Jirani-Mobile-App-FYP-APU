@@ -15,16 +15,22 @@ import 'package:jirani/admin/screens/auth/admin_login_screen.dart';
 import 'package:jirani/resident/screens/auth/email_verification_view.dart';
 import 'package:jirani/resident/screens/auth/resident_pre_auth_gate.dart';
 import 'package:jirani/resident/screens/auth/account_created_view.dart';
+import 'package:jirani/resident/screens/auth/google_registration_completion_view.dart';
 import 'package:jirani/resident/screens/auth/suspended_account_view.dart';
 import 'package:provider/provider.dart';
 import 'package:jirani/resident/screens/location/resident_geofence_gate.dart';
 
 /// Routes the app based on [FirebaseAuth] session and loaded [AppUser] profile.
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key, @visibleForTesting this.isWebOverride});
+  const AuthWrapper({
+    super.key,
+    @visibleForTesting this.isWebOverride,
+    @visibleForTesting this.googleRegistrationBuilder,
+  });
 
   /// Allows widget tests to exercise web-only routing without launching Chrome.
   final bool? isWebOverride;
+  final WidgetBuilder? googleRegistrationBuilder;
 
   @override
   /// App routing: chooses admin login, resident onboarding/login, verification screens, geofence gate, or dashboards.
@@ -72,6 +78,14 @@ class AuthWrapper extends StatelessWidget {
             '[AuthWrapper] route -> AdminLoginScreen (non-admin blocked)',
           );
           return const AdminLoginScreen();
+        }
+
+        if (!isWeb && vm.needsGoogleRegistration) {
+          authDebugLog(
+            '[AuthWrapper] route -> GoogleRegistrationCompletionView',
+          );
+          return googleRegistrationBuilder?.call(context) ??
+              const GoogleRegistrationCompletionView();
         }
 
         if (user == null && admin == null) {

@@ -884,11 +884,15 @@ class ResidentSummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.emphasized = false,
+    this.compact = false,
+    this.valueTextAlign = TextAlign.end,
   });
 
   final String label;
   final String value;
   final bool emphasized;
+  final bool compact;
+  final TextAlign valueTextAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -899,7 +903,9 @@ class ResidentSummaryRow extends StatelessWidget {
             label,
             style: TextStyle(
               color: emphasized ? context.appInk : context.appMuted,
-              fontSize: emphasized ? 15 : 13,
+              fontSize: emphasized
+                  ? (compact ? 14 : 15)
+                  : (compact ? 12 : 13),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -909,10 +915,12 @@ class ResidentSummaryRow extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
+            textAlign: valueTextAlign,
             style: TextStyle(
               color: emphasized ? residentBrandTeal : context.appInk,
-              fontSize: emphasized ? 17 : 14,
+              fontSize: emphasized
+                  ? (compact ? 16 : 17)
+                  : (compact ? 13 : 14),
               fontWeight: FontWeight.w900,
             ),
           ),

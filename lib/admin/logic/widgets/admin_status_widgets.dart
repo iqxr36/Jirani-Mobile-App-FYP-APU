@@ -415,10 +415,66 @@ class AdminFilterChipButton extends StatelessWidget {
       );
     }
     return OutlinedButton.icon(
-      onPressed: onPressed ?? () {},
+      onPressed: onPressed,
       style: AdminButtonStyles.primaryOutlined(context),
       icon: icon,
       label: Text(label),
+    );
+  }
+}
+
+/// Shared admin filter control with a persistent field label and native
+/// keyboard/semantics support from [DropdownButtonFormField].
+class AdminFilterDropdown<T> extends StatelessWidget {
+  const AdminFilterDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.onChanged,
+    this.width = 180,
+  }) : assert(values.length > 0);
+
+  final String label;
+  final T value;
+  final Map<T, String> values;
+  final ValueChanged<T> onChanged;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedValue = values.containsKey(value) ? value : values.keys.first;
+    return SizedBox(
+      key: ValueKey<String>('admin-filter-$label'),
+      width: width,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: DropdownButtonFormField<T>(
+          key: ValueKey<String>('admin-filter-$label-$selectedValue'),
+          initialValue: selectedValue,
+          isExpanded: true,
+          menuMaxHeight: 320,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+          ),
+          items: [
+            for (final entry in values.entries)
+              DropdownMenuItem<T>(
+                value: entry.key,
+                child: Text(entry.value, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (next) {
+            if (next != null) onChanged(next);
+          },
+        ),
+      ),
     );
   }
 }

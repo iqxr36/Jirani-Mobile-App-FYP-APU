@@ -68,7 +68,6 @@ class _CommunityModalMessage extends StatelessWidget {
 }
 
 Widget _buildRegisterCommunityPicker({
-  required BuildContext context,
   required bool enabled,
   required bool communitiesLoading,
   required String? communitiesError,
@@ -76,56 +75,12 @@ Widget _buildRegisterCommunityPicker({
   required CommunityModel? selectedCommunity,
   required VoidCallback onSelectCommunity,
 }) {
-  final hasOptions = activeCommunities.isNotEmpty;
-  final canSelect = enabled;
-  final selectedName = selectedCommunity?.name;
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text('Community / Residence', style: _registerLabelStyle(context)),
-      const SizedBox(height: 6),
-      if (communitiesLoading)
-        const SizedBox(
-          height: 50,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        )
-      else
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: canSelect ? onSelectCommunity : null,
-            borderRadius: BorderRadius.circular(_kFieldRadius),
-            child: InputDecorator(
-              decoration: _registerInputDecoration(
-                context,
-                hint: hasOptions
-                    ? 'Select your community'
-                    : 'No active communities available',
-                suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
-              ),
-              isEmpty: selectedName == null || selectedName.isEmpty,
-              child: Text(
-                selectedName ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: canSelect ? context.appInk : context.appMuted,
-                ),
-              ),
-            ),
-          ),
-        ),
-      if (communitiesError != null || !hasOptions && !communitiesLoading)
-        Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Text(
-            communitiesError ??
-                'You can select a community during location verification.',
-            style: TextStyle(fontSize: 11, color: context.appMuted),
-          ),
-        ),
-    ],
+  return ResidentCommunityPicker(
+    enabled: enabled,
+    communitiesLoading: communitiesLoading,
+    communitiesError: communitiesError,
+    activeCommunities: activeCommunities,
+    selectedCommunity: selectedCommunity,
+    onSelectCommunity: onSelectCommunity,
   );
 }
