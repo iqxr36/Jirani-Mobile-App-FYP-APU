@@ -627,6 +627,14 @@ class _ResidentLenderRequestDetailViewState
       _showSnack(context, 'Enter the deduction amount requested from deposit.');
       return;
     }
+    final deposit = request.depositAmount ?? 0;
+    if (amount <= 0 || amount >= deposit) {
+      _showSnack(
+        context,
+        'Enter a deduction above RM 0 and below ${_money(deposit)} so the borrower receives a refund.',
+      );
+      return;
+    }
     final reason = _minorIssueReasonController.text.trim();
     if (reason.isEmpty) {
       _showSnack(context, 'Add a reason for the minor issue.');
@@ -1243,10 +1251,15 @@ class _LenderReturnCard extends StatelessWidget {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: context.residentInputDecoration(
-                      label: 'Deduction amount',
-                      hint: 'Example: 10',
-                    ),
+                    decoration: context
+                        .residentInputDecoration(
+                          label: 'Deduction amount',
+                          hint: 'Example: 10',
+                        )
+                        .copyWith(
+                          helperText:
+                              'Enter less than ${_money(request.depositAmount)} so part of the deposit is refunded.',
+                        ),
                   ),
                   const SizedBox(height: 10),
                   TextField(

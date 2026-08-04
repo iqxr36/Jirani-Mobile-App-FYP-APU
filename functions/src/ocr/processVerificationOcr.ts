@@ -36,7 +36,7 @@ const geminiLocation = defineString("GEMINI_LOCATION", {
   default: "asia-southeast1",
 });
 
-// Verification OCR feature: processes submitted verification documents with Document AI, Gemini extraction, and admin notification.
+// [Verification Rank 4 — BACKEND] Reads submitted proof with Document AI and Gemini, then saves results for admin review.
 export const processVerificationRequestOcr = onDocumentWritten(
   {
     document: "verificationRequests/{requestId}",

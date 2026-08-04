@@ -132,52 +132,16 @@ class _PhotosDocumentsPermissionViewState
     }
   }
 
-  Widget _buildIllustration(BuildContext context) {
+  Widget _buildIllustration() {
     final softTeal = _kBrandTeal.withValues(alpha: 0.14);
     return SizedBox(
       height: 210,
       width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.asset(
-            'assets/perm4.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => Icon(
-              Icons.folder_copy_outlined,
-              size: 92,
-              color: softTeal,
-            ),
-          ),
-          Container(
-            width: 136,
-            height: 158,
-            decoration: BoxDecoration(
-              color: context.glassFill(),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: softTeal, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: _kBrandTeal.withValues(alpha: 0.10),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-          ),
-          // Positioned(
-          //   top: 48,
-          //   child: Icon(
-          //     Icons.photo_library_outlined,
-          //     size: 54,
-          //     color: _kBrandTeal,
-          //   ),
-          // ),
-          // Positioned(
-          //   bottom: 48,
-          //   child: Icon(Icons.description_outlined, size: 42, color: softTeal),
-          // ),
-        ],
+      child: Image.asset(
+        'assets/perm4.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) =>
+            Icon(Icons.folder_copy_outlined, size: 92, color: softTeal),
       ),
     );
   }
@@ -305,7 +269,7 @@ class _PhotosDocumentsPermissionViewState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 28),
-                        _buildIllustration(context),
+                        _buildIllustration(),
                         const SizedBox(height: 22),
                         _buildTitle(),
                         const SizedBox(height: 22),

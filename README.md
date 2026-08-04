@@ -30,8 +30,6 @@ test/                Dart unit/widget tests
 test/firestore/      Firestore + Storage rules tests (emulator)
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for collections, borrow/review flows, and the security model.
-
 ## Setup
 
 1. Install [Flutter](https://docs.flutter.dev/get-started/install) (SDK ^3.11).

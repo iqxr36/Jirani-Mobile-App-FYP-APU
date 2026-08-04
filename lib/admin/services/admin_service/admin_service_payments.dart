@@ -50,10 +50,33 @@ mixin _AdminServicePaymentsMixin on _AdminServiceBase {
     });
   }
 
+  Future<void> correctMarketplaceMinorDamageSettlement({
+    required String borrowRequestId,
+    required double correctedDeductionAmount,
+    required String reason,
+  }) async {
+    if (borrowRequestId.trim().isEmpty) {
+      throw Exception('Transaction ID is missing.');
+    }
+    if (reason.trim().isEmpty) {
+      throw Exception('Correction reason is required.');
+    }
+    final callable = _functions.httpsCallable(
+      'correctMarketplaceMinorDamageSettlement',
+    );
+    await callable.call<void>({
+      'borrowRequestId': borrowRequestId.trim(),
+      'correctedDeductionAmount': correctedDeductionAmount,
+      'reason': reason.trim(),
+    });
+  }
+
   Future<int> repairStuckMarketplaceSettlement({
     String borrowRequestId = '',
   }) async {
-    final callable = _functions.httpsCallable('repairStuckMarketplaceSettlement');
+    final callable = _functions.httpsCallable(
+      'repairStuckMarketplaceSettlement',
+    );
     final result = await callable.call<Map<String, dynamic>>({
       if (borrowRequestId.trim().isNotEmpty)
         'borrowRequestId': borrowRequestId.trim(),

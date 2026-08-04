@@ -7,6 +7,7 @@
 part of '../borrow_request_service.dart';
 
 mixin _BorrowRequestLifecycleMixin on _BorrowRequestServiceBase {
+  /// [Marketplace Rank 3 — BUSINESS LOGIC] Rechecks the item, borrower, dates, price, and deposit before writing the request.
   Future<void> createBorrowRequest({
     required ItemModel item,
     required AppUser borrower,

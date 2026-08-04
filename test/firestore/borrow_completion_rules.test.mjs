@@ -10,9 +10,16 @@ import { fileURLToPath } from 'node:url';
 import { after, before, describe, test } from 'node:test';
 import {
   assertFails,
+  assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import {
+  doc,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -22,6 +29,7 @@ const OWNER_ID = 'owner-user';
 const BORROWER_ID = 'borrower-user';
 const ITEM_ID = 'item-1';
 const BORROW_ID = 'borrow-1';
+const MINOR_BORROW_ID = 'borrow-minor';
 
 /** @type {import('@firebase/rules-unit-testing').RulesTestEnvironment} */
 let testEnv;
@@ -70,6 +78,18 @@ before(async () => {
       returnConfirmedAt: now,
       updatedAt: now,
     });
+    await setDoc(doc(db, 'borrowRequests', MINOR_BORROW_ID), {
+      id: MINOR_BORROW_ID,
+      itemId: ITEM_ID,
+      ownerId: OWNER_ID,
+      borrowerId: BORROWER_ID,
+      status: 'returnSubmitted',
+      hasDeposit: true,
+      depositAmount: 100,
+      depositDecision: 'pending',
+      depositDecisionReason: '',
+      updatedAt: now,
+    });
   });
 });
 
@@ -107,6 +127,46 @@ describe('borrow completion side effects', () => {
         status: 'available',
         lastCompletedBorrowRequestId: BORROW_ID,
         updatedAt: Timestamp.now(),
+      }),
+    );
+  });
+
+  test('owner cannot request the full deposit for minor damage', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertFails(
+      updateDoc(doc(db, 'borrowRequests', MINOR_BORROW_ID), {
+        status: 'minorIssuePending',
+        itemConditionAfter: 'minorDamage',
+        ownerReturnNotes: 'Small scratch',
+        minorDeductionAmount: 100,
+        minorIssueReason: 'Small scratch',
+        minorIssuePhotoUrl: null,
+        minorIssueReportedAt: serverTimestamp(),
+        minorIssueBorrowerDecision: 'pending',
+        minorIssueBorrowerRespondedAt: null,
+        depositDecision: 'pending',
+        depositDecisionReason: '',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('owner can request a partial minor-damage deduction', async () => {
+    const db = testEnv.authenticatedContext(OWNER_ID).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'borrowRequests', MINOR_BORROW_ID), {
+        status: 'minorIssuePending',
+        itemConditionAfter: 'minorDamage',
+        ownerReturnNotes: 'Small scratch',
+        minorDeductionAmount: 60,
+        minorIssueReason: 'Small scratch',
+        minorIssuePhotoUrl: null,
+        minorIssueReportedAt: serverTimestamp(),
+        minorIssueBorrowerDecision: 'pending',
+        minorIssueBorrowerRespondedAt: null,
+        depositDecision: 'pending',
+        depositDecisionReason: '',
+        updatedAt: serverTimestamp(),
       }),
     );
   });

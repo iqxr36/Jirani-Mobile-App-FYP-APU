@@ -501,7 +501,7 @@ class ServiceService {
     }
   }
 
-  /// Services requester flow: creates a pending request for another resident's active service.
+  /// [Services Rank 2 — BUSINESS LOGIC] Validates residents, availability, community, and price before creating the request.
   Future<void> createServiceRequest({
     required ServiceModel service,
     required AppUser requester,
@@ -609,7 +609,7 @@ class ServiceService {
     }
   }
 
-  /// Services provider flow: accepts a pending service request.
+  /// [Services Rank 3 — PROVIDER ACTION] Moves a pending request to accepted or accepted-awaiting-payment.
   Future<void> acceptServiceRequest({
     required String requestId,
     required String providerId,

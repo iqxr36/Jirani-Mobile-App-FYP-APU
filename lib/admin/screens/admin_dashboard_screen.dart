@@ -39,6 +39,7 @@ class AdminDashboardScreen extends StatelessWidget {
   final bool isLoggingOut;
 
   @override
+  /// [Admin Rank 1 — MAIN] Builds the administrator portal and supplies its scoped dashboard state.
   Widget build(BuildContext context) {
     if (context.watch<AuthViewModel>().currentAdmin == null) {
       return _AdminAccessDeniedScaffold(

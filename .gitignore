@@ -1,8 +1,10 @@
 ﻿# Miscellaneous
 *.class
 *.log
+*_test_out.txt
 *.pyc
 *.swp
+**/node_modules/
 .DS_Store
 .atom/
 .build/
@@ -32,6 +34,10 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/.codex_artifacts/
+/.firebase/
+/tmp/
+*.inspect.ndjson
 
 # Symbolication related
 app.*.symbols

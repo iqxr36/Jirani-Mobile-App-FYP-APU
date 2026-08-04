@@ -498,7 +498,7 @@ class AuthRepository {
     return admin;
   }
 
-  // Resident registration feature: creates Firebase Auth user, sends email verification, and writes users/{uid}.
+  // [Authentication Rank 5 — REGISTRATION] Creates the Firebase account, saves users/{uid}, and sends email verification.
   Future<AppUser> register({
     required String firstName,
     required String lastName,
@@ -593,7 +593,7 @@ class AuthRepository {
     return AppUser.fromMap(data);
   }
 
-  // Authentication feature: signs in with email/password and reloads the Firebase session.
+  // [Authentication Rank 3 — DATA] Signs in through Firebase Auth and reloads the authenticated user.
   Future<void> login({required String email, required String password}) async {
     authDebugLog('[AuthRepository.login] signIn started');
     final credential = await _authService.signInWithEmailAndPassword(

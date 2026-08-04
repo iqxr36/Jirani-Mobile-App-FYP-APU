@@ -32,6 +32,7 @@ const BORROW_PAYMENT_STATUS_CANCELLED = "cancelled";
 const BORROW_STATUS_APPROVED = "approved";
 const BORROW_STATUS_COMPLETED = "completed";
 const BORROW_STATUS_DISPUTED = "disputed";
+const BORROW_CONDITION_AFTER_MINOR = "minorDamage";
 const SERVICE_STATUS_ACCEPTED_AWAITING_PAYMENT = "acceptedAwaitingPayment";
 const SERVICE_STATUS_PAID_HELD = "paidHeld";
 const SERVICE_STATUS_IN_PROGRESS = "inProgress";
@@ -71,6 +72,9 @@ const MANUAL_PAYOUT_NOT_READY = "not_ready";
 const MANUAL_PAYOUT_BLOCKED = "blocked";
 const MANUAL_PAYOUT_PENDING_MANUAL = "pending_manual";
 const MANUAL_PAYOUT_PAID = "paid";
+const SETTLEMENT_CORRECTION_PROCESSING = "processing";
+const SETTLEMENT_CORRECTION_SUCCEEDED = "succeeded";
+const SETTLEMENT_CORRECTION_FAILED = "failed";
 const RESOLUTION_FULL_REFUND = "full_refund";
 const RESOLUTION_PARTIAL_DEDUCTION = "partial_deduction";
 const RESOLUTION_FULL_DEDUCTION = "full_deduction";
@@ -142,8 +146,14 @@ function currentSettlementMode(): string {
   return isSimulatedSettlement() ? SETTLEMENT_MODE_SIMULATED : SETTLEMENT_MODE_LIVE;
 }
 
-function manualPayoutStatusAfterDepositDecision(refundFailed: boolean): string {
-  return refundFailed ? MANUAL_PAYOUT_BLOCKED : MANUAL_PAYOUT_PENDING_MANUAL;
+function manualPayoutStatusAfterDepositDecision(
+  refundAmount: number,
+  refundStatus: string,
+): string {
+  if (refundAmount > 0 && refundStatus !== REFUND_STATUS_SUCCEEDED) {
+    return MANUAL_PAYOUT_BLOCKED;
+  }
+  return MANUAL_PAYOUT_PENDING_MANUAL;
 }
 
 function xenditRefundStatusToAppStatus(status: string): string {
@@ -608,6 +618,7 @@ async function validateXenditServicePayment(
   };
 }
 
+// [Marketplace Rank 4 — PAYMENT BACKEND] Revalidates the request amount and creates secure Xendit checkout.
 export const createXenditMarketplacePayment = onCall(
   {secrets: [xenditSecret]},
   async (request) => {
@@ -706,6 +717,7 @@ export const createXenditMarketplacePayment = onCall(
   }
 });
 
+// [Services Rank 4 — PAYMENT BACKEND] Revalidates the service price and creates secure Xendit checkout.
 export const createXenditServicePayment = onCall(
   {secrets: [xenditSecret]},
   async (request) => {
@@ -1130,10 +1142,25 @@ async function updateMarketplaceRefundFromXenditEvent(
     lastXenditRefundEventAt: now,
     updatedAt: now,
   };
+  let notifyPayoutReady = false;
+  const payoutReadyAmount = Math.max(
+    0,
+    toMoneyNumber(requestData.settlementCorrectionProposedLenderTotalEarning) ||
+      toMoneyNumber(requestData.lenderTotalEarning),
+  );
 
   if (status === REFUND_STATUS_SUCCEEDED) {
     update.refundFailureReason = "";
     update.depositRefundedAt = now;
+    if (requestData.manualPayoutStatus !== MANUAL_PAYOUT_PAID && payoutReadyAmount > 0) {
+      update.manualPayoutStatus = MANUAL_PAYOUT_PENDING_MANUAL;
+      notifyPayoutReady = true;
+    }
+    if (requestData.settlementCorrectionStatus === SETTLEMENT_CORRECTION_PROCESSING ||
+        requestData.settlementCorrectionStatus === SETTLEMENT_CORRECTION_FAILED) {
+      update.settlementCorrectionStatus = SETTLEMENT_CORRECTION_SUCCEEDED;
+      update.settlementCorrectedAt = now;
+    }
   } else if (status === REFUND_STATUS_FAILED) {
     update.depositStatus = DEPOSIT_STATUS_REFUND_FAILED;
     update.refundFailureReason = failureReason || "Xendit refund failed.";
@@ -1141,9 +1168,23 @@ async function updateMarketplaceRefundFromXenditEvent(
     if (requestData.manualPayoutStatus !== MANUAL_PAYOUT_PAID) {
       update.manualPayoutStatus = MANUAL_PAYOUT_BLOCKED;
     }
+    if (requestData.settlementCorrectionStatus === SETTLEMENT_CORRECTION_PROCESSING) {
+      update.settlementCorrectionStatus = SETTLEMENT_CORRECTION_FAILED;
+    }
   }
 
   await requestRef.set(update, {merge: true});
+  if (notifyPayoutReady) {
+    const ownerId = typeof requestData.ownerId === "string" ? requestData.ownerId : "";
+    const itemTitle = typeof requestData.itemTitle === "string" && requestData.itemTitle.trim() ?
+      requestData.itemTitle.trim() :
+      "your marketplace item";
+    await notifyManualPayoutReady(db, requestRef.id, {
+      ownerId,
+      itemTitle,
+      lenderTotalEarning: payoutReadyAmount,
+    }, "system");
+  }
 }
 
 async function updatePaymentFromXenditEvent(eventBody: Record<string, unknown>): Promise<void> {
@@ -1558,6 +1599,7 @@ export const generateServiceCompletionCode = onCall(async (request) => {
   return {code, expiresInSeconds: 900};
 });
 
+// [Services Rank 5 — COMPLETION BACKEND] Verifies the completion code and moves the finished service toward payout.
 export const submitServiceCompletionCode = onCall(
   {secrets: [xenditSecret]},
   async (request) => {
@@ -1906,6 +1948,148 @@ function assertDepositResolutionInput(
   }
 }
 
+function isMinorDamageRequest(data: DocumentData): boolean {
+  return data.itemConditionAfter === BORROW_CONDITION_AFTER_MINOR;
+}
+
+function assertMarketplaceDepositResolutionForStoredRequest(
+  requestData: DocumentData,
+  decision: string,
+  depositAmount: number,
+  deductionAmount: number,
+): void {
+  assertDepositResolutionInput(decision, depositAmount, deductionAmount);
+  if (!isMinorDamageRequest(requestData)) return;
+
+  if (decision === RESOLUTION_FULL_DEDUCTION) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Minor damage cannot take the full deposit. Use a partial deduction or full refund.",
+    );
+  }
+  if (decision !== RESOLUTION_PARTIAL_DEDUCTION) return;
+
+  const requestedDeductionAmount = Math.max(
+    0,
+    toMoneyNumber(requestData.minorDeductionAmount),
+  );
+  if (requestedDeductionAmount <= 0 ||
+      moneyToMinorUnits(requestedDeductionAmount) >= moneyToMinorUnits(depositAmount)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The stored minor-damage deduction is invalid and must be corrected before resolution.",
+    );
+  }
+  if (moneyToMinorUnits(deductionAmount) > moneyToMinorUnits(requestedDeductionAmount)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The approved deduction cannot exceed the lender's requested amount.",
+    );
+  }
+}
+
+function isInvalidMinorDamageSettlement(data: DocumentData): boolean {
+  if (data.status !== BORROW_STATUS_COMPLETED || !isMinorDamageRequest(data)) {
+    return false;
+  }
+  const depositAmount = moneyToMinorUnits(toMoneyNumber(data.depositAmount));
+  if (depositAmount <= 0) return false;
+  const deductionAmount = moneyToMinorUnits(toMoneyNumber(data.damageDeductionAmount));
+  const refundAmount = moneyToMinorUnits(toMoneyNumber(data.depositRefundAmount));
+  return data.depositStatus === DEPOSIT_STATUS_DEDUCTED ||
+    deductionAmount >= depositAmount ||
+    refundAmount <= 0;
+}
+
+function refundIsReadyForManualPayout(data: DocumentData): boolean {
+  const refundAmount = moneyToMinorUnits(toMoneyNumber(data.depositRefundAmount));
+  if (refundAmount <= 0) return true;
+  return data.refundStatus === REFUND_STATUS_SUCCEEDED;
+}
+
+function assertManualPayoutCanBeMarkedPaid(data: DocumentData): void {
+  if (isInvalidMinorDamageSettlement(data)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This minor-damage settlement must be corrected before paying the lender.",
+    );
+  }
+  if (!refundIsReadyForManualPayout(data)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The borrower refund must succeed before paying the lender.",
+    );
+  }
+}
+
+type MinorDamageCorrectionAmounts = {
+  depositAmount: number;
+  originalDeductionAmount: number;
+  correctedDeductionAmount: number;
+  borrowerRefundAmount: number;
+  lenderBaseEarning: number;
+  lenderTotalEarning: number;
+};
+
+function minorDamageCorrectionAmounts(
+  data: DocumentData,
+  correctedDeductionAmount: number,
+): MinorDamageCorrectionAmounts {
+  if (data.status !== BORROW_STATUS_COMPLETED || !isMinorDamageRequest(data)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Only a completed minor-damage settlement can be corrected.",
+    );
+  }
+  if (data.manualPayoutStatus === MANUAL_PAYOUT_PAID) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This lender payout is already paid and requires manual reconciliation.",
+    );
+  }
+  if (!isInvalidMinorDamageSettlement(data) &&
+      data.settlementCorrectionStatus !== SETTLEMENT_CORRECTION_FAILED) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This transaction does not contain an invalid full minor-damage deduction.",
+    );
+  }
+
+  const depositAmount = Math.max(0, toMoneyNumber(data.depositAmount));
+  const originalDeductionAmount = Math.max(
+    0,
+    toMoneyNumber(data.minorDeductionAmount) ||
+      toMoneyNumber(data.damageDeductionAmount),
+  );
+  const correctedMinor = moneyToMinorUnits(correctedDeductionAmount);
+  const depositMinor = moneyToMinorUnits(depositAmount);
+  const originalMinor = moneyToMinorUnits(originalDeductionAmount);
+  if (correctedMinor <= 0 || correctedMinor >= depositMinor) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Corrected deduction must be greater than RM 0 and less than the deposit.",
+    );
+  }
+  if (originalMinor <= 0 || correctedMinor > originalMinor) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Corrected deduction cannot exceed the lender's original request.",
+    );
+  }
+
+  const normalizedDeduction = correctedMinor / 100;
+  const normalizedDeposit = depositMinor / 100;
+  const lenderBaseEarning = Math.max(0, toMoneyNumber(data.usageFeeAmount));
+  return {
+    depositAmount: normalizedDeposit,
+    originalDeductionAmount: originalMinor / 100,
+    correctedDeductionAmount: normalizedDeduction,
+    borrowerRefundAmount: (depositMinor - correctedMinor) / 100,
+    lenderBaseEarning,
+    lenderTotalEarning: lenderBaseEarning + normalizedDeduction,
+  };
+}
+
 function resolutionAllowedForParticipant(
   requestData: DocumentData,
   uid: string,
@@ -1995,6 +2179,7 @@ async function notifyManualPayoutReady(
   });
 }
 
+// [Marketplace Rank 5 — DEPOSIT BACKEND] Applies the final deposit refund, deduction, or lender-award decision.
 export const resolveMarketplaceDeposit = onCall(
   {secrets: [xenditSecret]},
   async (request) => {
@@ -2066,7 +2251,12 @@ export const resolveMarketplaceDeposit = onCall(
   }
 
   const deductionAmount = decision === RESOLUTION_FULL_DEDUCTION ? depositAmount : requestedDeductionAmount;
-  assertDepositResolutionInput(decision, depositAmount, deductionAmount);
+  assertMarketplaceDepositResolutionForStoredRequest(
+    requestData,
+    decision,
+    depositAmount,
+    deductionAmount,
+  );
   const refundAmount = Math.max(0, depositAmount - deductionAmount);
   const lenderTotalEarning = usageFeeAmount + deductionAmount;
   let xenditRefundId = "";
@@ -2105,7 +2295,20 @@ export const resolveMarketplaceDeposit = onCall(
     }
   }
 
-  const manualPayoutStatus = manualPayoutStatusAfterDepositDecision(refundFailed);
+  if (refundStatus === REFUND_STATUS_PENDING) {
+    const latestData = (await requestRef.get()).data();
+    if (latestData?.refundStatus === REFUND_STATUS_SUCCEEDED) {
+      refundStatus = REFUND_STATUS_SUCCEEDED;
+      xenditRefundId = typeof latestData.xenditRefundId === "string" ?
+        latestData.xenditRefundId :
+        xenditRefundId;
+    }
+  }
+
+  const manualPayoutStatus = manualPayoutStatusAfterDepositDecision(
+    refundAmount,
+    refundFailed ? REFUND_STATUS_FAILED : refundStatus,
+  );
 
   const update: Record<string, unknown> = {
     status: BORROW_STATUS_COMPLETED,
@@ -2203,6 +2406,220 @@ export const resolveMarketplaceDeposit = onCall(
   };
 });
 
+export const correctMarketplaceMinorDamageSettlement = onCall(
+  {secrets: [xenditSecret]},
+  async (request) => {
+  const uid = requireUid(request.auth);
+  const input = asRecord(request.data);
+  const borrowRequestId = readString(input, "borrowRequestId");
+  const correctedDeductionAmount = readNumber(input, "correctedDeductionAmount");
+  const reason = readString(input, "reason");
+  if (!borrowRequestId) throw new HttpsError("invalid-argument", "Missing borrow request id.");
+  if (!reason) throw new HttpsError("invalid-argument", "Correction reason is required.");
+
+  const db = admin.firestore();
+  await requireAdmin(db, uid);
+  const requestRef = db.collection(BORROW_REQUESTS_COLLECTION).doc(borrowRequestId);
+  let amounts: MinorDamageCorrectionAmounts | undefined;
+  let requestData: DocumentData | undefined;
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(requestRef);
+    const data = snapshot.data();
+    if (!data) throw new HttpsError("not-found", "Borrow request was not found.");
+    if (data.paymentStatus !== BORROW_PAYMENT_STATUS_COMPLETED ||
+        data.paymentProvider !== XENDIT_PROVIDER) {
+      throw new HttpsError(
+        "failed-precondition",
+        "A completed Xendit marketplace payment is required for automated correction.",
+      );
+    }
+    if (data.settlementCorrectionStatus === SETTLEMENT_CORRECTION_PROCESSING) {
+      throw new HttpsError("already-exists", "This settlement correction is already processing.");
+    }
+    if (data.settlementCorrectionStatus === SETTLEMENT_CORRECTION_SUCCEEDED) {
+      throw new HttpsError("already-exists", "This settlement has already been corrected.");
+    }
+
+    amounts = minorDamageCorrectionAmounts(data, correctedDeductionAmount);
+    requestData = data;
+    transaction.set(requestRef, {
+      manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+      settlementCorrectionStatus: SETTLEMENT_CORRECTION_PROCESSING,
+      settlementCorrectionOriginalDeductionAmount: amounts.originalDeductionAmount,
+      settlementCorrectionAmount: amounts.correctedDeductionAmount,
+      settlementCorrectionRefundAmount: amounts.borrowerRefundAmount,
+      settlementCorrectionProposedLenderTotalEarning: amounts.lenderTotalEarning,
+      settlementCorrectionReason: reason,
+      settlementCorrectionRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      settlementCorrectionRequestedBy: uid,
+      settlementCorrectionFailureReason: "",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  });
+
+  if (!amounts || !requestData) {
+    throw new HttpsError("internal", "Settlement correction could not be prepared.");
+  }
+
+  const correction = amounts;
+  const originalData = requestData;
+  const xenditInvoiceId = typeof originalData.xenditInvoiceId === "string" ?
+    originalData.xenditInvoiceId :
+    "";
+  let xenditRefundId = "";
+  let refundStatus = REFUND_STATUS_PENDING;
+
+  try {
+    if (isSimulatedSettlement()) {
+      refundStatus = REFUND_STATUS_SUCCEEDED;
+    } else {
+      if (!xenditInvoiceId) {
+        throw new Error("Missing Xendit invoice id.");
+      }
+      const refund = await xenditPost("/refunds", {
+        reference_id: `borrow_${borrowRequestId}_partial_deduction`,
+        invoice_id: xenditInvoiceId,
+        currency: DEFAULT_CURRENCY.toUpperCase(),
+        amount: moneyToXenditAmount(correction.borrowerRefundAmount),
+        reason: "REQUESTED_BY_CUSTOMER",
+        metadata: {
+          borrowRequestId,
+          refundType: "marketplace_minor_damage_correction",
+          decision: RESOLUTION_PARTIAL_DEDUCTION,
+        },
+      });
+      xenditRefundId = readString(refund, "id");
+      refundStatus = xenditRefundStatusToAppStatus(readString(refund, "status"));
+    }
+  } catch (error) {
+    const failureReason = safeErrorMessage(error);
+    await requestRef.set({
+      refundStatus: REFUND_STATUS_FAILED,
+      refundFailureReason: failureReason,
+      xenditFailureReason: failureReason,
+      manualPayoutStatus: MANUAL_PAYOUT_BLOCKED,
+      settlementCorrectionStatus: SETTLEMENT_CORRECTION_FAILED,
+      settlementCorrectionFailureReason: failureReason,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+    throw new HttpsError(
+      "internal",
+      "Correction refund failed. The lender payout remains blocked for admin review.",
+    );
+  }
+
+
+  if (refundStatus === REFUND_STATUS_PENDING) {
+    const latestData = (await requestRef.get()).data();
+    if (latestData?.refundStatus === REFUND_STATUS_SUCCEEDED) {
+      refundStatus = REFUND_STATUS_SUCCEEDED;
+      xenditRefundId = typeof latestData.xenditRefundId === "string" ?
+        latestData.xenditRefundId :
+        xenditRefundId;
+    }
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const manualPayoutStatus = manualPayoutStatusAfterDepositDecision(
+    correction.borrowerRefundAmount,
+    refundStatus,
+  );
+  const correctionStatus = refundStatus === REFUND_STATUS_SUCCEEDED ?
+    SETTLEMENT_CORRECTION_SUCCEEDED :
+    SETTLEMENT_CORRECTION_PROCESSING;
+  const update: Record<string, unknown> = {
+    depositStatus: DEPOSIT_STATUS_PARTIALLY_REFUNDED,
+    depositHeldAmount: correction.depositAmount,
+    depositRefundAmount: correction.borrowerRefundAmount,
+    depositDecision: DEPOSIT_DECISION_PARTIAL_DEDUCTION,
+    depositDecisionReason: reason,
+    damageDeductionAmount: correction.correctedDeductionAmount,
+    damageDecision: DAMAGE_DECISION_ADMIN_PARTIAL_DEDUCTION,
+    damageDecisionReason: reason,
+    damageDecidedAt: now,
+    refundStatus,
+    refundFailureReason: "",
+    xenditRefundId,
+    lenderBaseEarning: correction.lenderBaseEarning,
+    lenderDamageEarning: correction.correctedDeductionAmount,
+    lenderTotalEarning: correction.lenderTotalEarning,
+    manualPayoutStatus,
+    settlementCorrectionStatus: correctionStatus,
+    settlementCorrectionFailureReason: "",
+    settlementCorrectedAt: refundStatus === REFUND_STATUS_SUCCEEDED ? now : null,
+    settlementCorrectedBy: uid,
+    settlementMode: currentSettlementMode(),
+    updatedAt: now,
+  };
+  if (refundStatus === REFUND_STATUS_SUCCEEDED) {
+    update.depositRefundedAt = now;
+  }
+
+  const batch = db.batch();
+  batch.set(requestRef, update, {merge: true});
+  const reportId = typeof originalData.disputeReportId === "string" ?
+    originalData.disputeReportId.trim() :
+    "";
+  if (reportId) {
+    batch.set(db.collection(REPORTS_COLLECTION).doc(reportId), {
+      settlementCorrectionStatus: correctionStatus,
+      settlementCorrectionOriginalDeductionAmount: correction.originalDeductionAmount,
+      settlementCorrectionAmount: correction.correctedDeductionAmount,
+      settlementCorrectionRefundAmount: correction.borrowerRefundAmount,
+      settlementCorrectionReason: reason,
+      settlementCorrectedAt: refundStatus === REFUND_STATUS_SUCCEEDED ? now : null,
+      settlementCorrectedBy: uid,
+      updatedAt: now,
+    }, {merge: true});
+  }
+  await batch.commit();
+
+  const itemTitle = typeof originalData.itemTitle === "string" && originalData.itemTitle.trim() ?
+    originalData.itemTitle.trim() :
+    "your marketplace item";
+  const borrowerId = typeof originalData.borrowerId === "string" ? originalData.borrowerId : "";
+  const ownerId = typeof originalData.ownerId === "string" ? originalData.ownerId : "";
+  await Promise.all([
+    createInAppNotification(db, {
+      userId: borrowerId,
+      actorId: uid,
+      type: NOTIFICATION_TYPE_BORROW_DEPOSIT_RESOLVED,
+      title: "Deposit correction updated",
+      body: `Admin corrected the minor-damage deduction for "${itemTitle}" to ${moneyLabel(correction.correctedDeductionAmount)}. ${moneyLabel(correction.borrowerRefundAmount)} will return to you. Admin note: ${reason}`,
+      category: "Marketplace",
+      borrowRequestId,
+      notificationId: notificationIdFor("borrowDepositCorrected", borrowRequestId, borrowerId),
+    }),
+    createInAppNotification(db, {
+      userId: ownerId,
+      actorId: uid,
+      type: NOTIFICATION_TYPE_BORROW_DEPOSIT_RESOLVED,
+      title: "Deposit correction updated",
+      body: `Admin corrected your damage award for "${itemTitle}" to ${moneyLabel(correction.correctedDeductionAmount)}. Your payout will be available after the borrower refund succeeds. Admin note: ${reason}`,
+      category: "Marketplace",
+      borrowRequestId,
+      notificationId: notificationIdFor("borrowDepositCorrected", borrowRequestId, ownerId),
+    }),
+    manualPayoutStatus === MANUAL_PAYOUT_PENDING_MANUAL && correction.lenderTotalEarning > 0 ?
+      notifyManualPayoutReady(db, borrowRequestId, {
+        ownerId,
+        itemTitle,
+        lenderTotalEarning: correction.lenderTotalEarning,
+      }, uid) :
+      Promise.resolve(),
+  ]);
+
+  return {
+    success: true,
+    correctedDeductionAmount: correction.correctedDeductionAmount,
+    refundAmount: correction.borrowerRefundAmount,
+    lenderTotalEarning: correction.lenderTotalEarning,
+    refundStatus,
+    xenditRefundId,
+  };
+});
+
 export const markManualPayoutPaid = onCall(async (request) => {
   const uid = requireUid(request.auth);
   const input = asRecord(request.data);
@@ -2220,6 +2637,7 @@ export const markManualPayoutPaid = onCall(async (request) => {
   if (data.manualPayoutStatus !== MANUAL_PAYOUT_PENDING_MANUAL) {
     throw new HttpsError("failed-precondition", "Manual payout is not ready to be marked paid.");
   }
+  assertManualPayoutCanBeMarkedPaid(data);
 
   await requestRef.set({
     manualPayoutStatus: MANUAL_PAYOUT_PAID,
@@ -2252,6 +2670,8 @@ function isStuckMarketplaceSettlement(data: DocumentData): boolean {
   const depositStatus = typeof data.depositStatus === "string" ? data.depositStatus : "";
   if (!RESOLVED_DEPOSIT_STATUSES.has(depositStatus)) return false;
   if (data.manualPayoutStatus !== MANUAL_PAYOUT_BLOCKED) return false;
+  if (isInvalidMinorDamageSettlement(data)) return false;
+  if (!refundIsReadyForManualPayout(data)) return false;
   return Math.max(0, toMoneyNumber(data.lenderTotalEarning)) > 0;
 }
 
@@ -2343,6 +2763,11 @@ export const settlementTestExports = {
   manualPayoutStatusAfterDepositDecision,
   xenditRefundStatusToAppStatus,
   isStuckMarketplaceSettlement,
+  assertMarketplaceDepositResolutionForStoredRequest,
+  isInvalidMinorDamageSettlement,
+  refundIsReadyForManualPayout,
+  assertManualPayoutCanBeMarkedPaid,
+  minorDamageCorrectionAmounts,
   assertServiceDisputeInput,
   serviceDisputeNotificationBody,
   moneyToMinorUnits,

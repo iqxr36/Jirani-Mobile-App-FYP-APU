@@ -38,6 +38,7 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 final PushNotificationService pushNotificationService =
     PushNotificationService();
 
+/// [Startup Rank 1 — MAIN] Starts Jirani and hands control to the application bootstrap process.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorWidget.builder = (details) {
@@ -82,6 +83,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
     super.dispose();
   }
 
+  /// [Startup Rank 2 — MAIN HELPER] Runs the startup sequence and decides whether to show the app or a startup error.
   Future<void> _start() async {
     if (kIsWeb) {
       await _initialize();
@@ -132,6 +134,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
     await _initialize();
   }
 
+  /// [Startup Rank 3 — FIREBASE SETUP] Connects Firebase and prepares App Check, notifications, and other startup services.
   Future<void> _initialize() async {
     if (mounted) {
       setState(() => _isRetrying = true);
@@ -242,6 +245,7 @@ class TrustCommunityApp extends StatelessWidget {
   const TrustCommunityApp({super.key});
 
   @override
+  /// [Startup Rank 4 — APP UI] Creates the root app, providers, theme, and first authentication-aware screen.
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [

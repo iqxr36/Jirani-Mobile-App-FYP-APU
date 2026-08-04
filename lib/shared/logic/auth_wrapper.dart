@@ -33,7 +33,7 @@ class AuthWrapper extends StatelessWidget {
   final WidgetBuilder? googleRegistrationBuilder;
 
   @override
-  /// App routing: chooses admin login, resident onboarding/login, verification screens, geofence gate, or dashboards.
+  /// [Authentication Rank 1 — MAIN] Routes the session to resident onboarding, protected mobile content, or the admin portal.
   Widget build(BuildContext context) {
     final isWeb = isWebOverride ?? kIsWeb;
     return Consumer<AuthViewModel>(

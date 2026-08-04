@@ -69,7 +69,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isConfigured => _isConfigured;
   String? get currentAdminUid => _service.currentAdminUid;
 
-  // Admin portal feature: configures community scope from the signed-in admin before starting streams.
+  // [Admin Rank 2 — MAIN HELPER] Applies the admin's role/community scope and starts dashboard data streams.
   void configureForAdmin(AdminUser admin) {
     final nextIncludeAll = admin.role == AppConstants.roleSystemAdmin;
     final nextCommunityId = admin.communityId.trim();
@@ -200,7 +200,8 @@ class AdminProvider extends ChangeNotifier {
     }, onError: _handleStreamError);
   }
 
-  // Admin verification feature: approves a resident proof request and refreshes dashboard counts.
+  // [Verification Rank 5 — ADMIN APPROVAL] Applies the administrator's decision to approve the resident's proof.
+  // [Admin Rank 3 — VERIFICATION ACTION] Enforces admin scope and refreshes verification statistics after approval.
   Future<void> approveRequest({
     required VerificationRequest request,
     required String adminUid,
@@ -236,7 +237,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  // Admin verification feature: rejects a resident proof request with an admin reason.
+  // [Verification Rank 6 — ADMIN REJECTION] Applies the administrator's reason for rejecting the resident's proof.
   Future<void> rejectRequest({
     required VerificationRequest request,
     required String adminUid,
@@ -451,7 +452,7 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  // Admin deposit feature: decides how much of a disputed deposit is refunded or awarded to the lender.
+  // [Admin Rank 4 — DISPUTE] Checks admin scope and starts the trusted marketplace deposit decision.
   Future<void> resolveMarketplaceDeposit({
     required BorrowRequest borrowRequest,
     required String decision,
@@ -510,6 +511,37 @@ class AdminProvider extends ChangeNotifier {
         manualPayoutReference: reference,
         manualPayoutNote: note,
       );
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> correctMarketplaceMinorDamageSettlement({
+    required BorrowRequest borrowRequest,
+    required double correctedDeductionAmount,
+    required String reason,
+  }) async {
+    if (!_belongsToVisibleResident(
+      borrowRequest.ownerId,
+      borrowRequest.borrowerId,
+    )) {
+      _errorMessage = 'This payout is outside your assigned community.';
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.correctMarketplaceMinorDamageSettlement(
+        borrowRequestId: borrowRequest.id,
+        correctedDeductionAmount: correctedDeductionAmount,
+        reason: reason,
+      );
+      await loadDashboardStats();
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -626,7 +658,7 @@ class AdminProvider extends ChangeNotifier {
     );
   }
 
-  // Admin residents feature: suspends a resident and blocks normal app access.
+  // [Admin Rank 5 — RESIDENT CONTROL] Suspends a resident and blocks normal app access for the chosen reason and duration.
   Future<bool> suspendResident({
     required AppUser resident,
     required String adminUid,

@@ -288,7 +288,7 @@ class _BorrowRequestSheetState extends State<_BorrowRequestSheet> {
     });
   }
 
-  // Marketplace borrow feature: validates borrower access and creates the initial pending borrow request.
+  // [Marketplace Rank 2 — MAIN BORROW ACTION] Validates dates and resident access before creating the pending borrow request.
   Future<void> _submitRequest() async {
     final user = context.read<AuthViewModel>().currentUser;
     final messenger = ScaffoldMessenger.of(context);

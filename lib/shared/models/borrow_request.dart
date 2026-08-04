@@ -102,6 +102,7 @@ class BorrowRequest {
     this.manualPayoutReference = '',
     this.manualPayoutNote = '',
     this.settlementMode = '',
+    this.settlementCorrectionStatus = '',
     this.borrowerReviewSubmitted = false,
     this.borrowerReviewSubmittedAt,
     this.ownerReviewSubmitted = false,
@@ -126,6 +127,7 @@ class BorrowRequest {
   final DateTime expectedReturnDate;
   final String pickupTime;
   final String message;
+
   /// Marketplace lifecycle: current borrow state such as pending, approved, active, returnSubmitted, disputed, or completed.
   final String status;
 
@@ -161,10 +163,12 @@ class BorrowRequest {
   final String itemConditionAfter;
   final String returnNotes;
   final String ownerReturnNotes;
+
   /// Marketplace deposit: owner/admin decision that decides refund, partial deduction, or withholding outcome.
   final String depositDecision;
   final String depositDecisionReason;
   final DateTime? depositDecidedAt;
+
   /// Marketplace dispute: lender-requested minor deduction that borrower can accept or decline.
   final double? minorDeductionAmount;
   final String minorIssueReason;
@@ -176,11 +180,13 @@ class BorrowRequest {
   final String disputeReason;
   final String disputeEvidenceImageUrl;
   final DateTime? disputeReportedAt;
+
   /// Marketplace admin dispute: admin's final decision when minor/major damage needs moderation.
   final String adminResolution;
   final String adminResolutionReason;
   final DateTime? adminResolvedAt;
   final String adminResolvedBy;
+
   /// Marketplace deposit: backend status for held/refunded/deducted/refund_failed deposit money.
   final String depositStatus;
   final double depositHeldAmount;
@@ -199,10 +205,12 @@ class BorrowRequest {
   final String xenditFailureReason;
   final String refundStatus;
   final String refundFailureReason;
+
   /// Marketplace payout: usage fee plus any approved damage deduction owed to the lender.
   final double lenderBaseEarning;
   final double lenderDamageEarning;
   final double lenderTotalEarning;
+
   /// Marketplace payout: manual collection status used for lender earnings.
   final String manualPayoutStatus;
   final DateTime? manualPayoutMarkedAt;
@@ -210,6 +218,8 @@ class BorrowRequest {
   final String manualPayoutReference;
   final String manualPayoutNote;
   final String settlementMode;
+  final String settlementCorrectionStatus;
+
   /// Marketplace reviews: prevents borrower and lender from submitting duplicate post-transaction reviews.
   final bool borrowerReviewSubmitted;
   final DateTime? borrowerReviewSubmittedAt;
@@ -310,6 +320,7 @@ class BorrowRequest {
     String? manualPayoutReference,
     String? manualPayoutNote,
     String? settlementMode,
+    String? settlementCorrectionStatus,
     bool? borrowerReviewSubmitted,
     DateTime? borrowerReviewSubmittedAt,
     bool? ownerReviewSubmitted,
@@ -372,17 +383,14 @@ class BorrowRequest {
       depositDecisionReason:
           depositDecisionReason ?? this.depositDecisionReason,
       depositDecidedAt: depositDecidedAt ?? this.depositDecidedAt,
-      minorDeductionAmount:
-          minorDeductionAmount ?? this.minorDeductionAmount,
+      minorDeductionAmount: minorDeductionAmount ?? this.minorDeductionAmount,
       minorIssueReason: minorIssueReason ?? this.minorIssueReason,
       minorIssuePhotoUrl: minorIssuePhotoUrl ?? this.minorIssuePhotoUrl,
-      minorIssueReportedAt:
-          minorIssueReportedAt ?? this.minorIssueReportedAt,
+      minorIssueReportedAt: minorIssueReportedAt ?? this.minorIssueReportedAt,
       minorIssueBorrowerDecision:
           minorIssueBorrowerDecision ?? this.minorIssueBorrowerDecision,
       minorIssueBorrowerRespondedAt:
-          minorIssueBorrowerRespondedAt ??
-          this.minorIssueBorrowerRespondedAt,
+          minorIssueBorrowerRespondedAt ?? this.minorIssueBorrowerRespondedAt,
       disputeReportId: disputeReportId ?? this.disputeReportId,
       disputeReason: disputeReason ?? this.disputeReason,
       disputeEvidenceImageUrl:
@@ -400,8 +408,7 @@ class BorrowRequest {
       damageDeductionAmount:
           damageDeductionAmount ?? this.damageDeductionAmount,
       damageDecision: damageDecision ?? this.damageDecision,
-      damageDecisionReason:
-          damageDecisionReason ?? this.damageDecisionReason,
+      damageDecisionReason: damageDecisionReason ?? this.damageDecisionReason,
       damageDecidedAt: damageDecidedAt ?? this.damageDecidedAt,
       xenditRefundId: xenditRefundId ?? this.xenditRefundId,
       xenditPaymentRequestId:
@@ -417,20 +424,19 @@ class BorrowRequest {
       lenderDamageEarning: lenderDamageEarning ?? this.lenderDamageEarning,
       lenderTotalEarning: lenderTotalEarning ?? this.lenderTotalEarning,
       manualPayoutStatus: manualPayoutStatus ?? this.manualPayoutStatus,
-      manualPayoutMarkedAt:
-          manualPayoutMarkedAt ?? this.manualPayoutMarkedAt,
-      manualPayoutMarkedBy:
-          manualPayoutMarkedBy ?? this.manualPayoutMarkedBy,
+      manualPayoutMarkedAt: manualPayoutMarkedAt ?? this.manualPayoutMarkedAt,
+      manualPayoutMarkedBy: manualPayoutMarkedBy ?? this.manualPayoutMarkedBy,
       manualPayoutReference:
           manualPayoutReference ?? this.manualPayoutReference,
       manualPayoutNote: manualPayoutNote ?? this.manualPayoutNote,
       settlementMode: settlementMode ?? this.settlementMode,
+      settlementCorrectionStatus:
+          settlementCorrectionStatus ?? this.settlementCorrectionStatus,
       borrowerReviewSubmitted:
           borrowerReviewSubmitted ?? this.borrowerReviewSubmitted,
       borrowerReviewSubmittedAt:
           borrowerReviewSubmittedAt ?? this.borrowerReviewSubmittedAt,
-      ownerReviewSubmitted:
-          ownerReviewSubmitted ?? this.ownerReviewSubmitted,
+      ownerReviewSubmitted: ownerReviewSubmitted ?? this.ownerReviewSubmitted,
       ownerReviewSubmittedAt:
           ownerReviewSubmittedAt ?? this.ownerReviewSubmittedAt,
       reviewGraceEndsAt: reviewGraceEndsAt ?? this.reviewGraceEndsAt,
@@ -525,12 +531,12 @@ class BorrowRequest {
       depositRefundedAt: _toNullableDate(data['depositRefundedAt']),
       damageDeductionAmount: _toDouble(data['damageDeductionAmount']) ?? 0,
       damageDecision:
-          (data['damageDecision'] as String?) ?? AppConstants.damageDecisionNone,
+          (data['damageDecision'] as String?) ??
+          AppConstants.damageDecisionNone,
       damageDecisionReason: (data['damageDecisionReason'] as String?) ?? '',
       damageDecidedAt: _toNullableDate(data['damageDecidedAt']),
       xenditRefundId: (data['xenditRefundId'] as String?) ?? '',
-      xenditPaymentRequestId:
-          (data['xenditPaymentRequestId'] as String?) ?? '',
+      xenditPaymentRequestId: (data['xenditPaymentRequestId'] as String?) ?? '',
       xenditPaymentId: (data['xenditPaymentId'] as String?) ?? '',
       xenditInvoiceId: (data['xenditInvoiceId'] as String?) ?? '',
       xenditReferenceId: (data['xenditReferenceId'] as String?) ?? '',
@@ -544,19 +550,18 @@ class BorrowRequest {
       manualPayoutStatus: _parseManualPayoutStatus(data),
       manualPayoutMarkedAt: _toNullableDate(data['manualPayoutMarkedAt']),
       manualPayoutMarkedBy: (data['manualPayoutMarkedBy'] as String?) ?? '',
-      manualPayoutReference:
-          (data['manualPayoutReference'] as String?) ?? '',
+      manualPayoutReference: (data['manualPayoutReference'] as String?) ?? '',
       manualPayoutNote: (data['manualPayoutNote'] as String?) ?? '',
       settlementMode: (data['settlementMode'] as String?) ?? '',
+      settlementCorrectionStatus:
+          (data['settlementCorrectionStatus'] as String?) ?? '',
       borrowerReviewSubmitted:
           data['borrowerReviewSubmitted'] as bool? ?? false,
       borrowerReviewSubmittedAt: _toNullableDate(
         data['borrowerReviewSubmittedAt'],
       ),
       ownerReviewSubmitted: data['ownerReviewSubmitted'] as bool? ?? false,
-      ownerReviewSubmittedAt: _toNullableDate(
-        data['ownerReviewSubmittedAt'],
-      ),
+      ownerReviewSubmittedAt: _toNullableDate(data['ownerReviewSubmittedAt']),
       reviewGraceEndsAt: _toNullableDate(data['reviewGraceEndsAt']),
     );
   }
@@ -642,9 +647,7 @@ class BorrowRequest {
           ? null
           : Timestamp.fromDate(depositDecidedAt!),
       'minorDeductionAmount': minorDeductionAmount,
-      'minorIssueReason': minorIssueReason.isEmpty
-          ? null
-          : minorIssueReason,
+      'minorIssueReason': minorIssueReason.isEmpty ? null : minorIssueReason,
       'minorIssuePhotoUrl': minorIssuePhotoUrl.isEmpty
           ? null
           : minorIssuePhotoUrl,
@@ -652,8 +655,7 @@ class BorrowRequest {
           ? null
           : Timestamp.fromDate(minorIssueReportedAt!),
       'minorIssueBorrowerDecision': minorIssueBorrowerDecision,
-      'minorIssueBorrowerRespondedAt':
-          minorIssueBorrowerRespondedAt == null
+      'minorIssueBorrowerRespondedAt': minorIssueBorrowerRespondedAt == null
           ? null
           : Timestamp.fromDate(minorIssueBorrowerRespondedAt!),
       'disputeReportId': disputeReportId.isEmpty ? null : disputeReportId,
@@ -690,18 +692,15 @@ class BorrowRequest {
           : xenditPaymentRequestId,
       'xenditPaymentId': xenditPaymentId.isEmpty ? null : xenditPaymentId,
       'xenditInvoiceId': xenditInvoiceId.isEmpty ? null : xenditInvoiceId,
-      'xenditReferenceId': xenditReferenceId.isEmpty
-          ? null
-          : xenditReferenceId,
-      'xenditChannelCode': xenditChannelCode.isEmpty
-          ? null
-          : xenditChannelCode,
+      'xenditReferenceId': xenditReferenceId.isEmpty ? null : xenditReferenceId,
+      'xenditChannelCode': xenditChannelCode.isEmpty ? null : xenditChannelCode,
       'xenditFailureReason': xenditFailureReason.isEmpty
           ? null
           : xenditFailureReason,
       'refundStatus': refundStatus,
-      'refundFailureReason':
-          refundFailureReason.isEmpty ? null : refundFailureReason,
+      'refundFailureReason': refundFailureReason.isEmpty
+          ? null
+          : refundFailureReason,
       'lenderBaseEarning': lenderBaseEarning,
       'lenderDamageEarning': lenderDamageEarning,
       'lenderTotalEarning': lenderTotalEarning,
@@ -709,12 +708,17 @@ class BorrowRequest {
       'manualPayoutMarkedAt': manualPayoutMarkedAt == null
           ? null
           : Timestamp.fromDate(manualPayoutMarkedAt!),
-      'manualPayoutMarkedBy':
-          manualPayoutMarkedBy.isEmpty ? null : manualPayoutMarkedBy,
-      'manualPayoutReference':
-          manualPayoutReference.isEmpty ? null : manualPayoutReference,
+      'manualPayoutMarkedBy': manualPayoutMarkedBy.isEmpty
+          ? null
+          : manualPayoutMarkedBy,
+      'manualPayoutReference': manualPayoutReference.isEmpty
+          ? null
+          : manualPayoutReference,
       'manualPayoutNote': manualPayoutNote.isEmpty ? null : manualPayoutNote,
       'settlementMode': settlementMode.isEmpty ? null : settlementMode,
+      'settlementCorrectionStatus': settlementCorrectionStatus.isEmpty
+          ? null
+          : settlementCorrectionStatus,
       'borrowerReviewSubmitted': borrowerReviewSubmitted,
       'borrowerReviewSubmittedAt': borrowerReviewSubmittedAt == null
           ? null

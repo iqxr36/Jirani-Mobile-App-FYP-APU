@@ -106,7 +106,7 @@ class GeofenceGateService {
     }
   }
 
-  /// Geofence feature: checks permissions, loads the resident community boundary, and returns whether the resident may enter the app.
+  /// [Geofence Rank 2 — MAIN HELPER] Coordinates permission, GPS, Firestore boundary data, and the final access decision.
   Future<GeofenceGateResult> checkResidentAccess(AppUser user) async {
     if (!user.isResident) {
       return const GeofenceGateResult(insideBoundary: true);
@@ -144,7 +144,7 @@ class GeofenceGateService {
       ).timeout(const Duration(seconds: 15));
       final position = await _locationGateway.getCurrentPosition();
 
-      // Geofence feature: calculate the straight-line distance from the phone to the community center.
+      // [Geofence Rank 4 — CALCULATION] Measures the phone's distance from the community centre in metres.
       final distance = Geolocator.distanceBetween(
         position.latitude,
         position.longitude,
@@ -171,6 +171,7 @@ class GeofenceGateService {
     }
   }
 
+  /// [Geofence Rank 5 — HELPER] Converts location permission states into a clear allow-or-block result.
   GeofenceGateResult _permissionResult(LocationPermission permission) {
     if (permission == LocationPermission.deniedForever) {
       return const GeofenceGateResult(
@@ -191,7 +192,7 @@ class GeofenceGateService {
     return const GeofenceGateResult(insideBoundary: true);
   }
 
-  /// Geofence feature: loads the community center point and radius from Firestore using either communityId or communityName.
+  /// [Geofence Rank 3 — DATA] Loads the selected community's centre point and allowed radius from Firestore.
   Future<_Boundary> _loadBoundary(AppUser user) async {
     CommunityModel? community;
     final communityId = user.communityId.trim();

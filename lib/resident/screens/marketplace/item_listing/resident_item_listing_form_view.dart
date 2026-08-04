@@ -276,6 +276,7 @@ class _ResidentItemListingFormViewState
     setState(() => _step = 1);
   }
 
+  /// [Marketplace Rank 1 — MAIN LISTING] Validates and saves an item listing with its images and lending settings.
   Future<void> _submit() async {
     final user = context.read<AuthViewModel>().currentUser;
     if (user == null) {

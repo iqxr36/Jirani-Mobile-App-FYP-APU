@@ -506,9 +506,25 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     required BorrowRequest request,
     required bool resolveForBorrower,
   }) async {
+    late final MarketplaceDisputeDepositResolution depositResolution;
+    try {
+      depositResolution = marketplaceDisputeDepositResolutionFor(
+        request: request,
+        resolveForBorrower: resolveForBorrower,
+      );
+    } on MarketplaceDisputeResolutionException catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          backgroundColor: AdminColors.danger,
+        ),
+      );
+      return;
+    }
     final reason = await _showResolutionReasonDialog(
       context,
       resolveForBorrower: resolveForBorrower,
+      depositResolution: depositResolution,
     );
     if (reason == null || !context.mounted) return;
     final provider = context.read<AdminProvider>();
@@ -541,23 +557,50 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   Future<String?> _showResolutionReasonDialog(
     BuildContext context, {
     required bool resolveForBorrower,
+    required MarketplaceDisputeDepositResolution depositResolution,
   }) async {
     final controller = TextEditingController();
+    final isMinorDeduction = depositResolution.isMinorDamageDeduction;
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text(
-            resolveForBorrower ? 'Resolve for Borrower' : 'Resolve for Lender',
+            resolveForBorrower
+                ? 'Resolve for Borrower'
+                : isMinorDeduction
+                ? 'Approve Minor-Damage Deduction'
+                : 'Resolve for Lender',
           ),
-          content: TextField(
-            controller: controller,
-            minLines: 3,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Resolution reason',
-              hintText: 'Explain the admin decision',
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isMinorDeduction) ...[
+                Text(
+                  'The lender will receive RM '
+                  '${depositResolution.damageDeductionAmount.toStringAsFixed(2)} '
+                  'from the deposit. RM '
+                  '${depositResolution.borrowerRefundAmount.toStringAsFixed(2)} '
+                  'will be refunded to the borrower.',
+                  style: const TextStyle(
+                    color: AdminColors.ink,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextField(
+                controller: controller,
+                minLines: 3,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Resolution reason',
+                  hintText: 'Explain the admin decision',
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -570,7 +613,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 if (value.isEmpty) return;
                 Navigator.of(context).pop(value);
               },
-              child: const Text('Resolve'),
+              child: Text(isMinorDeduction ? 'Approve Deduction' : 'Resolve'),
             ),
           ],
         );

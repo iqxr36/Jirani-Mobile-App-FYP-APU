@@ -6,6 +6,7 @@
 
 part of '../resident_services_view.dart';
 
+// [Services Rank 1 — MAIN] Collects booking details and starts a service request for the selected provider.
 Future<void> _showRequestSheet(
   BuildContext context,
   AppUser user,
@@ -169,7 +170,7 @@ Future<void> _showRequestSheet(
                             icon: Icons.check_rounded,
                             label: provider.isLoading
                                 ? 'Sending...'
-                                : 'Confirm',
+                                : 'Request Service',
                             onTap: provider.isLoading
                                 ? null
                                 : () async {

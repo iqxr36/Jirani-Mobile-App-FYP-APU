@@ -70,6 +70,7 @@ export {
 export {
   createXenditServicePayment,
   createXenditMarketplacePayment,
+  correctMarketplaceMinorDamageSettlement,
   disputeServiceRequest,
   forceServicePayout,
   generateServiceArrivalCode,

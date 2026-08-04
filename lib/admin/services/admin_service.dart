@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:jirani/admin/logic/marketplace_dispute_resolution.dart';
 import 'package:jirani/core/constants/app_constants.dart';
 import 'package:jirani/shared/models/app_user.dart';
 import 'package:jirani/shared/models/item_model.dart';
@@ -34,10 +35,9 @@ abstract class _AdminServiceBase {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
-  })
-    : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance,
-      _functions = functions ?? FirebaseFunctions.instance;
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;

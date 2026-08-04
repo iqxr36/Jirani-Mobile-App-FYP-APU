@@ -54,7 +54,7 @@ class VerificationViewModel extends ChangeNotifier {
     }
   }
 
-  // Residency verification feature: uploads a proof document and creates the Firestore request for admin review.
+  // [Verification Rank 2 — MAIN HELPER] Tracks progress and delegates the proof upload and request creation.
   Future<VerificationRequest?> submitVerificationRequest({
     required String documentType,
     required Uint8List fileBytes,

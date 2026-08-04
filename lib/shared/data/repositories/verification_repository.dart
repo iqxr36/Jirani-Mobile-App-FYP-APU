@@ -148,7 +148,7 @@ class VerificationRepository {
         });
   }
 
-  // Residency verification feature: uploads the proof file and creates the admin-review request document.
+  // [Verification Rank 3 — DATA] Uploads the proof to Storage and writes the verificationRequests document.
   Future<VerificationRequest> submitVerificationRequest({
     required String documentType,
     required Uint8List fileBytes,

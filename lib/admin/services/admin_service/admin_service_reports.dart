@@ -44,16 +44,17 @@ mixin _AdminServiceReportsMixin
       throw Exception('Only disputed transactions can be resolved by admin.');
     }
 
+    final depositResolution = marketplaceDisputeDepositResolutionFor(
+      request: request,
+      resolveForBorrower: resolveForBorrower,
+    );
+
     if (request.paymentProvider == AppConstants.paymentProviderXendit &&
         request.paymentStatus == AppConstants.paymentStatusCompleted) {
       await resolveMarketplaceDeposit(
         borrowRequestId: borrowRequestId.trim(),
-        decision: resolveForBorrower
-            ? AppConstants.depositResolutionFullRefund
-            : AppConstants.depositResolutionFullDeduction,
-        damageDeductionAmount: resolveForBorrower
-            ? 0
-            : (request.depositAmount ?? 0),
+        decision: depositResolution.resolutionDecision,
+        damageDeductionAmount: depositResolution.damageDeductionAmount,
         reason: trimmedReason,
         reportId: reportId.trim(),
       );
@@ -63,20 +64,20 @@ mixin _AdminServiceReportsMixin
     final resolution = resolveForBorrower
         ? AppConstants.adminResolutionForBorrower
         : AppConstants.adminResolutionForLender;
-    final depositDecision = resolveForBorrower
-        ? AppConstants.depositDecisionReturnDeposit
-        : AppConstants.depositDecisionWithholdDeposit;
-
     final batch = _firestore.batch();
     batch.update(requestRef, {
       'status': AppConstants.borrowStatusCompleted,
       'returnConfirmedAt': FieldValue.serverTimestamp(),
       'completedAt': FieldValue.serverTimestamp(),
       'depositDecision': request.hasDeposit
-          ? depositDecision
+          ? depositResolution.depositDecision
           : AppConstants.depositDecisionNotRequired,
       'depositDecisionReason': trimmedReason,
       'depositDecidedAt': FieldValue.serverTimestamp(),
+      'damageDeductionAmount': depositResolution.damageDeductionAmount,
+      'damageDecision': depositResolution.damageDecision,
+      'damageDecisionReason': trimmedReason,
+      'damageDecidedAt': FieldValue.serverTimestamp(),
       'adminResolution': resolution,
       'adminResolutionReason': trimmedReason,
       'adminResolvedAt': FieldValue.serverTimestamp(),
@@ -189,7 +190,9 @@ mixin _AdminServiceReportsMixin
       throw Exception('Report not found.');
     }
     if (reportData['type'] != AppConstants.reportTypeServiceDispute) {
-      throw Exception('Only service dispute reports can be marked under review.');
+      throw Exception(
+        'Only service dispute reports can be marked under review.',
+      );
     }
     final status = ((reportData['status'] as String?) ?? '').trim();
     if (status == AppConstants.reportStatusResolved) {

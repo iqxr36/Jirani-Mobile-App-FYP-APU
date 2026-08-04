@@ -7,7 +7,7 @@
 part of '../auth_viewmodel.dart';
 
 mixin _AuthViewModelSignInMixin on _AuthViewModelBase {
-  /// Auth sign-in: validates credentials, signs in through Firebase, and loads resident/admin Firestore profile data.
+  /// [Authentication Rank 2 — MAIN HELPER] Validates sign-in, creates the Firebase session, and loads the resident or admin profile.
   Future<void> login({
     required String email,
     required String password,

@@ -38,7 +38,7 @@ class FirebaseAuthService {
       ) ??
       false;
 
-  /// Auth feature: signs a resident/admin in with Firebase email and password.
+  /// [Authentication Rank 4 — FIREBASE] Calls Firebase Auth to create an email-and-password session.
   Future<UserCredential> signInWithEmailAndPassword({
     required String email,
     required String password,

@@ -238,7 +238,7 @@ class _ResidencyVerificationFormState
     }
   }
 
-  // Residency verification UI feature: validates fields, uploads proof, and submits the verification request.
+  // [Verification Rank 1 — MAIN] Validates the form and starts the resident's proof-document submission.
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 

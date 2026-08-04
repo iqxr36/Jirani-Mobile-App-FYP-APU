@@ -82,7 +82,7 @@ class _ResidentGeofenceGateState extends State<ResidentGeofenceGate>
     }
   }
 
-  /// Geofence feature: decides whether to show the protected resident app or the blocked community boundary screen.
+  /// [Geofence Rank 1 — MAIN] Runs the full boundary check and shows either the resident app or a blocked screen.
   Future<void> _check() async {
     if (!mounted || _checkInProgress) return;
     _checkInProgress = true;

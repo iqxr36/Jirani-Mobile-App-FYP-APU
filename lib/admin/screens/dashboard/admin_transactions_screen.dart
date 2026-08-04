@@ -248,7 +248,10 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
 
   static bool _isVisibleManualPayout(BorrowRequest request) {
     return request.manualPayoutStatus ==
-        AppConstants.manualPayoutStatusPendingManual;
+            AppConstants.manualPayoutStatusPendingManual ||
+        _isInvalidMinorDamageSettlement(request) ||
+        request.settlementCorrectionStatus == 'processing' ||
+        request.settlementCorrectionStatus == 'failed';
   }
 
   static bool _isStuckManualPayout(BorrowRequest request) {
@@ -261,6 +264,8 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
     return request.manualPayoutStatus ==
             AppConstants.manualPayoutStatusBlocked &&
         resolved.contains(request.depositStatus) &&
+        !_isInvalidMinorDamageSettlement(request) &&
+        _refundReadyForPayout(request) &&
         request.lenderTotalEarning > 0;
   }
 }
@@ -561,6 +566,8 @@ class _DepositResolutionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
     final deposit = request.depositAmount ?? 0;
+    final isMinorDamage =
+        request.itemConditionAfter == AppConstants.borrowConditionAfterMinor;
 
     return _AdminPaymentCard(
       icon: Icons.gpp_maybe_outlined,
@@ -614,7 +621,7 @@ class _DepositResolutionCard extends StatelessWidget {
               label: 'Full Deduction',
               icon: Icons.lock_outline_rounded,
               danger: true,
-              onTap: admin.isLoading
+              onTap: admin.isLoading || isMinorDamage
                   ? null
                   : () => _showDepositDialog(
                       context,
@@ -624,6 +631,13 @@ class _DepositResolutionCard extends StatelessWidget {
             ),
           ],
         ),
+        if (isMinorDamage) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'Minor damage must leave a positive refund for the borrower. Full deduction is unavailable.',
+            style: TextStyle(color: AdminColors.muted, fontSize: 12),
+          ),
+        ],
       ],
     );
   }
@@ -700,6 +714,21 @@ class _DepositResolutionCard extends StatelessWidget {
         request.depositAmount ?? 0,
         deductionController.text,
       );
+      if (decision == AppConstants.depositResolutionPartialDeduction) {
+        final deposit = request.depositAmount ?? 0;
+        final requested = request.minorDeductionAmount ?? deposit;
+        if (deduction <= 0 || deduction >= deposit || deduction > requested) {
+          ScaffoldMessenger.of(pageContext).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Enter a deduction above RM 0, below ${_adminMoney(deposit)}, and no more than ${_adminMoney(requested)}.',
+              ),
+              backgroundColor: AdminColors.danger,
+            ),
+          );
+          return;
+        }
+      }
       final adminProvider = pageContext.read<AdminProvider>();
       await adminProvider.resolveMarketplaceDeposit(
         borrowRequest: request,
@@ -804,15 +833,35 @@ class _ManualPayoutCard extends StatelessWidget {
         AppConstants.manualPayoutStatusPendingManual;
     final isSimulated =
         request.settlementMode == AppConstants.settlementModeSimulated;
+    final invalidMinorSettlement = _isInvalidMinorDamageSettlement(request);
+    final correctionFailed = request.settlementCorrectionStatus == 'failed';
+    final correctionProcessing =
+        request.settlementCorrectionStatus == 'processing';
+    final refundReady = _refundReadyForPayout(request);
+    final canCorrect = invalidMinorSettlement || correctionFailed;
+    final canMarkPaid =
+        isReady &&
+        !invalidMinorSettlement &&
+        refundReady &&
+        !correctionProcessing;
+    final statusLabel = invalidMinorSettlement
+        ? 'Correction Required'
+        : correctionFailed
+        ? 'Correction Failed'
+        : correctionProcessing
+        ? 'Awaiting Refund'
+        : isSimulated
+        ? 'Ready (Test)'
+        : manualPayoutStatusLabel(request.manualPayoutStatus);
     return _AdminPaymentCard(
       icon: Icons.account_balance_wallet_outlined,
       title: request.ownerName,
       subtitle:
           '${request.itemTitle} | Earning ${_adminMoney(request.lenderTotalEarning)}',
-      statusLabel: isSimulated
-          ? 'Ready (Test)'
-          : manualPayoutStatusLabel(request.manualPayoutStatus),
-      statusColor: AdminColors.primary,
+      statusLabel: statusLabel,
+      statusColor: canCorrect || correctionProcessing
+          ? AdminColors.warning
+          : AdminColors.primary,
       children: [
         _PaymentMetaRow(
           label: 'Item fee',
@@ -826,7 +875,35 @@ class _ManualPayoutCard extends StatelessWidget {
             request.refundStatus != AppConstants.refundStatusNotRequired) ...[
           _PaymentMetaRow(
             label: 'Borrower refund',
-            value: refundStatusLabel(request.refundStatus),
+            value:
+                '${_adminMoney(request.depositRefundAmount)} · ${refundStatusLabel(request.refundStatus)}',
+          ),
+        ],
+        if (invalidMinorSettlement) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'This minor-damage case incorrectly awarded the full deposit. Correct the deduction and refund the borrower before paying the lender.',
+            style: TextStyle(
+              color: AdminColors.danger,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+        ] else if (correctionProcessing) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'The corrected borrower refund is processing. Lender payout remains blocked until it succeeds.',
+            style: TextStyle(color: AdminColors.muted, height: 1.35),
+          ),
+        ] else if (correctionFailed) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'The correction refund failed. Retry it before paying the lender.',
+            style: TextStyle(
+              color: AdminColors.danger,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
           ),
         ],
         if (isSimulated)
@@ -837,16 +914,171 @@ class _ManualPayoutCard extends StatelessWidget {
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerLeft,
-          child: _AdminActionButton(
-            label: 'Mark Paid',
-            icon: Icons.done_all_rounded,
-            onTap: isLoading || !isReady
-                ? null
-                : () => _showPayoutDialog(context, request),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (canCorrect)
+                _AdminActionButton(
+                  label: correctionFailed
+                      ? 'Retry Correction'
+                      : 'Correct Minor Deduction',
+                  icon: Icons.price_change_outlined,
+                  danger: true,
+                  onTap: isLoading
+                      ? null
+                      : () => _showCorrectionDialog(context, request),
+                ),
+              _AdminActionButton(
+                label: 'Mark Paid',
+                icon: Icons.done_all_rounded,
+                onTap: isLoading || !canMarkPaid
+                    ? null
+                    : () => _showPayoutDialog(context, request),
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _showCorrectionDialog(
+    BuildContext context,
+    BorrowRequest request,
+  ) async {
+    final pageContext = context;
+    final deposit = request.depositAmount ?? 0;
+    final requested = request.minorDeductionAmount ?? deposit;
+    final retryAmount =
+        request.settlementCorrectionStatus == 'failed' &&
+            request.damageDeductionAmount > 0 &&
+            request.damageDeductionAmount < deposit
+        ? request.damageDeductionAmount.toStringAsFixed(2)
+        : '';
+    final deductionController = TextEditingController(text: retryAmount);
+    final reasonController = TextEditingController();
+    try {
+      final confirmed = await showDialog<bool>(
+        context: pageContext,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              final deduction = double.tryParse(
+                deductionController.text.trim(),
+              );
+              final validDeduction =
+                  deduction != null &&
+                  deduction > 0 &&
+                  deduction < deposit &&
+                  deduction <= requested;
+              final validReason = reasonController.text.trim().isNotEmpty;
+              final refund = validDeduction ? deposit - deduction : 0.0;
+              final payout = validDeduction
+                  ? request.lenderBaseEarning + deduction
+                  : 0.0;
+              return AlertDialog(
+                title: const Text('Correct Minor Deduction'),
+                content: SizedBox(
+                  width: 440,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Deposit: ${_adminMoney(deposit)} · Original claim: ${_adminMoney(requested)}',
+                          style: const TextStyle(
+                            color: AdminColors.muted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: deductionController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Corrected deduction (RM)',
+                            helperText:
+                                'Must be above RM 0, below ${_adminMoney(deposit)}, and no more than ${_adminMoney(requested)}.',
+                            errorText:
+                                deductionController.text.trim().isNotEmpty &&
+                                    !validDeduction
+                                ? 'Enter a valid partial deduction.'
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: reasonController,
+                          minLines: 3,
+                          maxLines: 4,
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Correction reason',
+                            hintText:
+                                'Explain why the previous settlement was corrected',
+                          ),
+                        ),
+                        if (validDeduction) ...[
+                          const SizedBox(height: 16),
+                          _PaymentMetaRow(
+                            label: 'Borrower refund',
+                            value: _adminMoney(refund),
+                          ),
+                          _PaymentMetaRow(
+                            label: 'Corrected lender payout',
+                            value: _adminMoney(payout),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: validDeduction && validReason
+                        ? () => Navigator.of(dialogContext).pop(true)
+                        : null,
+                    child: const Text('Refund and Correct'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      if (confirmed != true || !pageContext.mounted) return;
+
+      final deduction = double.parse(deductionController.text.trim());
+      final adminProvider = pageContext.read<AdminProvider>();
+      await adminProvider.correctMarketplaceMinorDamageSettlement(
+        borrowRequest: request,
+        correctedDeductionAmount: deduction,
+        reason: reasonController.text,
+      );
+      if (!pageContext.mounted) return;
+      final error = adminProvider.errorMessage;
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(
+          content: Text(
+            error ??
+                'Minor-damage settlement corrected. The lender payout will unlock after the refund succeeds.',
+          ),
+          backgroundColor: error == null ? null : AdminColors.danger,
+        ),
+      );
+    } finally {
+      deductionController.dispose();
+      reasonController.dispose();
+    }
   }
 
   /// Admin payouts: collects optional reference/note and records that admin paid the lender manually.
@@ -1081,6 +1313,23 @@ String _resolutionTitle(String decision) {
     default:
       return 'Resolve Deposit';
   }
+}
+
+bool _isInvalidMinorDamageSettlement(BorrowRequest request) {
+  final deposit = request.depositAmount ?? 0;
+  if (request.status != AppConstants.borrowStatusCompleted ||
+      request.itemConditionAfter != AppConstants.borrowConditionAfterMinor ||
+      deposit <= 0) {
+    return false;
+  }
+  return request.depositStatus == AppConstants.depositStatusDeducted ||
+      request.damageDeductionAmount >= deposit ||
+      request.depositRefundAmount <= 0;
+}
+
+bool _refundReadyForPayout(BorrowRequest request) {
+  if (request.depositRefundAmount <= 0) return true;
+  return request.refundStatus == AppConstants.refundStatusSucceeded;
 }
 
 String _adminMoney(double? value) {
