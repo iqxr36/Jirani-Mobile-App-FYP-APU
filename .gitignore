@@ -52,3 +52,9 @@ app.*.map.json
 
 .fake
 
+# Private academic reports and tenancy documents
+/output/chapter5-working-copy/
+/output/pdf/filled_tenancy_agreement_moha_rani.pdf
+/output/pdf/fahad_sal_test_tenancy_agreement.pdf
+/output/pdf/tenancy_agreement_daniel_tan_tenancy_agreement.pdf
+/output/pdf/tenancy_agreement_sarah_jackson_tenancy_agreement.pdf

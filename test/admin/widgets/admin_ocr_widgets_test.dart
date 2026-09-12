@@ -18,14 +18,14 @@ void main() {
       final request = VerificationRequest(
         id: 'request-1',
         userId: 'user-1',
-        fullName: 'Om Khalil',
-        email: 'omkhalil@gmail.com',
-        phoneNumber: '+60197888597',
+        fullName: 'Alex Morgan',
+        email: 'resident@example.com',
+        phoneNumber: '+60123456789',
         documentType: AppConstants.documentTypeUtilityBill,
         documentUrl: 'https://example.com/bill.pdf',
         communityId: 'community-1',
-        communityName: 'One South Residence',
-        unitNumber: 'C-5-6',
+        communityName: 'Example Gardens',
+        unitNumber: 'B-02-03',
         notes: '',
         status: AppConstants.verificationSubmitted,
         rejectionReason: null,
@@ -65,14 +65,14 @@ void main() {
       final request = VerificationRequest(
         id: 'request-2',
         userId: 'user-1',
-        fullName: 'Om Khalil',
-        email: 'omkhalil@gmail.com',
-        phoneNumber: '+60197888597',
+        fullName: 'Alex Morgan',
+        email: 'resident@example.com',
+        phoneNumber: '+60123456789',
         documentType: AppConstants.documentTypeAccessCard,
         documentUrl: 'https://example.com/card.png',
         communityId: 'community-1',
-        communityName: 'One South Residence',
-        unitNumber: 'C-5-6',
+        communityName: 'Example Gardens',
+        unitNumber: 'B-02-03',
         notes: '',
         status: AppConstants.verificationSubmitted,
         rejectionReason: null,
@@ -80,15 +80,15 @@ void main() {
         reviewedAt: null,
         reviewedBy: null,
         ocrStatus: AppConstants.ocrStatusCompleted,
-        ocrText: 'Lift access card C-5-6',
+        ocrText: 'Lift access card B-02-03',
         extractedFields: const {
           'resident_name': ExtractedVerificationField(
-            value: 'Om Khalil',
+            value: 'Alex Morgan',
             confidence: 0.88,
             source: 'gemini',
           ),
           'card_number': ExtractedVerificationField(
-            value: '2452718904',
+            value: '1234567890',
             confidence: 0.82,
             source: 'gemini',
           ),
@@ -104,7 +104,7 @@ void main() {
       expect(find.textContaining('Resident Name'), findsOneWidget);
       expect(find.textContaining('Card Number'), findsOneWidget);
       expect(find.text('FULL EXTRACTED TEXT'), findsOneWidget);
-      expect(find.text('Lift access card C-5-6'), findsOneWidget);
+      expect(find.text('Lift access card B-02-03'), findsOneWidget);
     });
 
     testWidgets('shows manual-review mismatch checks from backend', (
@@ -113,14 +113,14 @@ void main() {
       final request = VerificationRequest(
         id: 'request-3',
         userId: 'user-1',
-        fullName: 'Faisal Ahmed',
-        email: 'faisalahmed@gmail.com',
-        phoneNumber: '+60197888597',
+        fullName: 'Taylor Reed',
+        email: 'reviewer@example.com',
+        phoneNumber: '+60123456789',
         documentType: AppConstants.documentTypeTenancyAgreement,
         documentUrl: 'https://example.com/tenancy.pdf',
         communityId: 'community-1',
-        communityName: 'One South Residence',
-        unitNumber: 'C-5-6',
+        communityName: 'Example Gardens',
+        unitNumber: 'B-02-03',
         notes: '',
         status: AppConstants.verificationSubmitted,
         rejectionReason: null,
@@ -128,15 +128,15 @@ void main() {
         reviewedAt: null,
         reviewedBy: null,
         ocrStatus: AppConstants.ocrStatusCompleted,
-        ocrText: 'Tenant: Nur Aisyah. Unit A-18-07.',
+        ocrText: 'Tenant: Jordan Parker. Unit D-04-05.',
         extractedFields: const {
           'tenant_name': ExtractedVerificationField(
-            value: 'Nur Aisyah binti Hassan',
+            value: 'Jordan Parker',
             confidence: 1,
             source: 'gemini',
           ),
           'unit_number': ExtractedVerificationField(
-            value: 'A-18-07',
+            value: 'D-04-05',
             confidence: 1,
             source: 'gemini',
           ),
@@ -151,36 +151,36 @@ void main() {
           checks: {
             'firstNameMatch': AutoVerificationCheck(
               passed: false,
-              expected: 'Faisal',
-              actual: 'Nur Aisyah binti Hassan',
+              expected: 'Taylor',
+              actual: 'Jordan Parker',
               source: 'tenant_name',
             ),
             'lastNameMatch': AutoVerificationCheck(
               passed: false,
-              expected: 'Ahmed',
-              actual: 'Nur Aisyah binti Hassan',
+              expected: 'Reed',
+              actual: 'Jordan Parker',
               source: 'tenant_name',
             ),
             'unitMatch': AutoVerificationCheck(
               passed: false,
-              expected: 'C-5-6',
-              actual: 'A-18-07',
+              expected: 'B-02-03',
+              actual: 'D-04-05',
               source: 'unit_number',
             ),
             'communityObserved': AutoVerificationCheck(
               passed: false,
-              expected: 'One South Residence',
-              actual: 'Vista Harmoni',
+              expected: 'Example Gardens',
+              actual: 'Sample Heights',
               source: 'property_address',
             ),
             'emailObserved': AutoVerificationCheck(
               passed: true,
-              expected: 'faisalahmed@gmail.com',
+              expected: 'reviewer@example.com',
               skipped: true,
             ),
             'phoneObserved': AutoVerificationCheck(
               passed: true,
-              expected: '60197888597',
+              expected: '60123456789',
               skipped: true,
             ),
           },
@@ -197,10 +197,10 @@ void main() {
       expect(find.text('First name'), findsOneWidget);
       expect(find.text('Unit'), findsOneWidget);
       expect(find.text('Community'), findsOneWidget);
-      expect(find.textContaining('Faisal', findRichText: true), findsOneWidget);
-      expect(find.textContaining('A-18-07'), findsWidgets);
+      expect(find.textContaining('Taylor', findRichText: true), findsOneWidget);
+      expect(find.textContaining('D-04-05'), findsWidgets);
       expect(
-        find.textContaining('One South Residence', findRichText: true),
+        find.textContaining('Example Gardens', findRichText: true),
         findsOneWidget,
       );
     });

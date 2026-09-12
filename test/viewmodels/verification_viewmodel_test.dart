@@ -46,8 +46,8 @@ void main() {
           documentType: AppConstants.documentTypeUtilityBill,
           fileBytes: Uint8List.fromList([1, 2, 3]),
           originalFileName: 'bill.pdf',
-          communityName: 'One South Residence',
-          unitNumber: 'C-5-6',
+          communityName: 'Example Gardens',
+          unitNumber: 'B-02-03',
         );
 
         expect(result, request);
@@ -82,8 +82,8 @@ void main() {
         documentType: AppConstants.documentTypeUtilityBill,
         fileBytes: Uint8List.fromList([1, 2, 3]),
         originalFileName: 'bill.png',
-        communityName: 'One South Residence',
-        unitNumber: 'C-5-6',
+        communityName: 'Example Gardens',
+        unitNumber: 'B-02-03',
       );
 
       expect(result, isNull);
@@ -117,8 +117,8 @@ void main() {
         documentType: AppConstants.documentTypeUtilityBill,
         fileBytes: Uint8List.fromList([1, 2, 3]),
         originalFileName: 'bill.pdf',
-        communityName: 'One South Residence',
-        unitNumber: 'C-5-6',
+        communityName: 'Example Gardens',
+        unitNumber: 'B-02-03',
       );
 
       viewModel.dispose();
@@ -135,14 +135,14 @@ VerificationRequest _verificationRequest() {
   return VerificationRequest(
     id: 'request-1',
     userId: 'user-1',
-    fullName: 'Om Khalil',
-    email: 'omkhalil@gmail.com',
-    phoneNumber: '+60197888597',
+    fullName: 'Alex Morgan',
+    email: 'resident@example.com',
+    phoneNumber: '+60123456789',
     documentType: AppConstants.documentTypeUtilityBill,
     documentUrl: 'https://example.com/bill.pdf',
     communityId: 'community-1',
-    communityName: 'One South Residence',
-    unitNumber: 'C-5-6',
+    communityName: 'Example Gardens',
+    unitNumber: 'B-02-03',
     notes: '',
     status: AppConstants.verificationSubmitted,
     rejectionReason: null,
